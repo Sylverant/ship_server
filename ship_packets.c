@@ -1200,7 +1200,8 @@ static int send_dcv1_quest(ship_client_t *c, sylverant_quest_t *q) {
     size_t amt;
 
     /* Each quest has two files: a .dat file and a .bin file, send a file packet
-       for each of them */
+       for each of them. The files are v6 here for drop-in compatibility with
+       the quests from newserv/Aeon */
     sprintf(filename, "quests/%sv6.bin", q->prefix);
     bin = fopen(filename, "rb");
 
@@ -1241,7 +1242,7 @@ static int send_dcv1_quest(ship_client_t *c, sylverant_quest_t *q) {
     file->hdr.pkt_len = LE16(SHIP_DC_QUEST_FILE_LENGTH);
     sprintf(file->name, "PSO/%s", q->name);
     sprintf(file->filename, "%sv6.bin", q->prefix);
-    file->length = LE32(datlen);
+    file->length = LE32(binlen);
 
     if(crypt_send(c, SHIP_DC_QUEST_FILE_LENGTH, sendbuf)) {
         return -2;
