@@ -202,6 +202,8 @@ static void *ship_thd(void *d) {
     }
 
     /* Free the ship structure. */
+    free(s->gm_list);
+    sylverant_quests_destroy(&s->quests);
     close(s->sock);
     free(s->ships);
     free(s->clients);
@@ -277,9 +279,22 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     }
 
     /* Attempt to read the quest list in. */
-    if(s->quests_file) {
+    if(s->quests_file[0]) {
         if(sylverant_quests_read(s->quests_file, &rv->quests)) {
             debug(DBG_ERROR, "%s: Couldn't read quests file!\n", s->name);
+            free(rv->clients);
+            free(rv->blocks);
+            free(rv);
+            close(sock);
+            return NULL;
+        }
+    }
+
+    /* Attempt to read the GM list in. */
+    if(s->gm_file[0]) {
+        if(gm_list_read(s->gm_file, rv)) {
+            debug(DBG_ERROR, "%s: Couldn't read GM file!\n", s->name);
+            sylverant_quests_destroy(&rv->quests);
             free(rv->clients);
             free(rv->blocks);
             free(rv);
@@ -297,6 +312,8 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     /* Connect to the shipgate. */
     if(shipgate_connect(rv, &rv->sg)) {
         debug(DBG_ERROR, "%s: Couldn't connect to shipgate!\n", s->name);
+        free(rv->gm_list);
+        sylverant_quests_destroy(&rv->quests);
         free(rv->clients);
         free(rv->blocks);
         free(rv);
@@ -307,6 +324,8 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     /* Register with the shipgate. */
     if(shipgate_send_ship_info(&rv->sg, rv)) {
         debug(DBG_ERROR, "%s: Couldn't register with shipgate!\n", s->name);
+        free(rv->gm_list);
+        sylverant_quests_destroy(&rv->quests);
         free(rv->clients);
         free(rv->blocks);
         free(rv);
@@ -317,6 +336,8 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     /* Start up the thread for this ship. */
     if(pthread_create(&rv->thd, NULL, &ship_thd, rv)) {
         debug(DBG_ERROR, "%s: Cannot start ship thread!\n", s->name);
+        free(rv->gm_list);
+        sylverant_quests_destroy(&rv->quests);
         free(rv->clients);
         free(rv->blocks);
         free(rv);

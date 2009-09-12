@@ -76,6 +76,7 @@ struct ship_client {
 
     int client_id;
     uint32_t arrow;
+    int is_gm;
 
     pthread_mutex_t mutex;
 

@@ -24,6 +24,7 @@
 #include <sylverant/config.h>
 #include <sylverant/quest.h>
 
+#include "gm.h"
 #include "block.h"
 #include "shipgate.h"
 
@@ -63,6 +64,9 @@ struct ship {
 
     sylverant_quest_list_t quests;
     shipgate_conn_t sg;
+
+    local_gm_t *gm_list;
+    int gm_count;
 
     int ship_count;
     miniship_t *ships;

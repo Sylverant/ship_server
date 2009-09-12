@@ -36,6 +36,7 @@
 #include "utils.h"
 #include "shipgate.h"
 #include "commands.h"
+#include "gm.h"
 
 extern ship_t **ships;
 extern sylverant_shipcfg_t *cfg;
@@ -201,7 +202,7 @@ block_t *block_server_start(ship_t *s, int b, uint16_t port) {
     struct sockaddr_in addr;
     lobby_t *l;
     pthread_mutexattr_t attr;
-    int window_size = 64 * 1024;        /* 64kb window size */
+    int window_size = (64 * 1024) - 1;      /* ~64kb window size */
 
     debug(DBG_LOG, "%s: Starting server for block %d...\n", s->cfg->name, b);
 
@@ -404,6 +405,9 @@ static int dc_process_login(ship_client_t *c, dc_login_pkt *pkt) {
     /* Save what we care about in here. */
     c->guildcard = pkt->guildcard;
 
+    /* See if this person is a GM. */
+    c->is_gm = is_gm(pkt->guildcard, pkt->serial, pkt->access_key, c->cur_ship);
+
     if(send_dc_security(c, pkt->guildcard, NULL, 0)) {
         return -1;
     }
@@ -425,6 +429,9 @@ static int dcv2_process_login(ship_client_t *c, dcv2_login_pkt *pkt) {
     /* Save what we care about in here. */
     c->guildcard = pkt->guildcard;
     c->version = CLIENT_VERSION_DCV2;
+
+    /* See if this person is a GM. */
+    c->is_gm = is_gm(pkt->guildcard, pkt->serial, pkt->access_key, c->cur_ship);
 
     if(send_dc_security(c, pkt->guildcard, NULL, 0)) {
         return -1;

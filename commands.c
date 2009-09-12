@@ -30,6 +30,11 @@ typedef struct command {
 static int handle_warp(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     unsigned long area;
 
+    /* Make sure the requester is a GM. */
+    if(!c->is_gm) {
+        return send_txt(c, "\tE\tC7Nice try.");
+    }
+
     /* Figure out the floor requested */
     errno = 0;
     area = strtoul(params, NULL, 10);
@@ -53,6 +58,11 @@ static int handle_kill(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     uint32_t gc;
     block_t *b = c->cur_block;
     ship_client_t *i;
+
+    /* Make sure the requester is a GM. */
+    if(!c->is_gm) {
+        return send_txt(c, "\tE\tC7Nice try.");
+    }
 
     /* Figure out the user requested */
     errno = 0;
