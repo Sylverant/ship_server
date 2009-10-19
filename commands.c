@@ -117,6 +117,6 @@ int command_parse(ship_client_t *c, dc_chat_pkt *pkt) {
         i++;
     }
 
-    /* XXXX: Send the user a message saying invalid command. */
+    /* Send the user a message saying invalid command. */
     return send_txt(c, "\tE\tC7Invalid Command!");
 }

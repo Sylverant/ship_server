@@ -23,6 +23,7 @@
 #include <pthread.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <sys/socket.h>
 
 #include <ifaddrs.h>
 
@@ -142,6 +143,8 @@ static void load_config() {
         debug(DBG_LOG, "Base Port: %d\n", (int)cfg->ships[i].base_port);
         debug(DBG_LOG, "Blocks: %d\n", cfg->ships[i].blocks);
         debug(DBG_LOG, "Event: %d\n", cfg->ships[i].event);
+
+        /* These are not used by anything other than Blue Burst. */
         debug(DBG_LOG, "Experience Rate: %f\n", cfg->ships[i].exp_rate);
 
         debug(DBG_LOG, "Weapon drop rate: %f\n", cfg->ships[i].drops.weapon);
@@ -235,10 +238,8 @@ int main(int argc, char *argv[]) {
 
     if(ships[0]) {
         /* Run the ship server. */
-        for(;;) {
-            /* XXXX: NO! This is not the right way to do this! */
-            pthread_join(ships[0]->thd, NULL);
-        }
+        /* XXXX: NO! This is not the right way to do this! */
+        pthread_join(ships[0]->thd, NULL);
     }
 
     /* Wait for the ships to exit. */

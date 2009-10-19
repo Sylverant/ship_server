@@ -20,6 +20,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <time.h>
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <arpa/inet.h>
@@ -40,12 +41,13 @@ static void *ship_thd(void *d) {
     int i, nfds;
     ship_t *s = (ship_t *)d;
     struct timeval timeout;
-    fd_set readfds, writefds, exceptfds;
+    fd_set readfds, writefds;
     ship_client_t *it, *tmp;
     socklen_t len;
     struct sockaddr_in addr;
     int sock;
     ssize_t sent;
+    time_t now;
 
     /* Fire up the threads for each block. */
     for(i = 1; i <= s->cfg->blocks; ++i) {
@@ -58,14 +60,27 @@ static void *ship_thd(void *d) {
         nfds = 0;
         FD_ZERO(&readfds);
         FD_ZERO(&writefds);
-        FD_ZERO(&exceptfds);
         timeout.tv_sec = 0;
         timeout.tv_usec = 5000;
+        now = time(NULL);
 
         /* Fill the sockets into the fd_sets so we can use select below. */
         TAILQ_FOREACH(it, s->clients, qentry) {
+            /* If we haven't heard from a client in 2 minutes, its dead.
+               Disconnect it. */
+            if(now > it->last_message + 120) {
+                it->disconnected = 1;
+                continue;
+            }
+            /* Otherwise, if we haven't heard from them in a minute, ping it. */
+            else if(now > it->last_message + 60 && now > it->last_sent + 10) {
+                if(send_simple(it, SHIP_PING_TYPE, 0)) {
+                    it->disconnected = 1;
+                    continue;
+                }
+            }
+
             FD_SET(it->sock, &readfds);
-            FD_SET(it->sock, &exceptfds);
 
             /* Only add to the write fd set if we have something to send out. */
             if(it->sendbuf_cur) {
@@ -85,10 +100,11 @@ static void *ship_thd(void *d) {
         if(s->sg.sendbuf_cur) {
             FD_SET(s->sg.sock, &writefds);
         }
+
         nfds = nfds > s->sg.sock ? nfds : s->sg.sock;
 
         /* Wait for some activity... */
-        if(select(nfds + 1, &readfds, &writefds, &exceptfds, &timeout) > 0) {
+        if(select(nfds + 1, &readfds, &writefds, NULL, &timeout) > 0) {
             if(FD_ISSET(s->sock, &readfds)) {
                 len = sizeof(struct sockaddr_in);
                 if((sock = accept(s->sock, (struct sockaddr *)&addr,
@@ -125,13 +141,6 @@ static void *ship_thd(void *d) {
 
             /* Process client connections. */
             TAILQ_FOREACH(it, s->clients, qentry) {
-                /* Make sure there wasn't some kind of error with this
-                   connection. */
-                if(FD_ISSET(it->sock, &exceptfds)) {
-                    it->disconnected = 1;
-                    continue;
-                }
-
                 /* Check if this connection was trying to send us something. */
                 if(FD_ISSET(it->sock, &readfds)) {
                     if(client_process_pkt(it)) {
@@ -170,18 +179,18 @@ static void *ship_thd(void *d) {
                 }
             }
         }
-        
+
         /* Clean up any dead connections (its not safe to do a TAILQ_REMOVE in
            the middle of a TAILQ_FOREACH, and destroy_connection does indeed
            use TAILQ_REMOVE). */
         it = TAILQ_FIRST(s->clients);
         while(it) {
             tmp = TAILQ_NEXT(it, qentry);
-            
+
             if(it->disconnected) {
                 client_destroy_connection(it, s->clients);
             }
-            
+
             it = tmp;
         }
     }
@@ -430,6 +439,10 @@ static int dc_process_pkt(ship_client_t *c, dc_pkt_hdr_t *pkt) {
     debug(DBG_LOG, "%s: Received type 0x%02X\n", c->cur_ship->cfg->name, type);
 
     switch(type) {
+        case SHIP_PING_TYPE:
+            /* Ignore these. */
+            return 0;
+
         case SHIP_LOGIN_TYPE:
             return dc_process_login(c, (dc_login_pkt *)pkt);
 

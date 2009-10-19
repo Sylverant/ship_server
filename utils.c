@@ -20,42 +20,66 @@
 #include "utils.h"
 
 void print_packet(unsigned char *pkt, int len) {
-    unsigned char *pos = pkt;
-    int line = 0;
+    unsigned char *pos = pkt, *row = pkt;
+    int line = 0, type = 0;
 
-    /* Hex first. */
+    /* Print the packet both in hex and ASCII. */
     while(pos < pkt + len) {
-        printf("%02X ", *pos);
+        if(type == 0) {
+            printf("%02X ", *pos);
+        }
+        else {
+            if(*pos >= 0x20) {
+                printf("%c", *pos);
+            }
+            else {
+                printf(".");
+            }
+        }
+
         ++line;
         ++pos;
 
         if(line == 16) {
-            printf("\n");
-            line = 0;
+            if(type == 0) {
+                printf("\t");
+                pos -= 16;
+                pos = row;
+                type = 1;
+            }
+            else {
+                printf("\n");
+                line = 0;
+                row = pos;
+                type = 0;
+            }
         }
     }
 
-    printf("\n");
-
-    pos = pkt;
-    line = 0;
-
-    /* Now ASCII */
-    while(pos < pkt + len) {
-        if(*pos >= 0x20) {
-            printf("%c", *pos);
-        }
-        else {
-            printf(".");
+    /* Finish off the last row's ASCII if needed. */
+    if(len & 0x1F) {
+        /* Put spaces in place of the missing hex stuff. */
+        while(line != 16) {
+            printf("   ");
+            ++line;
         }
 
-        ++line;
-        ++pos;
+        pos = row;
+        printf("\t");
 
-        if(line == 16) {
-            printf("\n");
-            line = 0;
+        /* Here comes the ASCII. */
+        while(pos < pkt + len) {
+            if(*pos >= 0x20) {
+                printf("%c", *pos);
+            }
+            else {
+               printf(".");
+            }
+
+            ++pos;
         }
+
+        printf("\n");
     }
 
     printf("\n\n");

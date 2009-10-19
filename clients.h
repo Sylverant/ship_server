@@ -18,6 +18,7 @@
 #ifndef CLIENTS_H
 #define CLIENTS_H
 
+#include <time.h>
 #include <inttypes.h>
 #include <pthread.h>
 #include <sys/queue.h>
@@ -77,6 +78,9 @@ struct ship_client {
     int client_id;
     uint32_t arrow;
     int is_gm;
+    time_t last_message;
+
+    time_t last_sent;
 
     pthread_mutex_t mutex;
 

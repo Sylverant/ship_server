@@ -20,6 +20,7 @@
 #include <string.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <time.h>
 #include <sys/socket.h>
 
 #include <sylverant/encryption.h>
@@ -98,6 +99,7 @@ ship_client_t *client_create_connection(int sock, int version, int type,
     rv->cur_block = block;
     rv->addr = addr;
     rv->arrow = 1;
+    rv->last_message = time(NULL);
 
     switch(version) {
         case CLIENT_VERSION_DCV1:
@@ -113,6 +115,11 @@ ship_client_t *client_create_connection(int sock, int version, int type,
             /* Send the client the welcome packet, or die trying. */
             if(send_dc_welcome(rv, server_seed_dc, client_seed_dc)) {
                 close(sock);
+
+                if(type == CLIENT_TYPE_BLOCK) {
+                    free(rv->pl);
+                }
+
                 free(rv);
                 return NULL;
             }
@@ -152,6 +159,10 @@ void client_destroy_connection(ship_client_t *c, struct client_queue *clients) {
         free(c->sendbuf);
     }
 
+    if(c->pl) {
+        free(c->pl);
+    }
+
     free(c);
 }
 
@@ -163,6 +174,12 @@ int client_process_pkt(ship_client_t *c) {
     unsigned char *rbp;
     void *tmp;
     uint8_t *recvbuf = get_recvbuf();
+    int hsz = c->hdr_size;
+
+    /* Make sure we got the recvbuf, otherwise, bail. */
+    if(!recvbuf) {
+        return -1;
+    }
 
     /* If we've got anything buffered, copy it out to the main buffer to make
        the rest of this a bit easier. */
@@ -176,7 +193,7 @@ int client_process_pkt(ship_client_t *c) {
         if(sz == -1) {
             perror("recv");
         }
-        
+
         return -1;
     }
 
@@ -187,65 +204,63 @@ int client_process_pkt(ship_client_t *c) {
     rbp = recvbuf;
 
     /* As long as what we have is long enough, decrypt it. */
-    if(sz >= c->hdr_size) {
-        while(sz >= c->hdr_size && rv == 0) {
-            /* Decrypt the packet header so we know what exactly we're looking
-               for, in terms of packet length. */
-            if(!c->hdr_read) {
-                memcpy(&c->pkt, rbp, c->hdr_size);
-                CRYPT_CryptData(&c->ckey, &c->pkt, c->hdr_size, 0);
-                c->hdr_read = 1;
-            }
+    while(sz >= hsz && rv == 0) {
+        /* Decrypt the packet header so we know what exactly we're looking
+           for, in terms of packet length. */
+        if(!c->hdr_read) {
+            memcpy(&c->pkt, rbp, hsz);
+            CRYPT_CryptData(&c->ckey, &c->pkt, hsz, 0);
+            c->hdr_read = 1;
+        }
 
-            /* Read the packet size to see how much we're expecting. */
-            switch(c->version) {
-                case CLIENT_VERSION_DCV1:
-                case CLIENT_VERSION_DCV2:
-                    pkt_sz = LE16(c->pkt.dc.pkt_len);
-                    break;
-                default:
-                    return -1;
-            }
-
-            /* We'll always need a multiple of 8 or 4 (depending on the type of
-               the client) bytes. */
-            if(pkt_sz & (c->hdr_size - 1)) {
-                pkt_sz = (pkt_sz & (0x10000 - c->hdr_size)) + c->hdr_size;
-            }
-
-            /* Do we have the whole packet? */
-            if(sz >= (ssize_t)pkt_sz) {
-                /* Yes, we do, decrypt it. */
-                CRYPT_CryptData(&c->ckey, rbp + c->hdr_size,
-                                pkt_sz - c->hdr_size, 0);
-                memcpy(rbp, &c->pkt, c->hdr_size);
-
-                /* Pass it onto the correct handler. */
-                switch(c->type) {
-                    case CLIENT_TYPE_SHIP:
-                        rv = ship_process_pkt(c, rbp);
-                        break;
-
-                    case CLIENT_TYPE_BLOCK:
-                        rv = block_process_pkt(c, rbp);
-                        break;
-                }
-
-                rbp += pkt_sz;
-                sz -= pkt_sz;
-
-                c->hdr_read = 0;
-            }
-            else {
-                /* Nope, we're missing part, break out of the loop, and buffer
-                   the remaining data. */
+        /* Read the packet size to see how much we're expecting. */
+        switch(c->version) {
+            case CLIENT_VERSION_DCV1:
+            case CLIENT_VERSION_DCV2:
+                pkt_sz = LE16(c->pkt.dc.pkt_len);
                 break;
+            default:
+                return -1;
+        }
+
+        /* We'll always need a multiple of 8 or 4 (depending on the type of
+           the client) bytes. */
+        if(pkt_sz & (hsz - 1)) {
+            pkt_sz = (pkt_sz & (0x10000 - hsz)) + hsz;
+        }
+
+        /* Do we have the whole packet? */
+        if(sz >= (ssize_t)pkt_sz) {
+            /* Yes, we do, decrypt it. */
+            CRYPT_CryptData(&c->ckey, rbp + hsz, pkt_sz - hsz, 0);
+            memcpy(rbp, &c->pkt, hsz);
+            c->last_message = time(NULL);
+
+            /* Pass it onto the correct handler. */
+            switch(c->type) {
+                case CLIENT_TYPE_SHIP:
+                    rv = ship_process_pkt(c, rbp);
+                    break;
+
+                case CLIENT_TYPE_BLOCK:
+                    rv = block_process_pkt(c, rbp);
+                    break;
             }
+
+            rbp += pkt_sz;
+            sz -= pkt_sz;
+
+            c->hdr_read = 0;
+        }
+        else {
+            /* Nope, we're missing part, break out of the loop, and buffer
+               the remaining data. */
+            break;
         }
     }
 
     /* If we've still got something left here, buffer it for the next pass. */
-    if(sz && !rv) {
+    if(sz && rv == 0) {
         /* Reallocate the recvbuf for the client if its too small. */
         if(c->recvbuf_size < sz) {
             tmp = realloc(c->recvbuf, sz);

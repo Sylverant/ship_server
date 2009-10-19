@@ -74,6 +74,7 @@ static int send_raw(shipgate_conn_t *c, int len, uint8_t *sendbuf) {
             memmove(c->sendbuf, c->sendbuf + c->sendbuf_start,
                     c->sendbuf_cur - c->sendbuf_start);
             c->sendbuf_cur -= c->sendbuf_start;
+            c->sendbuf_start = 0;
         }
 
         /* See if we need to reallocate the buffer. */
@@ -111,6 +112,11 @@ static int send_crypt(shipgate_conn_t *c, int len, uint8_t *sendbuf) {
 int shipgate_send_ping(shipgate_conn_t *c, int reply) {
     uint8_t *sendbuf = get_sendbuf();
     shipgate_hdr_t *pkt = (shipgate_hdr_t *)sendbuf;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
 
     /* Fill in the header. */
     pkt->pkt_len = htons(sizeof(shipgate_hdr_t));
@@ -261,8 +267,10 @@ static int handle_dc_greply(shipgate_conn_t *conn, dc_guild_reply_pkt *pkt) {
 
                 pthread_mutex_unlock(&c->mutex);
 
-                if(done)
+                if(done) {
+                    pthread_mutex_unlock(&b->mutex);
                     break;
+                }
             }
 
             pthread_mutex_unlock(&b->mutex);
@@ -296,8 +304,10 @@ static int handle_dc_mail(shipgate_conn_t *conn, dc_simple_mail_pkt *pkt) {
 
                 pthread_mutex_unlock(&c->mutex);
 
-                if(done)
+                if(done) {
+                    pthread_mutex_unlock(&b->mutex);
                     break;
+                }
             }
 
             pthread_mutex_unlock(&b->mutex);
@@ -341,8 +351,10 @@ static int handle_dc_gsearch(shipgate_conn_t *conn, dc_guild_search_pkt *pkt,
 
                 pthread_mutex_unlock(&c->mutex);
 
-                if(done)
+                if(done) {
+                    pthread_mutex_unlock(&b->mutex);
                     break;
+                }
             }
 
             pthread_mutex_unlock(&b->mutex);
@@ -469,52 +481,49 @@ int shipgate_process_pkt(shipgate_conn_t *c) {
 
     sz += c->recvbuf_cur;
     c->recvbuf_cur = 0;
+    rbp = recvbuf;
 
     /* As long as what we have is long enough, decrypt it. */
-    if(sz >= 8) {
-        rbp = recvbuf;
+    while(sz >= 8 && rv == 0) {
+        /* Copy out the packet header so we know what exactly we're looking
+           for, in terms of packet length. */
+        memcpy(&pkt, rbp, 8);
 
-        while(sz >= 8 && rv == 0) {
-            /* Copy out the packet header so we know what exactly we're looking
-               for, in terms of packet length. */
-            memcpy(&pkt, rbp, 8);
+        /* Read the packet size to see how much we're expecting. */
+        pkt_sz = ntohs(pkt.pkt_len);
 
-            /* Read the packet size to see how much we're expecting. */
-            pkt_sz = ntohs(pkt.pkt_len);
+        /* We'll always need a multiple of 8 bytes. */
+        if(pkt_sz & 0x07) {
+            pkt_sz = (pkt_sz & 0xFFF8) + 8;
+        }
 
-            /* We'll always need a multiple of 8 bytes. */
-            if(pkt_sz & 0x07) {
-                pkt_sz = (pkt_sz & 0xFFF8) + 8;
+        /* Do we have the whole packet? */
+        if(sz >= (ssize_t)pkt_sz) {
+            /* Yes, we do, decrypt it. */
+            if(!(c->pkt.flags & SHDR_NO_ENCRYPT)) {
+                RC4(&c->gate_key, pkt_sz - 8, rbp + 8, rbp + 8);
             }
 
-            /* Do we have the whole packet? */
-            if(sz >= (ssize_t)pkt_sz) {
-                /* Yes, we do, decrypt it. */
-                if(!(c->pkt.flags & SHDR_NO_ENCRYPT)) {
-                    RC4(&c->gate_key, pkt_sz - 8, rbp + 8, rbp + 8);
-                }
+            memcpy(rbp, &pkt, 8);
 
-                memcpy(rbp, &pkt, 8);
-
-                /* Pass it on. */
-                if(handle_pkt(c, (shipgate_hdr_t *)rbp)) {
-                    rv = -1;
-                    break;
-                }
-
-                rbp += pkt_sz;
-                sz -= pkt_sz;
-            }
-            else {
-                /* Nope, we're missing part, break out of the loop, and buffer
-                   the remaining data. */
+            /* Pass it on. */
+            if(handle_pkt(c, (shipgate_hdr_t *)rbp)) {
+                rv = -1;
                 break;
             }
+
+            rbp += pkt_sz;
+            sz -= pkt_sz;
+        }
+        else {
+            /* Nope, we're missing part, break out of the loop, and buffer
+               the remaining data. */
+            break;
         }
     }
 
     /* If we've still got something left here, buffer it for the next pass. */
-    if(sz && !rv) {
+    if(sz && rv == 0) {
         /* Reallocate the recvbuf for the client if its too small. */
         if(c->recvbuf_size < sz) {
             tmp = realloc(c->recvbuf, sz);
@@ -569,6 +578,11 @@ int shipgate_send_ship_info(shipgate_conn_t *c, ship_t *ship) {
     uint8_t *sendbuf = get_sendbuf();
     shipgate_login_reply_pkt *pkt = (shipgate_login_reply_pkt *)sendbuf;
 
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
     /* Clear the packet first */
     memset(pkt, 0, sizeof(shipgate_login_reply_pkt));
 
@@ -596,6 +610,11 @@ int shipgate_send_cnt(shipgate_conn_t *c, uint16_t ccnt, uint16_t gcnt) {
     uint8_t *sendbuf = get_sendbuf();
     shipgate_cnt_pkt *pkt = (shipgate_cnt_pkt *)sendbuf;
 
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
     /* Fill in the header. */
     pkt->hdr.pkt_len = htons(sizeof(shipgate_cnt_pkt));
     pkt->hdr.pkt_type = htons(SHDR_TYPE_COUNT);
@@ -618,6 +637,11 @@ int shipgate_fw_dc(shipgate_conn_t *c, void *dcp) {
     shipgate_fw_dc_pkt *pkt = (shipgate_fw_dc_pkt *)sendbuf;
     int dc_len = LE16(dc->pkt_len);
     int full_len = sizeof(shipgate_fw_dc_pkt) + dc_len;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
 
     /* Copy the packet, unchanged */
     memmove(&pkt->pkt, dc, dc_len);
@@ -643,6 +667,11 @@ static int send_greply(shipgate_conn_t *c, uint32_t gc1, uint32_t gc2,
     shipgate_fw_dc_pkt *pkt = (shipgate_fw_dc_pkt *)sendbuf;
     dc_guild_reply_pkt *dc = (dc_guild_reply_pkt *)pkt->pkt;
     int full_len = sizeof(shipgate_fw_dc_pkt) + SHIP_DC_GUILD_REPLY_LENGTH;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
 
     /* Round up the packet size, if needed. */
     if(full_len & 0x07)

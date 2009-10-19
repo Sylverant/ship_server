@@ -284,7 +284,7 @@ typedef struct dc_quest_list {
         char name[32];
         char desc[112];
     } entries[0];
-} dc_quest_list_pkt;
+} PACKED dc_quest_list_pkt;
 
 /* The packet sent to inform a client of a quest file that will be coming down
    the pipe (Dreamcast). */
@@ -295,7 +295,7 @@ typedef struct dc_quest_file {
     char filename[16];
     uint8_t unused2;
     uint32_t length;
-} dc_quest_file_pkt;
+} PACKED dc_quest_file_pkt;
 
 /* The packet sent to actually send quest data (Dreamcast). */
 typedef struct dc_quest_chunk {
@@ -303,7 +303,7 @@ typedef struct dc_quest_chunk {
     char filename[16];
     char data[1024];
     uint32_t length;
-} dc_quest_chunk_pkt;
+} PACKED dc_quest_chunk_pkt;
 
 /* The packet sent to update the list of arrows in a lobby (Dreamcast). */
 typedef struct dc_arrow_list {
@@ -313,7 +313,7 @@ typedef struct dc_arrow_list {
         uint32_t guildcard;
         uint32_t arrow;
     } entries[0];
-} dc_arrow_list_pkt;
+} PACKED dc_arrow_list_pkt;
 
 /* The ship list packet send to tell clients what ships are up (Dreamcast). */
 typedef struct dc_ship_list {
@@ -343,6 +343,7 @@ typedef struct dc_ship_list {
 #define SHIP_QUEST_CHUNK_TYPE               0x0013
 #define SHIP_REDIRECT_TYPE                  0x0019
 #define SHIP_MSG_BOX_TYPE                   0x001A
+#define SHIP_PING_TYPE                      0x001D
 #define SHIP_LOBBY_INFO_TYPE                0x001F
 #define SHIP_GUILD_SEARCH_TYPE              0x0040
 #define SHIP_DC_GUILD_REPLY_TYPE            0x0041

@@ -62,6 +62,7 @@ static int send_raw(ship_client_t *c, int len, uint8_t *sendbuf) {
             memmove(c->sendbuf, c->sendbuf + c->sendbuf_start,
                     c->sendbuf_cur - c->sendbuf_start);
             c->sendbuf_cur -= c->sendbuf_start;
+            c->sendbuf_start = 0;
         }
 
         /* See if we need to reallocate the buffer. */
@@ -82,6 +83,8 @@ static int send_raw(ship_client_t *c, int len, uint8_t *sendbuf) {
         c->sendbuf_cur += rv;
     }
 
+    c->last_sent = time(NULL);
+
     return 0;
 }
 
@@ -92,7 +95,7 @@ static int crypt_send(ship_client_t *c, int len, uint8_t *sendbuf) {
         sendbuf[len++] = 0;
     }
 
-    printf("Sending %d bytes to %d\n", len, c->guildcard);
+    printf("Sending %d (%02X) bytes to %d\n", len, sendbuf[0], c->guildcard);
 
     /* Encrypt the packet */
     CRYPT_CryptData(&c->skey, sendbuf, len, 1);
@@ -129,6 +132,11 @@ int send_dc_welcome(ship_client_t *c, uint32_t svect, uint32_t cvect) {
     uint8_t *sendbuf = get_sendbuf();
     dc_welcome_pkt *pkt = (dc_welcome_pkt *)sendbuf;
 
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
     /* Scrub the buffer */
     memset(pkt, 0, sizeof(dc_welcome_pkt));
 
@@ -153,6 +161,11 @@ int send_dc_security(ship_client_t *c, uint32_t gc, uint8_t *data,
     uint8_t *sendbuf = get_sendbuf();
     dc_security_pkt *pkt = (dc_security_pkt *)sendbuf;
 
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
     /* Wipe the packet */
     memset(pkt, 0, sizeof(dc_security_pkt));
 
@@ -176,6 +189,11 @@ int send_dc_security(ship_client_t *c, uint32_t gc, uint8_t *data,
 static int send_dc_redirect(ship_client_t *c, in_addr_t ip, uint16_t port) {
     uint8_t *sendbuf = get_sendbuf();
     dc_redirect_pkt *pkt = (dc_redirect_pkt *)sendbuf;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
 
     /* Wipe the packet */
     memset(pkt, 0, SHIP_DC_REDIRECT_LENGTH);
@@ -209,6 +227,11 @@ static int send_dc_timestamp(ship_client_t *c) {
     dc_timestamp_pkt *pkt = (dc_timestamp_pkt *)sendbuf;
     struct timeval rawtime;
     struct tm cooked;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
 
     /* Wipe the packet */
     memset(pkt, 0, SHIP_DC_TIMESTAMP_LENGTH);
@@ -250,9 +273,17 @@ static int send_dc_block_list(ship_client_t *c, ship_t *s) {
     dc_block_list_pkt *pkt = (dc_block_list_pkt *)sendbuf;
     char tmp[18];
     int i, len = 0x20;
-    iconv_t ic = iconv_open("SHIFT_JIS", "ASCII");
+    iconv_t ic;
     size_t in, out;
-    char *inptr, *outptr;
+    char *outptr;
+    const char *inptr;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    ic = iconv_open("SHIFT_JIS", "ASCII");
 
     if(ic == (iconv_t)-1) {
         perror("iconv_open");
@@ -331,9 +362,17 @@ int send_block_list(ship_client_t *c, ship_t *s) {
 static int send_dc_info_reply(ship_client_t *c, char msg[]) {
     uint8_t *sendbuf = get_sendbuf();
     dc_info_reply_pkt *pkt = (dc_info_reply_pkt *)sendbuf;
-    iconv_t ic = iconv_open("SHIFT_JIS", "ASCII");
+    iconv_t ic;
     size_t in, out;
-    char *inptr, *outptr;
+    char *outptr;
+    const char *inptr;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    ic = iconv_open("SHIFT_JIS", "ASCII");
 
     if(ic == (iconv_t)-1) {
         perror("iconv_open");
@@ -385,6 +424,11 @@ static int send_dc_simple(ship_client_t *c, int type, int flags) {
     uint8_t *sendbuf = get_sendbuf();
     dc_pkt_hdr_t *pkt = (dc_pkt_hdr_t *)sendbuf;
 
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
     /* Fill in the header */
     pkt->pkt_type = (uint8_t)type;
     pkt->flags = (uint8_t)flags;
@@ -410,6 +454,11 @@ static int send_dc_lobby_list(ship_client_t *c) {
     uint8_t *sendbuf = get_sendbuf();
     dc_lobby_list_pkt *pkt = (dc_lobby_list_pkt *)sendbuf;
     uint32_t i;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
 
     /* Fill in the header */
     pkt->hdr.pkt_type = SHIP_LOBBY_LIST_TYPE;
@@ -448,6 +497,11 @@ static int send_dc_lobby_join(ship_client_t *c, lobby_t *l) {
     dc_lobby_join_pkt *pkt = (dc_lobby_join_pkt *)sendbuf;
     int i, pls = 0;
     uint16_t pkt_size = 0x10;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
 
     /* Clear the packet's header. */
     memset(pkt, 0, sizeof(dc_lobby_join_pkt));
@@ -513,6 +567,11 @@ int send_pkt_dc(ship_client_t *c, dc_pkt_hdr_t *pkt) {
     uint8_t *sendbuf = get_sendbuf();
     int len = (int)LE16(pkt->pkt_len);
 
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
     /* Copy the packet to the send buffer */
     memcpy(sendbuf, pkt, len);
 
@@ -524,6 +583,11 @@ static int send_dc_lobby_add_player(lobby_t *l, ship_client_t *c,
                                     ship_client_t *nc) {
     uint8_t *sendbuf = get_sendbuf();
     dc_lobby_join_pkt *pkt = (dc_lobby_join_pkt *)sendbuf;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
 
     /* Clear the packet's header. */
     memset(pkt, 0, sizeof(dc_lobby_join_pkt));
@@ -579,6 +643,11 @@ static int send_dc_lobby_leave(lobby_t *l, ship_client_t *c, int client_id) {
     uint8_t *sendbuf = get_sendbuf();
     dc_lobby_leave_pkt *pkt = (dc_lobby_leave_pkt *)sendbuf;
 
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
     /* Fill in the header */
     pkt->hdr.pkt_type = l->type & LOBBY_TYPE_DEFAULT ?
         SHIP_LOBBY_LEAVE_TYPE : SHIP_GAME_LEAVE_TYPE;
@@ -620,6 +689,11 @@ static int send_dc_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
     uint8_t *sendbuf = get_sendbuf();
     dc_chat_pkt *pkt = (dc_chat_pkt *)sendbuf;
     int len;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
 
     /* Clear the packet header */
     memset(pkt, 0, sizeof(dc_chat_pkt));
@@ -675,6 +749,11 @@ static int send_dc_guild_reply(ship_client_t *c, uint32_t gc, in_addr_t ip,
     uint8_t *sendbuf = get_sendbuf();
     dc_guild_reply_pkt *pkt = (dc_guild_reply_pkt *)sendbuf;
 
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
     /* Clear it out first */
     memset(pkt, 0, SHIP_DC_GUILD_REPLY_LENGTH);
 
@@ -715,6 +794,11 @@ static int send_dc_message(ship_client_t *c, char msg[], uint16_t type) {
     uint8_t *sendbuf = get_sendbuf();
     dc_chat_pkt *pkt = (dc_chat_pkt *)sendbuf;
     int len;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
 
     /* Clear the packet header */
     memset(pkt, 0, sizeof(dc_chat_pkt));
@@ -769,6 +853,11 @@ static int send_dc_game_join(ship_client_t *c, lobby_t *l) {
     uint8_t *sendbuf = get_sendbuf();
     dc_game_join_pkt *pkt = (dc_game_join_pkt *)sendbuf;
     int clients = 0, i;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
 
     /* Clear it out first. */
     memset(pkt, 0, SHIP_DC_GAME_JOIN_LENGTH);
@@ -825,6 +914,11 @@ static int send_dc_lobby_done_burst(lobby_t *l, ship_client_t *c,
     uint8_t *sendbuf = get_sendbuf();
     dc_pkt_hdr_t *pkt = (dc_pkt_hdr_t *)sendbuf;
 
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
     /* Clear the packet's header. */
     memset(pkt, 0, 8);
 
@@ -873,6 +967,11 @@ static int send_dc_game_list(ship_client_t *c, block_t *b) {
     dc_game_list_pkt *pkt = (dc_game_list_pkt *)sendbuf;
     int entries = 1, len = 0x20;
     lobby_t *l;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
 
     /* Clear out the packet and the first entry */
     memset(pkt, 0, 0x20);
@@ -947,9 +1046,17 @@ static int send_dc_info_list(ship_client_t *c, ship_t *s) {
     uint8_t *sendbuf = get_sendbuf();
     dc_block_list_pkt *pkt = (dc_block_list_pkt *)sendbuf;
     int i, len = 0x20;
-    iconv_t ic = iconv_open("SHIFT_JIS", "ASCII");
+    iconv_t ic;
     size_t in, out;
-    char *inptr, *outptr;
+    char *outptr;
+    const char *inptr;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    ic = iconv_open("SHIFT_JIS", "ASCII");
 
     if(ic == (iconv_t)-1) {
         perror("iconv_open");
@@ -1027,6 +1134,11 @@ static int send_dc_message_box(ship_client_t *c, char msg[]) {
     dc_msg_box_pkt *pkt = (dc_msg_box_pkt *)sendbuf;
     int len;
 
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
     /* Fill in the basics */
     pkt->hdr.pkt_type = SHIP_MSG_BOX_TYPE;
     pkt->hdr.flags = 0;
@@ -1064,6 +1176,11 @@ static int send_dc_quest_categories(ship_client_t *c,
     uint8_t *sendbuf = get_sendbuf();
     dc_quest_list_pkt *pkt = (dc_quest_list_pkt *)sendbuf;
     int i, len = 0x04, entries = 0;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
 
     /* Clear out the header */
     memset(pkt, 0, 0x04);
@@ -1111,6 +1228,11 @@ static int send_dc_quest_list(ship_client_t *c, int cat,
     uint8_t *sendbuf = get_sendbuf();
     dc_quest_list_pkt *pkt = (dc_quest_list_pkt *)sendbuf;
     int i, len = 0x04, entries = 0;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
 
     /* Clear out the header */
     memset(pkt, 0, 0x04);
@@ -1161,6 +1283,11 @@ static int send_dc_quest_info(ship_client_t *c, sylverant_quest_t *q) {
     uint8_t *sendbuf = get_sendbuf();
     dc_msg_box_pkt *pkt = (dc_msg_box_pkt *)sendbuf;
 
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
     /* Clear the packet header */
     memset(pkt, 0, SHIP_DC_QUEST_INFO_LENGTH);
 
@@ -1198,6 +1325,11 @@ static int send_dcv1_quest(ship_client_t *c, sylverant_quest_t *q) {
     int bindone = 0, datdone = 0, chunknum = 0;
     char filename[256];
     size_t amt;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
 
     /* Each quest has two files: a .dat file and a .bin file, send a file packet
        for each of them. The files are v6 here for drop-in compatibility with
@@ -1336,6 +1468,11 @@ static int send_dcv2_lobby_name(ship_client_t *c, lobby_t *l) {
     dc_msg_box_pkt *pkt = (dc_msg_box_pkt *)sendbuf;
     uint16_t len;
 
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
     /* Clear the packet header */
     memset(pkt, 0, SHIP_DC_QUEST_INFO_LENGTH);
 
@@ -1376,6 +1513,11 @@ static int send_dc_lobby_arrows(lobby_t *l, ship_client_t *c) {
     uint8_t *sendbuf = get_sendbuf();
     dc_arrow_list_pkt *pkt = (dc_arrow_list_pkt *)sendbuf;
     int clients = 0, len = 0x04, i;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
 
     /* Clear the packet's header. */
     memset(pkt, 0, sizeof(dc_arrow_list_pkt));
@@ -1457,6 +1599,11 @@ static int send_dc_ship_list(ship_client_t *c, miniship_t *l, int ships) {
     dc_ship_list_pkt *pkt = (dc_ship_list_pkt *)sendbuf;
     int len = 0x20, i, entries = 0;
 
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
     /* Clear the packet's header. */
     memset(pkt, 0, 0x20);
 
@@ -1512,6 +1659,11 @@ int send_ship_list(ship_client_t *c, miniship_t *l, int ships) {
 static int send_dc_warp(ship_client_t *c, uint8_t area) {
     uint8_t *sendbuf = get_sendbuf();
     dc_pkt_hdr_t *pkt = (dc_pkt_hdr_t *)sendbuf;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
 
     /* Fill in the basics. */
     pkt->pkt_type = SHIP_GAME_COMMAND2_TYPE;

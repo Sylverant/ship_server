@@ -103,4 +103,6 @@ typedef struct player {
     uint8_t techniques[0x14];
 } PACKED player_t;
 
+#undef PACKED
+
 #endif /* !PLAYER_H */
