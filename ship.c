@@ -406,7 +406,7 @@ static int dc_process_block_sel(ship_client_t *c, dc_select_pkt *pkt) {
     }
 
     /* Figure out what address to send the client. */
-    if((c->addr & netmask) == (local_addr & netmask)) {
+    if(netmask && (c->addr & netmask) == (local_addr & netmask)) {
         addr = local_addr;
     }
     else {

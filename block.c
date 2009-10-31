@@ -585,7 +585,8 @@ static int dc_process_guild_search(ship_client_t *c, dc_guild_search_pkt *pkt) {
                    data. */
                 if(it->guildcard == gc && it->pl) {
                     /* Figure out the IP address to send. */
-                    if((c->addr & netmask) == (local_addr & netmask)) {
+                    if(netmask &&
+                       (c->addr & netmask) == (local_addr & netmask)) {
                         addr = local_addr;
                     }
                     else {
@@ -796,7 +797,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
             }
 
             /* Figure out what address to send the client. */
-            if((c->addr & netmask) == (local_addr & netmask)) {
+            if(netmask && (c->addr & netmask) == (local_addr & netmask)) {
                 addr = local_addr;
             }
             else {
@@ -926,7 +927,8 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
                            address, this one is obvious. */
                         addr = s->ships[i].int_addr;
                     }
-                    else if(s->ships[i].ship_addr == s->cfg->ship_ip &&
+                    else if(netmask &&
+                            s->ships[i].ship_addr == s->cfg->ship_ip &&
                             (c->addr & netmask) == (local_addr & netmask)) {
                         /* The destination and the source are on the same
                            network, and the client is on the same network as the
