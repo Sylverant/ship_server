@@ -766,7 +766,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
             len = ftell(fp);
             fseek(fp, 0, SEEK_SET);
 
-            /* Truncate to 1KB */
+            /* Truncate to about 1KB */
             if(len > 1023) {
                 len = 1023;
             }
@@ -774,6 +774,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
             /* Read the file in. */
             fread(buf, 1, len, fp);
             fclose(fp);
+            buf[len] = 0;
 
             /* Send the message to the client. */
             return send_message_box(c, buf);
