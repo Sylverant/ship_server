@@ -280,21 +280,23 @@ int lobby_change_lobby(ship_client_t *c, lobby_t *req) {
         goto out;
     }
 
-    /* Attempt to add the client to the new lobby first. */
-    if(lobby_add_client_locked(c, req)) {
-        /* Nope... we can't do that, the lobby's probably full. */
-        rv = -1;
-        goto out;
-    }
+    if(l != req) {
+        /* Attempt to add the client to the new lobby first. */
+        if(lobby_add_client_locked(c, req)) {
+            /* Nope... we can't do that, the lobby's probably full. */
+            rv = -1;
+            goto out;
+        }
 
-    /* The client is in the new lobby so we still need to remove them from the
-       old lobby. */
-    delete_lobby = lobby_remove_client_locked(c, old_cid, l);
+        /* The client is in the new lobby so we still need to remove them from
+           the old lobby. */
+        delete_lobby = lobby_remove_client_locked(c, old_cid, l);
 
-    if(delete_lobby < 0) {
-        /* Uhh... what do we do about this... */
-        rv = -2;
-        goto out;
+        if(delete_lobby < 0) {
+            /* Uhh... what do we do about this... */
+            rv = -2;
+            goto out;
+        }
     }
 
     /* The client is now happily in their new home, update the clients in the
