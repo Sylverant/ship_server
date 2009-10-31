@@ -20,6 +20,7 @@
 #include <errno.h>
 
 #include "ship_packets.h"
+#include "lobby.h"
 
 typedef struct command {
     char trigger[8];
@@ -86,10 +87,90 @@ static int handle_kill(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return 0;
 }
 
+/* Usage: /minlvl level */
+static int handle_min_level(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    int lvl;
+    lobby_t *l = c->cur_lobby;
+
+    /* Make sure that the requester is in a game lobby, not a lobby lobby. */
+    if(!(l->type & LOBBY_TYPE_GAME)) {
+        return send_txt(c, "\tE\tC7Only valid in a game lobby.");
+    }
+
+    /* Make sure the requester is the leader of the team. */
+    if(l->leader_id != c->client_id) {
+        return send_txt(c, "\tE\tC7Only the leader may use this command.");
+    }
+
+    /* Figure out the level requested */
+    errno = 0;
+    lvl = (int)strtoul(params, NULL, 10);
+
+    if(errno || lvl > 200 || lvl < 1) {
+        /* Send a message saying invalid level */
+        return send_txt(c, "\tE\tC7Invalid Level Value");
+    }
+
+    /* Make sure the requested level is greater than or equal to the value for
+       the game's difficulty. */
+    if(lvl < game_required_level[l->difficulty]) {
+        return send_txt(c, "\tE\tC7Invalid level for this difficulty.");
+    }
+
+    /* Make sure the requested level is less than or equal to the game's maximum
+       level. */
+    if(lvl > l->max_level + 1) {
+        return send_txt(c, "\tE\tC7Minimum level must be <= maximum.");
+    }
+
+    /* Set the value in the structure, and be on our way. */
+    l->min_level = lvl - 1;
+
+    return send_txt(c, "\tE\tC7Minimum level set.");
+}
+
+/* Usage: /maxlvl level */
+static int handle_max_level(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    int lvl;
+    lobby_t *l = c->cur_lobby;
+
+    /* Make sure that the requester is in a game lobby, not a lobby lobby. */
+    if(!(l->type & LOBBY_TYPE_GAME)) {
+        return send_txt(c, "\tE\tC7Only valid in a game lobby.");
+    }
+
+    /* Make sure the requester is the leader of the team. */
+    if(l->leader_id != c->client_id) {
+        return send_txt(c, "\tE\tC7Only the leader may use this command.");
+    }
+
+    /* Figure out the level requested */
+    errno = 0;
+    lvl = (int)strtoul(params, NULL, 10);
+
+    if(errno || lvl > 200 || lvl < 1) {
+        /* Send a message saying invalid level */
+        return send_txt(c, "\tE\tC7Invalid Level Value");
+    }
+
+    /* Make sure the requested level is greater than or equal to the value for
+       the game's minimum level. */
+    if(lvl < l->min_level + 1) {
+        return send_txt(c, "\tE\tC7Maximum level must be >= minimum.");
+    }
+    
+    /* Set the value in the structure, and be on our way. */
+    l->max_level = lvl - 1;
+
+    return send_txt(c, "\tE\tC7Maximum level set.");
+}
+
 static command_t cmds[] = {
-    { "warp"   , handle_warp },
-    { "kill"   , handle_kill },
-    { ""       , NULL        }          /* End marker -- DO NOT DELETE */
+    { "warp"   , handle_warp      },
+    { "kill"   , handle_kill      },
+    { "minlvl" , handle_min_level },
+    { "maxlvl" , handle_max_level },
+    { ""       , NULL             }     /* End marker -- DO NOT DELETE */
 };
 
 int command_parse(ship_client_t *c, dc_chat_pkt *pkt) {

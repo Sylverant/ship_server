@@ -256,19 +256,19 @@ int lobby_change_lobby(ship_client_t *c, lobby_t *req) {
     }
 
     /* There is currently a client bursting */
-    if((l->flags & LOBBY_FLAG_BURSTING)) {
+    if((req->flags & LOBBY_FLAG_BURSTING)) {
         rv = -3;
         goto out;
     }
 
     /* Make sure the character is in the correct level range. */
-    if(l->min_level > LE32(c->pl->level)) {
+    if(req->min_level > LE32(c->pl->level)) {
         /* Too low. */
         rv = -4;
         goto out;
     }
 
-    if(l->max_level < LE32(c->pl->level)) {
+    if(req->max_level < LE32(c->pl->level)) {
         /* Too high. */
         rv = -5;
         goto out;
