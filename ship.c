@@ -211,6 +211,7 @@ static void *ship_thd(void *d) {
     }
 
     /* Free the ship structure. */
+    pthread_mutex_destroy(&s->qmutex);
     free(s->gm_list);
     sylverant_quests_destroy(&s->quests);
     close(s->sock);
@@ -313,6 +314,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     }
 
     /* Fill in the structure. */
+    pthread_mutex_init(&rv->qmutex, NULL);
     TAILQ_INIT(rv->clients);
     rv->cfg = s;
     rv->sock = sock;
@@ -321,6 +323,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     /* Connect to the shipgate. */
     if(shipgate_connect(rv, &rv->sg)) {
         debug(DBG_ERROR, "%s: Couldn't connect to shipgate!\n", s->name);
+        pthread_mutex_destroy(&rv->qmutex);
         free(rv->gm_list);
         sylverant_quests_destroy(&rv->quests);
         free(rv->clients);
@@ -333,6 +336,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     /* Register with the shipgate. */
     if(shipgate_send_ship_info(&rv->sg, rv)) {
         debug(DBG_ERROR, "%s: Couldn't register with shipgate!\n", s->name);
+        pthread_mutex_destroy(&rv->qmutex);
         free(rv->gm_list);
         sylverant_quests_destroy(&rv->quests);
         free(rv->clients);
@@ -345,6 +349,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     /* Start up the thread for this ship. */
     if(pthread_create(&rv->thd, NULL, &ship_thd, rv)) {
         debug(DBG_ERROR, "%s: Cannot start ship thread!\n", s->name);
+        pthread_mutex_destroy(&rv->qmutex);
         free(rv->gm_list);
         sylverant_quests_destroy(&rv->quests);
         free(rv->clients);

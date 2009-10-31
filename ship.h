@@ -64,6 +64,7 @@ struct ship {
 
     sylverant_quest_list_t quests;
     shipgate_conn_t sg;
+    pthread_mutex_t qmutex;
 
     local_gm_t *gm_list;
     int gm_count;

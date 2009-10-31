@@ -1332,12 +1332,11 @@ static int send_dcv1_quest(ship_client_t *c, sylverant_quest_t *q) {
     }
 
     /* Each quest has two files: a .dat file and a .bin file, send a file packet
-       for each of them. The files are v6 here for drop-in compatibility with
-       the quests from newserv/Aeon */
-    sprintf(filename, "quests/%sv6.bin", q->prefix);
+       for each of them. */
+    sprintf(filename, "quests/%sv1.bin", q->prefix);
     bin = fopen(filename, "rb");
 
-    sprintf(filename, "quests/%sv6.dat", q->prefix);
+    sprintf(filename, "quests/%sv1.dat", q->prefix);
     dat = fopen(filename, "rb");
 
     if(!bin || !dat) {
@@ -1360,7 +1359,7 @@ static int send_dcv1_quest(ship_client_t *c, sylverant_quest_t *q) {
     file->hdr.flags = 0x02; /* ??? */
     file->hdr.pkt_len = LE16(SHIP_DC_QUEST_FILE_LENGTH);
     sprintf(file->name, "PSO/%s", q->name);
-    sprintf(file->filename, "%sv6.dat", q->prefix);
+    sprintf(file->filename, "%sv1.dat", q->prefix);
     file->length = LE32(datlen);
 
     if(crypt_send(c, SHIP_DC_QUEST_FILE_LENGTH, sendbuf)) {
@@ -1373,7 +1372,7 @@ static int send_dcv1_quest(ship_client_t *c, sylverant_quest_t *q) {
     file->hdr.flags = 0x02; /* ??? */
     file->hdr.pkt_len = LE16(SHIP_DC_QUEST_FILE_LENGTH);
     sprintf(file->name, "PSO/%s", q->name);
-    sprintf(file->filename, "%sv6.bin", q->prefix);
+    sprintf(file->filename, "%sv1.bin", q->prefix);
     file->length = LE32(binlen);
 
     if(crypt_send(c, SHIP_DC_QUEST_FILE_LENGTH, sendbuf)) {
@@ -1393,7 +1392,7 @@ static int send_dcv1_quest(ship_client_t *c, sylverant_quest_t *q) {
             chunk->hdr.pkt_len = LE16(SHIP_DC_QUEST_CHUNK_LENGTH);
 
             /* Fill in the rest */
-            sprintf(chunk->filename, "%sv6.dat", q->prefix);
+            sprintf(chunk->filename, "%sv1.dat", q->prefix);
             amt = fread(chunk->data, 1, 0x400, dat);
             chunk->length = LE32(((uint32_t)amt));
 
@@ -1419,7 +1418,7 @@ static int send_dcv1_quest(ship_client_t *c, sylverant_quest_t *q) {
             chunk->hdr.pkt_len = LE16(SHIP_DC_QUEST_CHUNK_LENGTH);
 
             /* Fill in the rest */
-            sprintf(chunk->filename, "%sv6.bin", q->prefix);
+            sprintf(chunk->filename, "%sv1.bin", q->prefix);
             amt = fread(chunk->data, 1, 0x400, bin);
             chunk->length = LE32(((uint32_t)amt));
 

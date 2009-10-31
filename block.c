@@ -882,33 +882,44 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
         /* Quest category */
         case 0x03:
         {
+            int rv;
+    
+            pthread_mutex_lock(&c->cur_ship->qmutex);
+
             if(item_id >= c->cur_ship->quests.cat_count) {
-                send_message1(c, "\tC4That category is\nnon-existant.");
+                rv = send_message1(c, "\tC4That category is\nnon-existant.");
             }
             else {
-                return send_quest_list(c, (int)item_id,
-                                       c->cur_ship->quests.cats + item_id);
+                rv = send_quest_list(c, (int)item_id,
+                                     c->cur_ship->quests.cats + item_id);
             }
 
-            return 0;
+            pthread_mutex_unlock(&c->cur_ship->qmutex);
+            return rv;
         }
 
         /* Quest */
         case 0x04:
         {
             int q = menu_id >> 8;
+            int rv;
             sylverant_quest_t *quest;
 
+            pthread_mutex_lock(&c->cur_ship->qmutex);
+
             if(q >= c->cur_ship->quests.cat_count) {
-                return send_message1(c, "\tC4That category is\nnon-existant.");
+                rv = send_message1(c, "\tC4That category is\nnon-existant.");
             }
             else if(item_id >= c->cur_ship->quests.cats[q].quest_count) {
-                return send_message1(c, "\tC4That quest is\nnon-existant.");
+                rv = send_message1(c, "\tC4That quest is\nnon-existant.");
             }
             else {
                 quest = &c->cur_ship->quests.cats[q].quests[item_id];
-                return send_quest(c->cur_lobby, quest);
+                rv = send_quest(c->cur_lobby, quest);
             }
+
+            pthread_mutex_unlock(&c->cur_ship->qmutex);
+            return rv;
         }
 
         /* Ship */
@@ -977,18 +988,24 @@ static int dc_process_info_req(ship_client_t *c, dc_select_pkt *pkt) {
         case 0x04:
         {
             int q = menu_id >> 8;
+            int rv;
             sylverant_quest_t *quest;
 
+            pthread_mutex_lock(&c->cur_ship->qmutex);
+
             if(q >= c->cur_ship->quests.cat_count) {
-                return send_message1(c, "\tC4That category is\nnon-existant.");
+                rv = send_message1(c, "\tC4That category is\nnon-existant.");
             }
             else if(item_id >= c->cur_ship->quests.cats[q].quest_count) {
-                return send_message1(c, "\tC4That quest is\nnon-existant.");
+                rv = send_message1(c, "\tC4That quest is\nnon-existant.");
             }
             else {
                 quest = &c->cur_ship->quests.cats[q].quests[item_id];
-                return send_quest_info(c, quest);
+                rv = send_quest_info(c, quest);
             }
+
+            pthread_mutex_unlock(&c->cur_ship->qmutex);
+            return rv;
         }
 
         /* Ship */
@@ -1010,6 +1027,7 @@ static int dc_process_arrow(ship_client_t *c, dc_pkt_hdr_t *pkt) {
 /* Process block commands for a Dreamcast client. */
 static int dc_process_pkt(ship_client_t *c, dc_pkt_hdr_t *pkt) {
     uint8_t type = pkt->pkt_type;
+    int rv;
 
     debug(DBG_LOG, "%s(%d): Received type 0x%02X\n", c->cur_ship->cfg->name,
           c->cur_block->b, type);
@@ -1077,7 +1095,10 @@ static int dc_process_pkt(ship_client_t *c, dc_pkt_hdr_t *pkt) {
             return dc_process_info_req(c, (dc_select_pkt *)pkt);
 
         case SHIP_QUEST_LIST_TYPE:
-            return send_quest_categories(c, &c->cur_ship->quests);
+            pthread_mutex_lock(&c->cur_ship->qmutex);
+            rv = send_quest_categories(c, &c->cur_ship->quests);
+            pthread_mutex_unlock(&c->cur_ship->qmutex);
+            return rv;
 
         case SHIP_QUEST_END_LIST_TYPE:
             /* I don't really care about this one for now. */
