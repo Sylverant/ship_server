@@ -20,7 +20,6 @@
 #include <stdlib.h>
 #include <time.h>
 #include <errno.h>
-#include <iconv.h>
 #include <sys/time.h>
 #include <sys/socket.h>
 
@@ -273,23 +272,11 @@ static int send_dc_block_list(ship_client_t *c, ship_t *s) {
     dc_block_list_pkt *pkt = (dc_block_list_pkt *)sendbuf;
     char tmp[18];
     int i, len = 0x20;
-    iconv_t ic;
-    size_t in, out;
-    char *outptr;
-    const char *inptr;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
         return -1;
     }
-
-    ic = iconv_open("SHIFT_JIS", "ASCII");
-
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
-        return -1;
-    }
-
     /* Clear the base packet */
     memset(pkt, 0, sizeof(dc_block_list_pkt));
 
@@ -302,12 +289,8 @@ static int send_dc_block_list(ship_client_t *c, ship_t *s) {
     pkt->entries[0].item_id = 0;
     pkt->entries[0].flags = 0;
 
-    /* Convert to Shift-JIS */
-    in = strlen(s->cfg->name);
-    out = 0x10;
-    inptr = s->cfg->name;
-    outptr = pkt->entries[0].name;
-    iconv(ic, &inptr, &in, &outptr, &out);
+    /* Copy the ship's name to the packet. */
+    strncpy(pkt->entries[0].name, s->cfg->name, 0x10);
 
     /* Add what's needed at the end */
     pkt->entries[0].name[0x0F] = 0x00;
@@ -324,15 +307,10 @@ static int send_dc_block_list(ship_client_t *c, ship_t *s) {
         pkt->entries[i].item_id = LE32(i);
         pkt->entries[i].flags = LE16(0x0000);
 
-        /* Create the name string (ASCII) */
+        /* Create the name string */
         sprintf(tmp, "BLOCK%02d", i);
-
-        /* And convert to Shift-JIS */
-        in = strlen(tmp);
-        out = 0x12;
-        inptr = tmp;
-        outptr = pkt->entries[i].name;
-        iconv(ic, &inptr, &in, &outptr, &out);
+        strncpy(pkt->entries[i].name, tmp, 0x11);
+        pkt->entries[i].name[0x11] = 0;
 
         len += 0x1C;
     }
@@ -340,8 +318,6 @@ static int send_dc_block_list(ship_client_t *c, ship_t *s) {
     /* Fill in the rest of the header */
     pkt->hdr.pkt_len = LE16(len);
     pkt->hdr.flags = (uint8_t)(s->cfg->blocks);
-
-    iconv_close(ic);
 
     /* Send the packet away */
     return crypt_send(c, len, sendbuf);
@@ -362,33 +338,19 @@ int send_block_list(ship_client_t *c, ship_t *s) {
 static int send_dc_info_reply(ship_client_t *c, char msg[]) {
     uint8_t *sendbuf = get_sendbuf();
     dc_info_reply_pkt *pkt = (dc_info_reply_pkt *)sendbuf;
-    iconv_t ic;
-    size_t in, out;
-    char *outptr;
-    const char *inptr;
+    size_t out;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
         return -1;
     }
 
-    ic = iconv_open("SHIFT_JIS", "ASCII");
-
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
-        return -1;
-    }
-
-    /* Convert the message to Shift-JIS */
-    in = strlen(msg);
-    out = 65524;
-    inptr = msg;
-    outptr = pkt->msg;
-    iconv(ic, &inptr, &in, &outptr, &out);
-    iconv_close(ic);
+    /* Copy the information message over. */
+    strncpy(pkt->msg, msg, 65523);
+    pkt->msg[65523] = 0;
 
     /* Figure out how long the new string is. */
-    out = 65524 - out + 12;
+    out = strlen(msg) + 12;
 
     /* Fill in the oddities of the packet. */
     pkt->odd[0] = LE32(0x00200000);
@@ -1046,20 +1008,9 @@ static int send_dc_info_list(ship_client_t *c, ship_t *s) {
     uint8_t *sendbuf = get_sendbuf();
     dc_block_list_pkt *pkt = (dc_block_list_pkt *)sendbuf;
     int i, len = 0x20;
-    iconv_t ic;
-    size_t in, out;
-    char *outptr;
-    const char *inptr;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
-        return -1;
-    }
-
-    ic = iconv_open("SHIFT_JIS", "ASCII");
-
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
         return -1;
     }
 
@@ -1074,13 +1025,7 @@ static int send_dc_info_list(ship_client_t *c, ship_t *s) {
     pkt->entries[0].menu_id = LE32(0x00040000);
     pkt->entries[0].item_id = 0;
     pkt->entries[0].flags = 0;
-
-    /* Convert to Shift-JIS */
-    in = strlen(s->cfg->name);
-    out = 0x10;
-    inptr = s->cfg->name;
-    outptr = pkt->entries[0].name;
-    iconv(ic, &inptr, &in, &outptr, &out);
+    strncpy(pkt->entries[0].name, s->cfg->name, 0x10);
 
     /* Add what's needed at the end */
     pkt->entries[0].name[0x0F] = 0x00;
@@ -1097,12 +1042,8 @@ static int send_dc_info_list(ship_client_t *c, ship_t *s) {
         pkt->entries[i].item_id = LE32((i - 1));
         pkt->entries[i].flags = LE16(0x0000);
 
-        /* Convert the description to Shift-JIS */
-        in = strlen(s->cfg->info_files_desc[i - 1]);
-        out = 0x12;
-        inptr = s->cfg->info_files_desc[i - 1];
-        outptr = pkt->entries[i].name;
-        iconv(ic, &inptr, &in, &outptr, &out);
+        strncpy(pkt->entries[i].name, s->cfg->info_files_desc[i - 1], 0x11);
+        pkt->entries[i].name[0x11] = 0;
 
         len += 0x1C;
     }
@@ -1110,8 +1051,6 @@ static int send_dc_info_list(ship_client_t *c, ship_t *s) {
     /* Fill in the rest of the header */
     pkt->hdr.pkt_len = LE16(len);
     pkt->hdr.flags = (uint8_t)(s->cfg->info_file_count);
-
-    iconv_close(ic);
 
     /* Send the packet away */
     return crypt_send(c, len, sendbuf);
