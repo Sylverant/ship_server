@@ -845,7 +845,12 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
             /* Attempt to change the player's lobby. */
             rv = lobby_change_lobby(c, l);
 
-            if(rv == -6) {
+            if(rv == -7) {
+                /* Questing in progress */
+                send_message1(c, "\tC4Can't join game!\n\n"
+                              "\tC7A quest is in progress.");
+            }
+            else if(rv == -6) {
                 /* V1 client attempting to join a V2 only game */
                 send_message1(c, "\tC4Can't join game!\n\n"
                               "\tC7This game is for\nVersion 2 only.");
@@ -913,7 +918,11 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
             else if(item_id >= c->cur_ship->quests.cats[q].quest_count) {
                 rv = send_message1(c, "\tC4That quest is\nnon-existant.");
             }
+            else if(c->cur_lobby->flags & LOBBY_FLAG_BURSTING) {
+                rv = send_message1(c, "\tC4Please wait a moment.");
+            }
             else {
+                c->cur_lobby->flags |= LOBBY_FLAG_QUESTING;
                 quest = &c->cur_ship->quests.cats[q].quests[item_id];
                 rv = send_quest(c->cur_lobby, quest);
             }

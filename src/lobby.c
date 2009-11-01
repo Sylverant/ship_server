@@ -255,9 +255,15 @@ int lobby_change_lobby(ship_client_t *c, lobby_t *req) {
         pthread_mutex_lock(&req->mutex);
     }
 
-    /* There is currently a client bursting */
+    /* Make sure there isn't currently a client bursting */
     if((req->flags & LOBBY_FLAG_BURSTING)) {
         rv = -3;
+        goto out;
+    }
+
+    /* Make sure a quest isn't in progress. */
+    if((req->flags & LOBBY_FLAG_QUESTING)) {
+        rv = -7;
         goto out;
     }
 
