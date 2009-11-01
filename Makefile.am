@@ -20,8 +20,12 @@ ACLOCAL_AMFLAGS = -I m4
 LIBS += $(PTHREAD_LIBS)
 AM_CFLAGS = $(PTHREAD_CFLAGS)
 
-bin_PROGRAMS = shipgate
-shipgate_SOURCES = src/packets.c src/ship.c src/ship.h src/ship_packets.h \
-                   src/shipgate.c src/shipgate.h
+bin_PROGRAMS = ship_server
+ship_server_SOURCES = src/block.c src/block.h src/clients.c src/clients.h \
+                      src/commands.c src/commands.h src/gm.c src/gm.h \
+                      src/lobby.c src/lobby.h src/player.h src/ship.c \
+                      src/ship.h src/ship_packets.c src/ship_packets.h \
+                      src/ship_server.c src/shipgate.c src/shipgate.h \
+                      src/utils.c src/utils.h
 
 datarootdir = @datarootdir@
