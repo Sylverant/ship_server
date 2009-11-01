@@ -84,6 +84,7 @@ TAILQ_HEAD(lobby_queue, lobby);
 
 /* Possible values for the flags parameter. */
 #define LOBBY_FLAG_BURSTING     0x00000001
+#define LOBBY_FLAG_QUESTING     0x00000002
 
 /* The required level for various difficulties. */
 const static int game_required_level[4] = { 0, 20, 40, 80 };
