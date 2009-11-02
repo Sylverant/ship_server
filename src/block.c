@@ -848,7 +848,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
             if(rv == -7) {
                 /* Questing in progress */
                 send_message1(c, "\tC4Can't join game!\n\n"
-                              "\tC7A quest is in progress.");
+                              "\tC7A quest is in\nprogress.");
             }
             else if(rv == -6) {
                 /* V1 client attempting to join a V2 only game */
