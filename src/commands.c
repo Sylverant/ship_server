@@ -167,7 +167,7 @@ static int handle_max_level(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return send_txt(c, "\tE\tC7Maximum level set.");
 }
 
-/* Usage: /refresh */
+/* Usage: /refresh [quests or gms] */
 static int handle_refresh(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     ship_t *s = c->cur_ship;
     sylverant_quest_list_t quests;
@@ -177,27 +177,46 @@ static int handle_refresh(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
         return send_txt(c, "\tE\tC7Nice try.");
     }
 
-    if(s->cfg->quests_file[0]) {
-        if(sylverant_quests_read(s->cfg->quests_file, &quests)) {
-            debug(DBG_ERROR, "%s: Couldn't read quests file!\n", s->cfg->name);
-            return send_txt(c, "\tE\tC7Couldn't read quests file!");
+    if(!strcmp(params, "quests")) {
+        if(s->cfg->quests_file[0]) {
+            if(sylverant_quests_read(s->cfg->quests_file, &quests)) {
+                debug(DBG_ERROR, "%s: Couldn't read quests file!\n",
+                      s->cfg->name);
+                return send_txt(c, "\tE\tC7Couldn't read quests file!");
+            }
+
+            /* Lock the mutex to prevent anyone from trying anything funny. */
+            pthread_mutex_lock(&s->qmutex);
+
+            /* Out with the old, and in with the new. */
+            sylverant_quests_destroy(&s->quests);
+            s->quests = quests;
+
+            /* Unlock the lock, we're done. */
+            pthread_mutex_unlock(&s->qmutex);
+            return send_txt(c, "\tE\tC7Updated quest list");
         }
+        else {
+            return send_txt(c, "\tE\tC7No configured quests list!");
+        }
+    }
+    else if(!strcmp(params, "gms")) {
+        if(s->cfg->gm_file[0]) {
+            /* Try to read the GM file. This will clean out the old list as
+               well, if needed. */
+            if(gm_list_read(s->cfg->gm_file, s)) {
+                return send_txt(c, "\tE\tC7Couldn't read GM list!");
+            }
 
-        /* Lock the mutex to prevent anyone from trying anything funny. */
-        pthread_mutex_lock(&s->qmutex);
-
-        /* Out with the old, and in with the new. */
-        sylverant_quests_destroy(&s->quests);
-        s->quests = quests;
-
-        /* Unlock the lock, we're done. */
-        pthread_mutex_unlock(&s->qmutex);
+            return send_txt(c, "\tE\tC7Updated GMs list");
+        }
+        else {
+            return send_txt(c, "\tE\tC7No configured GM list!");
+        }
     }
     else {
-        return send_txt(c, "\tE\tC7No configured quests list!");
+        return send_txt(c, "\tE\tC7Unknown item to refresh");
     }
-
-    return send_txt(c, "\tE\tC7Updated quest list");
 }
 
 static command_t cmds[] = {
@@ -218,7 +237,7 @@ int command_parse(ship_client_t *c, dc_chat_pkt *pkt) {
     /* Figure out what the command the user has requested is */
     ch = pkt->msg + 3;
 
-    while(*ch != ' ' && len < 7) { 
+    while(*ch != ' ' && len < 7) {
         cmd[len++] = *ch++;
     }
 

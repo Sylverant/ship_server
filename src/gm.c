@@ -26,9 +26,6 @@
 
 #define BUF_SIZE 8192
 
-static local_gm_t *gm_list = NULL;
-static int gm_count = 0;
-
 static void gm_start_hnd(void *d, const XML_Char *name,
                          const XML_Char **attrs) {
     int i, done = 0;
@@ -79,17 +76,23 @@ int gm_list_read(const char *fn, ship_t *s) {
     XML_Parser p;
     int bytes;
     void *buf;
+    local_gm_t *oldlist = NULL;
+    int oldcount = 0;
 
-    /* If we're reloading, clean the old list. */
-    if(gm_list) {
-        free(gm_list);
-        gm_count =  0;
+    /* If we're reloading, save the old list. */
+    if(s->gm_list) {
+        oldlist = s->gm_list;
+        oldcount = s->gm_count;
+        s->gm_list = NULL;
+        s->gm_count = 0;
     }
 
     /* Open the GM list file for reading. */
     fp = fopen(fn, "r");
 
     if(!fp) {
+        s->gm_list = oldlist;
+        s->gm_count = oldcount;
         return -1;
     }
 
@@ -98,6 +101,8 @@ int gm_list_read(const char *fn, ship_t *s) {
 
     if(!p)  {
         fclose(fp);
+        s->gm_list = oldlist;
+        s->gm_count = oldcount;
         return -2;
     }
 
@@ -110,6 +115,9 @@ int gm_list_read(const char *fn, ship_t *s) {
 
         if(!buf)    {
             XML_ParserFree(p);
+            free(s->gm_list);
+            s->gm_list = oldlist;
+            s->gm_count = oldcount;
             return -2;
         }
 
@@ -118,12 +126,18 @@ int gm_list_read(const char *fn, ship_t *s) {
 
         if(bytes < 0)   {
             XML_ParserFree(p);
+            free(s->gm_list);
+            s->gm_list = oldlist;
+            s->gm_count = oldcount;
             return -2;
         }
 
         /* Parse the bit we read in. */
         if(!XML_ParseBuffer(p, bytes, !bytes))  {
             XML_ParserFree(p);
+            free(s->gm_list);
+            s->gm_list = oldlist;
+            s->gm_count = oldcount;
             return -3;
         }
 
@@ -133,6 +147,12 @@ int gm_list_read(const char *fn, ship_t *s) {
     }
 
     XML_ParserFree(p);
+
+    /* If we had an old list, clear it. */
+    if(oldlist) {
+        free(oldlist);
+    }
+
     return 0;
 }
 
