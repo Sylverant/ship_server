@@ -22,6 +22,7 @@
 #include <errno.h>
 #include <sys/time.h>
 #include <sys/socket.h>
+#include <iconv.h>
 
 #include <sylverant/encryption.h>
 #include <sylverant/database.h>
@@ -94,8 +95,6 @@ static int crypt_send(ship_client_t *c, int len, uint8_t *sendbuf) {
         sendbuf[len++] = 0;
     }
 
-    printf("Sending %d (%02X) bytes to %d\n", len, sendbuf[0], c->guildcard);
-
     /* Encrypt the packet */
     CRYPT_CryptData(&c->skey, sendbuf, len, 1);
 
@@ -140,8 +139,15 @@ int send_dc_welcome(ship_client_t *c, uint32_t svect, uint32_t cvect) {
     memset(pkt, 0, sizeof(dc_welcome_pkt));
 
     /* Fill in the header */
-    pkt->hdr.pkt_len = LE16(SHIP_DC_WELCOME_LENGTH);
-    pkt->hdr.pkt_type = SHIP_DC_WELCOME_TYPE;
+    if(c->version == CLIENT_VERSION_DCV1 ||
+       c->version == CLIENT_VERSION_DCV2) {
+        pkt->hdr.dc.pkt_len = LE16(SHIP_DC_WELCOME_LENGTH);
+        pkt->hdr.dc.pkt_type = SHIP_DC_WELCOME_TYPE;
+    }
+    else {
+        pkt->hdr.pc.pkt_len = LE16(SHIP_DC_WELCOME_LENGTH);
+        pkt->hdr.pc.pkt_type = SHIP_DC_WELCOME_TYPE;
+    }
 
     /* Fill in the required message */
     memcpy(pkt->copyright, dc_welcome_copyright, 56);
@@ -169,8 +175,15 @@ int send_dc_security(ship_client_t *c, uint32_t gc, uint8_t *data,
     memset(pkt, 0, sizeof(dc_security_pkt));
 
     /* Fill in the header */
-    pkt->hdr.pkt_type = SHIP_DC_SECURITY_TYPE;
-    pkt->hdr.pkt_len = LE16((0x0C + data_len));
+    if(c->version == CLIENT_VERSION_DCV1 ||
+       c->version == CLIENT_VERSION_DCV2) {
+        pkt->hdr.dc.pkt_type = SHIP_DC_SECURITY_TYPE;
+        pkt->hdr.dc.pkt_len = LE16((0x0C + data_len));
+    }
+    else {
+        pkt->hdr.pc.pkt_type = SHIP_DC_SECURITY_TYPE;
+        pkt->hdr.pc.pkt_len = LE16((0x0C + data_len));
+    }
 
     /* Fill in the guildcard/tag */
     pkt->tag = LE32(0x00010000);
@@ -198,8 +211,15 @@ static int send_dc_redirect(ship_client_t *c, in_addr_t ip, uint16_t port) {
     memset(pkt, 0, SHIP_DC_REDIRECT_LENGTH);
 
     /* Fill in the header */
-    pkt->hdr.pkt_type = SHIP_REDIRECT_TYPE;
-    pkt->hdr.pkt_len = LE16(SHIP_DC_REDIRECT_LENGTH);
+    if(c->version == CLIENT_VERSION_DCV1 ||
+       c->version == CLIENT_VERSION_DCV2) {
+        pkt->hdr.dc.pkt_type = SHIP_REDIRECT_TYPE;
+        pkt->hdr.dc.pkt_len = LE16(SHIP_DC_REDIRECT_LENGTH);
+    }
+    else {
+        pkt->hdr.pc.pkt_type = SHIP_REDIRECT_TYPE;
+        pkt->hdr.pc.pkt_len = LE16(SHIP_DC_REDIRECT_LENGTH);
+    }
 
     /* Fill in the IP and port */
     pkt->ip_addr = ip;
@@ -214,6 +234,7 @@ int send_redirect(ship_client_t *c, in_addr_t ip, uint16_t port) {
     switch(c->version) {
         case CLIENT_VERSION_DCV1:
         case CLIENT_VERSION_DCV2:
+        case CLIENT_VERSION_PC:
             return send_dc_redirect(c, ip, port);
     }
     
@@ -236,8 +257,15 @@ static int send_dc_timestamp(ship_client_t *c) {
     memset(pkt, 0, SHIP_DC_TIMESTAMP_LENGTH);
 
     /* Fill in the header */
-    pkt->hdr.pkt_type = SHIP_TIMESTAMP_TYPE;
-    pkt->hdr.pkt_len = LE16(SHIP_DC_TIMESTAMP_LENGTH);
+    if(c->version == CLIENT_VERSION_DCV1 ||
+       c->version == CLIENT_VERSION_DCV2) {
+        pkt->hdr.dc.pkt_type = SHIP_TIMESTAMP_TYPE;
+        pkt->hdr.dc.pkt_len = LE16(SHIP_DC_TIMESTAMP_LENGTH);
+    }
+    else {
+        pkt->hdr.pc.pkt_type = SHIP_TIMESTAMP_TYPE;
+        pkt->hdr.pc.pkt_len = LE16(SHIP_DC_TIMESTAMP_LENGTH);
+    }
 
     /* Get the timestamp */
     gettimeofday(&rawtime, NULL);
@@ -260,6 +288,7 @@ int send_timestamp(ship_client_t *c) {
     switch(c->version) {
         case CLIENT_VERSION_DCV1:
         case CLIENT_VERSION_DCV2:
+        case CLIENT_VERSION_PC:
             return send_dc_timestamp(c);
     }
     
@@ -277,6 +306,7 @@ static int send_dc_block_list(ship_client_t *c, ship_t *s) {
     if(!sendbuf) {
         return -1;
     }
+
     /* Clear the base packet */
     memset(pkt, 0, sizeof(dc_block_list_pkt));
 
@@ -323,12 +353,71 @@ static int send_dc_block_list(ship_client_t *c, ship_t *s) {
     return crypt_send(c, len, sendbuf);
 }
 
+static int send_pc_block_list(ship_client_t *c, ship_t *s) {
+    uint8_t *sendbuf = get_sendbuf();
+    pc_block_list_pkt *pkt = (pc_block_list_pkt *)sendbuf;
+    char tmp[18];
+    int i, j, len = 0x30;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Clear the base packet */
+    memset(pkt, 0, sizeof(pc_block_list_pkt));
+
+    /* Fill in some basic stuff */
+    pkt->hdr.pkt_type = SHIP_DC_BLOCK_LIST_TYPE;
+
+    /* Fill in the ship name entry */
+    memset(&pkt->entries[0], 0, 0x2C);
+    pkt->entries[0].menu_id = LE32(0x00040000);
+    pkt->entries[0].item_id = 0;
+    pkt->entries[0].flags = 0;
+
+    /* Copy the ship's name to the packet. */
+    for(i = 0; i < 0x10 && s->cfg->name[i]; ++i) {
+        pkt->entries[0].name[i] = LE16(s->cfg->name[i]);
+    }
+
+    /* Add each block to the list. */
+    for(i = 1; i <= s->cfg->blocks; ++i) {
+        /* Clear out the ship information */
+        memset(&pkt->entries[i], 0, 0x2C);
+
+        /* Fill in what we have */
+        pkt->entries[i].menu_id = LE32(0x00000001);
+        pkt->entries[i].item_id = LE32(i);
+        pkt->entries[i].flags = LE16(0x0000);
+
+        /* Create the name string */
+        sprintf(tmp, "BLOCK%02d", i);
+
+        for(j = 0; j < 0x10 && tmp[j]; ++j) {
+            pkt->entries[i].name[j] = LE16(tmp[j]);
+        }
+
+        len += 0x2C;
+    }
+
+    /* Fill in the rest of the header */
+    pkt->hdr.pkt_len = LE16(len);
+    pkt->hdr.flags = (uint8_t)(s->cfg->blocks);
+
+    /* Send the packet away */
+    return crypt_send(c, len, sendbuf);
+}
+
 int send_block_list(ship_client_t *c, ship_t *s) {
     /* Call the appropriate function */
     switch(c->version) {
         case CLIENT_VERSION_DCV1:
         case CLIENT_VERSION_DCV2:
             return send_dc_block_list(c, s);
+
+        case CLIENT_VERSION_PC:
+            return send_pc_block_list(c, s);
     }
 
     return -1;
@@ -338,19 +427,37 @@ int send_block_list(ship_client_t *c, ship_t *s) {
 static int send_dc_info_reply(ship_client_t *c, char msg[]) {
     uint8_t *sendbuf = get_sendbuf();
     dc_info_reply_pkt *pkt = (dc_info_reply_pkt *)sendbuf;
-    size_t out;
+    iconv_t ic;
+    size_t in, out;
+    char *inptr, *outptr;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
         return -1;
     }
 
-    /* Copy the information message over. */
-    strncpy(pkt->msg, msg, 65523);
-    pkt->msg[65523] = 0;
+    if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2) {
+        ic = iconv_open("SHIFT_JIS", "SHIFT_JIS");
+    }
+    else {
+        ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+    }
+
+    if(ic == (iconv_t)-1) {
+        perror("iconv_open");
+        return -1;
+    }
+
+    /* Convert the message to the appropriate encoding. */
+    in = strlen(msg) + 1;
+    out = 65524;
+    inptr = msg;
+    outptr = pkt->msg;
+    iconv(ic, &inptr, &in, &outptr, &out);
+    iconv_close(ic);
 
     /* Figure out how long the new string is. */
-    out = strlen(msg) + 12;
+    out = 65524 - out + 12;
 
     /* Fill in the oddities of the packet. */
     pkt->odd[0] = LE32(0x00200000);
@@ -362,9 +469,17 @@ static int send_dc_info_reply(ship_client_t *c, char msg[]) {
     }
 
     /* Fill in the header */
-    pkt->hdr.pkt_type = SHIP_INFO_REPLY_TYPE;
-    pkt->hdr.flags = 0;
-    pkt->hdr.pkt_len = LE16(out);
+    if(c->version == CLIENT_VERSION_DCV1 ||
+       c->version == CLIENT_VERSION_DCV2) {
+        pkt->hdr.dc.pkt_type = SHIP_INFO_REPLY_TYPE;
+        pkt->hdr.dc.flags = 0;
+        pkt->hdr.dc.pkt_len = LE16(out);
+    }
+    else {
+        pkt->hdr.pc.pkt_type = SHIP_INFO_REPLY_TYPE;
+        pkt->hdr.pc.flags = 0;
+        pkt->hdr.pc.pkt_len = LE16(out);
+    }
 
     /* Send the packet away */
     return crypt_send(c, out, sendbuf);
@@ -375,6 +490,7 @@ int send_info_reply(ship_client_t *c, char msg[]) {
     switch(c->version) {
         case CLIENT_VERSION_DCV1:
         case CLIENT_VERSION_DCV2:
+        case CLIENT_VERSION_PC:
             return send_dc_info_reply(c, msg);
     }
 
@@ -400,12 +516,33 @@ static int send_dc_simple(ship_client_t *c, int type, int flags) {
     return crypt_send(c, 4, sendbuf);
 }
 
+static int send_pc_simple(ship_client_t *c, int type, int flags) {
+    uint8_t *sendbuf = get_sendbuf();
+    pc_pkt_hdr_t *pkt = (pc_pkt_hdr_t *)sendbuf;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Fill in the header */
+    pkt->pkt_type = (uint8_t)type;
+    pkt->flags = (uint8_t)flags;
+    pkt->pkt_len = LE16(4);
+
+    /* Send the packet away */
+    return crypt_send(c, 4, sendbuf);
+}
+
 int send_simple(ship_client_t *c, int type, int flags) {
     /* Call the appropriate function. */
     switch(c->version) {
         case CLIENT_VERSION_DCV1:
         case CLIENT_VERSION_DCV2:
             return send_dc_simple(c, type, flags);
+
+        case CLIENT_VERSION_PC:
+            return send_pc_simple(c, type, flags);
     }
 
     return -1;
@@ -423,9 +560,16 @@ static int send_dc_lobby_list(ship_client_t *c) {
     }
 
     /* Fill in the header */
-    pkt->hdr.pkt_type = SHIP_LOBBY_LIST_TYPE;
-    pkt->hdr.flags = 0x0F;                                  /* 15 lobbies */
-    pkt->hdr.pkt_len = LE16(SHIP_DC_LOBBY_LIST_LENGTH);
+    if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2) {
+        pkt->hdr.dc.pkt_type = SHIP_LOBBY_LIST_TYPE;
+        pkt->hdr.dc.flags = 0x0F;                               /* 15 lobbies */
+        pkt->hdr.dc.pkt_len = LE16(SHIP_DC_LOBBY_LIST_LENGTH);
+    }
+    else {
+        pkt->hdr.pc.pkt_type = SHIP_LOBBY_LIST_TYPE;
+        pkt->hdr.pc.flags = 0x0F;                               /* 15 lobbies */
+        pkt->hdr.pc.pkt_len = LE16(SHIP_DC_LOBBY_LIST_LENGTH);
+    }
 
     /* Fill in the lobbies. */
     for(i = 0; i < 15; ++i) {
@@ -447,6 +591,7 @@ int send_lobby_list(ship_client_t *c) {
     switch(c->version) {
         case CLIENT_VERSION_DCV1:
         case CLIENT_VERSION_DCV2:
+        case CLIENT_VERSION_PC:
             return send_dc_lobby_list(c);
     }
 
@@ -506,6 +651,76 @@ static int send_dc_lobby_join(ship_client_t *c, lobby_t *l) {
     return crypt_send(c, pkt_size, sendbuf);
 }
 
+static int send_pc_lobby_join(ship_client_t *c, lobby_t *l) {
+    uint8_t *sendbuf = get_sendbuf();
+    pc_lobby_join_pkt *pkt = (pc_lobby_join_pkt *)sendbuf;
+    int i, pls = 0;
+    uint16_t pkt_size = 0x10;
+    iconv_t ic;
+    size_t in, out;
+    char *inptr, *outptr;
+    
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+    
+    ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+    
+    if(ic == (iconv_t)-1) {
+        perror("iconv_open");
+        return -1;
+    }
+
+    /* Clear the packet's header. */
+    memset(pkt, 0, sizeof(pc_lobby_join_pkt));
+
+    /* Fill in the basics. */
+    pkt->hdr.pkt_type = SHIP_LOBBY_JOIN_TYPE;
+    pkt->leader_id = l->leader_id;
+    pkt->one = 1;
+    pkt->lobby_num = l->lobby_id - 1;
+    pkt->block_num = LE16(l->block->b);
+
+    for(i = 0; i < l->max_clients; ++i) {
+        /* Skip blank clients. */
+        if(l->clients[i] == NULL) {
+            continue;
+        }
+        /* If this is the client we're sending to, mark their client id. */
+        else if(l->clients[i] == c) {
+            pkt->client_id = (uint8_t)i;
+        }
+
+        /* Copy the player's data into the packet. */
+        pkt->entries[pls].hdr.tag = LE32(0x00010000);
+        pkt->entries[pls].hdr.guildcard = LE32(l->clients[i]->guildcard);
+        pkt->entries[pls].hdr.ip_addr = 0;
+        pkt->entries[pls].hdr.client_id = LE32(i);
+
+        /* Convert the name to UTF-16. */
+        in = strlen(l->clients[i]->pl->name) + 1;
+        out = 32;
+        inptr = l->clients[i]->pl->name;
+        outptr = (char *)pkt->entries[pls].hdr.name;
+        iconv(ic, &inptr, &in, &outptr, &out);
+
+        memcpy(&pkt->entries[pls].data, l->clients[i]->pl, sizeof(player_t));
+
+        ++pls;
+        pkt_size += 1100;
+    }
+
+    iconv_close(ic);
+
+    /* Fill in the rest of it. */
+    pkt->hdr.flags = (uint8_t)pls;
+    pkt->hdr.pkt_len = LE16(pkt_size);
+
+    /* Send it away */
+    return crypt_send(c, pkt_size, sendbuf);
+}
+
 int send_lobby_join(ship_client_t *c, lobby_t *l) {
     /* Call the appropriate function. */
     switch(c->version) {
@@ -519,6 +734,12 @@ int send_lobby_join(ship_client_t *c, lobby_t *l) {
 
             return send_dc_lobby_arrows(l, c);
 
+        case CLIENT_VERSION_PC:
+            if(send_pc_lobby_join(c, l)) {
+                return -1;
+            }
+
+            return send_dc_lobby_arrows(l, c);
     }
 
     return -1;
@@ -536,6 +757,15 @@ int send_pkt_dc(ship_client_t *c, dc_pkt_hdr_t *pkt) {
 
     /* Copy the packet to the send buffer */
     memcpy(sendbuf, pkt, len);
+
+    /* Move stuff around for the PC version's odd header. */
+    if(c->version == CLIENT_VERSION_PC) {
+        pc_pkt_hdr_t *hdr = (pc_pkt_hdr_t *)sendbuf;
+
+        hdr->pkt_len = pkt->pkt_len;
+        hdr->flags = pkt->flags;
+        hdr->pkt_type = pkt->pkt_type;
+    }
 
     /* Send it away */
     return crypt_send(c, len, sendbuf);
@@ -577,6 +807,58 @@ static int send_dc_lobby_add_player(lobby_t *l, ship_client_t *c,
     return crypt_send(c, 0x044C, sendbuf);
 }
 
+static int send_pc_lobby_add_player(lobby_t *l, ship_client_t *c,
+                                    ship_client_t *nc) {
+    uint8_t *sendbuf = get_sendbuf();
+    pc_lobby_join_pkt *pkt = (pc_lobby_join_pkt *)sendbuf;
+    iconv_t ic;
+    size_t in, out;
+    char *inptr, *outptr;
+    
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+    
+    ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+    
+    if(ic == (iconv_t)-1) {
+        perror("iconv_open");
+        return -1;
+    }
+
+    /* Clear the packet's header. */
+    memset(pkt, 0, sizeof(pc_lobby_join_pkt));
+
+    /* Fill in the basics. */
+    pkt->hdr.pkt_type = l->type & LOBBY_TYPE_DEFAULT ? 
+        SHIP_LOBBY_ADD_PLAYER_TYPE : SHIP_GAME_ADD_PLAYER_TYPE;
+    pkt->hdr.flags = 1;
+    pkt->hdr.pkt_len = LE16(0x045C);
+    pkt->leader_id = l->leader_id;
+    pkt->one = 1;
+    pkt->lobby_num = l->lobby_id - 1;
+    pkt->block_num = l->block->b;
+
+    /* Copy the player's data into the packet. */
+    pkt->entries[0].hdr.tag = LE32(0x00010000);
+    pkt->entries[0].hdr.guildcard = LE32(nc->guildcard);
+    pkt->entries[0].hdr.ip_addr = 0;
+    pkt->entries[0].hdr.client_id = LE32(nc->client_id);
+
+    /* Convert the name to UTF-16. */
+    in = strlen(nc->pl->name) + 1;
+    out = 32;
+    inptr = nc->pl->name;
+    outptr = (char *)pkt->entries[0].hdr.name;
+    iconv(ic, &inptr, &in, &outptr, &out);
+
+    memcpy(&pkt->entries[0].data, nc->pl, sizeof(player_t));
+
+    /* Send it away */
+    return crypt_send(c, 0x045C, sendbuf);
+}
+
 /* Send a packet to all clients in the lobby when a new player joins. */
 int send_lobby_add_player(lobby_t *l, ship_client_t *c) {
     int i;
@@ -590,6 +872,10 @@ int send_lobby_add_player(lobby_t *l, ship_client_t *c) {
                 case CLIENT_VERSION_DCV1:
                 case CLIENT_VERSION_DCV2:
                     send_dc_lobby_add_player(l, l->clients[i], c);
+                    break;
+
+                case CLIENT_VERSION_PC:
+                    send_pc_lobby_add_player(l, l->clients[i], c);
                     break;
             }
 
@@ -611,10 +897,18 @@ static int send_dc_lobby_leave(lobby_t *l, ship_client_t *c, int client_id) {
     }
 
     /* Fill in the header */
-    pkt->hdr.pkt_type = l->type & LOBBY_TYPE_DEFAULT ?
-        SHIP_LOBBY_LEAVE_TYPE : SHIP_GAME_LEAVE_TYPE;
-    pkt->hdr.flags = client_id;
-    pkt->hdr.pkt_len = LE16(SHIP_DC_LOBBY_LEAVE_LENGTH);
+    if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2) {
+        pkt->hdr.dc.pkt_type = l->type & LOBBY_TYPE_DEFAULT ?
+            SHIP_LOBBY_LEAVE_TYPE : SHIP_GAME_LEAVE_TYPE;
+        pkt->hdr.dc.flags = client_id;
+        pkt->hdr.dc.pkt_len = LE16(SHIP_DC_LOBBY_LEAVE_LENGTH);
+    }
+    else {
+        pkt->hdr.pc.pkt_type = l->type & LOBBY_TYPE_DEFAULT ?
+            SHIP_LOBBY_LEAVE_TYPE : SHIP_GAME_LEAVE_TYPE;
+        pkt->hdr.pc.flags = client_id;
+        pkt->hdr.pc.pkt_len = LE16(SHIP_DC_LOBBY_LEAVE_LENGTH);
+    }
 
     pkt->client_id = client_id;
     pkt->leader_id = l->leader_id;
@@ -635,6 +929,7 @@ int send_lobby_leave(lobby_t *l, ship_client_t *c, int client_id) {
             switch(l->clients[i]->version) {
                 case CLIENT_VERSION_DCV1:
                 case CLIENT_VERSION_DCV2:
+                case CLIENT_VERSION_PC:
                     send_dc_lobby_leave(l, l->clients[i], client_id);
                     break;
             }
@@ -650,7 +945,23 @@ static int send_dc_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
                               char msg[]) {
     uint8_t *sendbuf = get_sendbuf();
     dc_chat_pkt *pkt = (dc_chat_pkt *)sendbuf;
-    int len;
+    iconv_t ic;
+    char tm[strlen(msg) + 32];
+    size_t in, out, len;
+    char *inptr, *outptr;
+    char *tmp = msg;
+
+    if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2) {
+        ic = iconv_open("SHIFT_JIS", "SHIFT_JIS");
+    }
+    else {
+        ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+    }
+
+    if(ic == (iconv_t)-1) {
+        perror("iconv_open");
+        return -1;
+    }
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -661,12 +972,23 @@ static int send_dc_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
     memset(pkt, 0, sizeof(dc_chat_pkt));
 
     /* Fill in the basics */
-    pkt->hdr.pkt_type = SHIP_CHAT_TYPE;
-    pkt->hdr.flags = 0;
     pkt->guildcard = LE32(s->guildcard);
 
     /* Fill in the message */
-    len = sprintf(pkt->msg, "%s\t\tE%s", s->pl->name, msg) + 1;
+    if(msg[0] == '\t') {
+        tmp += 2;
+    }
+    in = sprintf(tm, "%s\t%s", s->pl->name, tmp) + 1;
+
+    /* Convert the message to the appropriate encoding. */
+    out = 65520;
+    inptr = tm;
+    outptr = pkt->msg;
+    iconv(ic, &inptr, &in, &outptr, &out);
+    iconv_close(ic);
+
+    /* Figure out how long the new string is. */
+    len = 65520 - out;
 
     /* Add any padding needed */
     while(len & 0x03) {
@@ -675,7 +997,17 @@ static int send_dc_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
 
     /* Fill in the length */
     len += 0x0C;
-    pkt->hdr.pkt_len = LE16(len);
+
+    if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2) {
+        pkt->hdr.dc.pkt_type = SHIP_CHAT_TYPE;
+        pkt->hdr.dc.flags = 0;
+        pkt->hdr.dc.pkt_len = LE16(len);
+    }
+    else {
+        pkt->hdr.pc.pkt_type = SHIP_CHAT_TYPE;
+        pkt->hdr.pc.flags = 0;
+        pkt->hdr.pc.pkt_len = LE16(len);
+    }
 
     /* Send it away */
     return crypt_send(c, len, sendbuf);
@@ -693,7 +1025,123 @@ int send_lobby_chat(lobby_t *l, ship_client_t *sender, char msg[]) {
             switch(l->clients[i]->version) {
                 case CLIENT_VERSION_DCV1:
                 case CLIENT_VERSION_DCV2:
+                case CLIENT_VERSION_PC:
                     send_dc_lobby_chat(l, l->clients[i], sender, msg);
+                    break;
+            }
+
+            pthread_mutex_unlock(&l->clients[i]->mutex);
+        }
+    }
+
+    return 0;
+}
+
+static int send_dc_lobby_wchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
+                               uint16_t *msg, size_t len) {
+    uint8_t *sendbuf = get_sendbuf();
+    dc_chat_pkt *pkt = (dc_chat_pkt *)sendbuf;
+    iconv_t ic, ic2;
+    uint16_t tm[len];
+    char tmp[32];
+    size_t in, out;
+    char *inptr, *outptr;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Create everything we need for converting stuff. */
+    ic2 = iconv_open("SHIFT_JIS", "UTF-16LE");
+
+    if(ic2 == (iconv_t)-1) {
+        perror("iconv_open");
+        return -1;
+    }
+
+    if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2) {
+        ic = iconv_open("SHIFT_JIS", "UTF-16LE");
+    }
+    else {
+        ic = iconv_open("UTF-16LE", "UTF-16LE");
+    }
+
+    if(ic == (iconv_t)-1) {
+        perror("iconv_open");
+        iconv_close(ic2);
+        return -1;
+    }
+
+    /* Clear the packet header */
+    memset(pkt, 0, sizeof(dc_chat_pkt));
+
+    /* Fill in the basics */
+    pkt->guildcard = LE32(s->guildcard);
+
+    /* Convert the name string first. */
+    in = sprintf(tmp, "%s\t", s->pl->name);
+    out = 65520;
+    inptr = tmp;
+    outptr = pkt->msg;
+    iconv(ic2, &inptr, &in, &outptr, &out);
+    iconv_close(ic2);
+
+    /* Fill in the message */
+    if(msg[0] != 0x0009) {
+        in = len;
+        inptr = (char *)msg;
+    }
+    else {
+        in = len - 4;
+        inptr = (char *)(msg + 2);
+    }
+
+    /* Convert the message to the appropriate encoding. */
+    iconv(ic, &inptr, &in, &outptr, &out);
+    iconv_close(ic);
+
+    /* Figure out how long the new string is. */
+    len = 65520 - out;
+
+    /* Add any padding needed */
+    while(len & 0x03) {
+        pkt->msg[len++] = 0;
+    }
+
+    /* Fill in the length */
+    len += 0x0C;
+
+    if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2) {
+        pkt->hdr.dc.pkt_type = SHIP_CHAT_TYPE;
+        pkt->hdr.dc.flags = 0;
+        pkt->hdr.dc.pkt_len = LE16(len);
+    }
+    else {
+        pkt->hdr.pc.pkt_type = SHIP_CHAT_TYPE;
+        pkt->hdr.pc.flags = 0;
+        pkt->hdr.pc.pkt_len = LE16(len);
+    }
+
+    /* Send it away */
+    return crypt_send(c, len, sendbuf);
+}
+
+/* Send a talk packet to the specified lobby (UTF-16). */
+int send_lobby_wchat(lobby_t *l, ship_client_t *sender, uint16_t *msg,
+                     size_t len) {
+    int i;
+
+    for(i = 0; i < l->max_clients; ++i) {
+        if(l->clients[i] != NULL) {
+            pthread_mutex_lock(&l->clients[i]->mutex);
+
+            /* Call the appropriate function. */
+            switch(l->clients[i]->version) {
+                case CLIENT_VERSION_DCV1:
+                case CLIENT_VERSION_DCV2:
+                case CLIENT_VERSION_PC:
+                    send_dc_lobby_wchat(l, l->clients[i], sender, msg, len);
                     break;
             }
 
@@ -756,6 +1204,22 @@ static int send_dc_message(ship_client_t *c, char msg[], uint16_t type) {
     uint8_t *sendbuf = get_sendbuf();
     dc_chat_pkt *pkt = (dc_chat_pkt *)sendbuf;
     int len;
+    iconv_t ic;
+    char tm[strlen(msg) + 3];
+    size_t in, out;
+    char *inptr, *outptr;
+
+    if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2) {
+        ic = iconv_open("SHIFT_JIS", "SHIFT_JIS");
+    }
+    else {
+        ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+    }
+    
+    if(ic == (iconv_t)-1) {
+        perror("iconv_open");
+        return -1;
+    }
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -765,12 +1229,18 @@ static int send_dc_message(ship_client_t *c, char msg[], uint16_t type) {
     /* Clear the packet header */
     memset(pkt, 0, sizeof(dc_chat_pkt));
 
-    /* Fill in the basics */
-    pkt->hdr.pkt_type = type;
-    pkt->hdr.flags = 0;
-
     /* Fill in the message */
-    len = sprintf(pkt->msg, "\tE%s", msg) + 1;
+    in = sprintf(tm, "\tE%s", msg) + 1;
+
+    /* Convert the message to the appropriate encoding. */
+    out = 65520;
+    inptr = tm;
+    outptr = pkt->msg;
+    iconv(ic, &inptr, &in, &outptr, &out);
+    iconv_close(ic);
+    
+    /* Figure out how long the new string is. */
+    len = 65520 - out;
 
     /* Add any padding needed */
     while(len & 0x03) {
@@ -779,7 +1249,17 @@ static int send_dc_message(ship_client_t *c, char msg[], uint16_t type) {
 
     /* Fill in the length */
     len += 0x0C;
-    pkt->hdr.pkt_len = LE16(len);
+
+    if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2) {
+        pkt->hdr.dc.pkt_type = type;
+        pkt->hdr.dc.flags = 0;
+        pkt->hdr.dc.pkt_len = LE16(len);
+    }
+    else {
+        pkt->hdr.pc.pkt_type = type;
+        pkt->hdr.pc.flags = 0;
+        pkt->hdr.pc.pkt_len = LE16(len);
+    }
 
     /* Send it away */
     return crypt_send(c, len, sendbuf);
@@ -791,6 +1271,7 @@ int send_message1(ship_client_t *c, char msg[]) {
     switch(c->version) {
         case CLIENT_VERSION_DCV1:
         case CLIENT_VERSION_DCV2:
+        case CLIENT_VERSION_PC:
             return send_dc_message(c, msg, SHIP_MSG1_TYPE);
     }
     
@@ -803,6 +1284,7 @@ int send_txt(ship_client_t *c, char msg[]) {
     switch(c->version) {
         case CLIENT_VERSION_DCV1:
         case CLIENT_VERSION_DCV2:
+        case CLIENT_VERSION_PC:
             return send_dc_message(c, msg, SHIP_TEXT_MSG_TYPE);
     }
 
@@ -860,12 +1342,81 @@ static int send_dc_game_join(ship_client_t *c, lobby_t *l) {
     return crypt_send(c, SHIP_DC_GAME_JOIN_LENGTH, sendbuf);
 }
 
+static int send_pc_game_join(ship_client_t *c, lobby_t *l) {
+    uint8_t *sendbuf = get_sendbuf();
+    pc_game_join_pkt *pkt = (pc_game_join_pkt *)sendbuf;
+    int clients = 0, i;
+    iconv_t ic;
+    size_t in, out;
+    char *inptr, *outptr;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+
+    if(ic == (iconv_t)-1) {
+        perror("iconv_open");
+        return -1;
+    }
+
+    /* Clear it out first. */
+    memset(pkt, 0, sizeof(pc_game_join_pkt));
+
+    /* Fill in the basics. */
+    pkt->hdr.pkt_type = SHIP_GAME_JOIN_TYPE;
+    pkt->hdr.pkt_len = LE16(sizeof(pc_game_join_pkt));
+    pkt->client_id = c->client_id;
+    pkt->leader_id = l->leader_id;
+    pkt->one = 1;
+    pkt->difficulty = l->difficulty;
+    pkt->battle = l->battle;
+    pkt->event = l->event;
+    pkt->section = l->section;
+    pkt->challenge = l->challenge;
+    pkt->game_id = LE32(l->lobby_id);
+
+    /* Fill in the variations array. */
+    memcpy(pkt->maps, l->maps, 0x20 * 4);
+
+    for(i = 0; i < 4; ++i) {
+        if(l->clients[i]) {
+            /* Copy the player's data into the packet. */
+            pkt->players[i].tag = LE32(0x00010000);
+            pkt->players[i].guildcard = LE32(l->clients[i]->guildcard);
+            pkt->players[i].ip_addr = 0;
+            pkt->players[i].client_id = LE32(i);
+
+            /* Convert the name to UTF-16. */
+            in = strlen(l->clients[i]->pl->name) + 1;
+            out = 32;
+            inptr = l->clients[i]->pl->name;
+            outptr = (char *)pkt->players[i].name;
+            iconv(ic, &inptr, &in, &outptr, &out);
+            ++clients;
+        }
+    }
+
+    iconv_close(ic);
+
+    /* Copy the client count over. */
+    pkt->hdr.flags = (uint8_t) clients;
+
+    /* Send it away */
+    return crypt_send(c, sizeof(pc_game_join_pkt), sendbuf);
+}
+
 int send_game_join(ship_client_t *c, lobby_t *l) {
     /* Call the appropriate function. */
     switch(c->version) {
         case CLIENT_VERSION_DCV1:
         case CLIENT_VERSION_DCV2:
             return send_dc_game_join(c, l);
+
+        case CLIENT_VERSION_PC:
+            return send_pc_game_join(c, l);
     }
 
     return -1;
@@ -992,12 +1543,99 @@ static int send_dc_game_list(ship_client_t *c, block_t *b) {
     return crypt_send(c, len, sendbuf);
 }
 
+static int send_pc_game_list(ship_client_t *c, block_t *b) {
+    uint8_t *sendbuf = get_sendbuf();
+    pc_game_list_pkt *pkt = (pc_game_list_pkt *)sendbuf;
+    int entries = 1, len = 0x20;
+    lobby_t *l;
+    iconv_t ic;
+    size_t in, out;
+    char *inptr, *outptr;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+
+    if(ic == (iconv_t)-1) {
+        perror("iconv_open");
+        return -1;
+    }
+
+    /* Clear out the packet and the first entry */
+    memset(pkt, 0, 0x30);
+
+    /* Fill in the header */
+    pkt->hdr.pkt_type = SHIP_GAME_LIST_TYPE;
+
+    /* Fill in the first entry */
+    pkt->entries[0].menu_id = 0xFFFFFFFF;
+    pkt->entries[0].item_id = 0xFFFFFFFF;
+    pkt->entries[0].flags = 0x04;
+
+    in = strlen(b->ship->cfg->name) + 1;
+    out = 0x20;
+    inptr = b->ship->cfg->name;
+    outptr = (char *)pkt->entries[0].name;
+    iconv(ic, &inptr, &in, &outptr, &out);
+
+    TAILQ_FOREACH(l, &b->lobbies, qentry) {
+        /* Ignore default lobbies */
+        if(l->type & LOBBY_TYPE_DEFAULT) {
+            continue;
+        }
+
+        /* Lock the lobby */
+        pthread_mutex_lock(&l->mutex);
+
+        /* Clear the entry */
+        memset(pkt->entries + entries, 0, 0x2C);
+
+        /* Copy the lobby's data to the packet */
+        pkt->entries[entries].menu_id = LE32(0x00000002);
+        pkt->entries[entries].item_id = LE32(l->lobby_id);
+        pkt->entries[entries].difficulty = 0x22 + l->difficulty;
+        pkt->entries[entries].players = l->num_clients;
+        pkt->entries[entries].v2 = l->version;
+        pkt->entries[entries].flags = (l->challenge ? 0x20 : 0x00) |
+        (l->battle ? 0x10 : 0x00) | l->passwd[0] ? 2 : 0;
+
+        /* Copy the name */
+        in = strlen(l->name) + 1;
+        out = 0x20;
+        inptr = l->name;
+        outptr = (char *)pkt->entries[entries].name;
+        iconv(ic, &inptr, &in, &outptr, &out);
+
+        /* Unlock the lobby */
+        pthread_mutex_unlock(&l->mutex);
+
+        /* Update the counters */
+        ++entries;
+        len += 0x2C;
+    }
+
+    iconv_close(ic);
+
+    /* Fill in the rest of the header */
+    pkt->hdr.flags = entries - 1;
+    pkt->hdr.pkt_len = LE16(len);
+
+    /* Send it away */
+    return crypt_send(c, len, sendbuf);
+}
+
 int send_game_list(ship_client_t *c, block_t *b) {
     /* Call the appropriate function. */
     switch(c->version) {
         case CLIENT_VERSION_DCV1:
         case CLIENT_VERSION_DCV2:
             return send_dc_game_list(c, b);
+
+        case CLIENT_VERSION_PC:
+            return send_pc_game_list(c, b);
     }
 
     return -1;
@@ -1056,12 +1694,82 @@ static int send_dc_info_list(ship_client_t *c, ship_t *s) {
     return crypt_send(c, len, sendbuf);
 }
 
+static int send_pc_info_list(ship_client_t *c, ship_t *s) {
+    uint8_t *sendbuf = get_sendbuf();
+    pc_block_list_pkt *pkt = (pc_block_list_pkt *)sendbuf;
+    int i, len = 0x30;
+    iconv_t ic;
+    size_t in, out;
+    char *inptr, *outptr;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+
+    if(ic == (iconv_t)-1) {
+        perror("iconv_open");
+        return -1;
+    }
+
+    /* Clear the base packet */
+    memset(pkt, 0, 0x30);
+
+    /* Fill in some basic stuff */
+    pkt->hdr.pkt_type = SHIP_LOBBY_INFO_TYPE;
+
+    /* Fill in the ship name entry */
+    memset(&pkt->entries[0], 0, 0x1C);
+    pkt->entries[0].menu_id = LE32(0x00040000);
+    pkt->entries[0].item_id = 0;
+    pkt->entries[0].flags = 0;
+
+    in = strlen(s->cfg->name) + 1;
+    out = 0x20;
+    inptr = s->cfg->name;
+    outptr = (char *)pkt->entries[0].name;
+    iconv(ic, &inptr, &in, &outptr, &out);
+
+    /* Add each info item to the list. */
+    for(i = 1; i <= s->cfg->info_file_count; ++i) {
+        /* Clear out the ship information */
+        memset(&pkt->entries[i], 0, 0x1C);
+
+        /* Fill in what we have */
+        pkt->entries[i].menu_id = LE32(0x00000000);
+        pkt->entries[i].item_id = LE32((i - 1));
+        pkt->entries[i].flags = LE16(0x0000);
+
+        in = strlen(s->cfg->info_files_desc[i - 1]) + 1;
+        out = 0x20;
+        inptr = s->cfg->info_files_desc[i - 1];
+        outptr = (char *)pkt->entries[i].name;
+        iconv(ic, &inptr, &in, &outptr, &out);
+
+        len += 0x2C;
+    }
+
+    iconv_close(ic);
+
+    /* Fill in the rest of the header */
+    pkt->hdr.pkt_len = LE16(len);
+    pkt->hdr.flags = (uint8_t)(s->cfg->info_file_count);
+
+    /* Send the packet away */
+    return crypt_send(c, len, sendbuf);
+}
+
 int send_info_list(ship_client_t *c, ship_t *s) {
     /* Call the appropriate function */
     switch(c->version) {
         case CLIENT_VERSION_DCV1:
         case CLIENT_VERSION_DCV2:
             return send_dc_info_list(c, s);
+
+        case CLIENT_VERSION_PC:
+            return send_pc_info_list(c, s);
     }
 
     return -1;
@@ -1072,27 +1780,58 @@ static int send_dc_message_box(ship_client_t *c, char msg[]) {
     uint8_t *sendbuf = get_sendbuf();
     dc_msg_box_pkt *pkt = (dc_msg_box_pkt *)sendbuf;
     int len;
+    iconv_t ic;
+    size_t in, out, outt;
+    char *inptr, *outptr;
+    
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2) {
+        ic = iconv_open("SHIFT_JIS", "SHIFT_JIS");
+    }
+    else {
+        ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+    }
+
+    if(ic == (iconv_t)-1) {
+        perror("iconv_open");
+        return -1;
+    }
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
         return -1;
     }
 
-    /* Fill in the basics */
-    pkt->hdr.pkt_type = SHIP_MSG_BOX_TYPE;
-    pkt->hdr.flags = 0;
-
     /* Fill in the message */
-    len = sprintf(pkt->msg, "%s", msg) + 1;
+    in = strlen(msg) + 1;
+    out = 65500;
+    inptr = msg;
+    outptr = (char *)pkt->msg;
+    iconv(ic, &inptr, &in, &outptr, &out);
+    len = 65500 - out;
 
     /* Add any padding needed */
     while(len & 0x03) {
         pkt->msg[len++] = 0;
     }
 
-    /* Fill in the length */
+    /* Fill in the header */
     len += 0x04;
-    pkt->hdr.pkt_len = LE16(len);
+
+    if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV1) {
+        pkt->hdr.dc.pkt_type = SHIP_MSG_BOX_TYPE;
+        pkt->hdr.dc.flags = 0;
+        pkt->hdr.dc.pkt_len = LE16(len);
+    }
+    else {
+        pkt->hdr.pc.pkt_type = SHIP_MSG_BOX_TYPE;
+        pkt->hdr.pc.flags = 0;
+        pkt->hdr.pc.pkt_len = LE16(len);
+    }
 
     /* Send it away */
     return crypt_send(c, len, sendbuf);
@@ -1103,6 +1842,7 @@ int send_message_box(ship_client_t *c, char msg[]) {
     switch(c->version) {
         case CLIENT_VERSION_DCV1:
         case CLIENT_VERSION_DCV2:
+        case CLIENT_VERSION_PC:
             return send_dc_message_box(c, msg);
     }
 
@@ -1150,12 +1890,78 @@ static int send_dc_quest_categories(ship_client_t *c,
     return crypt_send(c, len, sendbuf);
 }
 
+static int send_pc_quest_categories(ship_client_t *c,
+                                    sylverant_quest_list_t *l) {
+    uint8_t *sendbuf = get_sendbuf();
+    pc_quest_list_pkt *pkt = (pc_quest_list_pkt *)sendbuf;
+    int i, len = 0x04, entries = 0;
+    iconv_t ic;
+    size_t in, out;
+    char *inptr, *outptr;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Quest names are stored internally as Shift-JIS, convert to UTF-16. */
+    ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+
+    if(ic == (iconv_t)-1) {
+        perror("iconv_open");
+        return -1;
+    }
+
+    /* Clear out the header */
+    memset(pkt, 0, 0x04);
+
+    /* Fill in the header */
+    pkt->hdr.pkt_type = SHIP_QUEST_LIST_TYPE;
+
+    for(i = 0; i < l->cat_count; ++i) {
+        /* Clear the entry */
+        memset(pkt->entries + i, 0, 0x128);
+
+        /* Copy the category's information over to the packet */
+        pkt->entries[i].menu_id = LE32(0x00000003);
+        pkt->entries[i].item_id = LE32(i);
+
+        /* Convert the name and the description to UTF-16. */
+        in = 32;
+        out = 64;
+        inptr = l->cats[i].name;
+        outptr = pkt->entries[i].name;
+        iconv(ic, &inptr, &in, &outptr, &out);
+
+        in = 112;
+        out = 224;
+        inptr = l->cats[i].desc;
+        outptr = pkt->entries[i].desc;
+        iconv(ic, &inptr, &in, &outptr, &out);
+
+        ++entries;
+        len += 0x128;
+    }
+
+    iconv_close(ic);
+
+    /* Fill in the rest of the header */
+    pkt->hdr.flags = entries;
+    pkt->hdr.pkt_len = LE16(len);
+
+    /* Send it away */
+    return crypt_send(c, len, sendbuf);
+}
+
 int send_quest_categories(ship_client_t *c, sylverant_quest_list_t *l) {
     /* Call the appropriate function. */
     switch(c->version) {
         case CLIENT_VERSION_DCV1:
         case CLIENT_VERSION_DCV2:
             return send_dc_quest_categories(c, l);
+
+        case CLIENT_VERSION_PC:
+            return send_pc_quest_categories(c, l);
     }
 
     return -1;
@@ -1206,6 +2012,73 @@ static int send_dc_quest_list(ship_client_t *c, int cat,
     return crypt_send(c, len, sendbuf);
 }
 
+static int send_pc_quest_list(ship_client_t *c, int cat,
+                              sylverant_quest_category_t *l, uint32_t ver) {
+    uint8_t *sendbuf = get_sendbuf();
+    pc_quest_list_pkt *pkt = (pc_quest_list_pkt *)sendbuf;
+    int i, len = 0x04, entries = 0;
+    iconv_t ic;
+    size_t in, out;
+    char *inptr, *outptr;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Quest names are stored internally as Shift-JIS, convert to UTF-16. */
+    ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+
+    if(ic == (iconv_t)-1) {
+        perror("iconv_open");
+        return -1;
+    }
+
+    /* Clear out the header */
+    memset(pkt, 0, 0x04);
+
+    /* Fill in the header */
+    pkt->hdr.pkt_type = SHIP_QUEST_LIST_TYPE;
+
+    for(i = 0; i < l->quest_count; ++i) {
+        if(!(l->quests[i].versions & ver)) {
+            continue;
+        }
+
+        /* Clear the entry */
+        memset(pkt->entries + entries, 0, 0x98);
+
+        /* Copy the category's information over to the packet */
+        pkt->entries[entries].menu_id = LE32(((0x00000004) | (cat << 8)));
+        pkt->entries[entries].item_id = LE32(i);
+
+        /* Convert the name and the description to UTF-16. */
+        in = 32;
+        out = 64;
+        inptr = l->quests[i].name;
+        outptr = pkt->entries[entries].name;
+        iconv(ic, &inptr, &in, &outptr, &out);
+
+        in = 112;
+        out = 224;
+        inptr = l->quests[i].desc;
+        outptr = pkt->entries[entries].desc;
+        iconv(ic, &inptr, &in, &outptr, &out);
+
+        ++entries;
+        len += 0x128;
+    }
+
+    iconv_close(ic);
+
+    /* Fill in the rest of the header */
+    pkt->hdr.flags = entries;
+    pkt->hdr.pkt_len = LE16(len);
+
+    /* Send it away */
+    return crypt_send(c, len, sendbuf);
+}
+
 int send_quest_list(ship_client_t *c, int cat, sylverant_quest_category_t *l) {
     /* Call the appropriate function. */
     switch(c->version) {
@@ -1217,6 +2090,14 @@ int send_quest_list(ship_client_t *c, int cat, sylverant_quest_category_t *l) {
             else {
                 return send_dc_quest_list(c, cat, l, SYLVERANT_QUEST_V1);
             }
+
+        case CLIENT_VERSION_PC:
+            if(c->cur_lobby->v2) {
+                return send_pc_quest_list(c, cat, l, SYLVERANT_QUEST_V2);
+            }
+            else {
+                return send_pc_quest_list(c, cat, l, SYLVERANT_QUEST_V1);
+            }
     }
 
     return -1;
@@ -1226,9 +2107,24 @@ int send_quest_list(ship_client_t *c, int cat, sylverant_quest_category_t *l) {
 static int send_dc_quest_info(ship_client_t *c, sylverant_quest_t *q) {
     uint8_t *sendbuf = get_sendbuf();
     dc_msg_box_pkt *pkt = (dc_msg_box_pkt *)sendbuf;
+    iconv_t ic;
+    size_t in, out, outt;
+    char *inptr, *outptr;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
+        return -1;
+    }
+
+    if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2) {
+        ic = iconv_open("SHIFT_JIS", "SHIFT_JIS");
+    }
+    else {
+        ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+    }
+
+    if(ic == (iconv_t)-1) {
+        perror("iconv_open");
         return -1;
     }
 
@@ -1236,13 +2132,25 @@ static int send_dc_quest_info(ship_client_t *c, sylverant_quest_t *q) {
     memset(pkt, 0, SHIP_DC_QUEST_INFO_LENGTH);
 
     /* Fill in the basics */
-    pkt->hdr.pkt_type = SHIP_QUEST_INFO_TYPE;
-    pkt->hdr.flags = 0;
-    pkt->hdr.pkt_len = LE16(SHIP_DC_QUEST_INFO_LENGTH);
+    if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2) {
+        pkt->hdr.dc.pkt_type = SHIP_QUEST_INFO_TYPE;
+        pkt->hdr.dc.flags = 0;
+        pkt->hdr.dc.pkt_len = LE16(SHIP_DC_QUEST_INFO_LENGTH);
+        outt = 0x124;
+    }
+    else {
+        pkt->hdr.pc.pkt_type = SHIP_QUEST_INFO_TYPE;
+        pkt->hdr.pc.flags = 0;
+        pkt->hdr.pc.pkt_len = LE16(SHIP_DC_QUEST_INFO_LENGTH);
+        outt = 0x248;
+    }
 
-    /* Fill in the message */
-    strncpy(pkt->msg, q->long_desc, 0x123);
-    pkt->msg[0x123] = '\0';
+    in = 0x124;
+    out = outt;
+    inptr = q->long_desc;
+    outptr = pkt->msg;
+    iconv(ic, &inptr, &in, &outptr, &out);
+    iconv_close(ic);
 
     /* Send it away */
     return crypt_send(c, SHIP_DC_QUEST_INFO_LENGTH, sendbuf);
@@ -1253,6 +2161,7 @@ int send_quest_info(ship_client_t *c, sylverant_quest_t *q) {
     switch(c->version) {
         case CLIENT_VERSION_DCV1:
         case CLIENT_VERSION_DCV2:
+        case CLIENT_VERSION_PC:
             return send_dc_quest_info(c, q);
     }
 
@@ -1299,12 +2208,14 @@ static int send_dcv1_quest(ship_client_t *c, sylverant_quest_t *q) {
     /* Send the file info packets */
     /* Start with the .dat file. */
     memset(file, 0, sizeof(dc_quest_file_pkt));
+
+    sprintf(file->name, "PSO/%s", q->name);
+
     file->hdr.pkt_type = SHIP_QUEST_FILE_TYPE;
     file->hdr.flags = 0x02; /* ??? */
     file->hdr.pkt_len = LE16(SHIP_DC_QUEST_FILE_LENGTH);
-    sprintf(file->name, "PSO/%s", q->name);
     sprintf(file->filename, "%sv1.dat", q->prefix);
-    file->length = LE32(datlen);
+    file->length = LE32(binlen);
 
     if(crypt_send(c, SHIP_DC_QUEST_FILE_LENGTH, sendbuf)) {
         return -2;
@@ -1312,10 +2223,12 @@ static int send_dcv1_quest(ship_client_t *c, sylverant_quest_t *q) {
 
     /* Now the .bin file. */
     memset(file, 0, sizeof(dc_quest_file_pkt));
+
+    sprintf(file->name, "PSO/%s", q->name);
+
     file->hdr.pkt_type = SHIP_QUEST_FILE_TYPE;
     file->hdr.flags = 0x02; /* ??? */
     file->hdr.pkt_len = LE16(SHIP_DC_QUEST_FILE_LENGTH);
-    sprintf(file->name, "PSO/%s", q->name);
     sprintf(file->filename, "%sv1.bin", q->prefix);
     file->length = LE32(binlen);
 
@@ -1331,9 +2244,9 @@ static int send_dcv1_quest(ship_client_t *c, sylverant_quest_t *q) {
             memset(chunk, 0, sizeof(dc_quest_chunk_pkt));
 
             /* Fill in the header */
-            chunk->hdr.pkt_type = SHIP_QUEST_CHUNK_TYPE;
-            chunk->hdr.flags = (uint8_t)chunknum;
-            chunk->hdr.pkt_len = LE16(SHIP_DC_QUEST_CHUNK_LENGTH);
+            chunk->hdr.dc.pkt_type = SHIP_QUEST_CHUNK_TYPE;
+            chunk->hdr.dc.flags = (uint8_t)chunknum;
+            chunk->hdr.dc.pkt_len = LE16(SHIP_DC_QUEST_CHUNK_LENGTH);
 
             /* Fill in the rest */
             sprintf(chunk->filename, "%sv1.dat", q->prefix);
@@ -1357,9 +2270,9 @@ static int send_dcv1_quest(ship_client_t *c, sylverant_quest_t *q) {
             memset(chunk, 0, sizeof(dc_quest_chunk_pkt));
 
             /* Fill in the header */
-            chunk->hdr.pkt_type = SHIP_QUEST_CHUNK_TYPE;
-            chunk->hdr.flags = (uint8_t)chunknum;
-            chunk->hdr.pkt_len = LE16(SHIP_DC_QUEST_CHUNK_LENGTH);
+            chunk->hdr.dc.pkt_type = SHIP_QUEST_CHUNK_TYPE;
+            chunk->hdr.dc.flags = (uint8_t)chunknum;
+            chunk->hdr.dc.pkt_len = LE16(SHIP_DC_QUEST_CHUNK_LENGTH);
 
             /* Fill in the rest */
             sprintf(chunk->filename, "%sv1.bin", q->prefix);
@@ -1414,6 +2327,8 @@ static int send_dcv2_quest(ship_client_t *c, sylverant_quest_t *q) {
         return -1;
     }
 
+    printf("sending %s\n", filename);
+
     /* Figure out how long each of the files are */
     fseek(bin, 0, SEEK_END);
     binlen = (uint32_t)ftell(bin);
@@ -1426,10 +2341,12 @@ static int send_dcv2_quest(ship_client_t *c, sylverant_quest_t *q) {
     /* Send the file info packets */
     /* Start with the .dat file. */
     memset(file, 0, sizeof(dc_quest_file_pkt));
+
+    sprintf(file->name, "PSO/%s", q->name);
+
     file->hdr.pkt_type = SHIP_QUEST_FILE_TYPE;
     file->hdr.flags = 0x02; /* ??? */
     file->hdr.pkt_len = LE16(SHIP_DC_QUEST_FILE_LENGTH);
-    sprintf(file->name, "PSO/%s", q->name);
     sprintf(file->filename, "%sv2.dat", q->prefix);
     file->length = LE32(datlen);
 
@@ -1439,10 +2356,12 @@ static int send_dcv2_quest(ship_client_t *c, sylverant_quest_t *q) {
 
     /* Now the .bin file. */
     memset(file, 0, sizeof(dc_quest_file_pkt));
+
+    sprintf(file->name, "PSO/%s", q->name);
+    
     file->hdr.pkt_type = SHIP_QUEST_FILE_TYPE;
     file->hdr.flags = 0x02; /* ??? */
     file->hdr.pkt_len = LE16(SHIP_DC_QUEST_FILE_LENGTH);
-    sprintf(file->name, "PSO/%s", q->name);
     sprintf(file->filename, "%sv2.bin", q->prefix);
     file->length = LE32(binlen);
 
@@ -1458,9 +2377,9 @@ static int send_dcv2_quest(ship_client_t *c, sylverant_quest_t *q) {
             memset(chunk, 0, sizeof(dc_quest_chunk_pkt));
 
             /* Fill in the header */
-            chunk->hdr.pkt_type = SHIP_QUEST_CHUNK_TYPE;
-            chunk->hdr.flags = (uint8_t)chunknum;
-            chunk->hdr.pkt_len = LE16(SHIP_DC_QUEST_CHUNK_LENGTH);
+            chunk->hdr.dc.pkt_type = SHIP_QUEST_CHUNK_TYPE;
+            chunk->hdr.dc.flags = (uint8_t)chunknum;
+            chunk->hdr.dc.pkt_len = LE16(SHIP_DC_QUEST_CHUNK_LENGTH);
 
             /* Fill in the rest */
             sprintf(chunk->filename, "%sv2.dat", q->prefix);
@@ -1484,9 +2403,9 @@ static int send_dcv2_quest(ship_client_t *c, sylverant_quest_t *q) {
             memset(chunk, 0, sizeof(dc_quest_chunk_pkt));
 
             /* Fill in the header */
-            chunk->hdr.pkt_type = SHIP_QUEST_CHUNK_TYPE;
-            chunk->hdr.flags = (uint8_t)chunknum;
-            chunk->hdr.pkt_len = LE16(SHIP_DC_QUEST_CHUNK_LENGTH);
+            chunk->hdr.dc.pkt_type = SHIP_QUEST_CHUNK_TYPE;
+            chunk->hdr.dc.flags = (uint8_t)chunknum;
+            chunk->hdr.dc.pkt_len = LE16(SHIP_DC_QUEST_CHUNK_LENGTH);
 
             /* Fill in the rest */
             sprintf(chunk->filename, "%sv2.bin", q->prefix);
@@ -1523,6 +2442,7 @@ int send_quest(lobby_t *l, sylverant_quest_t *q) {
             switch(l->clients[i]->version) {
                 case CLIENT_VERSION_DCV1:
                 case CLIENT_VERSION_DCV2:
+                case CLIENT_VERSION_PC:
                     if(l->v2) {
                         send_dcv2_quest(l->clients[i], q);
                     }
@@ -1548,13 +2468,9 @@ static int send_dcv2_lobby_name(ship_client_t *c, lobby_t *l) {
         return -1;
     }
 
-    /* Clear the packet header */
-    memset(pkt, 0, SHIP_DC_QUEST_INFO_LENGTH);
-
     /* Fill in the basics */
-    pkt->hdr.pkt_type = SHIP_LOBBY_NAME_TYPE;
-    pkt->hdr.flags = 0;
-    pkt->hdr.pkt_len = LE16(SHIP_DC_QUEST_INFO_LENGTH);
+    pkt->hdr.dc.pkt_type = SHIP_LOBBY_NAME_TYPE;
+    pkt->hdr.dc.flags = 0;
 
     /* Fill in the message */
     len = (uint16_t)sprintf(pkt->msg, "%s", l->name) + 1;
@@ -1566,7 +2482,53 @@ static int send_dcv2_lobby_name(ship_client_t *c, lobby_t *l) {
 
     /* Fill in the length */
     len += 0x04;
-    pkt->hdr.pkt_len = LE16(len);
+    pkt->hdr.dc.pkt_len = LE16(len);
+
+    /* Send it away */
+    return crypt_send(c, len, sendbuf);
+}
+
+static int send_pc_lobby_name(ship_client_t *c, lobby_t *l) {
+    uint8_t *sendbuf = get_sendbuf();
+    dc_msg_box_pkt *pkt = (dc_msg_box_pkt *)sendbuf;
+    uint16_t len;
+    iconv_t ic;
+    size_t in, out;
+    char *inptr, *outptr;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Lobby names are stored internally as Shift-JIS, convert to UTF-16. */
+    ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+
+    if(ic == (iconv_t)-1) {
+        perror("iconv_open");
+        return -1;
+    }
+
+    /* Convert the message to the appropriate encoding. */
+    in = strlen(l->name) + 1;
+    out = 65532;
+    inptr = l->name;
+    outptr = pkt->msg;
+    iconv(ic, &inptr, &in, &outptr, &out);
+    iconv_close(ic);
+
+    /* Fill in the basics */
+    pkt->hdr.pc.pkt_type = SHIP_LOBBY_NAME_TYPE;
+    pkt->hdr.pc.flags = 0;
+
+    /* Add any padding needed */
+    while(len & 0x03) {
+        pkt->msg[len++] = 0;
+    }
+
+    /* Fill in the length */
+    len += 0x04;
+    pkt->hdr.pc.pkt_len = LE16(len);
 
     /* Send it away */
     return crypt_send(c, len, sendbuf);
@@ -1575,8 +2537,11 @@ static int send_dcv2_lobby_name(ship_client_t *c, lobby_t *l) {
 int send_lobby_name(ship_client_t *c, lobby_t *l) {
     /* Call the appropriate function. */
     switch(c->version) {
-        case CLIENT_VERSION_DCV2: /* Should be V2... V1 doesn't do this */
+        case CLIENT_VERSION_DCV2:
             return send_dcv2_lobby_name(c, l);
+
+        case CLIENT_VERSION_PC:
+            return send_pc_lobby_name(c, l);
     }
 
     return -1;
@@ -1597,9 +2562,6 @@ static int send_dc_lobby_arrows(lobby_t *l, ship_client_t *c) {
     /* Clear the packet's header. */
     memset(pkt, 0, sizeof(dc_arrow_list_pkt));
 
-    /* Fill in the basics. */
-    pkt->hdr.pkt_type = SHIP_LOBBY_ARROW_LIST_TYPE;
-
     for(i = 0; i < l->max_clients; ++i) {
         if(l->clients[i]) {
             /* Copy the player's data into the packet. */
@@ -1613,8 +2575,16 @@ static int send_dc_lobby_arrows(lobby_t *l, ship_client_t *c) {
     }
 
     /* Fill in the rest of it */
-    pkt->hdr.flags = (uint8_t)clients;
-    pkt->hdr.pkt_len = LE16(((uint16_t)len));
+    if(c->version == CLIENT_VERSION_DCV2) {
+        pkt->hdr.dc.pkt_type = SHIP_LOBBY_ARROW_LIST_TYPE;
+        pkt->hdr.dc.flags = (uint8_t)clients;
+        pkt->hdr.dc.pkt_len = LE16(((uint16_t)len));
+    }
+    else {
+        pkt->hdr.pc.pkt_type = SHIP_LOBBY_ARROW_LIST_TYPE;
+        pkt->hdr.pc.flags = (uint8_t)clients;
+        pkt->hdr.pc.pkt_len = LE16(((uint16_t)len));
+    }
 
     /* Don't send anything if we have no clients. */
     if(!clients) {
@@ -1640,6 +2610,7 @@ int send_lobby_arrows(lobby_t *l) {
                     break;
 
                 case CLIENT_VERSION_DCV2:
+                case CLIENT_VERSION_PC:
                     send_dc_lobby_arrows(l, l->clients[i]);
                     break;
             }
@@ -1662,6 +2633,7 @@ int send_arrows(ship_client_t *c, lobby_t *l) {
             break;
 
         case CLIENT_VERSION_DCV2:
+        case CLIENT_VERSION_PC:
             return send_dc_lobby_arrows(l, c);
     }
 

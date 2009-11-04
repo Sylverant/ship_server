@@ -104,6 +104,7 @@ ship_client_t *client_create_connection(int sock, int version, int type,
     switch(version) {
         case CLIENT_VERSION_DCV1:
         case CLIENT_VERSION_DCV2:
+        case CLIENT_VERSION_PC:
             /* Generate the encryption keys for the client and server. */
             client_seed_dc = genrand_int32();
             server_seed_dc = genrand_int32();
@@ -219,6 +220,11 @@ int client_process_pkt(ship_client_t *c) {
             case CLIENT_VERSION_DCV2:
                 pkt_sz = LE16(c->pkt.dc.pkt_len);
                 break;
+
+            case CLIENT_VERSION_PC:
+                pkt_sz = LE16(c->pkt.pc.pkt_len);
+                break;
+
             default:
                 return -1;
         }

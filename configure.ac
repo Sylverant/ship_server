@@ -38,6 +38,8 @@ AC_CHECK_LIB([expat], [XML_ParserCreate], , AC_MSG_ERROR([libexpat is required!]
 AC_CHECK_LIB([sylverant], [sylverant_read_config], , AC_MSG_ERROR([libsylverant is required!]))
 AC_CHECK_LIB([crypto], [RC4], , AC_MSG_ERROR([libcrypto is required!]))
 
+AM_ICONV
+AM_ICONV_LINK
 AX_PTHREAD
 
 # Checks for header files.

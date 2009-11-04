@@ -54,17 +54,23 @@
 
 #define PACKED __attribute__((packed))
 
-/* The welcome packet for setting up encryption keys (Dreamcast). */
+/* The welcome packet for setting up encryption keys (Dreamcast/PC). */
 typedef struct dc_welcome {
-    dc_pkt_hdr_t hdr;
+    union {
+        dc_pkt_hdr_t dc;
+        pc_pkt_hdr_t pc;
+    } hdr;
     char copyright[0x40];
     uint32_t svect;
     uint32_t cvect;
 } PACKED dc_welcome_pkt;
 
-/* The menu selection packet that the client sends to us (Dreamcast). */
+/* The menu selection packet that the client sends to us (Dreamcast/PC). */
 typedef struct dc_select {
-    dc_pkt_hdr_t hdr;
+    union {
+        dc_pkt_hdr_t dc;
+        pc_pkt_hdr_t pc;
+    } hdr;
     uint32_t menu_id;
     uint32_t item_id;
 } PACKED dc_select_pkt;
@@ -86,9 +92,12 @@ typedef struct dc_login {
     uint8_t sec_data[0];
 } PACKED dc_login_pkt;
 
-/* The login packet that the client sends to us (Dreamcast V2). */
+/* The login packet that the client sends to us (Dreamcast V2/PC). */
 typedef struct dcv2_login {
-    dc_pkt_hdr_t hdr;
+    union {
+        dc_pkt_hdr_t dc;
+        pc_pkt_hdr_t pc;
+    } hdr;
     uint32_t tag;
     uint32_t guildcard;
     uint32_t unk[4];
@@ -104,31 +113,43 @@ typedef struct dcv2_login {
     uint8_t sec_data[0];
 } PACKED dcv2_login_pkt;
 
-/* The packet sent to redirect clients (Dreamcast). */
+/* The packet sent to redirect clients (Dreamcast/PC). */
 typedef struct dc_redirect {
-    dc_pkt_hdr_t hdr;
+    union {
+        dc_pkt_hdr_t dc;
+        pc_pkt_hdr_t pc;
+    } hdr;
     uint32_t ip_addr;       /* Big-endian */
     uint16_t port;          /* Little-endian */
     uint8_t padding2[2];
 } PACKED dc_redirect_pkt;
 
-/* The packet sent as a timestamp (Dreamcast). */
+/* The packet sent as a timestamp (Dreamcast/PC). */
 typedef struct dc_timestamp {
-    dc_pkt_hdr_t hdr;
+    union {
+        dc_pkt_hdr_t dc;
+        pc_pkt_hdr_t pc;
+    } hdr;
     char timestamp[28];
 } PACKED dc_timestamp_pkt;
 
-/* The packet sent to inform clients of their security data (Dreamcast). */
+/* The packet sent to inform clients of their security data (Dreamcast/PC). */
 typedef struct dc_security {
-    dc_pkt_hdr_t hdr;
+    union {
+        dc_pkt_hdr_t dc;
+        pc_pkt_hdr_t pc;
+    } hdr;
     uint32_t tag;
     uint32_t guildcard;
     uint8_t security_data[0];
 } PACKED dc_security_pkt;
 
-/* The packet used for the information reply on the Dreamcast version. */
+/* The packet used for the information reply on the Dreamcast/PC version. */
 typedef struct dc_info_reply {
-    dc_pkt_hdr_t hdr;
+    union {
+        dc_pkt_hdr_t dc;
+        pc_pkt_hdr_t pc;
+    } hdr;
     uint32_t odd[2];
     char msg[];
 } PACKED dc_info_reply_pkt;
@@ -144,9 +165,23 @@ typedef struct dc_block_list {
     } entries[0];
 } PACKED dc_block_list_pkt;
 
-/* The lobby list packet sent to clients (Dreamcast). */
+/* The ship list packet send to tell clients what blocks are up (PC). */
+typedef struct pc_block_list {
+    pc_pkt_hdr_t hdr;           /* The flags field says the entry count */
+    struct {
+        uint32_t menu_id;
+        uint32_t item_id;
+        uint16_t flags;
+        uint16_t name[0x11];
+    } entries[0];
+} PACKED pc_block_list_pkt;
+
+/* The lobby list packet sent to clients (Dreamcast/PC). */
 typedef struct dc_lobby_list {
-    dc_pkt_hdr_t hdr;           /* The flags field says the entry count */
+    union {                     /* The flags field says the entry count */
+        dc_pkt_hdr_t dc;
+        pc_pkt_hdr_t pc;
+    } hdr;
     struct {
         uint32_t menu_id;
         uint32_t item_id;
@@ -154,9 +189,12 @@ typedef struct dc_lobby_list {
     } entries[16];
 } PACKED dc_lobby_list_pkt;
 
-/* The packet sent by clients to send their character data (Dreamcast). */
+/* The packet sent by clients to send their character data (Dreamcast/PC). */
 typedef struct dc_char_data {
-    dc_pkt_hdr_t hdr;
+    union {
+        dc_pkt_hdr_t dc;
+        pc_pkt_hdr_t pc;
+    } hdr;
     player_t data;
 } PACKED dc_char_data_pkt;
 
@@ -176,17 +214,39 @@ typedef struct dc_lobby_join {
     } entries[0];
 } PACKED dc_lobby_join_pkt;
 
-/* The packet sent to clients when they leave a lobby (Dreamcast). */
+/* The packet sent to clients when they join a lobby (PC). */
+typedef struct pc_lobby_join {
+    pc_pkt_hdr_t hdr;
+    uint8_t client_id;
+    uint8_t leader_id;
+    uint8_t one;                        /* Always 1 */
+    uint8_t lobby_num;
+    uint16_t block_num;
+    uint16_t event;
+    uint32_t padding;
+    struct {
+        pc_player_hdr_t hdr;
+        player_t data;
+    } entries[0];
+} PACKED pc_lobby_join_pkt;
+
+/* The packet sent to clients when they leave a lobby (Dreamcast/PC). */
 typedef struct dc_lobby_leave {
-    dc_pkt_hdr_t hdr;
+    union {
+        dc_pkt_hdr_t dc;
+        pc_pkt_hdr_t pc;
+    } hdr;
     uint8_t client_id;
     uint8_t leader_id;
     uint16_t padding;
 } PACKED dc_lobby_leave_pkt;
 
-/* The packet sent from/to clients for sending a normal chat (Dreamcast). */
+/* The packet sent from/to clients for sending a normal chat (Dreamcast/PC). */
 typedef struct dc_chat {
-    dc_pkt_hdr_t hdr;
+    union {
+        dc_pkt_hdr_t dc;
+        pc_pkt_hdr_t pc;
+    } hdr;
     uint32_t padding;
     uint32_t guildcard;
     char msg[0];
@@ -239,6 +299,18 @@ typedef struct dc_game_create {
     uint8_t version;                    /* Set to 1 for v2 games, 0 otherwise */
 } PACKED dc_game_create_pkt;
 
+/* The packet sent by clients to create a game (PC). */
+typedef struct pc_game_create {
+    pc_pkt_hdr_t hdr;
+    uint32_t unused[2];
+    uint16_t name[16];
+    uint16_t password[16];
+    uint8_t difficulty;
+    uint8_t battle;
+    uint8_t challenge;
+    uint8_t padding;
+} PACKED pc_game_create_pkt;
+
 /* The packet sent to clients to join a game (Dreamcast). */
 typedef struct dc_game_join {
     dc_pkt_hdr_t hdr;
@@ -255,6 +327,22 @@ typedef struct dc_game_join {
     uint32_t game_id;
 } PACKED dc_game_join_pkt;
 
+/* The packet sent to clients to join a game (PC). */
+typedef struct pc_game_join {
+    pc_pkt_hdr_t hdr;
+    uint32_t maps[0x20];
+    pc_player_hdr_t players[4];
+    uint8_t client_id;
+    uint8_t leader_id;
+    uint8_t one;                        /* Always 1. */
+    uint8_t difficulty;
+    uint8_t battle;
+    uint8_t event;
+    uint8_t section;
+    uint8_t challenge;
+    uint32_t game_id;
+} PACKED pc_game_join_pkt;
+
 /* The packet sent to clients to give them the game select list (Dreamcast). */
 typedef struct dc_game_list {
     dc_pkt_hdr_t hdr;
@@ -269,9 +357,26 @@ typedef struct dc_game_list {
     } entries[0];
 } PACKED dc_game_list_pkt;
 
-/* The packet sent to display a large message to the user (Dreamcast). */
+/* The packet sent to clients to give them the game select list (PC). */
+typedef struct pc_game_list {
+    pc_pkt_hdr_t hdr;
+    struct {
+        uint32_t menu_id;
+        uint32_t item_id;
+        uint8_t difficulty;
+        uint8_t players;
+        uint16_t name[16];
+        uint8_t v2;
+        uint8_t flags;
+    } entries[0];
+} PACKED pc_game_list_pkt;
+
+/* The packet sent to display a large message to the user (Dreamcast/PC). */
 typedef struct dc_msg_box {
-    dc_pkt_hdr_t hdr;
+    union {
+        dc_pkt_hdr_t dc;
+        pc_pkt_hdr_t pc;
+    } hdr;
     char msg[0];
 } PACKED dc_msg_box_pkt;
 
@@ -286,6 +391,17 @@ typedef struct dc_quest_list {
     } entries[0];
 } PACKED dc_quest_list_pkt;
 
+/* The packet used to send the quest list (PC). */
+typedef struct pc_quest_list {
+    pc_pkt_hdr_t hdr;
+    struct {
+        uint32_t menu_id;
+        uint32_t item_id;
+        uint16_t name[32];
+        uint16_t desc[112];
+    } entries[0];
+} PACKED pc_quest_list_pkt;
+
 /* The packet sent to inform a client of a quest file that will be coming down
    the pipe (Dreamcast). */
 typedef struct dc_quest_file {
@@ -297,17 +413,34 @@ typedef struct dc_quest_file {
     uint32_t length;
 } PACKED dc_quest_file_pkt;
 
-/* The packet sent to actually send quest data (Dreamcast). */
+/* The packet sent to inform a client of a quest file that will be coming down
+   the pipe (PC). */
+typedef struct pc_quest_file {
+    pc_pkt_hdr_t hdr;
+    char name[32];
+    uint16_t unused;
+    uint16_t flags;
+    char filename[16];
+    uint32_t length;
+} PACKED pc_quest_file_pkt;
+
+/* The packet sent to actually send quest data (Dreamcast/PC). */
 typedef struct dc_quest_chunk {
-    dc_pkt_hdr_t hdr;
+    union {
+        dc_pkt_hdr_t dc;
+        pc_pkt_hdr_t pc;
+    } hdr;
     char filename[16];
     char data[1024];
     uint32_t length;
 } PACKED dc_quest_chunk_pkt;
 
-/* The packet sent to update the list of arrows in a lobby (Dreamcast). */
+/* The packet sent to update the list of arrows in a lobby (Dreamcast/PC). */
 typedef struct dc_arrow_list {
-    dc_pkt_hdr_t hdr;
+    union {
+        dc_pkt_hdr_t dc;
+        pc_pkt_hdr_t pc;
+    } hdr;
     struct {
         uint32_t tag;
         uint32_t guildcard;
@@ -325,6 +458,17 @@ typedef struct dc_ship_list {
         char name[0x12];
     } entries[0];
 } PACKED dc_ship_list_pkt;
+
+/* The ship list packet send to tell clients what ships are up (PC). */
+typedef struct pc_ship_list {
+    pc_pkt_hdr_t hdr;           /* The flags field says how entries are below */
+    struct {
+        uint32_t menu_id;
+        uint32_t item_id;
+        uint16_t flags;
+        uint16_t name[0x11];
+    } entries[0];
+} PACKED pc_ship_list_pkt;
 
 #undef PACKED
 
@@ -436,6 +580,10 @@ int send_lobby_leave(lobby_t *l, ship_client_t *c, int client_id);
 
 /* Send a chat packet to the specified lobby. */
 int send_lobby_chat(lobby_t *l, ship_client_t *sender, char msg[]);
+
+/* Send a chat packet to the specified lobby (UTF-16). */
+int send_lobby_wchat(lobby_t *l, ship_client_t *sender, uint16_t *msg,
+                     size_t len);
 
 /* Send a guild card search reply to the specified client. */
 int send_guild_reply(ship_client_t *c, uint32_t gc, in_addr_t ip, uint16_t port,

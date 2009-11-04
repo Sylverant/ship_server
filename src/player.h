@@ -35,6 +35,14 @@ typedef struct dc_player_hdr {
     char name[16];
 } PACKED dc_player_hdr_t;
 
+typedef struct pc_player_hdr {
+    uint32_t tag;
+    uint32_t guildcard;
+    uint32_t ip_addr;
+    uint32_t client_id;
+    uint16_t name[16];
+} PACKED pc_player_hdr_t;
+
 /* These structures heavily based on those in newserv. */
 typedef struct item {
     uint16_t equipped;

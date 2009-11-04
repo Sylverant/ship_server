@@ -59,7 +59,8 @@ struct ship {
     struct client_queue *clients;
 
     int run;
-    int sock;
+    int dcsock;
+    int pcsock;
     uint16_t num_clients;
 
     sylverant_quest_list_t quests;

@@ -50,8 +50,15 @@ typedef struct dc_pkt_hdr {
     uint16_t pkt_len;
 } PACKED dc_pkt_hdr_t;
 
+typedef struct pc_pkt_hdr {
+    uint16_t pkt_len;
+    uint8_t pkt_type;
+    uint8_t flags;
+} PACKED pc_pkt_hdr_t;
+
 typedef union pkt_header {
     dc_pkt_hdr_t dc;
+    pc_pkt_hdr_t pc;
 } pkt_header_t;
 
 #undef PACKED
@@ -115,6 +122,7 @@ extern pthread_key_t sendbuf_key;
 /* Possible values for the version field of ship_client_t */
 #define CLIENT_VERSION_DCV1     0
 #define CLIENT_VERSION_DCV2     1
+#define CLIENT_VERSION_PC       2
 
 /* Initialize the clients system, allocating any thread specific keys */
 int client_init();

@@ -51,7 +51,8 @@ static void *ship_thd(void *d) {
 
     /* Fire up the threads for each block. */
     for(i = 1; i <= s->cfg->blocks; ++i) {
-        s->blocks[i - 1] = block_server_start(s, i, s->cfg->base_port + i);
+        s->blocks[i - 1] = block_server_start(s, i, s->cfg->base_port +
+                                              (i * 2));
     }
 
     /* While we're still supposed to run... do it. */
@@ -90,9 +91,11 @@ static void *ship_thd(void *d) {
             nfds = nfds > it->sock ? nfds : it->sock;
         }
 
-        /* Add the listening socket to the read fd_set. */
-        FD_SET(s->sock, &readfds);
-        nfds = nfds > s->sock ? nfds : s->sock;
+        /* Add the listening sockets to the read fd_set. */
+        FD_SET(s->dcsock, &readfds);
+        nfds = nfds > s->dcsock ? nfds : s->dcsock;
+        FD_SET(s->pcsock, &readfds);
+        nfds = nfds > s->pcsock ? nfds : s->pcsock;
 
         /* Add the shipgate socket to the fd_sets */
         FD_SET(s->sg.sock, &readfds);
@@ -105,17 +108,34 @@ static void *ship_thd(void *d) {
 
         /* Wait for some activity... */
         if(select(nfds + 1, &readfds, &writefds, NULL, &timeout) > 0) {
-            if(FD_ISSET(s->sock, &readfds)) {
+            if(FD_ISSET(s->dcsock, &readfds)) {
                 len = sizeof(struct sockaddr_in);
-                if((sock = accept(s->sock, (struct sockaddr *)&addr,
+                if((sock = accept(s->dcsock, (struct sockaddr *)&addr,
                                   &len)) < 0) {
                     perror("accept");
                 }
 
-                debug(DBG_LOG, "%s: Accepted ship connection from %s\n",
+                debug(DBG_LOG, "%s: Accepted DC ship connection from %s\n",
                       s->cfg->name, inet_ntoa(addr.sin_addr));
 
                 if(!client_create_connection(sock, CLIENT_VERSION_DCV1,
+                                             CLIENT_TYPE_SHIP, s->clients, s,
+                                             NULL, addr.sin_addr.s_addr)) {
+                    close(sock);
+                }
+            }
+
+            if(FD_ISSET(s->pcsock, &readfds)) {
+                len = sizeof(struct sockaddr_in);
+                if((sock = accept(s->pcsock, (struct sockaddr *)&addr,
+                                  &len)) < 0) {
+                    perror("accept");
+                }
+
+                debug(DBG_LOG, "%s: Accepted PC ship connection from %s\n",
+                      s->cfg->name, inet_ntoa(addr.sin_addr));
+
+                if(!client_create_connection(sock, CLIENT_VERSION_PC,
                                              CLIENT_TYPE_SHIP, s->clients, s,
                                              NULL, addr.sin_addr.s_addr)) {
                     close(sock);
@@ -214,7 +234,8 @@ static void *ship_thd(void *d) {
     pthread_mutex_destroy(&s->qmutex);
     free(s->gm_list);
     sylverant_quests_destroy(&s->quests);
-    close(s->sock);
+    close(s->pcsock);
+    close(s->dcsock);
     free(s->ships);
     free(s->clients);
     free(s->blocks);
@@ -225,14 +246,14 @@ static void *ship_thd(void *d) {
 ship_t *ship_server_start(sylverant_ship_t *s) {
     ship_t *rv;
     struct sockaddr_in addr;
-    int sock;
+    int dcsock, pcsock;
 
     debug(DBG_LOG, "Starting server for ship %s...\n", s->name);
 
     /* Create the sockets for listening for connections. */
-    sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+    dcsock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-    if(sock < 0) {
+    if(dcsock < 0) {
         perror("socket");
         return NULL;
     }
@@ -243,16 +264,47 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     addr.sin_port = htons(s->base_port);
     memset(addr.sin_zero, 0, 8);
 
-    if(bind(sock, (struct sockaddr *)&addr, sizeof(struct sockaddr_in)) < 0) {
+    if(bind(dcsock, (struct sockaddr *)&addr,
+            sizeof(struct sockaddr_in)) < 0) {
         perror("bind");
-        close(sock);
+        close(dcsock);
         return NULL;
     }
 
     /* Listen on the socket for connections. */
-    if(listen(sock, 10) < 0) {
+    if(listen(dcsock, 10) < 0) {
         perror("listen");
-        close(sock);
+        close(dcsock);
+        return NULL;
+    }
+
+    pcsock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+    
+    if(pcsock < 0) {
+        perror("socket");
+        close(dcsock);
+        return NULL;
+    }
+    
+    /* Bind the socket */
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_port = htons(s->base_port + 1);
+    memset(addr.sin_zero, 0, 8);
+    
+    if(bind(pcsock, (struct sockaddr *)&addr,
+            sizeof(struct sockaddr_in)) < 0) {
+        perror("bind");
+        close(dcsock);
+        close(pcsock);
+        return NULL;
+    }
+    
+    /* Listen on the socket for connections. */
+    if(listen(pcsock, 10) < 0) {
+        perror("listen");
+        close(dcsock);
+        close(pcsock);
         return NULL;
     }
 
@@ -261,6 +313,8 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
 
     if(!rv) {
         debug(DBG_ERROR, "%s: Cannot allocate memory!\n", s->name);
+        close(pcsock);
+        close(dcsock);
         return NULL;
     }
 
@@ -273,7 +327,8 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     if(!rv->blocks) {
         debug(DBG_ERROR, "%s: Cannot allocate memory for blocks!\n", s->name);
         free(rv);
-        close(sock);
+        close(pcsock);
+        close(dcsock);
         return NULL;
     }
 
@@ -284,7 +339,8 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
         debug(DBG_ERROR, "%s: Cannot allocate memory for clients!\n", s->name);
         free(rv->blocks);
         free(rv);
-        close(sock);
+        close(pcsock);
+        close(dcsock);
         return NULL;
     }
 
@@ -295,7 +351,8 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
             free(rv->clients);
             free(rv->blocks);
             free(rv);
-            close(sock);
+            close(pcsock);
+            close(dcsock);
             return NULL;
         }
     }
@@ -308,7 +365,8 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
             free(rv->clients);
             free(rv->blocks);
             free(rv);
-            close(sock);
+            close(pcsock);
+            close(dcsock);
             return NULL;
         }
     }
@@ -317,7 +375,8 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     pthread_mutex_init(&rv->qmutex, NULL);
     TAILQ_INIT(rv->clients);
     rv->cfg = s;
-    rv->sock = sock;
+    rv->dcsock = dcsock;
+    rv->pcsock = pcsock;
     rv->run = 1;
 
     /* Connect to the shipgate. */
@@ -329,7 +388,8 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
         free(rv->clients);
         free(rv->blocks);
         free(rv);
-        close(sock);
+        close(pcsock);
+        close(dcsock);
         return NULL;
     }
 
@@ -342,7 +402,8 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
         free(rv->clients);
         free(rv->blocks);
         free(rv);
-        close(sock);
+        close(pcsock);
+        close(dcsock);
         return NULL;
     }
 
@@ -355,7 +416,8 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
         free(rv->clients);
         free(rv->blocks);
         free(rv);
-        close(sock);
+        close(pcsock);
+        close(dcsock);
         return NULL;
     }
 
@@ -419,7 +481,13 @@ static int dc_process_block_sel(ship_client_t *c, dc_select_pkt *pkt) {
     }
 
     /* Redirect the client where we want them to go. */
-    return send_redirect(c, addr, s->blocks[block - 1]->dc_port);
+    if(c->version == CLIENT_VERSION_DCV1 ||
+       c->version == CLIENT_VERSION_DCV2) {
+        return send_redirect(c, addr, s->blocks[block - 1]->dc_port);
+    }
+    else {
+        return send_redirect(c, addr, s->blocks[block - 1]->pc_port);
+    }
 }
 
 static int dc_process_info_req(ship_client_t *c, dc_select_pkt *pkt) {
@@ -438,8 +506,21 @@ static int dc_process_info_req(ship_client_t *c, dc_select_pkt *pkt) {
     }
 }
 
-static int dc_process_pkt(ship_client_t *c, dc_pkt_hdr_t *pkt) {
-    uint8_t type = pkt->pkt_type;
+static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
+    uint8_t type;
+    uint16_t len;
+    dc_pkt_hdr_t *dc = (dc_pkt_hdr_t *)pkt;
+    pc_pkt_hdr_t *pc = (pc_pkt_hdr_t *)pkt;
+
+    if(c->version == CLIENT_VERSION_DCV1 ||
+       c->version == CLIENT_VERSION_DCV2) {
+        type = dc->pkt_type;
+        len = LE16(dc->pkt_len);
+    }
+    else {
+        type = pc->pkt_type;
+        len = LE16(pc->pkt_len);
+    }
 
     debug(DBG_LOG, "%s: Received type 0x%02X\n", c->cur_ship->cfg->name, type);
 
@@ -462,7 +543,7 @@ static int dc_process_pkt(ship_client_t *c, dc_pkt_hdr_t *pkt) {
 
         default:
             printf("Unknown packet!\n");
-            print_packet((unsigned char *)pkt, pkt->pkt_len);
+            print_packet((unsigned char *)pkt, len);
             return -3;
     }
 }
@@ -471,7 +552,8 @@ int ship_process_pkt(ship_client_t *c, uint8_t *pkt) {
     switch(c->version) {
         case CLIENT_VERSION_DCV1:
         case CLIENT_VERSION_DCV2:
-            return dc_process_pkt(c, (dc_pkt_hdr_t *)pkt);
+        case CLIENT_VERSION_PC:
+            return dc_process_pkt(c, pkt);
     }
 
     return -1;
