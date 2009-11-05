@@ -26,6 +26,6 @@ ship_server_SOURCES = src/block.c src/block.h src/clients.c src/clients.h \
                       src/lobby.c src/lobby.h src/player.h src/ship.c \
                       src/ship.h src/ship_packets.c src/ship_packets.h \
                       src/ship_server.c src/shipgate.c src/shipgate.h \
-                      src/utils.c src/utils.h
+                      src/utils.c src/utils.h src/subcmd.c src/subcmd.h
 
 datarootdir = @datarootdir@

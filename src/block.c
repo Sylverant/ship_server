@@ -39,6 +39,7 @@
 #include "shipgate.h"
 #include "commands.h"
 #include "gm.h"
+#include "subcmd.h"
 
 extern ship_t **ships;
 extern sylverant_shipcfg_t *cfg;
@@ -641,27 +642,8 @@ static int pc_process_chat(ship_client_t *c, dc_chat_pkt *pkt) {
 #endif
 #endif
 
-    printf("bleh: %d\n", len);
     /* Send the message to the lobby. */
     return send_lobby_wchat(l, c, (uint16_t *)pkt->msg, len);
-}
-
-/* Process a Packet 0x62/0x6D - Game Command 2/D packet. Forward them to their
-   destination... */
-static int dc_process_g2d(ship_client_t *c, dc_pkt_hdr_t *pkt) {
-    lobby_t *l = c->cur_lobby;
-    ship_client_t *dest;
-
-    /* Find the destination. */
-    dest = l->clients[pkt->flags];
-
-    /* The destination is now offline, don't bother sending it. */
-    if(!dest) {
-        return 0;
-    }
-
-    /* Forward it to the destination. */
-    return send_pkt_dc(dest, pkt);
 }
 
 /* Process a Guild Search request. */
@@ -944,6 +926,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
         {
             ship_t *s = c->cur_ship;
             in_addr_t addr;
+            uint16_t port;
 
             /* Make sure the block selected is in range. */
             if(item_id > s->cfg->blocks) {
@@ -964,32 +947,62 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
                 addr = s->cfg->ship_ip;
             }
 
+            switch(c->version) {
+                case CLIENT_VERSION_DCV1:
+                case CLIENT_VERSION_DCV2:
+                    port = s->blocks[item_id - 1]->dc_port;
+                    break;
+                    
+                case CLIENT_VERSION_PC:
+                    port = s->blocks[item_id - 1]->pc_port;
+                    break;
+
+                default:
+                    return -1;
+            }
+
             /* Redirect the client where we want them to go. */
-            return send_redirect(c, addr, s->blocks[item_id - 1]->dc_port);
+            return send_redirect(c, addr, port);
         }
 
         /* Game Selection */
         case 0x02:
         {
+            char tmp[32];
             char passwd[16];
             lobby_t *l;
             int rv;
-            uint16_t len;
-
-            if(c->version == CLIENT_VERSION_DCV1 ||
-               c->version == CLIENT_VERSION_DCV2) {
-                len = LE16(pkt->hdr.dc.pkt_len);
-            }
-            else {
-                len = LE16(pkt->hdr.pc.pkt_len);
-            }
+            uint16_t len = LE16(pkt->hdr.dc.pkt_len);
 
             /* Read the password if the client provided one. */
             if(len > 0x0C) {
-                memcpy(passwd, ((uint8_t *)pkt) + 0x0C, len - 0x0C);
+                memcpy(tmp, ((uint8_t *)pkt) + 0x0C, len - 0x0C);
             }
             else {
-                passwd[0] = '\0';
+                tmp[0] = '\0';
+            }
+
+            if(c->version == CLIENT_VERSION_PC) {
+                iconv_t ic;
+                size_t in, out;
+                char *inptr, *outptr;
+
+                ic = iconv_open("SHIFT_JIS", "UTF-16LE");
+
+                if(ic == (iconv_t)-1) {
+                    perror("iconv_open");
+                    return send_message1(c, "\tC4Internal Server\nError");
+                }
+
+                in = 32;
+                out = 16;
+                inptr = tmp;
+                outptr = passwd;
+                iconv(ic, &inptr, &in, &outptr, &out);
+                iconv_close(ic);
+            }
+            else {
+                strcpy(passwd, tmp);
             }
 
             /* The client is selecting a game to join. */
@@ -1012,7 +1025,12 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
             /* Attempt to change the player's lobby. */
             rv = lobby_change_lobby(c, l);
 
-            if(rv == -7) {
+            if(rv == -8) {
+                /* Quest selection in progress */
+                send_message1(c, "\tC4Can't join game!\n\n"
+                              "\tC7Quest selection\nis in progress");
+            }
+            else if(rv == -7) {
                 /* Questing in progress */
                 send_message1(c, "\tC4Can't join game!\n\n"
                               "\tC7A quest is in\nprogress.");
@@ -1104,6 +1122,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
             int i;
             ship_t *s = c->cur_ship;
             in_addr_t addr;
+            int off = c->version == CLIENT_VERSION_PC ? 1 : 0;
 
             /* Go through all the ships that we know about looking for the one
                that the user has requested. */
@@ -1130,7 +1149,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
                         addr = s->ships[i].ship_addr;
                     }
 
-                    return send_redirect(c, addr, s->ships[i].ship_port);
+                    return send_redirect(c, addr, s->ships[i].ship_port + off);
                 }
             }
 
@@ -1241,7 +1260,7 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
 
         case SHIP_GAME_COMMAND2_TYPE:
         case SHIP_GAME_COMMANDD_TYPE:
-            return dc_process_g2d(c, dc);
+            return subcmd_handle_one(c, (subcmd_pkt_t *)pkt);
 
         case SHIP_LOBBY_CHANGE_TYPE:
             return dc_process_change_lobby(c, (dc_select_pkt *)pkt);
@@ -1300,12 +1319,17 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
 
         case SHIP_QUEST_LIST_TYPE:
             pthread_mutex_lock(&c->cur_ship->qmutex);
+            pthread_mutex_lock(&c->cur_lobby->mutex);
             rv = send_quest_categories(c, &c->cur_ship->quests);
+            c->cur_lobby->flags |= LOBBY_FLAG_QUESTSEL;
+            pthread_mutex_unlock(&c->cur_lobby->mutex);
             pthread_mutex_unlock(&c->cur_ship->qmutex);
             return rv;
 
         case SHIP_QUEST_END_LIST_TYPE:
-            /* I don't really care about this one for now. */
+            pthread_mutex_lock(&c->cur_lobby->mutex);
+            c->cur_lobby->flags &= ~LOBBY_FLAG_QUESTSEL;
+            pthread_mutex_unlock(&c->cur_lobby->mutex);
             return 0;
 
         case SHIP_DCV2_LOGIN_TYPE:

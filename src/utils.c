@@ -43,9 +43,9 @@ void print_packet(unsigned char *pkt, int len) {
         if(line == 16) {
             if(type == 0) {
                 printf("\t");
-                pos -= 16;
                 pos = row;
                 type = 1;
+                line = 0;
             }
             else {
                 printf("\n");
@@ -81,6 +81,4 @@ void print_packet(unsigned char *pkt, int len) {
 
         printf("\n");
     }
-
-    printf("\n\n");
 }

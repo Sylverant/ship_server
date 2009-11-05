@@ -277,6 +277,23 @@ typedef struct dc_guild_reply {
     char name[0x20];
 } PACKED dc_guild_reply_pkt;
 
+/* The packet sent to reply to a guild card search (PC). */
+typedef struct pc_guild_reply {
+    pc_pkt_hdr_t hdr;
+    uint32_t tag;
+    uint32_t gc_search;
+    uint32_t gc_target;
+    uint32_t padding1;
+    in_addr_t ip;
+    uint16_t port;
+    uint16_t padding2;
+    uint16_t location[0x44];
+    uint32_t menu_id;
+    uint32_t item_id;
+    uint8_t padding3[0x3C];
+    uint16_t name[0x20];
+} PACKED pc_guild_reply_pkt;
+
 /* The packet sent to send/deliver simple mail (Dreamcast). */
 typedef struct dc_simple_mail {
     dc_pkt_hdr_t hdr;
@@ -528,6 +545,7 @@ typedef struct pc_ship_list {
 #define SHIP_DC_LOBBY_LIST_LENGTH           0x00C4
 #define SHIP_DC_CHAR_DATA_LENGTH            0x0420
 #define SHIP_DC_LOBBY_LEAVE_LENGTH          0x0008
+#define SHIP_PC_GUILD_REPLY_LENGTH          0x0128
 #define SHIP_DC_GUILD_REPLY_LENGTH          0x00C4
 #define SHIP_DC_GAME_JOIN_LENGTH            0x0110
 #define SHIP_DC_QUEST_INFO_LENGTH           0x0128

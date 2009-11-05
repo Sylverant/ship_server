@@ -394,6 +394,7 @@ static int send_pc_block_list(ship_client_t *c, ship_t *s) {
         /* Create the name string */
         sprintf(tmp, "BLOCK%02d", i);
 
+        /* This works here since the block name is always ASCII. */
         for(j = 0; j < 0x10 && tmp[j]; ++j) {
             pkt->entries[i].name[j] = LE16(tmp[j]);
         }
@@ -1186,6 +1187,62 @@ static int send_dc_guild_reply(ship_client_t *c, uint32_t gc, in_addr_t ip,
     return crypt_send(c, SHIP_DC_GUILD_REPLY_LENGTH, sendbuf);
 }
 
+static int send_pc_guild_reply(ship_client_t *c, uint32_t gc, in_addr_t ip,
+                               uint16_t port, char game[], int block,
+                               char ship[], uint32_t lobby, char name[]) {
+    uint8_t *sendbuf = get_sendbuf();
+    pc_guild_reply_pkt *pkt = (pc_guild_reply_pkt *)sendbuf;
+    char tmp[0x44];
+    iconv_t ic;
+    size_t in, out;
+    char *inptr, *outptr;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* We'll be converting stuff from Shift-JIS to UTF-16. */
+    ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+
+    if(ic == (iconv_t)-1) {
+        return -1;
+    }
+
+    /* Clear it out first */
+    memset(pkt, 0, SHIP_PC_GUILD_REPLY_LENGTH);
+
+    /* Fill in the simple stuff */
+    pkt->hdr.pkt_type = SHIP_DC_GUILD_REPLY_TYPE;
+    pkt->hdr.pkt_len = LE16(SHIP_PC_GUILD_REPLY_LENGTH);
+    pkt->tag = LE32(0x00010000);
+    pkt->gc_search = LE32(c->guildcard);
+    pkt->gc_target = LE32(gc);
+    pkt->ip = ip;
+    pkt->port = LE16(port);
+    pkt->menu_id = LE32(0xFFFFFFFF);
+    pkt->item_id = LE32(lobby);
+
+    /* Fill in the location string... */
+    in = sprintf(tmp, "%s,BLOCK%02d,%s", game, block, ship) + 1;
+    out = 0x88;
+    inptr = tmp;
+    outptr = pkt->location;
+    iconv(ic, &inptr, &in, &outptr, &out);
+
+    /* ...and the name. */
+    in = strlen(name) + 1;
+    out = 0x40;
+    inptr = name;
+    outptr = pkt->name;
+    iconv(ic, &inptr, &in, &outptr, &out);
+
+    iconv_close(ic);
+
+    /* Send it away */
+    return crypt_send(c, SHIP_PC_GUILD_REPLY_LENGTH, sendbuf);
+}
+
 int send_guild_reply(ship_client_t *c, uint32_t gc, in_addr_t ip, uint16_t port,
                      char game[], int block, char ship[], uint32_t lobby,
                      char name[]) {
@@ -1194,6 +1251,10 @@ int send_guild_reply(ship_client_t *c, uint32_t gc, in_addr_t ip, uint16_t port,
         case CLIENT_VERSION_DCV1:
         case CLIENT_VERSION_DCV2:
             return send_dc_guild_reply(c, gc, ip, port, game, block, ship,
+                                       lobby, name);
+
+        case CLIENT_VERSION_PC:
+            return send_pc_guild_reply(c, gc, ip, port, game, block, ship,
                                        lobby, name);
     }
     
@@ -1546,7 +1607,7 @@ static int send_dc_game_list(ship_client_t *c, block_t *b) {
 static int send_pc_game_list(ship_client_t *c, block_t *b) {
     uint8_t *sendbuf = get_sendbuf();
     pc_game_list_pkt *pkt = (pc_game_list_pkt *)sendbuf;
-    int entries = 1, len = 0x20;
+    int entries = 1, len = 0x30;
     lobby_t *l;
     iconv_t ic;
     size_t in, out;
@@ -1603,7 +1664,7 @@ static int send_pc_game_list(ship_client_t *c, block_t *b) {
         (l->battle ? 0x10 : 0x00) | l->passwd[0] ? 2 : 0;
 
         /* Copy the name */
-        in = strlen(l->name) + 1;
+        in = 0x10;
         out = 0x20;
         inptr = l->name;
         outptr = (char *)pkt->entries[entries].name;
@@ -2215,7 +2276,7 @@ static int send_dcv1_quest(ship_client_t *c, sylverant_quest_t *q) {
     file->hdr.flags = 0x02; /* ??? */
     file->hdr.pkt_len = LE16(SHIP_DC_QUEST_FILE_LENGTH);
     sprintf(file->filename, "%sv1.dat", q->prefix);
-    file->length = LE32(binlen);
+    file->length = LE32(datlen);
 
     if(crypt_send(c, SHIP_DC_QUEST_FILE_LENGTH, sendbuf)) {
         return -2;
@@ -2442,7 +2503,6 @@ int send_quest(lobby_t *l, sylverant_quest_t *q) {
             switch(l->clients[i]->version) {
                 case CLIENT_VERSION_DCV1:
                 case CLIENT_VERSION_DCV2:
-                case CLIENT_VERSION_PC:
                     if(l->v2) {
                         send_dcv2_quest(l->clients[i], q);
                     }
@@ -2691,12 +2751,80 @@ static int send_dc_ship_list(ship_client_t *c, miniship_t *l, int ships) {
     return crypt_send(c, len, sendbuf);
 }
 
+static int send_pc_ship_list(ship_client_t *c, miniship_t *l, int ships) {
+    uint8_t *sendbuf = get_sendbuf();
+    pc_ship_list_pkt *pkt = (pc_ship_list_pkt *)sendbuf;
+    int len = 0x30, i, entries = 0;
+    iconv_t ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+    size_t in, out;
+    char *inptr, *outptr;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    if(ic == (iconv_t)-1) {
+        perror("iconv_open");
+        return -1;
+    }
+
+    /* Clear the packet's header. */
+    memset(pkt, 0, 0x30);
+
+    /* Fill in the basics. */
+    pkt->hdr.pkt_type = SHIP_SHIP_LIST_TYPE;
+
+    /* Fill in the "DATABASE/JP" entry */
+    memset(&pkt->entries[0], 0, 0x1C);
+    pkt->entries[0].menu_id = LE32(0x00000005);
+    pkt->entries[0].item_id = 0;
+    pkt->entries[0].flags = LE16(0x0004);
+    memcpy(pkt->entries[0].name, "D\0A\0T\0A\0B\0A\0S\0E\0/\0J\0P\0", 22);
+    entries = 1;
+
+    for(i = 0; i < ships; ++i) {
+        if(l[i].ship_id) {
+            /* Clear the new entry */
+            memset(&pkt->entries[entries], 0, 0x2C);
+
+            /* Copy the ship's information to the packet. */
+            pkt->entries[entries].menu_id = LE32(0x00000005);
+            pkt->entries[entries].item_id = LE32(l[i].ship_id);
+            pkt->entries[entries].flags = 0;
+
+            /* Convert the name to UTF-16 */
+            in = strlen(l[i].name) + 1;
+            out = 0x22;
+            inptr = l[i].name;
+            outptr = pkt->entries[entries].name;
+            iconv(ic, &inptr, &in, &outptr, &out);
+
+            ++entries;
+            len += 0x2C;
+        }
+    }
+
+    iconv_close(ic);
+
+    /* We'll definitely have at least one ship (ourselves), so just fill in the
+       rest of it */
+    pkt->hdr.flags = (uint8_t)(entries - 1);
+    pkt->hdr.pkt_len = LE16(((uint16_t)len));
+
+    /* Send it away */
+    return crypt_send(c, len, sendbuf);
+}
+
 int send_ship_list(ship_client_t *c, miniship_t *l, int ships) {
     /* Call the appropriate function. */
     switch(c->version) {
         case CLIENT_VERSION_DCV1:
         case CLIENT_VERSION_DCV2:
             return send_dc_ship_list(c, l, ships);
+
+        case CLIENT_VERSION_PC:
+            return send_pc_ship_list(c, l, ships);
     }
 
     return -1;
@@ -2730,12 +2858,42 @@ static int send_dc_warp(ship_client_t *c, uint8_t area) {
     return crypt_send(c, 12, sendbuf);
 }
 
+static int send_pc_warp(ship_client_t *c, uint8_t area) {
+    uint8_t *sendbuf = get_sendbuf();
+    pc_pkt_hdr_t *pkt = (pc_pkt_hdr_t *)sendbuf;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Fill in the basics. */
+    pkt->pkt_type = SHIP_GAME_COMMAND2_TYPE;
+    pkt->flags = c->client_id;
+    pkt->pkt_len = LE16(0x000C);
+
+    /* Fill in the stuff that will make us warp. */
+    sendbuf[4] = 0x94;
+    sendbuf[5] = 0x02;
+    sendbuf[6] = c->client_id;
+    sendbuf[7] = 0x00;
+    sendbuf[8] = area;
+    sendbuf[9] = 0x00;
+    sendbuf[10] = 0x00;
+    sendbuf[11] = 0x00;
+
+    return crypt_send(c, 12, sendbuf);
+}
+
 int send_warp(ship_client_t *c, uint8_t area) {
     /* Call the appropriate function. */
     switch(c->version) {
         case CLIENT_VERSION_DCV1:
         case CLIENT_VERSION_DCV2:
             return send_dc_warp(c, area);
+
+        case CLIENT_VERSION_PC:
+            return send_pc_warp(c, area);
     }
 
     return -1;

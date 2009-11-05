@@ -81,6 +81,7 @@ lobby_t *lobby_create_game(block_t *block, char name[16], char passwd[16],
     l->max_clients = 4;
     l->block = block;
 
+    l->leader_id = 1;
     l->difficulty = difficulty;
     l->battle = battle;
     l->challenge = chal;
@@ -138,7 +139,7 @@ static int lobby_add_client_locked(ship_client_t *c, lobby_t *l) {
     }
 
     /* Find a place to put the client. */
-    for(i = 0; i < l->max_clients; ++i) {
+    for(i = 1; i < l->max_clients; ++i) {
         if(l->clients[i] == NULL) {
             l->clients[i] = c;
             c->cur_lobby = l;
@@ -147,6 +148,16 @@ static int lobby_add_client_locked(ship_client_t *c, lobby_t *l) {
             ++l->num_clients;
             return 0;
         }
+    }
+
+    /* Grr... stupid stupid... Why is green first? */
+    if(l->clients[0] == NULL) {
+        l->clients[0] = c;
+        c->cur_lobby = l;
+        c->client_id = 0;
+        c->arrow = 0;
+        ++l->num_clients;
+        return 0;
     }
 
     /* If we get here, something went terribly wrong... */
@@ -264,6 +275,10 @@ int lobby_change_lobby(ship_client_t *c, lobby_t *req) {
     /* Make sure a quest isn't in progress. */
     if((req->flags & LOBBY_FLAG_QUESTING)) {
         rv = -7;
+        goto out;
+    }
+    else if((req->flags & LOBBY_FLAG_QUESTSEL)) {
+        rv = -8;
         goto out;
     }
 
