@@ -725,21 +725,22 @@ static int dc_process_mail(ship_client_t *c, dc_simple_mail_pkt *pkt) {
             TAILQ_FOREACH(it, s->blocks[i]->clients, qentry) {
                 /* Check if this is the target and the target has player
                    data. */
-                if(it->guildcard == gc && it->pl) {
+                if(it->guildcard == gc && it->pl &&
+                   c->version != CLIENT_VERSION_PC) {
                     pthread_mutex_lock(&it->mutex);
                     rv = send_pkt_dc(it, (dc_pkt_hdr_t *)pkt);
                     pthread_mutex_unlock(&it->mutex);
                     done = 1;
+                    break;
                 }
                 else if(it->guildcard == gc) {
-                    /* If they're on but don't have data, we're not going to
-                       find them anywhere else, return success. */
+                    /* If they're on but don't have data or they're on the PC
+                       version, we're not going to find them anywhere else,
+                       return success. */
                     rv = 0;
                     done = 1;
-                }
-
-                if(done)
                     break;
+                }
             }
 
             pthread_mutex_unlock(&s->blocks[i]->mutex);
@@ -750,6 +751,54 @@ static int dc_process_mail(ship_client_t *c, dc_simple_mail_pkt *pkt) {
         /* If we get here, we didn't find it locally. Send to the shipgate to
            continue searching. */
         return shipgate_fw_dc(&c->cur_ship->sg, pkt);
+    }
+
+    return rv;
+}
+
+static int pc_process_mail(ship_client_t *c, pc_simple_mail_pkt *pkt) {
+    ship_t *s;
+    int i, j;
+    ship_client_t *it;
+    uint32_t gc = LE32(pkt->gc_dest);
+    int done = 0, rv = -1;
+
+    /* Search any local ships first. */
+    for(j = 0; j < cfg->ship_count && !done; ++j) {
+        s = ships[j];
+        for(i = 0; i < s->cfg->blocks && !done; ++i) {
+            pthread_mutex_lock(&s->blocks[i]->mutex);
+
+            /* Look through all clients on that block. */
+            TAILQ_FOREACH(it, s->blocks[i]->clients, qentry) {
+                /* Check if this is the target and the target has player
+                   data. */
+                if(it->guildcard == gc && it->pl &&
+                   it->version == CLIENT_VERSION_PC) {
+                    pthread_mutex_lock(&it->mutex);
+                    rv = send_pkt_dc(it, (dc_pkt_hdr_t *)pkt);
+                    pthread_mutex_unlock(&it->mutex);
+                    done = 1;
+                    break;
+                }
+                else if(it->guildcard == gc) {
+                    /* If they're on but don't have data or they aren't playing
+                       on PSOPC, we're not going to find them anywhere else,
+                       return success. */
+                    rv = 0;
+                    done = 1;
+                    break;
+                }
+            }
+
+            pthread_mutex_unlock(&s->blocks[i]->mutex);
+        }
+    }
+
+    if(!done) {
+        /* If we get here, we didn't find it locally. Send to the shipgate to
+           continue searching. */
+        return shipgate_fw_pc(&c->cur_ship->sg, pkt);
     }
 
     return rv;
@@ -1285,7 +1334,12 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return dc_process_guild_search(c, (dc_guild_search_pkt *)pkt);
 
         case SHIP_SIMPLE_MAIL_TYPE:
-            return dc_process_mail(c, (dc_simple_mail_pkt *)pkt);
+            if(c->version != CLIENT_VERSION_PC) {
+                return dc_process_mail(c, (dc_simple_mail_pkt *)pkt);
+            }
+            else {
+                return pc_process_mail(c, (pc_simple_mail_pkt *)pkt);
+            }
 
         case SHIP_DC_GAME_CREATE_TYPE:
         case SHIP_GAME_CREATE_TYPE:

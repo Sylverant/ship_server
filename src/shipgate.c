@@ -364,7 +364,7 @@ static int handle_dc_gsearch(shipgate_conn_t *conn, dc_guild_search_pkt *pkt,
     return rv;
 }
 
-static int handle_dc(shipgate_conn_t *conn, shipgate_fw_dc_pkt *pkt) {
+static int handle_dc(shipgate_conn_t *conn, shipgate_fw_pkt *pkt) {
     dc_pkt_hdr_t *dc = (dc_pkt_hdr_t *)pkt->pkt;
     uint8_t type = dc->pkt_type;
 
@@ -436,7 +436,7 @@ static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
 
     switch(type) {
         case SHDR_TYPE_DC:
-            return handle_dc(conn, (shipgate_fw_dc_pkt *)pkt);
+            return handle_dc(conn, (shipgate_fw_pkt *)pkt);
 
         case SHDR_TYPE_SSTATUS:
             return handle_sstatus(conn, (shipgate_ship_status_pkt *)pkt);
@@ -634,9 +634,9 @@ int shipgate_send_cnt(shipgate_conn_t *c, uint16_t ccnt, uint16_t gcnt) {
 int shipgate_fw_dc(shipgate_conn_t *c, void *dcp) {
     uint8_t *sendbuf = get_sendbuf();
     dc_pkt_hdr_t *dc = (dc_pkt_hdr_t *)dcp;
-    shipgate_fw_dc_pkt *pkt = (shipgate_fw_dc_pkt *)sendbuf;
+    shipgate_fw_pkt *pkt = (shipgate_fw_pkt *)sendbuf;
     int dc_len = LE16(dc->pkt_len);
-    int full_len = sizeof(shipgate_fw_dc_pkt) + dc_len;
+    int full_len = sizeof(shipgate_fw_pkt) + dc_len;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -660,13 +660,43 @@ int shipgate_fw_dc(shipgate_conn_t *c, void *dcp) {
     return send_crypt(c, full_len, sendbuf);
 }
 
+/* Forward a PC packet to the shipgate. */
+int shipgate_fw_pc(shipgate_conn_t *c, void *pcp) {
+    uint8_t *sendbuf = get_sendbuf();
+    pc_pkt_hdr_t *pc = (pc_pkt_hdr_t *)pcp;
+    shipgate_fw_pkt *pkt = (shipgate_fw_pkt *)sendbuf;
+    int pc_len = LE16(pc->pkt_len);
+    int full_len = sizeof(shipgate_fw_pkt) + pc_len;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Copy the packet, unchanged */
+    memmove(&pkt->pkt, pc, pc_len);
+
+    /* Round up the packet size, if needed. */
+    if(full_len & 0x07)
+        full_len = (full_len + 8) & 0xFFF8;
+
+    /* Fill in the shipgate header */
+    pkt->hdr.pkt_len = htons(full_len);
+    pkt->hdr.pkt_type = htons(SHDR_TYPE_PC);
+    pkt->hdr.pkt_unc_len = htons(full_len);
+    pkt->hdr.flags = htons(SHDR_NO_DEFLATE);
+
+    /* Send the packet away */
+    return send_crypt(c, full_len, sendbuf);
+}
+
 static int send_greply(shipgate_conn_t *c, uint32_t gc1, uint32_t gc2,
                        in_addr_t ip, uint16_t port, char game[], int block,
                        char ship[], uint32_t lobby, char name[], uint32_t sid) {
     uint8_t *sendbuf = get_sendbuf();
-    shipgate_fw_dc_pkt *pkt = (shipgate_fw_dc_pkt *)sendbuf;
+    shipgate_fw_pkt *pkt = (shipgate_fw_pkt *)sendbuf;
     dc_guild_reply_pkt *dc = (dc_guild_reply_pkt *)pkt->pkt;
-    int full_len = sizeof(shipgate_fw_dc_pkt) + SHIP_DC_GUILD_REPLY_LENGTH;
+    int full_len = sizeof(shipgate_fw_pkt) + SHIP_DC_GUILD_REPLY_LENGTH;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
