@@ -21,5 +21,6 @@
 #include "ship_packets.h"
 
 int command_parse(ship_client_t *c, dc_chat_pkt *pkt);
+int wcommand_parse(ship_client_t *c, dc_chat_pkt *pkt);
 
 #endif /* COMMANDS_H */

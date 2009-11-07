@@ -18,6 +18,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <iconv.h>
 
 #include <sylverant/debug.h>
 
@@ -255,4 +256,35 @@ int command_parse(ship_client_t *c, dc_chat_pkt *pkt) {
 
     /* Send the user a message saying invalid command. */
     return send_txt(c, "\tE\tC7Invalid Command!");
+}
+
+int wcommand_parse(ship_client_t *c, dc_chat_pkt *pkt) {
+    int len = LE16(pkt->hdr.dc.pkt_len), tlen = len - 12;
+    iconv_t ic;
+    size_t in, out;
+    char *inptr, *outptr;
+    unsigned char buf[len];
+    dc_chat_pkt *p2 = (dc_chat_pkt *)buf;
+
+    ic = iconv_open("SHIFT_JIS", "UTF-16LE");
+    if(ic == (iconv_t)-1) {
+        return -1;
+    }
+
+    /* Convert the text to Shift-JIS. */
+    in = out = tlen;
+    inptr = pkt->msg;
+    outptr = p2->msg;
+    iconv(ic, &inptr, &in, &outptr, &out);
+    iconv_close(ic);
+
+    /* Fill in the rest of the packet. */
+    p2->hdr.dc.pkt_type = SHIP_CHAT_TYPE;
+    p2->hdr.dc.flags = 0;
+    p2->hdr.dc.pkt_len = 12 + (tlen - out);
+    p2->padding = 0;
+    p2->guildcard = pkt->guildcard;
+
+    /* Hand off to the normal command parsing code. */
+    return command_parse(c, p2);
 }

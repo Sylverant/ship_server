@@ -633,13 +633,11 @@ static int pc_process_chat(ship_client_t *c, dc_chat_pkt *pkt) {
         return -1;
     }
 
-#if 0
 #ifndef DISABLE_CHAT_COMMANDS
     /* Check for commands. */
-    if(pkt->msg[2] == '/') {
-        return command_parse(c, pkt);
+    if(pkt->msg[4] == '/') {
+        return wcommand_parse(c, pkt);
     }
-#endif
 #endif
 
     /* Send the message to the lobby. */
