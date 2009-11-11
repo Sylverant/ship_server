@@ -16,6 +16,7 @@
 */
 
 #include <iconv.h>
+#include <string.h>
 
 #include "subcmd.h"
 #include "clients.h"

@@ -2171,6 +2171,7 @@ static int send_dc_quest_info(ship_client_t *c, sylverant_quest_t *q) {
     iconv_t ic;
     size_t in, out, outt;
     char *inptr, *outptr;
+    int len;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -2197,12 +2198,14 @@ static int send_dc_quest_info(ship_client_t *c, sylverant_quest_t *q) {
         pkt->hdr.dc.pkt_type = SHIP_QUEST_INFO_TYPE;
         pkt->hdr.dc.flags = 0;
         pkt->hdr.dc.pkt_len = LE16(SHIP_DC_QUEST_INFO_LENGTH);
+        len = SHIP_DC_QUEST_INFO_LENGTH;
         outt = 0x124;
     }
     else {
         pkt->hdr.pc.pkt_type = SHIP_QUEST_INFO_TYPE;
         pkt->hdr.pc.flags = 0;
-        pkt->hdr.pc.pkt_len = LE16(SHIP_DC_QUEST_INFO_LENGTH);
+        pkt->hdr.pc.pkt_len = LE16(SHIP_PC_QUEST_INFO_LENGTH);
+        len = SHIP_PC_QUEST_INFO_LENGTH;
         outt = 0x248;
     }
 
@@ -2214,7 +2217,7 @@ static int send_dc_quest_info(ship_client_t *c, sylverant_quest_t *q) {
     iconv_close(ic);
 
     /* Send it away */
-    return crypt_send(c, SHIP_DC_QUEST_INFO_LENGTH, sendbuf);
+    return crypt_send(c, len, sendbuf);
 }
 
 int send_quest_info(ship_client_t *c, sylverant_quest_t *q) {

@@ -559,6 +559,7 @@ typedef struct pc_ship_list {
 #define SHIP_DC_GUILD_REPLY_LENGTH          0x00C4
 #define SHIP_DC_GAME_JOIN_LENGTH            0x0110
 #define SHIP_DC_QUEST_INFO_LENGTH           0x0128
+#define SHIP_PC_QUEST_INFO_LENGTH           0x024C
 #define SHIP_DC_QUEST_FILE_LENGTH           0x003C
 #define SHIP_DC_QUEST_CHUNK_LENGTH          0x0418
 
