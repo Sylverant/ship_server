@@ -51,14 +51,14 @@ static int handle_dc_gcsend(ship_client_t *d, subcmd_dc_gcsend_t *pkt) {
             in = 24;
             out = 48;
             inptr = pkt->name;
-            outptr = pc.name;
+            outptr = (char *)pc.name;
             iconv(ic, &inptr, &in, &outptr, &out);
 
             /* Then the text. */
             in = 88;
             out = 176;
             inptr = pkt->text;
-            outptr = pc.text;
+            outptr = (char *)pc.text;
             iconv(ic, &inptr, &in, &outptr, &out);
             iconv_close(ic);
 
@@ -109,14 +109,14 @@ static int handle_pc_gcsend(ship_client_t *d, subcmd_pc_gcsend_t *pkt) {
             /* First the name. */
             in = 48;
             out = 24;
-            inptr = pkt->name;
+            inptr = (char *)pkt->name;
             outptr = dc.name;
             iconv(ic, &inptr, &in, &outptr, &out);
 
             /* Then the text. */
             in = 176;
             out = 88;
-            inptr = pkt->text;
+            inptr = (char *)pkt->text;
             outptr = dc.text;
             iconv(ic, &inptr, &in, &outptr, &out);
             iconv_close(ic);

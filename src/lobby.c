@@ -416,7 +416,9 @@ static const char *classes[12] = {
     "HUcaseal", "FOmar", "RAmarl"
 };
 
-static const char language_codes[] = { 'J', 'E', 'G', 'F', 'S' };
+static const char language_codes[][3] = {
+    "J", "E", "G", "F", "S", "CS", "CT", "K"
+};
 
 /* Send an information reply packet with information about the lobby. */
 int lobby_info_reply(ship_client_t *c, uint32_t lobby) {
@@ -442,7 +444,7 @@ int lobby_info_reply(ship_client_t *c, uint32_t lobby) {
         /* Grab the player data and fill in the string */
         pl = l->clients[i]->pl;
 
-        sprintf(msg, "%s%s L%d\n  %s    %c\n", msg, pl->name, pl->level + 1,
+        sprintf(msg, "%s%s L%d\n  %s    %s\n", msg, pl->name, pl->level + 1,
                 classes[pl->ch_class], language_codes[pl->inv.language]);
     }
 

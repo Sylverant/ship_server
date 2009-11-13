@@ -1054,24 +1054,33 @@ static int send_dc_lobby_wchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
     }
 
     /* Create everything we need for converting stuff. */
-    ic2 = iconv_open("SHIFT_JIS", "UTF-16LE");
-
-    if(ic2 == (iconv_t)-1) {
-        perror("iconv_open");
-        return -1;
-    }
-
     if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2) {
         ic = iconv_open("SHIFT_JIS", "UTF-16LE");
+        if(ic == (iconv_t)-1) {
+            perror("iconv_open");
+            return -1;
+        }
+
+        ic2 = iconv_open("SHIFT_JIS", "SHIFT_JIS");
+        if(ic2 == (iconv_t)-1) {
+            perror("iconv_open");
+            iconv_close(ic);
+            return -1;
+        }
     }
     else {
         ic = iconv_open("UTF-16LE", "UTF-16LE");
-    }
+        if(ic == (iconv_t)-1) {
+            perror("iconv_open");
+            return -1;
+        }
 
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
-        iconv_close(ic2);
-        return -1;
+        ic2 = iconv_open("UTF-16LE", "SHIFT_JIS");
+        if(ic2 == (iconv_t)-1) {
+            perror("iconv_open");
+            iconv_close(ic);
+            return -1;
+        }
     }
 
     /* Clear the packet header */
@@ -1089,7 +1098,7 @@ static int send_dc_lobby_wchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
     iconv_close(ic2);
 
     /* Fill in the message */
-    if(msg[0] != 0x0009) {
+    if(LE16(msg[0]) != (uint16_t)'\t') {
         in = len;
         inptr = (char *)msg;
     }
@@ -1227,14 +1236,14 @@ static int send_pc_guild_reply(ship_client_t *c, uint32_t gc, in_addr_t ip,
     in = sprintf(tmp, "%s,BLOCK%02d,%s", game, block, ship) + 1;
     out = 0x88;
     inptr = tmp;
-    outptr = pkt->location;
+    outptr = (char *)pkt->location;
     iconv(ic, &inptr, &in, &outptr, &out);
 
     /* ...and the name. */
     in = strlen(name) + 1;
     out = 0x40;
     inptr = name;
-    outptr = pkt->name;
+    outptr = (char *)pkt->name;
     iconv(ic, &inptr, &in, &outptr, &out);
 
     iconv_close(ic);
@@ -1991,13 +2000,13 @@ static int send_pc_quest_categories(ship_client_t *c,
         in = 32;
         out = 64;
         inptr = l->cats[i].name;
-        outptr = pkt->entries[i].name;
+        outptr = (char *)pkt->entries[i].name;
         iconv(ic, &inptr, &in, &outptr, &out);
 
         in = 112;
         out = 224;
         inptr = l->cats[i].desc;
-        outptr = pkt->entries[i].desc;
+        outptr = (char *)pkt->entries[i].desc;
         iconv(ic, &inptr, &in, &outptr, &out);
 
         ++entries;
@@ -2117,13 +2126,13 @@ static int send_pc_quest_list(ship_client_t *c, int cat,
         in = 32;
         out = 64;
         inptr = l->quests[i].name;
-        outptr = pkt->entries[entries].name;
+        outptr = (char *)pkt->entries[entries].name;
         iconv(ic, &inptr, &in, &outptr, &out);
 
         in = 112;
         out = 224;
         inptr = l->quests[i].desc;
-        outptr = pkt->entries[entries].desc;
+        outptr = (char *)pkt->entries[entries].desc;
         iconv(ic, &inptr, &in, &outptr, &out);
 
         ++entries;
@@ -2937,7 +2946,7 @@ static int send_pc_ship_list(ship_client_t *c, miniship_t *l, int ships) {
             in = strlen(l[i].name) + 1;
             out = 0x22;
             inptr = l[i].name;
-            outptr = pkt->entries[entries].name;
+            outptr = (char *)pkt->entries[entries].name;
             iconv(ic, &inptr, &in, &outptr, &out);
 
             ++entries;
