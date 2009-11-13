@@ -224,7 +224,6 @@ static int handle_refresh(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 static int handle_save(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     lobby_t *l = c->cur_lobby;
     uint32_t slot;
-    char query[2048];
 
     /* Make sure that the requester is in a lobby lobby, not a game lobby */
     if(l->type & LOBBY_TYPE_GAME) {
@@ -256,7 +255,6 @@ static int handle_save(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 static int handle_restore(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     lobby_t *l = c->cur_lobby;
     uint32_t slot;
-    char query[2048];
 
     /* Make sure that the requester is in a lobby lobby, not a game lobby */
     if(l->type & LOBBY_TYPE_GAME) {
