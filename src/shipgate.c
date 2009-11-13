@@ -243,6 +243,55 @@ int shipgate_connect(ship_t *s, shipgate_conn_t *rv) {
     return 0;
 }
 
+/* Send the shipgate a character data save request. */
+int shipgate_send_cdata(shipgate_conn_t *c, uint32_t gc, uint32_t slot,
+                        void *cdata) {
+    uint8_t *sendbuf = get_sendbuf();
+    shipgate_char_data_pkt *pkt = (shipgate_char_data_pkt *)sendbuf;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Fill in the header. */
+    pkt->hdr.pkt_len = htons(sizeof(shipgate_char_data_pkt));
+    pkt->hdr.pkt_type = htons(SHDR_TYPE_CDATA);
+    pkt->hdr.pkt_unc_len = htons(sizeof(shipgate_char_data_pkt));
+    pkt->hdr.flags = htons(SHDR_NO_DEFLATE);
+
+    /* Fill in the body. */
+    pkt->guildcard = htonl(gc);
+    pkt->slot = htonl(slot);
+    pkt->padding = 0;
+    memcpy(pkt->data, cdata, 1052); 
+
+    /* Send it away. */
+    return send_crypt(c, sizeof(shipgate_char_data_pkt), sendbuf);
+}
+
+/* Send the shipgate a request for character data. */
+int shipgate_send_creq(shipgate_conn_t *c, uint32_t gc, uint32_t slot) {
+    uint8_t *sendbuf = get_sendbuf();
+    shipgate_char_req_pkt *pkt = (shipgate_char_req_pkt *)sendbuf;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Fill in the header and the body. */
+    pkt->hdr.pkt_len = htons(sizeof(shipgate_char_req_pkt));
+    pkt->hdr.pkt_type = htons(SHDR_TYPE_CREQ);
+    pkt->hdr.pkt_unc_len = htons(sizeof(shipgate_char_req_pkt));
+    pkt->hdr.flags = htons(SHDR_NO_DEFLATE);
+    pkt->guildcard = htonl(gc);
+    pkt->slot = htonl(slot);
+
+    /* Send it away. */
+    return send_crypt(c, sizeof(shipgate_char_req_pkt), sendbuf);
+}
+
 static int handle_dc_greply(shipgate_conn_t *conn, dc_guild_reply_pkt *pkt) {
     int i;
     ship_t *s = conn->ship;
@@ -430,6 +479,50 @@ insert:
     return 0;
 }
 
+static int handle_cdata(shipgate_conn_t *conn, shipgate_char_data_pkt *pkt) {
+    int i;
+    ship_t *s = conn->ship;
+    block_t *b;
+    ship_client_t *c;
+    uint32_t dest = ntohl(pkt->guildcard);
+    int done = 0;
+
+    for(i = 0; i < s->cfg->blocks && !done; ++i) {
+        if(s->blocks[i]) {
+            b = s->blocks[i];
+            pthread_mutex_lock(&b->mutex);
+
+            TAILQ_FOREACH(c, b->clients, qentry) {
+                pthread_mutex_lock(&c->mutex);
+
+                if(c->guildcard == dest && c->pl) {
+                    /* We've found them, overwrite their data, and send the
+                       refresh packet. */
+                    memcpy(c->pl, pkt->data, 1052);
+                    send_lobby_join(c, c->cur_lobby);
+                    done = 1;
+                }
+                else if(c->guildcard) {
+                    /* Act like they don't exist for right now (they don't
+                       really exist right now) */
+                    done = 1;
+                }
+
+                pthread_mutex_unlock(&c->mutex);
+
+                if(done) {
+                    pthread_mutex_unlock(&b->mutex);
+                    break;
+                }
+            }
+
+            pthread_mutex_unlock(&b->mutex);
+        }
+    }
+
+    return 0;
+}
+
 static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
     uint16_t type = ntohs(pkt->pkt_type);
     uint16_t flags = ntohs(pkt->flags);
@@ -448,6 +541,9 @@ static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
             }
 
             return shipgate_send_ping(conn, 1);
+
+        case SHDR_TYPE_CDATA:
+            return handle_cdata(conn, (shipgate_char_data_pkt *)pkt);
     }
 
     return -1;

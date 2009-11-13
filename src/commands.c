@@ -220,12 +220,79 @@ static int handle_refresh(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     }
 }
 
+/* Usage: /save slot */
+static int handle_save(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    lobby_t *l = c->cur_lobby;
+    uint32_t slot;
+    char query[2048];
+
+    /* Make sure that the requester is in a lobby lobby, not a game lobby */
+    if(l->type & LOBBY_TYPE_GAME) {
+        return send_txt(c, "\tE\tC7Only valid in a non-game lobby.");
+    }
+
+    /* Figure out the slot requested */
+    errno = 0;
+    slot = (uint32_t)strtoul(params, NULL, 10);
+
+    if(errno || slot > 4 || slot < 1) {
+        /* Send a message saying invalid slot */
+        return send_txt(c, "\tE\tC7Invalid Slot Value");
+    }
+
+    /* Adjust so we don't go into the Blue Burst character data */
+    slot += 4;
+
+    /* Send the character data to the shipgate */
+    if(shipgate_send_cdata(&c->cur_ship->sg, c->guildcard, slot, c->pl)) {
+        /* Send a message saying we couldn't save */
+        return send_txt(c, "\tE\tC7Couldn't save character data");
+    }
+
+    return send_txt(c, "\tE\tC7Saved character data");
+}
+
+/* Usage: /restore slot */
+static int handle_restore(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    lobby_t *l = c->cur_lobby;
+    uint32_t slot;
+    char query[2048];
+
+    /* Make sure that the requester is in a lobby lobby, not a game lobby */
+    if(l->type & LOBBY_TYPE_GAME) {
+        return send_txt(c, "\tE\tC7Only valid in a non-game lobby.");
+    }
+
+    /* Figure out the slot requested */
+    errno = 0;
+    slot = (uint32_t)strtoul(params, NULL, 10);
+
+    if(errno || slot > 4 || slot < 1) {
+        /* Send a message saying invalid slot */
+        return send_txt(c, "\tE\tC7Invalid Slot Value");
+    }
+
+    /* Adjust so we don't go into the Blue Burst character data */
+    slot += 4;
+
+    /* Send the request to the shipgate. */
+    if(shipgate_send_creq(&c->cur_ship->sg, c->guildcard, slot)) {
+        /* Send a message saying we couldn't request */
+        return send_txt(c, "\tE\tC7Couldn't request character data");
+    }
+
+    return 0;
+}
+
+
 static command_t cmds[] = {
     { "warp"   , handle_warp      },
     { "kill"   , handle_kill      },
     { "minlvl" , handle_min_level },
     { "maxlvl" , handle_max_level },
     { "refresh", handle_refresh   },
+    { "save"   , handle_save      },
+    { "restore", handle_restore   },
     { ""       , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

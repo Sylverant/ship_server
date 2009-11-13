@@ -122,6 +122,22 @@ typedef struct shipgate_ship_status {
     uint32_t reserved;
 } PACKED shipgate_ship_status_pkt;
 
+/* A packet sent to/from clients to save/restore character data. */
+typedef struct shipgate_char_data {
+    shipgate_hdr_t hdr;
+    uint32_t guildcard;
+    uint32_t slot;
+    uint32_t padding;
+    uint8_t data[1052];
+} PACKED shipgate_char_data_pkt;
+
+/* A packet sent to request saved character data. */
+typedef struct shipgate_char_req {
+    shipgate_hdr_t hdr;
+    uint32_t guildcard;
+    uint32_t slot;
+} PACKED shipgate_char_req_pkt;
+
 #undef PACKED
 
 /* Size of the shipgate login packet. */
@@ -145,6 +161,8 @@ static const char shipgate_login_msg[] =
 #define SHDR_TYPE_COUNT     0x0011      /* A Client Count update */
 #define SHDR_TYPE_SSTATUS   0x0012      /* A Ship has come up or gone down */
 #define SHDR_TYPE_PING      0x0013      /* A Ping packet, enough said */
+#define SHDR_TYPE_CDATA     0x0014      /* Character data */
+#define SHDR_TYPE_CREQ      0x0015      /* Request saved character data */
 
 /* Attempt to connect to the shipgate. Returns < 0 on error, returns the socket
    for communciation on success. */
@@ -170,5 +188,12 @@ int shipgate_fw_pc(shipgate_conn_t *c, void *pcp);
 
 /* Send a ping packet to the server. */
 int shipgate_send_ping(shipgate_conn_t *c, int reply);
+
+/* Send the shipgate a character data save request. */
+int shipgate_send_cdata(shipgate_conn_t *c, uint32_t gc, uint32_t slot,
+                        void *cdata);
+
+/* Send the shipgate a request for character data. */
+int shipgate_send_creq(shipgate_conn_t *c, uint32_t gc, uint32_t slot);
 
 #endif /* !SHIPGATE_H */
