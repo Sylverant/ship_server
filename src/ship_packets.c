@@ -30,6 +30,47 @@
 #include "ship_packets.h"
 #include "utils.h"
 
+/* Options for choice search. */
+typedef struct cs_opt {
+    uint16_t menu_id;
+    uint16_t item_id;
+    char text[0x1C];
+} cs_opt_t;
+
+cs_opt_t cs_options[] = {
+    { 0x0000, 0x0001, "Hunter's Level" },
+    { 0x0001, 0x0000, "Any" },
+    { 0x0001, 0x0001, "Own Level +/- 5" },
+    { 0x0001, 0x0002, "Level 1-10" },
+    { 0x0001, 0x0003, "Level 11-20" },
+    { 0x0001, 0x0004, "Level 21-40" },
+    { 0x0001, 0x0005, "Level 41-60" },
+    { 0x0001, 0x0006, "Level 61-80" },
+    { 0x0001, 0x0007, "Level 81-100" },
+    { 0x0001, 0x0008, "Level 101-120" },
+    { 0x0001, 0x0009, "Level 121-160" },
+    { 0x0001, 0x000A, "Level 161-200" },
+    { 0x0000, 0x0002, "Hunter's Class" },
+    { 0x0002, 0x0000, "Any" },
+    { 0x0002, 0x0001, "HUmar" },
+    { 0x0002, 0x0002, "HUnewearl" },
+    { 0x0002, 0x0003, "HUcast" },
+    { 0x0002, 0x0004, "RAmar" },
+    { 0x0002, 0x0005, "RAcast" },
+    { 0x0002, 0x0006, "RAcaseal" },
+    { 0x0002, 0x0007, "FOmar" },
+    { 0x0002, 0x0008, "FOnewm" },
+    { 0x0002, 0x0009, "FOnewearl" }
+};
+
+#define CS_OPTIONS_COUNT 23
+
+extern sylverant_shipcfg_t *cfg;
+extern ship_t **ships;
+
+extern in_addr_t local_addr;
+extern in_addr_t netmask;
+
 /* Forward declaration. */
 static int send_dc_lobby_arrows(lobby_t *l, ship_client_t *c);
 
@@ -3043,6 +3084,297 @@ int send_warp(ship_client_t *c, uint8_t area) {
 
         case CLIENT_VERSION_PC:
             return send_pc_warp(c, area);
+    }
+
+    return -1;
+}
+
+/* Send the choice search option list to the client. */
+static int send_dc_choice_search(ship_client_t *c) {
+    uint8_t *sendbuf = get_sendbuf();
+    dc_choice_search_pkt *pkt = (dc_choice_search_pkt *)sendbuf;
+    uint16_t len = 4 + 0x20 * CS_OPTIONS_COUNT;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Fill in the basics. */
+    pkt->hdr.pkt_type = SHIP_CHOICE_OPTION_TYPE;
+    pkt->hdr.pkt_len = LE16(len);
+    pkt->hdr.flags = CS_OPTIONS_COUNT;
+
+    /* Copy the options over. */
+    memcpy(pkt->entries, cs_options, len - 4);
+
+    return crypt_send(c, len, sendbuf);
+}
+
+static int send_pc_choice_search(ship_client_t *c) {
+    uint8_t *sendbuf = get_sendbuf();
+    pc_choice_search_pkt *pkt = (pc_choice_search_pkt *)sendbuf;
+    uint16_t len = 4 + 0x3C * CS_OPTIONS_COUNT;
+    uint16_t i;
+    iconv_t ic;
+    size_t in, out;
+    char *inptr, *outptr;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Set up the converting stuff. */
+    ic = iconv_open("UTF-16LE", "ASCII");
+
+    if(ic == (iconv_t)-1) {
+        perror("iconv_open");
+        return -1;
+    }
+
+    /* Fill in the basics. */
+    pkt->hdr.pkt_type = SHIP_CHOICE_OPTION_TYPE;
+    pkt->hdr.pkt_len = LE16(len);
+    pkt->hdr.flags = CS_OPTIONS_COUNT;
+
+    /* Copy the options over. */
+    for(i = 0; i < CS_OPTIONS_COUNT; ++i) {
+        pkt->entries[i].menu_id = LE16(cs_options[i].menu_id);
+        pkt->entries[i].item_id = LE16(cs_options[i].item_id);
+
+        /* Convert the text to UTF-16 */
+        in = strlen(cs_options[i].text) + 1;
+        out = 0x38;
+        inptr = cs_options[i].text;
+        outptr = (char *)pkt->entries[i].text;
+        iconv(ic, &inptr, &in, &outptr, &out);
+    }
+
+    iconv_close(ic);
+
+    return crypt_send(c, len, sendbuf);
+}
+
+int send_choice_search(ship_client_t *c) {
+    /* Call the appropriate function. */
+    switch(c->version) {
+        case CLIENT_VERSION_DCV1:
+        case CLIENT_VERSION_DCV2:
+            return send_dc_choice_search(c);
+
+        case CLIENT_VERSION_PC:
+            return send_pc_choice_search(c);
+    }
+
+    return -1;
+}
+
+static const char *classes[12] = {
+    "HUmar", "HUnewearl", "HUcast",
+    "RAmar", "RAcast", "RAcaseal",
+    "FOmarl", "FOnewm", "FOnewearl",
+    "HUcaseal", "FOmar", "RAmarl"
+};
+
+static const char *locs[2] = { "In Game", "In Lobby" };
+
+/* Send a reply to a choice search to the client. */
+static int send_dc_choice_reply(ship_client_t *c, dc_choice_set_t *search) {
+    uint8_t *sendbuf = get_sendbuf();
+    //dc_choice_reply_t *pkt = (dc_choice_reply_t *)sendbuf;
+    uint16_t len = 4 + 0x20 * CS_OPTIONS_COUNT;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* XXXX: Finish me. */
+
+    return -1;
+}
+
+static int send_pc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
+                                int minlvl, int maxlvl, int cl, in_addr_t a) {
+    uint8_t *sendbuf = get_sendbuf();
+    pc_choice_reply_t *pkt = (pc_choice_reply_t *)sendbuf;
+    uint16_t len = 4;
+    uint8_t entries = 0;
+    int i, j;
+    iconv_t ic;
+    size_t in, out;
+    char *inptr, *outptr;
+    ship_t *s;
+    block_t *b;
+    ship_client_t *it;
+    char tmp[64];
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Set up the converting stuff. */
+    ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+
+    if(ic == (iconv_t)-1) {
+        perror("iconv_open");
+        return -1;
+    }
+
+    /* Search any local ships. */
+    for(j = 0; j < cfg->ship_count; ++j) {
+        s = ships[j];
+        for(i = 0; i < s->cfg->blocks; ++i) {
+            b = s->blocks[i];
+            pthread_mutex_lock(&b->mutex);
+
+            /* Look through all clients on that block. */
+            TAILQ_FOREACH(it, b->clients, qentry) {
+                /* Look to see if they match the search. */
+                if(!it->pl) {
+                    continue;
+                }
+                else if(!it->cur_lobby) {
+                    continue;
+                }
+                else if(it->pl->level < minlvl || it->pl->level > maxlvl) {
+                    continue;
+                }
+                else if(cl != 0 && it->pl->ch_class != cl - 1) {
+                    continue;
+                }
+
+                /* If we get here, they match the search. Fill in the entry. */
+                memset(&pkt->entries[entries], 0, 0x154);
+                pkt->entries[entries].guildcard = LE32(it->guildcard);
+
+                in = strlen(it->pl->name) + 1;
+                out = 0x20;
+                inptr = it->pl->name;
+                outptr = (char *)pkt->entries[entries].name;
+                iconv(ic, &inptr, &in, &outptr, &out);
+
+                in = sprintf(tmp, "%s Lvl %d\n", classes[it->pl->ch_class],
+                             it->pl->level + 1) + 1;
+                out = 0x40;
+                inptr = tmp;
+                outptr = (char *)pkt->entries[entries].cl_lvl;
+                iconv(ic, &inptr, &in, &outptr, &out);
+
+                in = sprintf(tmp, "%s,BLOCK%02d,%s",
+                             it->cur_lobby->type & LOBBY_TYPE_GAME ? locs[0] :
+                             locs[1], it->cur_block->b, s->cfg->name) + 1;
+                out = 0x60;
+                inptr = tmp;
+                outptr = (char *)pkt->entries[entries].location;
+                iconv(ic, &inptr, &in, &outptr, &out);
+
+                pkt->entries[entries].ip = a;
+                pkt->entries[entries].port = LE16(b->pc_port);
+                pkt->entries[entries].menu_id = LE32(0xFFFFFFFF);
+                pkt->entries[entries].item_id = LE32(it->cur_lobby->lobby_id);
+
+                len += 0x154;
+                ++entries;
+            }
+
+            pthread_mutex_unlock(&b->mutex);
+        }
+    }
+
+    /* Put in a blank entry if nothing's there, otherwise PSO will crash. */
+    if(entries == 0) {
+        memset(&pkt->entries[0], 0, 0x154);
+        len += 0x154;
+    }
+
+    iconv_close(ic);
+
+    /* Fill in the header. */
+    pkt->hdr.pkt_type = SHIP_CHOICE_REPLY_TYPE;
+    pkt->hdr.pkt_len = LE16(len);
+    pkt->hdr.flags = entries;
+
+    return crypt_send(c, len, sendbuf);
+}
+
+int send_choice_reply(ship_client_t *c, dc_choice_set_t *search) {
+    int minlvl = 0, maxlvl = 199, cl;
+    in_addr_t addr;
+
+    /* Figure out the IP address to send. */
+    if(netmask && (c->addr & netmask) == (local_addr & netmask)) {
+        addr = local_addr;
+    }
+    else {
+        addr = c->cur_ship->cfg->ship_ip;
+    }
+
+    /* Parse the packet for the minimum and maximum levels. */
+    switch(LE16(search->entries[0].item_id)) {
+        case 0x0001:
+            minlvl = c->pl->level - 5;
+            maxlvl = c->pl->level + 5;
+            break;
+            
+        case 0x0002:
+            minlvl = 0;
+            maxlvl = 9;
+            break;
+            
+        case 0x0003:
+            minlvl = 10;
+            maxlvl = 19;
+            break;
+            
+        case 0x0004:
+            minlvl = 20;
+            maxlvl = 39;
+            break;
+            
+        case 0x0005:
+            minlvl = 40;
+            maxlvl = 59;
+            break;
+            
+        case 0x0006:
+            minlvl = 60;
+            maxlvl = 79;
+            break;
+            
+        case 0x0007:
+            minlvl = 80;
+            maxlvl = 99;
+            break;
+            
+        case 0x0008:
+            minlvl = 100;
+            maxlvl = 119;
+            break;
+            
+        case 0x0009:
+            minlvl = 120;
+            maxlvl = 159;
+            break;
+            
+        case 0x000A:
+            minlvl = 160;
+            maxlvl = 199;
+            break;
+    }
+
+    cl = LE16(search->entries[1].item_id);
+
+    /* Call the appropriate function. */
+    switch(c->version) {
+        case CLIENT_VERSION_DCV1:
+        case CLIENT_VERSION_DCV2:
+            return send_dc_choice_reply(c, search);
+
+        case CLIENT_VERSION_PC:
+            return send_pc_choice_reply(c, search, minlvl, maxlvl, cl, addr);
     }
 
     return -1;

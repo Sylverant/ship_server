@@ -1397,6 +1397,20 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return send_ship_list(c, c->cur_ship->ships,
                                   c->cur_ship->ship_count);
 
+        case SHIP_CHOICE_OPTION_TYPE:
+            return send_choice_search(c);
+
+        case SHIP_CHOICE_SETTING_TYPE:
+            /* Ignore these for now. */
+            print_packet((unsigned char *)pkt, len);
+            return 0;
+
+        case SHIP_CHOICE_SEARCH_TYPE:
+            /* Ignore for now -- disconnect since I don't have the reply done
+               just yet (the game will just wait for it). */
+            print_packet((unsigned char *)pkt, len);
+            return send_choice_reply(c, (dc_choice_set_t *)pkt);
+
         default:
             debug(DBG_LOG, "Unknown packet!\n");
             print_packet((unsigned char *)pkt, len);

@@ -475,9 +475,9 @@ typedef struct dc_arrow_list {
     } entries[0];
 } PACKED dc_arrow_list_pkt;
 
-/* The ship list packet send to tell clients what ships are up (Dreamcast). */
+/* The ship list packet sent to tell clients what ships are up (Dreamcast). */
 typedef struct dc_ship_list {
-    dc_pkt_hdr_t hdr;           /* The flags field says how entries are below */
+    dc_pkt_hdr_t hdr;           /* The flags field says how many entries */
     struct {
         uint32_t menu_id;
         uint32_t item_id;
@@ -486,9 +486,9 @@ typedef struct dc_ship_list {
     } entries[0];
 } PACKED dc_ship_list_pkt;
 
-/* The ship list packet send to tell clients what ships are up (PC). */
+/* The ship list packet sent to tell clients what ships are up (PC). */
 typedef struct pc_ship_list {
-    pc_pkt_hdr_t hdr;           /* The flags field says how entries are below */
+    pc_pkt_hdr_t hdr;           /* The flags field says how many entries */
     struct {
         uint32_t menu_id;
         uint32_t item_id;
@@ -496,6 +496,61 @@ typedef struct pc_ship_list {
         uint16_t name[0x11];
     } entries[0];
 } PACKED pc_ship_list_pkt;
+
+/* The choice search options packet sent to tell clients what they can actually
+   search on (DC). */
+typedef struct dc_choice_search {
+    dc_pkt_hdr_t hdr;           /* The flags field says how many entries */
+    struct {
+        uint16_t menu_id;
+        uint16_t item_id;
+        char text[0x1C];
+    } entries[0];
+} PACKED dc_choice_search_pkt;
+
+/* The choice search options packet sent to tell clients what they can actually
+   search on (PC). */
+typedef struct pc_choice_search {
+    pc_pkt_hdr_t hdr;           /* The flags field says how many entries */
+    struct {
+        uint16_t menu_id;
+        uint16_t item_id;
+        uint16_t text[0x1C];
+    } entries[0];
+} PACKED pc_choice_search_pkt;
+
+/* The packet sent to set up the user's choice search settings or to actually
+   perform a choice search (Dreamcast/PC). */
+typedef struct dc_choice_set {
+    union {
+        dc_pkt_hdr_t dc;
+        pc_pkt_hdr_t pc;
+    } hdr;
+    uint8_t off;
+    uint8_t padding[3];
+    struct {
+        uint16_t menu_id;
+        uint16_t item_id;
+    } entries[5];
+} PACKED dc_choice_set_t;
+
+/* The packet sent as a reply to a choice search (PC). */
+typedef struct pc_choice_reply {
+    pc_pkt_hdr_t hdr;           /* The flags field says how many entries */
+    struct {
+        uint32_t guildcard;
+        uint16_t name[0x10];
+        uint16_t cl_lvl[0x20];
+        uint16_t location[0x30];
+        uint32_t padding;
+        in_addr_t ip;
+        uint16_t port;
+        uint16_t padding2;
+        uint32_t menu_id;
+        uint32_t item_id;
+        uint8_t padding3[0x7C];
+    } entries[0];
+} PACKED pc_choice_reply_t;
 
 #undef PACKED
 
@@ -547,7 +602,11 @@ typedef struct pc_ship_list {
 #define SHIP_QUEST_END_LIST_TYPE            0x00A9
 #define SHIP_TEXT_MSG_TYPE                  0x00B0
 #define SHIP_TIMESTAMP_TYPE                 0x00B1
+#define SHIP_CHOICE_OPTION_TYPE             0x00C0
 #define SHIP_GAME_CREATE_TYPE               0x00C1
+#define SHIP_CHOICE_SETTING_TYPE            0x00C2
+#define SHIP_CHOICE_SEARCH_TYPE             0x00C3
+#define SHIP_CHOICE_REPLY_TYPE              0x00C4
 
 #define SHIP_DC_WELCOME_LENGTH              0x004C
 #define SHIP_DC_REDIRECT_LENGTH             0x000C
@@ -670,5 +729,11 @@ int send_ship_list(ship_client_t *c, miniship_t *l, int ships);
 
 /* Send a warp command to the client. */
 int send_warp(ship_client_t *c, uint8_t area);
+
+/* Send the choice search option list to the client. */
+int send_choice_search(ship_client_t *c);
+
+/* Send a reply to a choice search to the client. */
+int send_choice_reply(ship_client_t *c, dc_choice_set_t *search);
 
 #endif /* !SHIPPACKETS_H */
