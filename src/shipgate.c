@@ -477,7 +477,7 @@ static int handle_pc(shipgate_conn_t *conn, shipgate_fw_pkt *pkt) {
 
     switch(type) {
         case SHIP_SIMPLE_MAIL_TYPE:
-            return handle_dc_mail(conn, (dc_simple_mail_pkt *)dc);
+            return handle_pc_mail(conn, (pc_simple_mail_pkt *)dc);
     }
 
     return -2;
