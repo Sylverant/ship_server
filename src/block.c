@@ -723,18 +723,16 @@ static int dc_process_mail(ship_client_t *c, dc_simple_mail_pkt *pkt) {
             TAILQ_FOREACH(it, s->blocks[i]->clients, qentry) {
                 /* Check if this is the target and the target has player
                    data. */
-                if(it->guildcard == gc && it->pl &&
-                   c->version != CLIENT_VERSION_PC) {
+                if(it->guildcard == gc && it->pl) {
                     pthread_mutex_lock(&it->mutex);
-                    rv = send_pkt_dc(it, (dc_pkt_hdr_t *)pkt);
+                    rv = send_simple_mail(c->version, it, (dc_pkt_hdr_t *)pkt);
                     pthread_mutex_unlock(&it->mutex);
                     done = 1;
                     break;
                 }
                 else if(it->guildcard == gc) {
-                    /* If they're on but don't have data or they're on the PC
-                       version, we're not going to find them anywhere else,
-                       return success. */
+                    /* If they're on but don't have data, we're not going to
+                       find them anywhere else, return success. */
                     rv = 0;
                     done = 1;
                     break;
@@ -771,18 +769,16 @@ static int pc_process_mail(ship_client_t *c, pc_simple_mail_pkt *pkt) {
             TAILQ_FOREACH(it, s->blocks[i]->clients, qentry) {
                 /* Check if this is the target and the target has player
                    data. */
-                if(it->guildcard == gc && it->pl &&
-                   it->version == CLIENT_VERSION_PC) {
+                if(it->guildcard == gc && it->pl) {
                     pthread_mutex_lock(&it->mutex);
-                    rv = send_pkt_dc(it, (dc_pkt_hdr_t *)pkt);
+                    rv = send_simple_mail(c->version, it, (dc_pkt_hdr_t *)pkt);
                     pthread_mutex_unlock(&it->mutex);
                     done = 1;
                     break;
                 }
                 else if(it->guildcard == gc) {
-                    /* If they're on but don't have data or they aren't playing
-                       on PSOPC, we're not going to find them anywhere else,
-                       return success. */
+                    /* If they're on but don't have data, we're not going to
+                       find them anywhere else, return success. */
                     rv = 0;
                     done = 1;
                     break;

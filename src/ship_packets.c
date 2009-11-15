@@ -3383,47 +3383,47 @@ int send_choice_reply(ship_client_t *c, dc_choice_set_t *search) {
             minlvl = c->pl->level - 5;
             maxlvl = c->pl->level + 5;
             break;
-            
+
         case 0x0002:
             minlvl = 0;
             maxlvl = 9;
             break;
-            
+
         case 0x0003:
             minlvl = 10;
             maxlvl = 19;
             break;
-            
+
         case 0x0004:
             minlvl = 20;
             maxlvl = 39;
             break;
-            
+
         case 0x0005:
             minlvl = 40;
             maxlvl = 59;
             break;
-            
+
         case 0x0006:
             minlvl = 60;
             maxlvl = 79;
             break;
-            
+
         case 0x0007:
             minlvl = 80;
             maxlvl = 99;
             break;
-            
+
         case 0x0008:
             minlvl = 100;
             maxlvl = 119;
             break;
-            
+
         case 0x0009:
             minlvl = 120;
             maxlvl = 159;
             break;
-            
+
         case 0x000A:
             minlvl = 160;
             maxlvl = 199;
@@ -3440,6 +3440,151 @@ int send_choice_reply(ship_client_t *c, dc_choice_set_t *search) {
 
         case CLIENT_VERSION_PC:
             return send_pc_choice_reply(c, search, minlvl, maxlvl, cl, addr);
+    }
+
+    return -1;
+}
+
+static int send_pc_simple_mail_dc(ship_client_t *c, dc_simple_mail_pkt *p) {
+    uint8_t *sendbuf = get_sendbuf();
+    pc_simple_mail_pkt *pkt = (pc_simple_mail_pkt *)sendbuf;
+    iconv_t ic;
+    size_t in, out;
+    char *inptr, *outptr;
+    int i;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Set up the converting stuff. */
+    ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+
+    if(ic == (iconv_t)-1) {
+        perror("iconv_open");
+        return -1;
+    }
+
+    /* Scrub the buffer. */
+    memset(pkt, 0, SHIP_PC_SIMPLE_MAIL_LENGTH);
+
+    /* Fill in the header. */
+    pkt->hdr.pkt_type = SHIP_SIMPLE_MAIL_TYPE;
+    pkt->hdr.flags = 0;
+    pkt->hdr.pkt_len = LE16(SHIP_PC_SIMPLE_MAIL_LENGTH);
+
+    /* Copy everything that doesn't need to be converted. */
+    pkt->tag = p->tag;
+    pkt->gc_sender = p->gc_sender;
+    pkt->gc_dest = p->gc_dest;
+
+    /* Convert the name. */
+    in = 0x10;
+    out = 0x20;
+    inptr = p->name;
+    outptr = (char *)pkt->name;
+    iconv(ic, &inptr, &in, &outptr, &out);
+
+    /* Convert the first instance of text. */
+    in = 0x90;
+    out = 0x120;
+    inptr = p->stuff;
+    outptr = pkt->stuff;
+    iconv(ic, &inptr, &in, &outptr, &out);
+
+    /* This is a BIT hackish (just a bit...). */
+    for(i = 0; i < 0x150; ++i) {
+        pkt->stuff[(i << 1) + 0x150] = p->stuff[i + 0xB0];
+        pkt->stuff[(i << 1) + 0x151] = 0;
+    }
+
+    iconv_close(ic);
+
+    /* Send it away. */
+    return crypt_send(c, SHIP_PC_SIMPLE_MAIL_LENGTH, sendbuf);
+}
+
+static int send_dc_simple_mail_pc(ship_client_t *c, pc_simple_mail_pkt *p) {
+    uint8_t *sendbuf = get_sendbuf();
+    dc_simple_mail_pkt *pkt = (dc_simple_mail_pkt *)sendbuf;
+    iconv_t ic;
+    size_t in, out;
+    char *inptr, *outptr;
+    int i;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Set up the converting stuff. */
+    ic = iconv_open("SHIFT_JIS", "UTF-16LE");
+
+    if(ic == (iconv_t)-1) {
+        perror("iconv_open");
+        return -1;
+    }
+
+    /* Scrub the buffer. */
+    memset(pkt, 0, SHIP_DC_SIMPLE_MAIL_LENGTH);
+
+    /* Fill in the header. */
+    pkt->hdr.pkt_type = SHIP_SIMPLE_MAIL_TYPE;
+    pkt->hdr.flags = 0;
+    pkt->hdr.pkt_len = LE16(SHIP_DC_SIMPLE_MAIL_LENGTH);
+
+    /* Copy everything that doesn't need to be converted. */
+    pkt->tag = p->tag;
+    pkt->gc_sender = p->gc_sender;
+    pkt->gc_dest = p->gc_dest;
+
+    /* Convert the name. */
+    in = 0x20;
+    out = 0x10;
+    inptr = (char *)p->name;
+    outptr = pkt->name;
+    iconv(ic, &inptr, &in, &outptr, &out);
+
+    /* Convert the first instance of text. */
+    in = 0x120;
+    out = 0x90;
+    inptr = p->stuff;
+    outptr = pkt->stuff;
+    iconv(ic, &inptr, &in, &outptr, &out);
+
+    /* This is a BIT hackish (just a bit...). */
+    for(i = 0; i < 0x150; ++i) {
+        pkt->stuff[i + 0xB0] = p->stuff[(i << 1) + 0x150];
+    }
+
+    iconv_close(ic);
+
+    /* Send it away. */
+    return crypt_send(c, SHIP_DC_SIMPLE_MAIL_LENGTH, sendbuf);
+}
+
+/* Send a simple mail packet, doing any needed transformations. */
+int send_simple_mail(int version, ship_client_t *c, dc_pkt_hdr_t *pkt) {
+    switch(version) {
+        case CLIENT_VERSION_DCV1:
+        case CLIENT_VERSION_DCV2:
+            if(c->version == CLIENT_VERSION_PC) {
+                return send_pc_simple_mail_dc(c, (dc_simple_mail_pkt *)pkt);
+            }
+            else {
+                return send_pkt_dc(c, pkt);
+            }
+            break;
+
+        case CLIENT_VERSION_PC:
+            if(c->version == CLIENT_VERSION_PC) {
+                return send_pkt_dc(c, pkt);
+            }
+            else {
+                return send_dc_simple_mail_pc(c, (pc_simple_mail_pkt *)pkt);
+            }
+            break;
     }
 
     return -1;

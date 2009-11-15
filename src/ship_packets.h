@@ -301,7 +301,7 @@ typedef struct dc_simple_mail {
     uint32_t gc_sender;
     char name[16];
     uint32_t gc_dest;
-    char stuff[0x200];
+    char stuff[0x200]; /* Start = 0x20, end = 0xB0 */
 } PACKED dc_simple_mail_pkt;
 
 /* The packet sent to send/deliver simple mail (PC). */
@@ -311,7 +311,7 @@ typedef struct pc_simple_mail {
     uint32_t gc_sender;
     uint16_t name[16];
     uint32_t gc_dest;
-    char stuff[0x400];
+    char stuff[0x400]; /* Start = 0x30, end = 0x150 */
 } PACKED pc_simple_mail_pkt;
 
 /* The packet sent by clients to create a game (Dreamcast). */
@@ -639,6 +639,8 @@ typedef struct pc_choice_reply {
 #define SHIP_PC_QUEST_INFO_LENGTH           0x024C
 #define SHIP_DC_QUEST_FILE_LENGTH           0x003C
 #define SHIP_DC_QUEST_CHUNK_LENGTH          0x0418
+#define SHIP_DC_SIMPLE_MAIL_LENGTH          0x0220
+#define SHIP_PC_SIMPLE_MAIL_LENGTH          0x0430
 
 /* This must be placed into the copyright field in the DC welcome packet. */
 const static char dc_welcome_copyright[] =
@@ -753,5 +755,8 @@ int send_choice_search(ship_client_t *c);
 
 /* Send a reply to a choice search to the client. */
 int send_choice_reply(ship_client_t *c, dc_choice_set_t *search);
+
+/* Send a simple mail packet, doing any needed transformations. */
+int send_simple_mail(int version, ship_client_t *c, dc_pkt_hdr_t *pkt);
 
 #endif /* !SHIPPACKETS_H */
