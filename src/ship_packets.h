@@ -534,6 +534,24 @@ typedef struct dc_choice_set {
     } entries[5];
 } PACKED dc_choice_set_t;
 
+/* The packet sent as a reply to a choice search (Dreamcast). */
+typedef struct dc_choice_reply {
+    dc_pkt_hdr_t hdr;           /* The flags field says how many entries */
+    struct {
+        uint32_t guildcard;
+        char name[0x10];
+        char cl_lvl[0x20];
+        char location[0x30];
+        uint32_t padding;
+        in_addr_t ip;
+        uint16_t port;
+        uint16_t padding2;
+        uint32_t menu_id;
+        uint32_t item_id;
+        uint8_t padding3[0x5C];
+    } entries[0];
+} PACKED dc_choice_reply_t;
+
 /* The packet sent as a reply to a choice search (PC). */
 typedef struct pc_choice_reply {
     pc_pkt_hdr_t hdr;           /* The flags field says how many entries */

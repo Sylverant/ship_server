@@ -3177,22 +3177,85 @@ static const char *classes[12] = {
     "HUcaseal", "FOmar", "RAmarl"
 };
 
-static const char *locs[2] = { "In Game", "In Lobby" };
-
 /* Send a reply to a choice search to the client. */
-static int send_dc_choice_reply(ship_client_t *c, dc_choice_set_t *search) {
+static int send_dc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
+                                int minlvl, int maxlvl, int cl, in_addr_t a) {
     uint8_t *sendbuf = get_sendbuf();
-    //dc_choice_reply_t *pkt = (dc_choice_reply_t *)sendbuf;
-    uint16_t len = 4 + 0x20 * CS_OPTIONS_COUNT;
+    dc_choice_reply_t *pkt = (dc_choice_reply_t *)sendbuf;
+    uint16_t len = 4;
+    uint8_t entries = 0;
+    int i, j;
+    ship_t *s;
+    block_t *b;
+    ship_client_t *it;
+    char tmp[64];
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
         return -1;
     }
 
-    /* XXXX: Finish me. */
+    /* Search any local ships. */
+    for(j = 0; j < cfg->ship_count; ++j) {
+        s = ships[j];
+        for(i = 0; i < s->cfg->blocks; ++i) {
+            b = s->blocks[i];
+            pthread_mutex_lock(&b->mutex);
 
-    return -1;
+            /* Look through all clients on that block. */
+            TAILQ_FOREACH(it, b->clients, qentry) {
+                /* Look to see if they match the search. */
+                if(!it->pl) {
+                    continue;
+                }
+                else if(!it->cur_lobby) {
+                    continue;
+                }
+                else if(it->pl->level < minlvl || it->pl->level > maxlvl) {
+                    continue;
+                }
+                else if(cl != 0 && it->pl->ch_class != cl - 1) {
+                    continue;
+                }
+                else if(it == c) {
+                    continue;
+                }
+
+                /* If we get here, they match the search. Fill in the entry. */
+                memset(&pkt->entries[entries], 0, 0xD4);
+                pkt->entries[entries].guildcard = LE32(it->guildcard);
+
+                strcpy(pkt->entries[entries].name, it->pl->name);
+                sprintf(pkt->entries[entries].cl_lvl, "%s Lvl %d\n",
+                        classes[it->pl->ch_class], it->pl->level + 1);
+                sprintf(pkt->entries[entries].location, "%s,BLOCK%02d,%s",
+                        it->cur_lobby->name, it->cur_block->b, s->cfg->name);
+
+                pkt->entries[entries].ip = a;
+                pkt->entries[entries].port = LE16(b->dc_port);
+                pkt->entries[entries].menu_id = LE32(0xFFFFFFFF);
+                pkt->entries[entries].item_id = LE32(it->cur_lobby->lobby_id);
+
+                len += 0xD4;
+                ++entries;
+            }
+
+            pthread_mutex_unlock(&b->mutex);
+        }
+    }
+
+    /* Put in a blank entry if nothing's there, otherwise PSO will crash. */
+    if(entries == 0) {
+        memset(&pkt->entries[0], 0, 0xD4);
+        len += 0xD4;
+    }
+
+    /* Fill in the header. */
+    pkt->hdr.pkt_type = SHIP_CHOICE_REPLY_TYPE;
+    pkt->hdr.pkt_len = LE16(len);
+    pkt->hdr.flags = entries;
+
+    return crypt_send(c, len, sendbuf);
 }
 
 static int send_pc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
@@ -3245,6 +3308,9 @@ static int send_pc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
                 else if(cl != 0 && it->pl->ch_class != cl - 1) {
                     continue;
                 }
+                else if(it == c) {
+                    continue;
+                }
 
                 /* If we get here, they match the search. Fill in the entry. */
                 memset(&pkt->entries[entries], 0, 0x154);
@@ -3263,9 +3329,8 @@ static int send_pc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
                 outptr = (char *)pkt->entries[entries].cl_lvl;
                 iconv(ic, &inptr, &in, &outptr, &out);
 
-                in = sprintf(tmp, "%s,BLOCK%02d,%s",
-                             it->cur_lobby->type & LOBBY_TYPE_GAME ? locs[0] :
-                             locs[1], it->cur_block->b, s->cfg->name) + 1;
+                in = sprintf(tmp, "%s,BLOCK%02d,%s", it->cur_lobby->name,
+                             it->cur_block->b, s->cfg->name) + 1;
                 out = 0x60;
                 inptr = tmp;
                 outptr = (char *)pkt->entries[entries].location;
@@ -3371,7 +3436,7 @@ int send_choice_reply(ship_client_t *c, dc_choice_set_t *search) {
     switch(c->version) {
         case CLIENT_VERSION_DCV1:
         case CLIENT_VERSION_DCV2:
-            return send_dc_choice_reply(c, search);
+            return send_dc_choice_reply(c, search, minlvl, maxlvl, cl, addr);
 
         case CLIENT_VERSION_PC:
             return send_pc_choice_reply(c, search, minlvl, maxlvl, cl, addr);
