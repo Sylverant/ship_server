@@ -345,9 +345,48 @@ static int handle_dc_mail(shipgate_conn_t *conn, dc_simple_mail_pkt *pkt) {
             TAILQ_FOREACH(c, b->clients, qentry) {
                 pthread_mutex_lock(&c->mutex);
 
-                if(c->guildcard == dest) {
+                if(c->guildcard == dest && c->pl) {
                     /* Forward the packet there. */
-                    rv = send_pkt_dc(c, (dc_pkt_hdr_t *)pkt);
+                    rv = send_simple_mail(CLIENT_VERSION_DCV1, c,
+                                          (dc_pkt_hdr_t *)pkt);
+                    done = 1;
+                }
+
+                pthread_mutex_unlock(&c->mutex);
+
+                if(done) {
+                    pthread_mutex_unlock(&b->mutex);
+                    break;
+                }
+            }
+
+            pthread_mutex_unlock(&b->mutex);
+        }
+    }
+
+    return rv;
+}
+
+static int handle_pc_mail(shipgate_conn_t *conn, pc_simple_mail_pkt *pkt) {
+    int i;
+    ship_t *s = conn->ship;
+    block_t *b;
+    ship_client_t *c;
+    uint32_t dest = LE32(pkt->gc_dest);
+    int done = 0, rv = 0;
+
+    for(i = 0; i < s->cfg->blocks && !done; ++i) {
+        if(s->blocks[i]) {
+            b = s->blocks[i];
+            pthread_mutex_lock(&b->mutex);
+
+            TAILQ_FOREACH(c, b->clients, qentry) {
+                pthread_mutex_lock(&c->mutex);
+
+                if(c->guildcard == dest && c->pl) {
+                    /* Forward the packet there. */
+                    rv = send_simple_mail(CLIENT_VERSION_PC, c,
+                                          (dc_pkt_hdr_t *)pkt);
                     done = 1;
                 }
 
@@ -425,6 +464,18 @@ static int handle_dc(shipgate_conn_t *conn, shipgate_fw_pkt *pkt) {
             return handle_dc_gsearch(conn, (dc_guild_search_pkt *)dc,
                                      pkt->ship_id);
 
+        case SHIP_SIMPLE_MAIL_TYPE:
+            return handle_dc_mail(conn, (dc_simple_mail_pkt *)dc);
+    }
+
+    return -2;
+}
+
+static int handle_pc(shipgate_conn_t *conn, shipgate_fw_pkt *pkt) {
+    dc_pkt_hdr_t *dc = (dc_pkt_hdr_t *)pkt->pkt;
+    uint8_t type = dc->pkt_type;
+
+    switch(type) {
         case SHIP_SIMPLE_MAIL_TYPE:
             return handle_dc_mail(conn, (dc_simple_mail_pkt *)dc);
     }
@@ -530,6 +581,9 @@ static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
     switch(type) {
         case SHDR_TYPE_DC:
             return handle_dc(conn, (shipgate_fw_pkt *)pkt);
+
+        case SHDR_TYPE_PC:
+            return handle_pc(conn, (shipgate_fw_pkt *)pkt);
 
         case SHDR_TYPE_SSTATUS:
             return handle_sstatus(conn, (shipgate_ship_status_pkt *)pkt);
