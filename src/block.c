@@ -233,9 +233,8 @@ block_t *block_server_start(ship_t *s, int b, uint16_t port) {
     block_t *rv;
     int dcsock, pcsock, i;
     struct sockaddr_in addr;
-    lobby_t *l;
+    lobby_t *l, *l2;
     pthread_mutexattr_t attr;
-    int window_size = (32 * 1024) - 1;      /* ~32kb window size */
 
     debug(DBG_LOG, "%s: Starting server for block %d...\n", s->cfg->name, b);
 
@@ -244,19 +243,6 @@ block_t *block_server_start(ship_t *s, int b, uint16_t port) {
 
     if(dcsock < 0) {
         perror("socket");
-        return NULL;
-    }
-
-    /* Increase the TCP window size. */
-    if(setsockopt(dcsock, SOL_SOCKET, SO_SNDBUF, &window_size, sizeof(int))) {
-        perror("setsockopt");
-        close(dcsock);
-        return NULL;
-    }
-
-    if(setsockopt(dcsock, SOL_SOCKET, SO_RCVBUF, &window_size, sizeof(int))) {
-        perror("setsockopt");
-        close(dcsock);
         return NULL;
     }
 
@@ -283,21 +269,6 @@ block_t *block_server_start(ship_t *s, int b, uint16_t port) {
 
     if(pcsock < 0) {
         perror("socket");
-        close(dcsock);
-        return NULL;
-    }
-
-    /* Increase the TCP window size. */
-    if(setsockopt(pcsock, SOL_SOCKET, SO_SNDBUF, &window_size, sizeof(int))) {
-        perror("setsockopt");
-        close(pcsock);
-        close(dcsock);
-        return NULL;
-    }
-
-    if(setsockopt(pcsock, SOL_SOCKET, SO_RCVBUF, &window_size, sizeof(int))) {
-        perror("setsockopt");
-        close(pcsock);
         close(dcsock);
         return NULL;
     }
@@ -378,7 +349,14 @@ block_t *block_server_start(ship_t *s, int b, uint16_t port) {
               s->cfg->name, b);
         close(pcsock);
         close(dcsock);
-        /* XXXX: Deal with lobbies. */
+
+        l2 = TAILQ_FIRST(&rv->lobbies);
+        while(l2) {
+            l = TAILQ_NEXT(l2, qentry);
+            lobby_destroy(l2);
+            l2 = l;
+        }
+
         free(rv->clients);
         free(rv);
         return NULL;

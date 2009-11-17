@@ -1428,7 +1428,7 @@ static int send_dc_game_join(ship_client_t *c, lobby_t *l) {
     pkt->event = l->event;
     pkt->section = l->section;
     pkt->challenge = l->challenge;
-    pkt->game_id = LE32(l->lobby_id);
+    pkt->rand_seed = LE32(l->rand_seed);
 
     /* Fill in the variations array. */
     memcpy(pkt->maps, l->maps, 0x20 * 4);
@@ -1487,7 +1487,7 @@ static int send_pc_game_join(ship_client_t *c, lobby_t *l) {
     pkt->event = l->event;
     pkt->section = l->section;
     pkt->challenge = l->challenge;
-    pkt->game_id = LE32(l->lobby_id);
+    pkt->rand_seed = LE32(l->rand_seed);
 
     /* Fill in the variations array. */
     memcpy(pkt->maps, l->maps, 0x20 * 4);

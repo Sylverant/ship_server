@@ -351,7 +351,7 @@ typedef struct dc_game_join {
     uint8_t event;
     uint8_t section;
     uint8_t challenge;
-    uint32_t game_id;
+    uint32_t rand_seed;
 } PACKED dc_game_join_pkt;
 
 /* The packet sent to clients to join a game (PC). */
@@ -367,7 +367,7 @@ typedef struct pc_game_join {
     uint8_t event;
     uint8_t section;
     uint8_t challenge;
-    uint32_t game_id;
+    uint32_t rand_seed;
 } PACKED pc_game_join_pkt;
 
 /* The packet sent to clients to give them the game select list (Dreamcast). */

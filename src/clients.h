@@ -88,6 +88,7 @@ struct ship_client {
     time_t last_message;
 
     time_t last_sent;
+    time_t join_time;
 
     pthread_mutex_t mutex;
 

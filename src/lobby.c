@@ -54,12 +54,18 @@ lobby_t *lobby_create_default(block_t *block, uint32_t lobby_id) {
     return l;
 }
 
+/* This list of numbers was borrowed from newserv. Hopefully Fuzziqer won't
+   mind too much. */
+static const uint32_t maps[0x20] =
+    {1,1,1,5,1,5,3,2,3,2,3,2,3,2,3,2,3,2,3,2,3,2,1,1,1,1,1,1,1,1,1,1};
+
 lobby_t *lobby_create_game(block_t *block, char name[16], char passwd[16],
                            uint8_t difficulty, uint8_t battle, uint8_t chal,
                            uint8_t v2, int version, uint8_t section,
                            uint8_t event) {
     lobby_t *l = (lobby_t *)malloc(sizeof(lobby_t));
     uint32_t id = 0x11;
+    int i;
 
     /* If we don't have a lobby, bail. */
     if(!l) {
@@ -92,6 +98,7 @@ lobby_t *lobby_create_game(block_t *block, char name[16], char passwd[16],
     l->event = event;
     l->min_level = game_required_level[difficulty];
     l->max_level = 9001;                /* Its OVER 9000! */
+    l->rand_seed = genrand_int32();
 
     /* Copy the game name and password. */
     if(v2) {
@@ -106,8 +113,12 @@ lobby_t *lobby_create_game(block_t *block, char name[16], char passwd[16],
     /* Initialize the lobby mutex. */
     pthread_mutex_init(&l->mutex, NULL);
 
-    /* XXXX: Fill in the map number array with appropriate random maps. I still
-       need to work out exactly what those are on PSO... */
+    /* Generate the random maps we'll be using for this game. */
+    for(i = 0; i < 0x20; ++i) {
+        if(maps[i] != 1) {
+            l->maps[i] = genrand_int32() % maps[i];
+        }
+    }
 
     /* Add it to the list of lobbies. */
     TAILQ_INSERT_TAIL(&block->lobbies, l, qentry);
@@ -145,6 +156,7 @@ static int lobby_add_client_locked(ship_client_t *c, lobby_t *l) {
             c->cur_lobby = l;
             c->client_id = i;
             c->arrow = 0;
+            c->join_time = time(NULL);
             ++l->num_clients;
             return 0;
         }
@@ -156,6 +168,7 @@ static int lobby_add_client_locked(ship_client_t *c, lobby_t *l) {
         c->cur_lobby = l;
         c->client_id = 0;
         c->arrow = 0;
+        c->join_time = time(NULL);
         ++l->num_clients;
         return 0;
     }
@@ -165,21 +178,24 @@ static int lobby_add_client_locked(ship_client_t *c, lobby_t *l) {
 }
 
 static int lobby_elect_leader_locked(lobby_t *l) {
-    int i;
+    int i, earliest_i = -1;
+    time_t earliest = time(NULL);
 
-    /* Go through and look for a new leader. */
+    /* Go through and look for a new leader. The new leader will be the person
+       who has been in the lobby the longest amount of time. */
     for(i = 0; i < l->max_clients; ++i) {
         /* We obviously can't give it to the old leader, they're gone now. */
         if(i == l->leader_id) {
             continue;
         }
-        else if(l->clients[i]) {
-            /* This person will do fine. */
-            return i;
+        /* Check if this person joined before the current earliest. */
+        else if(l->clients[i] && l->clients[i]->join_time < earliest) {
+            earliest_i = i;
+            earliest = l->clients[i]->join_time;
         }
     }
 
-    return -1;
+    return earliest_i;
 }
 
 /* Remove a client from a lobby, returns 0 if the lobby should stay, -1 on

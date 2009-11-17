@@ -63,6 +63,7 @@ struct lobby {
     int version;
     uint32_t min_level;
     uint32_t max_level;
+    uint32_t rand_seed;
 
     char name[16];
     char passwd[16];
