@@ -3094,6 +3094,7 @@ static int send_dc_choice_search(ship_client_t *c) {
     uint8_t *sendbuf = get_sendbuf();
     dc_choice_search_pkt *pkt = (dc_choice_search_pkt *)sendbuf;
     uint16_t len = 4 + 0x20 * CS_OPTIONS_COUNT;
+    int i;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -3106,7 +3107,12 @@ static int send_dc_choice_search(ship_client_t *c) {
     pkt->hdr.flags = CS_OPTIONS_COUNT;
 
     /* Copy the options over. */
-    memcpy(pkt->entries, cs_options, len - 4);
+    for(i = 0; i < CS_OPTIONS_COUNT; ++i) {
+        memset(&pkt->entries[i], 0, 0x20);
+        pkt->entries[i].menu_id = LE16(cs_options[i].menu_id);
+        pkt->entries[i].item_id = LE16(cs_options[i].item_id);
+        strcpy(pkt->entries[i].text, cs_options[i].text);
+    }
 
     return crypt_send(c, len, sendbuf);
 }
