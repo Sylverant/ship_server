@@ -2020,6 +2020,7 @@ static int send_pc_quest_categories(ship_client_t *c,
     iconv_t ic;
     size_t in, out;
     char *inptr, *outptr;
+    uint32_t type = SYLVERANT_QUEST_NORMAL;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -2034,6 +2035,13 @@ static int send_pc_quest_categories(ship_client_t *c,
         return -1;
     }
 
+    if(c->cur_lobby->battle) {
+        type = SYLVERANT_QUEST_BATTLE;
+    }
+    else if(c->cur_lobby->challenge) {
+        type = SYLVERANT_QUEST_CHALLENGE;
+    }
+
     /* Clear out the header */
     memset(pkt, 0, 0x04);
 
@@ -2041,24 +2049,29 @@ static int send_pc_quest_categories(ship_client_t *c,
     pkt->hdr.pkt_type = SHIP_QUEST_LIST_TYPE;
 
     for(i = 0; i < l->cat_count; ++i) {
+        /* Skip quests not of the right type. */
+        if(l->cats[i].type != type) {
+            continue;
+        }
+
         /* Clear the entry */
         memset(pkt->entries + i, 0, 0x128);
 
         /* Copy the category's information over to the packet */
-        pkt->entries[i].menu_id = LE32(0x00000003);
-        pkt->entries[i].item_id = LE32(i);
+        pkt->entries[entries].menu_id = LE32(0x00000003);
+        pkt->entries[entries].item_id = LE32(i);
 
         /* Convert the name and the description to UTF-16. */
         in = 32;
         out = 64;
         inptr = l->cats[i].name;
-        outptr = (char *)pkt->entries[i].name;
+        outptr = (char *)pkt->entries[entries].name;
         iconv(ic, &inptr, &in, &outptr, &out);
 
         in = 112;
         out = 224;
         inptr = l->cats[i].desc;
-        outptr = (char *)pkt->entries[i].desc;
+        outptr = (char *)pkt->entries[entries].desc;
         iconv(ic, &inptr, &in, &outptr, &out);
 
         ++entries;
