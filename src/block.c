@@ -68,8 +68,8 @@ static void *block_thd(void *d) {
         nfds = 0;
         FD_ZERO(&readfds);
         FD_ZERO(&writefds);
-        timeout.tv_sec = 0;
-        timeout.tv_usec = 5000;
+        timeout.tv_sec = 9001;
+        timeout.tv_usec = 0;
         now = time(NULL);
 
         /* Fill the sockets into the fd_sets so we can use select below. */
@@ -93,6 +93,8 @@ static void *block_thd(void *d) {
                     it->disconnected = 1;
                     continue;
                 }
+
+                it->last_sent = now;
             }
 
             FD_SET(it->sock, &readfds);
@@ -103,6 +105,7 @@ static void *block_thd(void *d) {
             }
 
             nfds = nfds > it->sock ? nfds : it->sock;
+            timeout.tv_sec = 30;
         }
 
         /* Add the listening sockets to the read fd_set. */

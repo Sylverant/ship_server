@@ -124,8 +124,6 @@ static int send_raw(ship_client_t *c, int len, uint8_t *sendbuf) {
         c->sendbuf_cur += rv;
     }
 
-    c->last_sent = time(NULL);
-
     return 0;
 }
 
@@ -1966,10 +1964,18 @@ static int send_dc_quest_categories(ship_client_t *c,
     uint8_t *sendbuf = get_sendbuf();
     dc_quest_list_pkt *pkt = (dc_quest_list_pkt *)sendbuf;
     int i, len = 0x04, entries = 0;
+    uint32_t type = SYLVERANT_QUEST_NORMAL;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
         return -1;
+    }
+
+    if(c->cur_lobby->battle) {
+        type = SYLVERANT_QUEST_BATTLE;
+    }
+    else if(c->cur_lobby->challenge) {
+        type = SYLVERANT_QUEST_CHALLENGE;
     }
 
     /* Clear out the header */
@@ -1979,15 +1985,20 @@ static int send_dc_quest_categories(ship_client_t *c,
     pkt->hdr.pkt_type = SHIP_QUEST_LIST_TYPE;
 
     for(i = 0; i < l->cat_count; ++i) {
+        /* Skip quests not of the right type. */
+        if(l->cats[i].type != type) {
+            continue;
+        }
+
         /* Clear the entry */
-        memset(pkt->entries + i, 0, 0x98);
+        memset(pkt->entries + entries, 0, 0x98);
 
         /* Copy the category's information over to the packet */
-        pkt->entries[i].menu_id = LE32(0x00000003);
-        pkt->entries[i].item_id = LE32(i);
+        pkt->entries[entries].menu_id = LE32(0x00000003);
+        pkt->entries[entries].item_id = LE32(i);
 
-        memcpy(pkt->entries[i].name, l->cats[i].name, 32);
-        memcpy(pkt->entries[i].desc, l->cats[i].desc, 112);
+        memcpy(pkt->entries[entries].name, l->cats[i].name, 32);
+        memcpy(pkt->entries[entries].desc, l->cats[i].desc, 112);
 
         ++entries;
         len += 0x98;
