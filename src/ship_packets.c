@@ -1626,7 +1626,7 @@ static int send_dc_game_list(ship_client_t *c, block_t *b) {
         pkt->entries[entries].players = l->num_clients;
         pkt->entries[entries].v2 = l->version;
         pkt->entries[entries].flags = (l->challenge ? 0x20 : 0x00) |
-            (l->battle ? 0x10 : 0x00) | l->passwd[0] ? 2 : 0;
+            (l->battle ? 0x10 : 0x00) | (l->passwd[0] ? 2 : 0);
 
         /* Disable v2 games for v1 players */
         if(l->v2 && c->version == CLIENT_VERSION_DCV1) {
@@ -1709,7 +1709,7 @@ static int send_pc_game_list(ship_client_t *c, block_t *b) {
         pkt->entries[entries].players = l->num_clients;
         pkt->entries[entries].v2 = l->version;
         pkt->entries[entries].flags = (l->challenge ? 0x20 : 0x00) |
-        (l->battle ? 0x10 : 0x00) | l->passwd[0] ? 2 : 0;
+            (l->battle ? 0x10 : 0x00) | (l->passwd[0] ? 2 : 0);
 
         /* Copy the name */
         in = 0x10;

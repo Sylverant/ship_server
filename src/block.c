@@ -422,19 +422,31 @@ int block_info_reply(ship_client_t *c, int block) {
     /* Grab the block in question */
     b = s->blocks[block - 1];
 
+    pthread_mutex_lock(&b->mutex);
+
     /* Determine the number of games currently active. */
     TAILQ_FOREACH(i, &b->lobbies, qentry) {
+        pthread_mutex_lock(&i->mutex);
+
         if(i->type & LOBBY_TYPE_GAME) {
             ++games;
         }
+
+        pthread_mutex_unlock(&i->mutex);
     }
 
     /* And the number of players active. */
     TAILQ_FOREACH(i2, b->clients, qentry) {
+        pthread_mutex_lock(&i2->mutex);
+
         if(i2->pl) {
             ++players;
         }
+
+        pthread_mutex_unlock(&i2->mutex);
     }
+
+    pthread_mutex_unlock(&b->mutex);
 
     /* Fill in the string. */
     sprintf(string, "BLOCK%02d\n\n%d Players\n%d Games", b->b, players, games);

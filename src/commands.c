@@ -15,6 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -282,6 +283,45 @@ static int handle_restore(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return 0;
 }
 
+/* Usage: /bstat */
+static int handle_bstat(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    block_t *b = c->cur_block;
+    lobby_t *i;
+    ship_client_t *i2;
+    int games = 0, players = 0;
+    char string[256];
+
+    pthread_mutex_lock(&b->mutex);
+
+    /* Determine the number of games currently active. */
+    TAILQ_FOREACH(i, &b->lobbies, qentry) {
+        pthread_mutex_lock(&i->mutex);
+
+        if(i->type & LOBBY_TYPE_GAME) {
+            ++games;
+        }
+
+        pthread_mutex_unlock(&i->mutex);
+    }
+
+    /* And the number of players active. */
+    TAILQ_FOREACH(i2, b->clients, qentry) {
+        pthread_mutex_lock(&i2->mutex);
+
+        if(i2->pl) {
+            ++players;
+        }
+
+        pthread_mutex_unlock(&i2->mutex);
+    }
+
+    pthread_mutex_unlock(&b->mutex);
+
+    /* Fill in the string. */
+    sprintf(string, "\tE\tC7BLOCK%02d:\n%d Players\n%d Games", b->b, players,
+            games);
+    return send_txt(c, string);
+}
 
 static command_t cmds[] = {
     { "warp"   , handle_warp      },
@@ -291,6 +331,7 @@ static command_t cmds[] = {
     { "refresh", handle_refresh   },
     { "save"   , handle_save      },
     { "restore", handle_restore   },
+    { "bstat"  , handle_bstat     },
     { ""       , NULL             }     /* End marker -- DO NOT DELETE */
 };
 
