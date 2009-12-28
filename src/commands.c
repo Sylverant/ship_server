@@ -323,6 +323,43 @@ static int handle_bstat(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return send_txt(c, string);
 }
 
+/* Usage /bcast message */
+static int handle_bcast(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    ship_t *s = c->cur_ship;
+    block_t *b;
+    int i;
+    ship_client_t *i2;
+    char string[256];
+
+    /* Make sure the requester is a GM. */
+    if(!c->is_gm) {
+        return send_txt(c, "\tE\tC7Nice try.");
+    }
+
+    sprintf(string, "Global Message:\n%s", params);
+
+    /* Go through each block and send the message to anyone that is alive. */
+    for(i = 0; i < s->cfg->blocks; ++i) {
+        b = s->blocks[i];
+        pthread_mutex_lock(&b->mutex);
+
+        /* Send the message to each player. */
+        TAILQ_FOREACH(i2, b->clients, qentry) {
+            pthread_mutex_lock(&i2->mutex);
+
+            if(i2->pl) {
+                send_txt(i2, string);
+            }
+
+            pthread_mutex_unlock(&i2->mutex);
+        }
+
+        pthread_mutex_unlock(&b->mutex);
+    }
+
+    return 0;
+}
+
 static command_t cmds[] = {
     { "warp"   , handle_warp      },
     { "kill"   , handle_kill      },
@@ -332,6 +369,7 @@ static command_t cmds[] = {
     { "save"   , handle_save      },
     { "restore", handle_restore   },
     { "bstat"  , handle_bstat     },
+    { "bcast"  , handle_bcast     },
     { ""       , NULL             }     /* End marker -- DO NOT DELETE */
 };
 
