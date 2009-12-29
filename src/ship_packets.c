@@ -1559,6 +1559,34 @@ static int send_dc_lobby_done_burst(lobby_t *l, ship_client_t *c,
     return crypt_send(c, 0x08, sendbuf);
 }
 
+static int send_pc_lobby_done_burst(lobby_t *l, ship_client_t *c,
+                                    ship_client_t *nc) {
+    uint8_t *sendbuf = get_sendbuf();
+    pc_pkt_hdr_t *pkt = (pc_pkt_hdr_t *)sendbuf;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Clear the packet's header. */
+    memset(pkt, 0, 8);
+
+    /* Fill in the basics. */
+    pkt->pkt_type = SHIP_GAME_COMMAND0_TYPE;
+    pkt->flags = 0;
+    pkt->pkt_len = LE16(0x0008);
+
+    /* No idea what this does, but its needed, apparently. */
+    sendbuf[4] = 0x72;
+    sendbuf[5] = 0x03;
+    sendbuf[6] = 0x1C;
+    sendbuf[7] = 0x08;
+
+    /* Send it away */
+    return crypt_send(c, 0x08, sendbuf);
+}
+
 /* Send a packet to all clients in the lobby letting them know the new player
    has finished bursting. */
 int send_lobby_done_burst(lobby_t *l, ship_client_t *c) {
@@ -1573,6 +1601,10 @@ int send_lobby_done_burst(lobby_t *l, ship_client_t *c) {
                 case CLIENT_VERSION_DCV1:
                 case CLIENT_VERSION_DCV2:
                     send_dc_lobby_done_burst(l, l->clients[i], c);
+                    break;
+
+                case CLIENT_VERSION_PC:
+                    send_pc_lobby_done_burst(l, l->clients[i], c);
                     break;
             }
 
