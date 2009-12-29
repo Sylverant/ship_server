@@ -574,6 +574,44 @@ static int handle_cdata(shipgate_conn_t *conn, shipgate_char_data_pkt *pkt) {
     return 0;
 }
 
+static int handle_gmlogin(shipgate_conn_t *conn,
+                          shipgate_gmlogin_reply_pkt *pkt) {
+    uint16_t flags = ntohs(pkt->hdr.flags);
+    uint32_t gc = ntohl(pkt->guildcard);
+    uint32_t block = ntohl(pkt->block);
+    ship_t *s = conn->ship;
+    block_t *b;
+    ship_client_t *i;
+    int rv = 0;
+
+    /* Check the block number first. */
+    if(block > s->cfg->blocks) {
+        return 0;
+    }
+
+    b = s->blocks[block - 1];
+    pthread_mutex_lock(&b->mutex);
+
+    /* Find the requested client. */
+    TAILQ_FOREACH(i, b->clients, qentry) {
+        if(i->guildcard == gc) {
+            if(flags & SHDR_RESPONSE) {
+                i->is_gm = 2;
+                rv = send_txt(i, "\tE\tC7GM Login Successful");
+            }
+            else {
+                rv = send_txt(i, "\tE\tC7Nice Try!");
+            }
+
+            goto out;
+        }
+    }
+
+out:
+    pthread_mutex_unlock(&b->mutex);
+    return rv;
+}
+
 static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
     uint16_t type = ntohs(pkt->pkt_type);
     uint16_t flags = ntohs(pkt->flags);
@@ -598,6 +636,9 @@ static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
 
         case SHDR_TYPE_CDATA:
             return handle_cdata(conn, (shipgate_char_data_pkt *)pkt);
+
+        case SHDR_TYPE_GMLOGIN:
+            return handle_gmlogin(conn, (shipgate_gmlogin_reply_pkt *)pkt);
     }
 
     return -1;
@@ -838,6 +879,34 @@ int shipgate_fw_pc(shipgate_conn_t *c, void *pcp) {
 
     /* Send the packet away */
     return send_crypt(c, full_len, sendbuf);
+}
+
+/* Send a GM login request. */
+int shipgate_send_gmlogin(shipgate_conn_t *c, uint32_t gc, uint32_t block,
+                          char *username, char *password) {
+    uint8_t *sendbuf = get_sendbuf();
+    shipgate_gmlogin_req_pkt *pkt = (shipgate_gmlogin_req_pkt *)sendbuf;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Fill in the data. */
+    memset(pkt, 0, sizeof(shipgate_gmlogin_req_pkt));
+
+    pkt->hdr.pkt_len = htons(sizeof(shipgate_gmlogin_req_pkt));
+    pkt->hdr.pkt_type = htons(SHDR_TYPE_GMLOGIN);
+    pkt->hdr.pkt_unc_len = pkt->hdr.pkt_len;
+    pkt->hdr.flags = htons(SHDR_NO_DEFLATE);
+
+    pkt->guildcard = htonl(gc);
+    pkt->block = htonl(block);
+    strcpy(pkt->username, username);
+    strcpy(pkt->password, password);
+
+    /* Send the packet away */
+    return send_crypt(c, sizeof(shipgate_gmlogin_req_pkt), sendbuf);
 }
 
 static int send_greply(shipgate_conn_t *c, uint32_t gc1, uint32_t gc2,

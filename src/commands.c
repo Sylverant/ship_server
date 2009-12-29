@@ -360,6 +360,50 @@ static int handle_bcast(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return 0;
 }
 
+/* Usage /arrow color_number */
+static int handle_arrow(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    int i;
+
+    /* Set the arrow color and send the packet to the lobby. */
+    i = atoi(params);
+    c->arrow = i;
+
+    send_txt(c, "\tE\tC7Arrow set");
+
+    return send_lobby_arrows(c->cur_lobby);
+}
+
+/* Usage /login username password */
+static int handle_login(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    char username[32], password[32];
+    int len = 0;
+    char *ch = params;
+
+    /* Copy over the username/password. */
+    while(*ch != ' ' && len < 32) {
+        username[len++] = *ch++;
+    }
+
+    if(len == 32) {
+        return send_txt(c, "\tE\tC7Invalid request");
+    }
+
+    len = 0;
+    ++ch;
+
+    while(*ch != ' ' && *ch != '\0' && len < 32) {
+        password[len++] = *ch++;
+    }
+
+    if(len == 32) {
+        return send_txt(c, "\tE\tC7Invalid request");
+    }
+
+    /* We'll get success/failure later from the shipgate. */
+    return shipgate_send_gmlogin(&c->cur_ship->sg, c->guildcard,
+                                 c->cur_block->b, username, password);
+}
+
 static command_t cmds[] = {
     { "warp"   , handle_warp      },
     { "kill"   , handle_kill      },
@@ -370,6 +414,8 @@ static command_t cmds[] = {
     { "restore", handle_restore   },
     { "bstat"  , handle_bstat     },
     { "bcast"  , handle_bcast     },
+    { "arrow"  , handle_arrow     },
+    { "login"  , handle_login     },
     { ""       , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

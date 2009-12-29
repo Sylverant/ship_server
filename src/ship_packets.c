@@ -2871,9 +2871,9 @@ static int send_dc_lobby_arrows(lobby_t *l, ship_client_t *c) {
     for(i = 0; i < l->max_clients; ++i) {
         if(l->clients[i]) {
             /* Copy the player's data into the packet. */
-            pkt->entries[i].tag = LE32(0x00010000);
-            pkt->entries[i].guildcard = LE32(l->clients[i]->guildcard);
-            pkt->entries[i].arrow = LE32(l->clients[i]->arrow);
+            pkt->entries[clients].tag = LE32(0x00010000);
+            pkt->entries[clients].guildcard = LE32(l->clients[i]->guildcard);
+            pkt->entries[clients].arrow = LE32(l->clients[i]->arrow);
 
             ++clients;
             len += 0x0C;

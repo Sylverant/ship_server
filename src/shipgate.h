@@ -138,6 +138,22 @@ typedef struct shipgate_char_req {
     uint32_t slot;
 } PACKED shipgate_char_req_pkt;
 
+/* A packet sent to login a Global GM. */
+typedef struct shipgate_gmlogin_req {
+    shipgate_hdr_t hdr;
+    uint32_t guildcard;
+    uint32_t block;
+    char username[32];
+    char password[32];
+} PACKED shipgate_gmlogin_req_pkt;
+
+/* A packet replying to a Global GM login. */
+typedef struct shipgate_gmlogin_reply {
+    shipgate_hdr_t hdr;
+    uint32_t guildcard;
+    uint32_t block;
+} PACKED shipgate_gmlogin_reply_pkt;
+
 #undef PACKED
 
 /* Size of the shipgate login packet. */
@@ -151,6 +167,7 @@ static const char shipgate_login_msg[] =
 #define SHDR_NO_DEFLATE     0x0001      /* Packet was not deflate()'d */
 #define SHDR_NO_ENCRYPT     0x0002      /* Packet is not encrypted */
 #define SHDR_RESPONSE       0x8000      /* Response to a request */
+#define SHDR_FAILURE        0x4000      /* Failure to complete request */
 
 /* Types for the pkt_type field of shipgate_hdr_t */
 #define SHDR_TYPE_DC        0x0001      /* A decrypted Dreamcast game packet */
@@ -163,6 +180,7 @@ static const char shipgate_login_msg[] =
 #define SHDR_TYPE_PING      0x0013      /* A Ping packet, enough said */
 #define SHDR_TYPE_CDATA     0x0014      /* Character data */
 #define SHDR_TYPE_CREQ      0x0015      /* Request saved character data */
+#define SHDR_TYPE_GMLOGIN   0x0016      /* Login request for a Global GM */
 
 /* Attempt to connect to the shipgate. Returns < 0 on error, returns the socket
    for communciation on success. */
@@ -195,5 +213,9 @@ int shipgate_send_cdata(shipgate_conn_t *c, uint32_t gc, uint32_t slot,
 
 /* Send the shipgate a request for character data. */
 int shipgate_send_creq(shipgate_conn_t *c, uint32_t gc, uint32_t slot);
+
+/* Send a GM login request. */
+int shipgate_send_gmlogin(shipgate_conn_t *c, uint32_t gc, uint32_t block,
+                          char *username, char *password);
 
 #endif /* !SHIPGATE_H */
