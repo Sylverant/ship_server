@@ -67,10 +67,43 @@ typedef struct subcmd_pc_gcsend {
     uint8_t char_class;
 } PACKED subcmd_pc_gcsend_t;
 
+typedef struct subcmd_itemreq {
+    dc_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint16_t unused;
+    uint8_t area;
+    uint8_t unk1;
+    uint16_t req;
+    float x;
+    float y;
+    uint32_t unk2[2];
+} PACKED subcmd_itemreq_t;
+
+typedef struct subcmd_itemgen {
+    dc_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint16_t unused;
+    uint8_t area;
+    uint8_t what;
+    uint16_t req;
+    float x;
+    float y;
+    uint32_t unk1;
+    uint32_t item[3];
+    uint32_t unk2;
+    uint32_t item2[2];
+} PACKED subcmd_itemgen_t;
+
 #undef PACKED
 
-/* Subcommand types we care about. */
+/* Subcommand types we care about (0x62/0x6D). */
 #define SUBCMD_GUILDCARD    0x06
+#define SUBCMD_ITEMREQ      0x60
+
+/* Subcommand types we might care about (0x60). */
+#define SUBCMD_ITEMDROP     0x5F
 
 /* Handle a 0x62/0x6D packet. */
 int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt);

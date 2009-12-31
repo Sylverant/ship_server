@@ -29,7 +29,7 @@ void print_packet(unsigned char *pkt, int len) {
             printf("%02X ", *pos);
         }
         else {
-            if(*pos >= 0x20) {
+            if(*pos >= 0x20 && *pos < 0x7F) {
                 printf("%c", *pos);
             }
             else {
@@ -69,7 +69,7 @@ void print_packet(unsigned char *pkt, int len) {
 
         /* Here comes the ASCII. */
         while(pos < pkt + len) {
-            if(*pos >= 0x20) {
+            if(*pos >= 0x20 && *pos < 0x7F) {
                 printf("%c", *pos);
             }
             else {

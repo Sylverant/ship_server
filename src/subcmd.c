@@ -143,6 +143,48 @@ static int handle_pc_gcsend(ship_client_t *d, subcmd_pc_gcsend_t *pkt) {
     return 0;
 }
 
+static int handle_itemreq(ship_client_t *c, subcmd_itemreq_t *req) {
+    subcmd_itemgen_t gen;
+    int r = LE16(req->req);
+    int i;
+    lobby_t *l = c->cur_lobby;
+
+    /* Fill in the packet we'll send out. */
+    gen.hdr.pkt_type = SHIP_GAME_COMMAND0_TYPE;
+    gen.hdr.flags = 0;
+    gen.hdr.pkt_len = LE16(0x30);
+    gen.type = SUBCMD_ITEMDROP;
+    gen.size = 0x0B;
+    gen.unused = 0;
+    gen.area = req->area;
+    gen.what = 0x02;
+    gen.req = req->req;
+    gen.x = req->x;
+    gen.y = req->y;
+    gen.unk1 = LE32(0x00000010);
+
+    gen.item[0] = LE32(c->next_item[0]);
+    gen.item[1] = LE32(c->next_item[1]);
+    gen.item[2] = LE32(c->next_item[2]);
+    gen.item2[0] = LE32(c->next_item[3]);
+    gen.item2[1] = LE32(0x00000002);
+
+    /* Who knows if this is right? It works though, so we'll go with it. */
+    gen.unk2 = LE32((r | 0x06010100));
+
+    /* Send the packet to every client in the lobby. */
+    for(i = 0; i < l->max_clients; ++i) {
+        if(l->clients[i]) {
+            send_pkt_dc(l->clients[i], (dc_pkt_hdr_t *)&gen);
+        }
+    }
+
+    /* Clear this out. */
+    c->next_item[0] = c->next_item[1] = c->next_item[2] = c->next_item[3] = 0;
+
+    return 0;
+}
+
 /* Handle a 0x62/0x6D packet. */
 int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
     lobby_t *l = c->cur_lobby;
@@ -168,6 +210,12 @@ int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
                     return handle_pc_gcsend(dest, (subcmd_pc_gcsend_t *)pkt);
             }
             break;
+
+        case SUBCMD_ITEMREQ:
+            /* Only pay attention if an item has been set. */
+            if(c->next_item[0]) {
+                return handle_itemreq(c, (subcmd_itemreq_t *)pkt);
+            }
 
         default:
             /* Forward the packet unchanged to the destination. */

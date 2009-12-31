@@ -404,6 +404,54 @@ static int handle_login(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
                                  c->cur_block->b, username, password);
 }
 
+/* Usage /item item1,item2,item3,item4 */
+static int handle_item(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    uint32_t item[4] = { 0, 0, 0, 0 };
+    int count;
+
+    /* Make sure the requester is a GM. */
+    if(!c->is_gm) {
+        return send_txt(c, "\tE\tC7Nice try.");
+    }
+
+    /* Copy over the item data. */
+    count = sscanf(params, "%x,%x,%x,%x", item + 0, item + 1, item + 2,
+                   item + 3);
+
+    if(count == EOF || count == 0) {
+        return send_txt(c, "\tE\tC7Invalid Item code");
+    }
+
+    c->next_item[0] = item[0];
+    c->next_item[1] = item[1];
+    c->next_item[2] = item[2];
+    c->next_item[3] = item[3];
+
+    return send_txt(c, "\tE\tC7Next item set successfully");
+}
+
+/* Usage /item4 item4 */
+static int handle_item4(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    uint32_t item;
+    int count;
+
+    /* Make sure the requester is a GM. */
+    if(!c->is_gm) {
+        return send_txt(c, "\tE\tC7Nice try.");
+    }
+
+    /* Copy over the item data. */
+    count = sscanf(params, "%x", &item);
+
+    if(count == EOF || count == 0) {
+        return send_txt(c, "\tE\tC7Invalid Item code");
+    }
+
+    c->next_item[3] = item;
+
+    return send_txt(c, "\tE\tC7Item4 set succesfully");
+}
+
 static command_t cmds[] = {
     { "warp"   , handle_warp      },
     { "kill"   , handle_kill      },
@@ -416,6 +464,8 @@ static command_t cmds[] = {
     { "bcast"  , handle_bcast     },
     { "arrow"  , handle_arrow     },
     { "login"  , handle_login     },
+    { "item"   , handle_item      },
+    { "item4"  , handle_item4     },
     { ""       , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

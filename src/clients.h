@@ -90,6 +90,8 @@ struct ship_client {
     time_t last_sent;
     time_t join_time;
 
+    uint32_t next_item[4];
+
     pthread_mutex_t mutex;
 
     CRYPT_SETUP ckey;
