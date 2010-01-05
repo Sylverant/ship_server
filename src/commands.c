@@ -388,6 +388,8 @@ static int handle_login(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
         return send_txt(c, "\tE\tC7Invalid request");
     }
 
+    username[len] = '\0';
+
     len = 0;
     ++ch;
 
@@ -398,6 +400,8 @@ static int handle_login(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     if(len == 32) {
         return send_txt(c, "\tE\tC7Invalid request");
     }
+
+    password[len] = '\0';
 
     /* We'll get success/failure later from the shipgate. */
     return shipgate_send_gmlogin(&c->cur_ship->sg, c->guildcard,
@@ -452,6 +456,37 @@ static int handle_item4(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return send_txt(c, "\tE\tC7Item4 set succesfully");
 }
 
+/* Usage: /v1 */
+static int handle_v1(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    int lvl;
+    lobby_t *l = c->cur_lobby;
+
+    /* Make sure that the requester is in a game lobby, not a lobby lobby. */
+    if(!(l->type & LOBBY_TYPE_GAME)) {
+        return send_txt(c, "\tE\tC7Only valid in a game lobby.");
+    }
+
+    /* Make sure the requester is the leader of the team. */
+    if(l->leader_id != c->client_id) {
+        return send_txt(c, "\tE\tC7Only the leader may use this command.");
+    }
+
+    /* Make sure we're on a v2 game. */
+    if(!l->v2) {
+        return send_txt(c, "\tE\tC7This command is only valid in a v2 game.");
+    }
+
+    /* Make sure a quest is not in progress. */
+    if(l->flags & LOBBY_FLAG_QUESTING) {
+        return send_txt(c, "\tE\tC7Not valid while quest in progress.");
+    }
+
+    /* Set the version flag on the lobby to v1. */
+    l->v2 = 0;
+
+    return send_txt(c, "\tE\tC7V1 Compatibility mode set.");
+}
+
 static command_t cmds[] = {
     { "warp"   , handle_warp      },
     { "kill"   , handle_kill      },
@@ -466,6 +501,7 @@ static command_t cmds[] = {
     { "login"  , handle_login     },
     { "item"   , handle_item      },
     { "item4"  , handle_item4     },
+    { "v1"     , handle_v1        },
     { ""       , NULL             }     /* End marker -- DO NOT DELETE */
 };
 
