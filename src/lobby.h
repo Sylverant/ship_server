@@ -61,6 +61,8 @@ struct lobby {
     uint8_t event;
     uint8_t episode;
 
+    uint8_t gevent;
+
     int version;
     uint32_t min_level;
     uint32_t max_level;
@@ -92,7 +94,7 @@ TAILQ_HEAD(lobby_queue, lobby);
 /* The required level for various difficulties. */
 const static int game_required_level[4] = { 0, 20, 40, 80 };
 
-lobby_t *lobby_create_default(block_t *block, uint32_t lobby_id);
+lobby_t *lobby_create_default(block_t *block, uint32_t lobby_id, uint8_t ev);
 lobby_t *lobby_create_game(block_t *block, char name[16], char passwd[16],
                            uint8_t difficulty, uint8_t battle, uint8_t chal,
                            uint8_t v2, int version, uint8_t section,

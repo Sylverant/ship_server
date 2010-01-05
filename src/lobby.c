@@ -26,7 +26,7 @@
 #include "clients.h"
 #include "ship_packets.h"
 
-lobby_t *lobby_create_default(block_t *block, uint32_t lobby_id) {
+lobby_t *lobby_create_default(block_t *block, uint32_t lobby_id, uint8_t ev) {
     lobby_t *l = (lobby_t *)malloc(sizeof(lobby_t));
 
     /* If we don't have a lobby, bail. */
@@ -44,6 +44,17 @@ lobby_t *lobby_create_default(block_t *block, uint32_t lobby_id) {
     l->block = block;
     l->min_level = 0;
     l->max_level = 9001;                /* Its OVER 9000! */
+    l->event = ev;
+
+    if(ev > 7) {
+        l->gevent = 0;
+    }
+    else if(ev == 7) {
+        l->gevent = 2;
+    }
+    else {
+        l->gevent = ev;
+    }
 
     /* Fill in the name of the lobby. */
     sprintf(l->name, "BLOCK%02d-%02d", block->b, lobby_id);

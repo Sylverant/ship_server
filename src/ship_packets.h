@@ -615,13 +615,12 @@ typedef struct pc_choice_reply {
 /* The login packet sent by PSOGC (Gamecube). */
 typedef struct gc_login {
     dc_pkt_hdr_t hdr;
-    uint8_t padding1[2];
-    uint16_t one1;          /* 0x0001 */
+    uint32_t tag;
     uint32_t guildcard;
     uint8_t padding2[8];
     uint8_t version;
     uint8_t padding3[4];
-    uint8_t one2;           /* 0x01 */
+    uint8_t one;                /* 0x01 */
     uint8_t padding4[34];
     char serial[8];
     uint8_t padding5[8];
@@ -696,8 +695,8 @@ typedef struct gc_read_info {
 #define SHIP_LOBBY_ARROW_CHANGE_TYPE        0x0089
 #define SHIP_LOBBY_NAME_TYPE                0x008A
 #define SHIP_LOGIN_TYPE                     0x0093
-#define SHIP_LEAVE_GAME_PL_DATA_TYPE        0x0098
 #define SHIP_CHAR_DATA_REQUEST_TYPE         0x0095
+#define SHIP_LEAVE_GAME_PL_DATA_TYPE        0x0098
 #define SHIP_DCV2_LOGIN_TYPE                0x009D
 #define SHIP_GC_LOGIN_TYPE                  0x009E
 #define SHIP_SHIP_LIST_TYPE                 0x00A0
@@ -718,6 +717,7 @@ typedef struct gc_read_info {
 #define SHIP_GC_GBA_FILE_REQ_TYPE           0x00D7
 #define SHIP_GC_INFOBOARD_REQ_TYPE          0x00D8
 #define SHIP_GC_INFOBOARD_WRITE_TYPE        0x00D9
+#define SHIP_LOBBY_EVENT_TYPE               0x00DA
 
 #define SHIP_DC_WELCOME_LENGTH              0x004C
 #define SHIP_DC_REDIRECT_LENGTH             0x000C

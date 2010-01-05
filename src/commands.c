@@ -487,6 +487,80 @@ static int handle_v1(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return send_txt(c, "\tE\tC7V1 Compatibility mode set.");
 }
 
+/* Usage: /event number */
+static int handle_event(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    lobby_t *l = c->cur_lobby;
+    ship_t *s = c->cur_ship;
+    ship_client_t *c2;
+    block_t *b;
+    int event, gevent, i, j;
+
+    /* Make sure the requester is a GM. */
+    if(!c->is_gm) {
+        return send_txt(c, "\tE\tC7Nice try.");
+    }
+
+    /* Make sure that the requester is in a lobby lobby, not a game lobby */
+    if(l->type & LOBBY_TYPE_GAME) {
+        return send_txt(c, "\tE\tC7Only valid in a non-game lobby.");
+    }
+
+    /* Grab the event number */
+    event = atoi(params);
+
+    if(event > 7) {
+        gevent = 0;
+    }
+    else if(event == 7) {
+        gevent = 2;
+    }
+    else {
+        gevent = event;
+    }
+
+    if(event < 0 || event > 14) {
+        return send_txt(c, "\tE\tC7Invalid event code.");
+    }
+
+    /* Go through all the blocks... */
+    for(i = 0; i < s->cfg->blocks; ++i) {
+        if(s->blocks[i]) {
+            b = s->blocks[i];
+            pthread_mutex_lock(&b->mutex);
+
+            /* ... and set the event code on each default lobby. */
+            TAILQ_FOREACH(l, &b->lobbies, qentry) {
+                pthread_mutex_lock(&l->mutex);
+
+                if(l->type & LOBBY_TYPE_DEFAULT) {
+                    l->event = event;
+                    l->gevent = gevent;
+
+                    for(j = 0; j < l->max_clients; ++j) {
+                        if(l->clients[j] != NULL) {
+                            c2 = l->clients[j];
+
+                            pthread_mutex_lock(&c2->mutex);
+
+                            if(c2->version > CLIENT_VERSION_PC) {
+                                send_simple(c2, SHIP_LOBBY_EVENT_TYPE, event);
+                            }
+
+                            pthread_mutex_unlock(&c2->mutex);
+                        }
+                    }
+                }
+
+                pthread_mutex_unlock(&l->mutex);
+            }
+
+            pthread_mutex_unlock(&b->mutex);
+        }
+    }
+
+    return send_txt(c, "\tE\tC7Event set.");
+}
+
 static command_t cmds[] = {
     { "warp"   , handle_warp      },
     { "kill"   , handle_kill      },
@@ -502,6 +576,7 @@ static command_t cmds[] = {
     { "item"   , handle_item      },
     { "item4"  , handle_item4     },
     { "v1"     , handle_v1        },
+    { "event"  , handle_event     },
     { ""       , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

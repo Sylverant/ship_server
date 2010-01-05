@@ -389,7 +389,7 @@ block_t *block_server_start(ship_t *s, int b, uint16_t port) {
     /* Create the first 15 lobbies (the default ones) */
     for(i = 1; i <= 15; ++i) {
         /* Grab a new lobby. XXXX: Check the return value. */
-        l = lobby_create_default(rv, i);
+        l = lobby_create_default(rv, i, s->cfg->event);
 
         /* Add it into our list of lobbies */
         TAILQ_INSERT_TAIL(&rv->lobbies, l, qentry);
@@ -874,6 +874,7 @@ static int pc_process_mail(ship_client_t *c, pc_simple_mail_pkt *pkt) {
 
 static int dc_process_game_create(ship_client_t *c, dc_game_create_pkt *pkt) {
     lobby_t *l;
+    uint8_t event = c->cur_lobby->gevent;
 
     /* Check the user's ability to create a game of that difficulty. */
     if(c->pl->level < game_required_level[pkt->difficulty]) {
@@ -885,7 +886,7 @@ static int dc_process_game_create(ship_client_t *c, dc_game_create_pkt *pkt) {
     /* Create the lobby structure. */
     l = lobby_create_game(c->cur_block, pkt->name, pkt->password,
                           pkt->difficulty, pkt->battle, pkt->challenge,
-                          pkt->version, c->version, c->pl->section, 0, 0);
+                          pkt->version, c->version, c->pl->section, event, 0);
 
     /* If we don't have a game, something went wrong... tell the user. */
     if(!l) {
@@ -908,6 +909,7 @@ static int dc_process_game_create(ship_client_t *c, dc_game_create_pkt *pkt) {
 
 static int pc_process_game_create(ship_client_t *c, pc_game_create_pkt *pkt) {
     lobby_t *l = NULL;
+    uint8_t event = c->cur_lobby->gevent;
     char name[16], password[16];
     iconv_t ic;
     size_t in, out;
@@ -944,7 +946,7 @@ static int pc_process_game_create(ship_client_t *c, pc_game_create_pkt *pkt) {
     /* Create the lobby structure. */
     l = lobby_create_game(c->cur_block, name, password, pkt->difficulty,
                           pkt->battle, pkt->challenge, 1, c->version,
-                          c->pl->section, 0, 0);
+                          c->pl->section, event, 0);
 
     /* If we don't have a game, something went wrong... tell the user. */
     if(!l) {
@@ -967,6 +969,7 @@ static int pc_process_game_create(ship_client_t *c, pc_game_create_pkt *pkt) {
 
 static int gc_process_game_create(ship_client_t *c, gc_game_create_pkt *pkt) {
     lobby_t *l;
+    uint8_t event = c->cur_lobby->gevent;
 
     /* Check the user's ability to create a game of that difficulty. */
     if(c->pl->level < game_required_level[pkt->difficulty]) {
@@ -978,7 +981,7 @@ static int gc_process_game_create(ship_client_t *c, gc_game_create_pkt *pkt) {
     /* Create the lobby structure. */
     l = lobby_create_game(c->cur_block, pkt->name, pkt->password,
                           pkt->difficulty, pkt->battle, pkt->challenge,
-                          0, c->version, c->pl->section, 0, pkt->episode);
+                          0, c->version, c->pl->section, event, pkt->episode);
 
     /* If we don't have a game, something went wrong... tell the user. */
     if(!l) {

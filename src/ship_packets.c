@@ -657,6 +657,7 @@ static int send_dc_lobby_join(ship_client_t *c, lobby_t *l) {
     dc_lobby_join_pkt *pkt = (dc_lobby_join_pkt *)sendbuf;
     int i, pls = 0;
     uint16_t pkt_size = 0x10;
+    uint8_t event = l->event;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -666,12 +667,18 @@ static int send_dc_lobby_join(ship_client_t *c, lobby_t *l) {
     /* Clear the packet's header. */
     memset(pkt, 0, sizeof(dc_lobby_join_pkt));
 
+    /* Don't send invalid event codes to the Dreamcast version. */
+    if(c->version < CLIENT_VERSION_GC && event > 6) {
+        event = 0;
+    }
+
     /* Fill in the basics. */
     pkt->hdr.pkt_type = SHIP_LOBBY_JOIN_TYPE;
     pkt->leader_id = l->leader_id;
     pkt->one = 1;
     pkt->lobby_num = l->lobby_id - 1;
     pkt->block_num = LE16(l->block->b);
+    pkt->event = LE16(event);
 
     for(i = 0; i < l->max_clients; ++i) {
         /* Skip blank clients. */
@@ -712,6 +719,7 @@ static int send_pc_lobby_join(ship_client_t *c, lobby_t *l) {
     iconv_t ic;
     size_t in, out;
     char *inptr, *outptr;
+    uint8_t event = l->event;
     
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -725,6 +733,11 @@ static int send_pc_lobby_join(ship_client_t *c, lobby_t *l) {
         return -1;
     }
 
+    /* Don't send invalid event codes to the PC version. */
+    if(event > 6) {
+        event = 0;
+    }
+
     /* Clear the packet's header. */
     memset(pkt, 0, sizeof(pc_lobby_join_pkt));
 
@@ -734,6 +747,7 @@ static int send_pc_lobby_join(ship_client_t *c, lobby_t *l) {
     pkt->one = 1;
     pkt->lobby_num = l->lobby_id - 1;
     pkt->block_num = LE16(l->block->b);
+    pkt->event = LE16(l->event);
 
     for(i = 0; i < l->max_clients; ++i) {
         /* Skip blank clients. */
