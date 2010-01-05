@@ -338,6 +338,18 @@ typedef struct pc_game_create {
     uint8_t padding;
 } PACKED pc_game_create_pkt;
 
+/* The packet sent by clients to create a game (Gamecube). */
+typedef struct gc_game_create {
+    dc_pkt_hdr_t hdr;
+    uint32_t unused[2];
+    char name[16];
+    char password[16];
+    uint8_t difficulty;
+    uint8_t battle;
+    uint8_t challenge;
+    uint8_t episode;
+} PACKED gc_game_create_pkt;
+
 /* The packet sent to clients to join a game (Dreamcast). */
 typedef struct dc_game_join {
     dc_pkt_hdr_t hdr;
@@ -369,6 +381,25 @@ typedef struct pc_game_join {
     uint8_t challenge;
     uint32_t rand_seed;
 } PACKED pc_game_join_pkt;
+
+/* The packet sent to clients to join a game (Gamecube). */
+typedef struct gc_game_join {
+    dc_pkt_hdr_t hdr;
+    uint32_t maps[0x20];
+    dc_player_hdr_t players[4];
+    uint8_t client_id;
+    uint8_t leader_id;
+    uint8_t one;                        /* Always 1. */
+    uint8_t difficulty;
+    uint8_t battle;
+    uint8_t event;
+    uint8_t section;
+    uint8_t challenge;
+    uint32_t rand_seed;
+    uint8_t episode;
+    uint8_t one2;                       /* Always 1. */
+    uint16_t padding;
+} PACKED gc_game_join_pkt;
 
 /* The packet sent to clients to give them the game select list (Dreamcast). */
 typedef struct dc_game_list {
@@ -450,6 +481,17 @@ typedef struct pc_quest_file {
     char filename[16];
     uint32_t length;
 } PACKED pc_quest_file_pkt;
+
+/* The packet sent to inform a client of a quest file that will be coming down
+   the pipe (Gamecube). */
+typedef struct gc_quest_file {
+    dc_pkt_hdr_t hdr;
+    char name[32];
+    uint16_t unused;
+    uint16_t flags;
+    char filename[16];
+    uint32_t length;
+} PACKED gc_quest_file_pkt;
 
 /* The packet sent to actually send quest data (Dreamcast/PC). */
 typedef struct dc_quest_chunk {
@@ -570,6 +612,50 @@ typedef struct pc_choice_reply {
     } entries[0];
 } PACKED pc_choice_reply_t;
 
+/* The login packet sent by PSOGC (Gamecube). */
+typedef struct gc_login {
+    dc_pkt_hdr_t hdr;
+    uint8_t padding1[2];
+    uint16_t one1;          /* 0x0001 */
+    uint32_t guildcard;
+    uint8_t padding2[8];
+    uint8_t version;
+    uint8_t padding3[4];
+    uint8_t one2;           /* 0x01 */
+    uint8_t padding4[34];
+    char serial[8];
+    uint8_t padding5[8];
+    char access_key[12];
+    uint8_t padding6[4];
+    char serial2[8];
+    uint8_t padding7[40];
+    char access_key2[12];
+    uint8_t padding8[36];
+    char name[16];
+    uint8_t padding9[32];
+} PACKED gc_login_pkt;
+
+/* The packet used to ask for a GBA file (Gamecube). */
+typedef struct gc_gba_req {
+    dc_pkt_hdr_t hdr;
+    char filename[16];
+} gc_gba_req_pkt;
+
+/* The packet used to write to the info board (Gamecube). */
+typedef struct gc_write_info {
+    dc_pkt_hdr_t hdr;
+    char msg[];
+} gc_write_info_pkt;
+
+/* The packet sent to clients to read the info board (Gamecube). */
+typedef struct gc_read_info {
+    dc_pkt_hdr_t hdr;
+    struct {
+        char name[0x10];
+        char msg[0xAC];
+    } entries[0];
+} gc_read_info_pkt;
+
 #undef PACKED
 
 /* Parameters for the various packets. */
@@ -613,11 +699,15 @@ typedef struct pc_choice_reply {
 #define SHIP_LEAVE_GAME_PL_DATA_TYPE        0x0098
 #define SHIP_CHAR_DATA_REQUEST_TYPE         0x0095
 #define SHIP_DCV2_LOGIN_TYPE                0x009D
+#define SHIP_GC_LOGIN_TYPE                  0x009E
 #define SHIP_SHIP_LIST_TYPE                 0x00A0
 #define SHIP_BLOCK_LIST_REQ_TYPE            0x00A1
 #define SHIP_QUEST_LIST_TYPE                0x00A2
 #define SHIP_QUEST_INFO_TYPE                0x00A3
+#define SHIP_GC_GBA_FILE_TYPE               0x00A6
+#define SHIP_GC_GBA_CHUNK_TYPE              0x00A7
 #define SHIP_QUEST_END_LIST_TYPE            0x00A9
+#define SHIP_QUEST_LOAD_DONE_TYPE           0x00AC
 #define SHIP_TEXT_MSG_TYPE                  0x00B0
 #define SHIP_TIMESTAMP_TYPE                 0x00B1
 #define SHIP_CHOICE_OPTION_TYPE             0x00C0
@@ -625,6 +715,9 @@ typedef struct pc_choice_reply {
 #define SHIP_CHOICE_SETTING_TYPE            0x00C2
 #define SHIP_CHOICE_SEARCH_TYPE             0x00C3
 #define SHIP_CHOICE_REPLY_TYPE              0x00C4
+#define SHIP_GC_GBA_FILE_REQ_TYPE           0x00D7
+#define SHIP_GC_INFOBOARD_REQ_TYPE          0x00D8
+#define SHIP_GC_INFOBOARD_WRITE_TYPE        0x00D9
 
 #define SHIP_DC_WELCOME_LENGTH              0x004C
 #define SHIP_DC_REDIRECT_LENGTH             0x000C
@@ -635,6 +728,7 @@ typedef struct pc_choice_reply {
 #define SHIP_PC_GUILD_REPLY_LENGTH          0x0128
 #define SHIP_DC_GUILD_REPLY_LENGTH          0x00C4
 #define SHIP_DC_GAME_JOIN_LENGTH            0x0110
+#define SHIP_GC_GAME_JOIN_LENGTH            0x0114
 #define SHIP_DC_QUEST_INFO_LENGTH           0x0128
 #define SHIP_PC_QUEST_INFO_LENGTH           0x024C
 #define SHIP_DC_QUEST_FILE_LENGTH           0x003C
@@ -758,5 +852,8 @@ int send_choice_reply(ship_client_t *c, dc_choice_set_t *search);
 
 /* Send a simple mail packet, doing any needed transformations. */
 int send_simple_mail(int version, ship_client_t *c, dc_pkt_hdr_t *pkt);
+
+/* Send the lobby's info board to the client. */
+int send_infoboard(ship_client_t *c, lobby_t *l);
 
 #endif /* !SHIPPACKETS_H */

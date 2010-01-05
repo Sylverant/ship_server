@@ -29,6 +29,7 @@ static int handle_dc_gcsend(ship_client_t *d, subcmd_dc_gcsend_t *pkt) {
     switch(d->version) {
         case CLIENT_VERSION_DCV1:
         case CLIENT_VERSION_DCV2:
+        case CLIENT_VERSION_GC:
             return send_pkt_dc(d, (dc_pkt_hdr_t *)pkt);
 
         case CLIENT_VERSION_PC:
@@ -91,6 +92,7 @@ static int handle_pc_gcsend(ship_client_t *d, subcmd_pc_gcsend_t *pkt) {
 
         case CLIENT_VERSION_DCV1:
         case CLIENT_VERSION_DCV2:
+        case CLIENT_VERSION_GC:
         {
             subcmd_dc_gcsend_t dc;
             iconv_t ic;
@@ -204,6 +206,7 @@ int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
             switch(c->version) {
                 case CLIENT_VERSION_DCV1:
                 case CLIENT_VERSION_DCV2:
+                case CLIENT_VERSION_GC:
                     return handle_dc_gcsend(dest, (subcmd_dc_gcsend_t *)pkt);
 
                 case CLIENT_VERSION_PC:

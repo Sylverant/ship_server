@@ -62,7 +62,7 @@ static const uint32_t maps[0x20] =
 lobby_t *lobby_create_game(block_t *block, char name[16], char passwd[16],
                            uint8_t difficulty, uint8_t battle, uint8_t chal,
                            uint8_t v2, int version, uint8_t section,
-                           uint8_t event) {
+                           uint8_t event, uint8_t episode) {
     lobby_t *l = (lobby_t *)malloc(sizeof(lobby_t));
     uint32_t id = 0x11;
     int i;
@@ -92,6 +92,7 @@ lobby_t *lobby_create_game(block_t *block, char name[16], char passwd[16],
     l->battle = battle;
     l->challenge = chal;
     l->v2 = v2;
+    l->episode = episode;
     l->version = (version == CLIENT_VERSION_DCV2 && !v2) ?
         CLIENT_VERSION_DCV1 : version;
     l->section = section;
@@ -101,12 +102,7 @@ lobby_t *lobby_create_game(block_t *block, char name[16], char passwd[16],
     l->rand_seed = genrand_int32();
 
     /* Copy the game name and password. */
-    if(v2) {
-        sprintf(l->name, "\tC6%s", name);
-    }
-    else {
-        strcpy(l->name, name);
-    }
+    strcpy(l->name, name);
 
     strcpy(l->passwd, passwd);
 

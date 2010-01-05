@@ -126,6 +126,29 @@ ship_client_t *client_create_connection(int sock, int version, int type,
             }
 
             break;
+
+        case CLIENT_VERSION_GC:
+            /* Generate the encryption keys for the client and server. */
+            client_seed_dc = genrand_int32();
+            server_seed_dc = genrand_int32();
+
+            CRYPT_CreateKeys(&rv->skey, &server_seed_dc, CRYPT_GAMECUBE);
+            CRYPT_CreateKeys(&rv->ckey, &client_seed_dc, CRYPT_GAMECUBE);
+            rv->hdr_size = 4;
+
+            /* Send the client the welcome packet, or die trying. */
+            if(send_dc_welcome(rv, server_seed_dc, client_seed_dc)) {
+                close(sock);
+
+                if(type == CLIENT_TYPE_BLOCK) {
+                    free(rv->pl);
+                }
+
+                free(rv);
+                return NULL;
+            }
+
+            break;
     }
 
     /* Create the mutex */
@@ -158,6 +181,10 @@ void client_destroy_connection(ship_client_t *c, struct client_queue *clients) {
 
     if(c->sendbuf) {
         free(c->sendbuf);
+    }
+
+    if(c->infoboard) {
+        free(c->infoboard);
     }
 
     if(c->pl) {
@@ -218,6 +245,7 @@ int client_process_pkt(ship_client_t *c) {
         switch(c->version) {
             case CLIENT_VERSION_DCV1:
             case CLIENT_VERSION_DCV2:
+            case CLIENT_VERSION_GC:
                 pkt_sz = LE16(c->pkt.dc.pkt_len);
                 break;
 
@@ -315,4 +343,25 @@ uint8_t *get_recvbuf() {
     }
 
     return recvbuf;
+}
+
+/* Write to the client's infoboard, allocating as necessary. */
+int client_write_infoboard(ship_client_t *c, char *msg, int len) {
+    void *tmp;
+    int rv = 0;
+
+    pthread_mutex_lock(&c->mutex);
+
+    tmp = realloc(c->infoboard, len);
+    if(!tmp) {
+        rv = -1;
+        goto out;
+    }
+
+    c->infoboard = (char *)tmp;
+    memcpy(c->infoboard, tmp, len);
+
+out:
+    pthread_mutex_unlock(&c->mutex);
+    return rv;
 }

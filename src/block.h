@@ -50,9 +50,11 @@ struct block {
     int run;
     int dcsock;
     int pcsock;
+    int gcsock;
 
     uint16_t dc_port;
     uint16_t pc_port;
+    uint16_t gc_port;
 
     struct lobby_queue lobbies;
 };

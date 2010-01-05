@@ -61,6 +61,7 @@ struct ship {
     int run;
     int dcsock;
     int pcsock;
+    int gcsock;
     uint16_t num_clients;
 
     sylverant_quest_list_t quests;

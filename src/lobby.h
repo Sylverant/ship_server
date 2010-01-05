@@ -59,6 +59,7 @@ struct lobby {
     uint8_t v2;
     uint8_t section;
     uint8_t event;
+    uint8_t episode;
 
     int version;
     uint32_t min_level;
@@ -95,7 +96,7 @@ lobby_t *lobby_create_default(block_t *block, uint32_t lobby_id);
 lobby_t *lobby_create_game(block_t *block, char name[16], char passwd[16],
                            uint8_t difficulty, uint8_t battle, uint8_t chal,
                            uint8_t v2, int version, uint8_t section,
-                           uint8_t event);
+                           uint8_t event, uint8_t episode);
 void lobby_destroy(lobby_t *l);
 
 /* Add the client to any available lobby on the current block. */

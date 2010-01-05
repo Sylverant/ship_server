@@ -113,6 +113,8 @@ static void *block_thd(void *d) {
         nfds = nfds > b->dcsock ? nfds : b->dcsock;
         FD_SET(b->pcsock, &readfds);
         nfds = nfds > b->pcsock ? nfds : b->pcsock;
+        FD_SET(b->gcsock, &readfds);
+        nfds = nfds > b->gcsock ? nfds : b->gcsock;
 
         pthread_mutex_unlock(&b->mutex);
         
@@ -127,7 +129,7 @@ static void *block_thd(void *d) {
                     perror("accept");
                 }
 
-                debug(DBG_LOG, "%s(%d): Accepted block connection from %s\n",
+                debug(DBG_LOG, "%s(%d): Accepted DC block connection from %s\n",
                       s->cfg->name, b->b, inet_ntoa(addr.sin_addr));
 
                 if(!client_create_connection(sock, CLIENT_VERSION_DCV1,
@@ -144,10 +146,27 @@ static void *block_thd(void *d) {
                     perror("accept");
                 }
 
-                debug(DBG_LOG, "%s(%d): Accepted block connection from %s\n",
+                debug(DBG_LOG, "%s(%d): Accepted PC block connection from %s\n",
                       s->cfg->name, b->b, inet_ntoa(addr.sin_addr));
 
                 if(!client_create_connection(sock, CLIENT_VERSION_PC,
+                                             CLIENT_TYPE_BLOCK, b->clients, s,
+                                             b, addr.sin_addr.s_addr)) {
+                    close(sock);
+                }
+            }
+
+            if(FD_ISSET(b->gcsock, &readfds)) {
+                len = sizeof(struct sockaddr_in);
+                if((sock = accept(b->gcsock, (struct sockaddr *)&addr,
+                                  &len)) < 0) {
+                    perror("accept");
+                }
+
+                debug(DBG_LOG, "%s(%d): Accepted GC block connection from %s\n",
+                      s->cfg->name, b->b, inet_ntoa(addr.sin_addr));
+
+                if(!client_create_connection(sock, CLIENT_VERSION_GC,
                                              CLIENT_TYPE_BLOCK, b->clients, s,
                                              b, addr.sin_addr.s_addr)) {
                     close(sock);
@@ -234,7 +253,7 @@ static void *block_thd(void *d) {
 
 block_t *block_server_start(ship_t *s, int b, uint16_t port) {
     block_t *rv;
-    int dcsock, pcsock, i;
+    int dcsock, pcsock, gcsock, i;
     struct sockaddr_in addr;
     lobby_t *l, *l2;
     pthread_mutexattr_t attr;
@@ -284,7 +303,7 @@ block_t *block_server_start(ship_t *s, int b, uint16_t port) {
 
     if(bind(pcsock, (struct sockaddr *)&addr, sizeof(struct sockaddr_in)) < 0) {
         perror("bind");
-        close(pcsock);
+        close(dcsock);
         close(pcsock);
         return NULL;
     }
@@ -295,13 +314,46 @@ block_t *block_server_start(ship_t *s, int b, uint16_t port) {
         close(pcsock);
         close(dcsock);
         return NULL;
-    }    
+    }
+
+    gcsock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+    if(gcsock < 0) {
+        perror("socket");
+        close(pcsock);
+        close(dcsock);
+        return NULL;
+    }
+
+    /* Bind the socket. */
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_port = htons(port + 2);
+    memset(addr.sin_zero, 0, 8);
+
+    if(bind(gcsock, (struct sockaddr *)&addr, sizeof(struct sockaddr_in)) < 0) {
+        perror("bind");
+        close(dcsock);
+        close(pcsock);
+        close(gcsock);
+        return NULL;
+    }
+
+    /* Listen on the socket for connections. */
+    if(listen(gcsock, 10) < 0) {
+        perror("listen");
+        close(dcsock);
+        close(pcsock);
+        close(gcsock);
+        return NULL;
+    }   
 
     /* Make space for the block structure. */
     rv = (block_t *)malloc(sizeof(block_t));
 
     if(!rv) {
         debug(DBG_ERROR, "%s(%d): Cannot allocate memory!\n", s->cfg->name, b);
+        close(gcsock);
         close(pcsock);
         close(dcsock);
         return NULL;
@@ -314,6 +366,7 @@ block_t *block_server_start(ship_t *s, int b, uint16_t port) {
         debug(DBG_ERROR, "%s(%d): Cannot allocate memory for clients!\n",
               s->cfg->name, b);
         free(rv);
+        close(gcsock);
         close(pcsock);
         close(dcsock);
         return NULL;
@@ -325,8 +378,10 @@ block_t *block_server_start(ship_t *s, int b, uint16_t port) {
     rv->b = b;
     rv->dc_port = port;
     rv->pc_port = port + 1;
+    rv->gc_port = port + 2;
     rv->dcsock = dcsock;
     rv->pcsock = pcsock;
+    rv->gcsock = gcsock;
     rv->run = 1;
 
     TAILQ_INIT(&rv->lobbies);
@@ -350,6 +405,7 @@ block_t *block_server_start(ship_t *s, int b, uint16_t port) {
     if(pthread_create(&rv->thd, NULL, &block_thd, rv)) {
         debug(DBG_ERROR, "%s(%d): Cannot start block thread!\n",
               s->cfg->name, b);
+        close(gcsock);
         close(pcsock);
         close(dcsock);
 
@@ -397,6 +453,7 @@ void block_server_stop(block_t *b) {
     /* Free the block structure. */
     close(b->dcsock);
     close(b->pcsock);
+    close(b->gcsock);
     free(b->clients);
     free(b);
 }
@@ -508,6 +565,30 @@ static int dcv2_process_login(ship_client_t *c, dcv2_login_pkt *pkt) {
 
     if(c->version != CLIENT_VERSION_PC)
         c->version = CLIENT_VERSION_DCV2;
+
+    /* See if this person is a GM. */
+    c->is_gm = is_gm(c->guildcard, pkt->serial, pkt->access_key, c->cur_ship);
+
+    if(send_dc_security(c, c->guildcard, NULL, 0)) {
+        return -1;
+    }
+
+    if(send_lobby_list(c)) {
+        return -2;
+    }
+
+    if(send_simple(c, SHIP_CHAR_DATA_REQUEST_TYPE, 0)) {
+        return -3;
+    }
+
+    return 0;
+}
+
+/* Process a GC login packet, sending security data, a lobby list, and a
+   character data request. */
+static int gc_process_login(ship_client_t *c, gc_login_pkt *pkt) {
+    /* Save what we care about in here. */
+    c->guildcard = LE32(pkt->guildcard);
 
     /* See if this person is a GM. */
     c->is_gm = is_gm(c->guildcard, pkt->serial, pkt->access_key, c->cur_ship);
@@ -804,7 +885,7 @@ static int dc_process_game_create(ship_client_t *c, dc_game_create_pkt *pkt) {
     /* Create the lobby structure. */
     l = lobby_create_game(c->cur_block, pkt->name, pkt->password,
                           pkt->difficulty, pkt->battle, pkt->challenge,
-                          pkt->version, c->version, c->pl->section, 0);
+                          pkt->version, c->version, c->pl->section, 0, 0);
 
     /* If we don't have a game, something went wrong... tell the user. */
     if(!l) {
@@ -863,7 +944,41 @@ static int pc_process_game_create(ship_client_t *c, pc_game_create_pkt *pkt) {
     /* Create the lobby structure. */
     l = lobby_create_game(c->cur_block, name, password, pkt->difficulty,
                           pkt->battle, pkt->challenge, 1, c->version,
-                          c->pl->section, 0);
+                          c->pl->section, 0, 0);
+
+    /* If we don't have a game, something went wrong... tell the user. */
+    if(!l) {
+        return send_message1(c, "\tC4Can\'t create game!\n\n"
+                             "\tC7Try again later.");
+    }
+
+    /* We've got a new game, but nobody's in it yet... Lets put the requester
+       in the game. */
+    if(lobby_change_lobby(c, l)) {
+        /* Something broke, destroy the created lobby before anyone tries to
+           join it. */
+        lobby_destroy(l);
+        return -1;
+    }
+
+    /* All is good in the world. */
+    return 0;
+}
+
+static int gc_process_game_create(ship_client_t *c, gc_game_create_pkt *pkt) {
+    lobby_t *l;
+
+    /* Check the user's ability to create a game of that difficulty. */
+    if(c->pl->level < game_required_level[pkt->difficulty]) {
+        return send_message1(c, "\tC4Can\'t create game!\n\n"
+                             "\tC7Your level is too\nlow for that\n"
+                             "difficulty.");
+    }
+
+    /* Create the lobby structure. */
+    l = lobby_create_game(c->cur_block, pkt->name, pkt->password,
+                          pkt->difficulty, pkt->battle, pkt->challenge,
+                          0, c->version, c->pl->section, 0, pkt->episode);
 
     /* If we don't have a game, something went wrong... tell the user. */
     if(!l) {
@@ -991,6 +1106,10 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
                     
                 case CLIENT_VERSION_PC:
                     port = s->blocks[item_id - 1]->pc_port;
+                    break;
+
+                case CLIENT_VERSION_GC:
+                    port = s->blocks[item_id - 1]->gc_port;
                     break;
 
                 default:
@@ -1158,7 +1277,22 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
             int i;
             ship_t *s = c->cur_ship;
             in_addr_t addr;
-            int off = c->version == CLIENT_VERSION_PC ? 1 : 0;
+            int off;
+
+            switch(c->version) {
+                case CLIENT_VERSION_DCV1:
+                case CLIENT_VERSION_DCV2:
+                    off = 0;
+                    break;
+
+                case CLIENT_VERSION_PC:
+                    off = 1;
+                    break;
+
+                case CLIENT_VERSION_GC:
+                    off = 2;
+                    break;
+            }
 
             /* Go through all the ships that we know about looking for the one
                that the user has requested. */
@@ -1264,7 +1398,8 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
     pc_pkt_hdr_t *pc = (pc_pkt_hdr_t *)pkt;
     int rv;
 
-    if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2) {
+    if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
+       c->version == CLIENT_VERSION_GC) {
         type = dc->pkt_type;
         len = LE16(dc->pkt_len);
         flags = dc->flags;
@@ -1306,7 +1441,7 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return 0;
 
         case SHIP_TYPE_05:
-            /* Ignore these for now. I dunno what they're supposed to mean. */
+            /* Ignore these for now. They'll be disconnected soon anyway. */
             return 0;
 
         case SHIP_CHAT_TYPE:
@@ -1330,11 +1465,15 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
 
         case SHIP_DC_GAME_CREATE_TYPE:
         case SHIP_GAME_CREATE_TYPE:
-            if(c->version != CLIENT_VERSION_PC) {
+            if(c->version != CLIENT_VERSION_PC &&
+               c->version != CLIENT_VERSION_GC) {
                 return dc_process_game_create(c, (dc_game_create_pkt *)pkt);
             }
-            else {
+            else if(c->version == CLIENT_VERSION_PC) {
                 return pc_process_game_create(c, (pc_game_create_pkt *)pkt);
+            }
+            else {
+                return gc_process_game_create(c, (gc_game_create_pkt *)pkt);
             }
 
         case SHIP_DONE_BURSTING_TYPE:
@@ -1396,6 +1535,26 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
         case SHIP_CHOICE_SEARCH_TYPE:
             return send_choice_reply(c, (dc_choice_set_t *)pkt);
 
+        case SHIP_GC_LOGIN_TYPE:
+            return gc_process_login(c, (gc_login_pkt *)pkt);
+
+        case SHIP_QUEST_CHUNK_TYPE:
+        case SHIP_QUEST_FILE_TYPE:
+            /* Uhh... Ignore these for now, we've already sent it by the time we
+               get this packet from the client. */
+            return 0;
+
+        case SHIP_QUEST_LOAD_DONE_TYPE:
+            /* XXXX: This isn't right... we need to synchronize this. */
+            return send_simple(c, SHIP_QUEST_LOAD_DONE_TYPE, 0);
+
+        case SHIP_GC_INFOBOARD_WRITE_TYPE:
+            return client_write_infoboard(c, ((gc_write_info_pkt *)pkt)->msg,
+                                          len - c->hdr_size);
+
+        case SHIP_GC_INFOBOARD_REQ_TYPE:
+            return send_infoboard(c, c->cur_lobby);
+
         default:
             debug(DBG_LOG, "Unknown packet!\n");
             print_packet((unsigned char *)pkt, len);
@@ -1409,6 +1568,7 @@ int block_process_pkt(ship_client_t *c, uint8_t *pkt) {
         case CLIENT_VERSION_DCV1:
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_PC:
+        case CLIENT_VERSION_GC:
             return dc_process_pkt(c, pkt);
     }
 

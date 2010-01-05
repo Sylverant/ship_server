@@ -52,7 +52,7 @@ static void *ship_thd(void *d) {
     /* Fire up the threads for each block. */
     for(i = 1; i <= s->cfg->blocks; ++i) {
         s->blocks[i - 1] = block_server_start(s, i, s->cfg->base_port +
-                                              (i * 2));
+                                              (i * 3));
     }
 
     /* While we're still supposed to run... do it. */
@@ -99,6 +99,8 @@ static void *ship_thd(void *d) {
         nfds = nfds > s->dcsock ? nfds : s->dcsock;
         FD_SET(s->pcsock, &readfds);
         nfds = nfds > s->pcsock ? nfds : s->pcsock;
+        FD_SET(s->gcsock, &readfds);
+        nfds = nfds > s->gcsock ? nfds : s->gcsock;
 
         /* Add the shipgate socket to the fd_sets */
         FD_SET(s->sg.sock, &readfds);
@@ -139,6 +141,23 @@ static void *ship_thd(void *d) {
                       s->cfg->name, inet_ntoa(addr.sin_addr));
 
                 if(!client_create_connection(sock, CLIENT_VERSION_PC,
+                                             CLIENT_TYPE_SHIP, s->clients, s,
+                                             NULL, addr.sin_addr.s_addr)) {
+                    close(sock);
+                }
+            }
+
+            if(FD_ISSET(s->gcsock, &readfds)) {
+                len = sizeof(struct sockaddr_in);
+                if((sock = accept(s->gcsock, (struct sockaddr *)&addr,
+                                  &len)) < 0) {
+                    perror("accept");
+                }
+
+                debug(DBG_LOG, "%s: Accepted GC ship connection from %s\n",
+                      s->cfg->name, inet_ntoa(addr.sin_addr));
+
+                if(!client_create_connection(sock, CLIENT_VERSION_GC,
                                              CLIENT_TYPE_SHIP, s->clients, s,
                                              NULL, addr.sin_addr.s_addr)) {
                     close(sock);
@@ -237,6 +256,7 @@ static void *ship_thd(void *d) {
     pthread_mutex_destroy(&s->qmutex);
     free(s->gm_list);
     sylverant_quests_destroy(&s->quests);
+    close(s->gcsock);
     close(s->pcsock);
     close(s->dcsock);
     free(s->ships);
@@ -249,7 +269,7 @@ static void *ship_thd(void *d) {
 ship_t *ship_server_start(sylverant_ship_t *s) {
     ship_t *rv;
     struct sockaddr_in addr;
-    int dcsock, pcsock;
+    int dcsock, pcsock, gcsock;
 
     debug(DBG_LOG, "Starting server for ship %s...\n", s->name);
 
@@ -267,8 +287,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     addr.sin_port = htons(s->base_port);
     memset(addr.sin_zero, 0, 8);
 
-    if(bind(dcsock, (struct sockaddr *)&addr,
-            sizeof(struct sockaddr_in)) < 0) {
+    if(bind(dcsock, (struct sockaddr *)&addr, sizeof(struct sockaddr_in)) < 0) {
         perror("bind");
         close(dcsock);
         return NULL;
@@ -295,8 +314,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     addr.sin_port = htons(s->base_port + 1);
     memset(addr.sin_zero, 0, 8);
     
-    if(bind(pcsock, (struct sockaddr *)&addr,
-            sizeof(struct sockaddr_in)) < 0) {
+    if(bind(pcsock, (struct sockaddr *)&addr, sizeof(struct sockaddr_in)) < 0) {
         perror("bind");
         close(dcsock);
         close(pcsock);
@@ -311,11 +329,44 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
         return NULL;
     }
 
+    gcsock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+    
+    if(gcsock < 0) {
+        perror("socket");
+        close(pcsock);
+        close(dcsock);
+        return NULL;
+    }
+
+    /* Bind the socket */
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_port = htons(s->base_port + 2);
+    memset(addr.sin_zero, 0, 8);
+    
+    if(bind(gcsock, (struct sockaddr *)&addr, sizeof(struct sockaddr_in)) < 0) {
+        perror("bind");
+        close(dcsock);
+        close(pcsock);
+        close(gcsock);
+        return NULL;
+    }
+    
+    /* Listen on the socket for connections. */
+    if(listen(gcsock, 10) < 0) {
+        perror("listen");
+        close(dcsock);
+        close(pcsock);
+        close(gcsock);
+        return NULL;
+    }
+
     /* Make space for the ship structure. */
     rv = (ship_t *)malloc(sizeof(ship_t));
 
     if(!rv) {
         debug(DBG_ERROR, "%s: Cannot allocate memory!\n", s->name);
+        close(gcsock);
         close(pcsock);
         close(dcsock);
         return NULL;
@@ -330,6 +381,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     if(!rv->blocks) {
         debug(DBG_ERROR, "%s: Cannot allocate memory for blocks!\n", s->name);
         free(rv);
+        close(gcsock);
         close(pcsock);
         close(dcsock);
         return NULL;
@@ -342,6 +394,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
         debug(DBG_ERROR, "%s: Cannot allocate memory for clients!\n", s->name);
         free(rv->blocks);
         free(rv);
+        close(gcsock);
         close(pcsock);
         close(dcsock);
         return NULL;
@@ -354,6 +407,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
             free(rv->clients);
             free(rv->blocks);
             free(rv);
+            close(gcsock);
             close(pcsock);
             close(dcsock);
             return NULL;
@@ -368,6 +422,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
             free(rv->clients);
             free(rv->blocks);
             free(rv);
+            close(gcsock);
             close(pcsock);
             close(dcsock);
             return NULL;
@@ -380,6 +435,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     rv->cfg = s;
     rv->dcsock = dcsock;
     rv->pcsock = pcsock;
+    rv->gcsock = gcsock;
     rv->run = 1;
 
     /* Connect to the shipgate. */
@@ -393,6 +449,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
         free(rv);
         close(pcsock);
         close(dcsock);
+        close(gcsock);
         return NULL;
     }
 
@@ -407,6 +464,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
         free(rv);
         close(pcsock);
         close(dcsock);
+        close(gcsock);
         return NULL;
     }
 
@@ -421,6 +479,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
         free(rv);
         close(pcsock);
         close(dcsock);
+        close(gcsock);
         return NULL;
     }
 
@@ -460,6 +519,18 @@ static int dcv2_process_login(ship_client_t *c, dcv2_login_pkt *pkt) {
     return 0;
 }
 
+static int gc_process_login(ship_client_t *c, gc_login_pkt *pkt) {
+    if(send_dc_security(c, pkt->guildcard, NULL, 0)) {
+        return -1;
+    }
+
+    if(send_block_list(c, c->cur_ship)) {
+        return -2;
+    }
+
+    return 0;
+}
+
 static int dc_process_block_sel(ship_client_t *c, dc_select_pkt *pkt) {
     int block = LE32(pkt->item_id);
     ship_t *s = c->cur_ship;
@@ -488,8 +559,11 @@ static int dc_process_block_sel(ship_client_t *c, dc_select_pkt *pkt) {
        c->version == CLIENT_VERSION_DCV2) {
         return send_redirect(c, addr, s->blocks[block - 1]->dc_port);
     }
-    else {
+    else if(c->version == CLIENT_VERSION_PC) {
         return send_redirect(c, addr, s->blocks[block - 1]->pc_port);
+    }
+    else {
+        return send_redirect(c, addr, s->blocks[block - 1]->gc_port);
     }
 }
 
@@ -516,7 +590,8 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
     pc_pkt_hdr_t *pc = (pc_pkt_hdr_t *)pkt;
 
     if(c->version == CLIENT_VERSION_DCV1 ||
-       c->version == CLIENT_VERSION_DCV2) {
+       c->version == CLIENT_VERSION_DCV2 ||
+       c->version == CLIENT_VERSION_GC) {
         type = dc->pkt_type;
         len = LE16(dc->pkt_len);
     }
@@ -544,6 +619,9 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
         case SHIP_DCV2_LOGIN_TYPE:
             return dcv2_process_login(c, (dcv2_login_pkt *)pkt);
 
+        case SHIP_GC_LOGIN_TYPE:
+            return gc_process_login(c, (gc_login_pkt *)pkt);
+
         default:
             printf("Unknown packet!\n");
             print_packet((unsigned char *)pkt, len);
@@ -556,6 +634,7 @@ int ship_process_pkt(ship_client_t *c, uint8_t *pkt) {
         case CLIENT_VERSION_DCV1:
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_PC:
+        case CLIENT_VERSION_GC:
             return dc_process_pkt(c, pkt);
     }
 

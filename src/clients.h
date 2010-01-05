@@ -106,6 +106,8 @@ struct ship_client {
     int sendbuf_cur;
     int sendbuf_size;
     int sendbuf_start;
+
+    char *infoboard;
 };
 
 #ifndef SHIP_CLIENT_DEFINED
@@ -126,6 +128,7 @@ extern pthread_key_t sendbuf_key;
 #define CLIENT_VERSION_DCV1     0
 #define CLIENT_VERSION_DCV2     1
 #define CLIENT_VERSION_PC       2
+#define CLIENT_VERSION_GC       3
 
 /* Initialize the clients system, allocating any thread specific keys */
 int client_init();
@@ -147,5 +150,8 @@ int client_process_pkt(ship_client_t *c);
 
 /* Retrieve the thread-specific recvbuf for the current thread. */
 uint8_t *get_recvbuf();
+
+/* Write to the client's infoboard, allocating as necessary. */
+int client_write_infoboard(ship_client_t *c, char *msg, int len);
 
 #endif /* !CLIENTS_H */
