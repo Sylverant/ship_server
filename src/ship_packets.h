@@ -655,6 +655,13 @@ typedef struct gc_read_info {
     } entries[0];
 } gc_read_info_pkt;
 
+/* The packet used in trading items (Gamecube). */
+typedef struct gc_trade {
+    dc_pkt_hdr_t hdr;
+    uint8_t who;
+    uint8_t unk[];
+} gc_trade_pkt;
+
 #undef PACKED
 
 /* Parameters for the various packets. */
@@ -714,6 +721,11 @@ typedef struct gc_read_info {
 #define SHIP_CHOICE_SETTING_TYPE            0x00C2
 #define SHIP_CHOICE_SEARCH_TYPE             0x00C3
 #define SHIP_CHOICE_REPLY_TYPE              0x00C4
+#define SHIP_TRADE_0_TYPE                   0x00D0
+#define SHIP_TRADE_1_TYPE                   0x00D1
+#define SHIP_TRADE_2_TYPE                   0x00D2
+#define SHIP_TRADE_3_TYPE                   0x00D3
+#define SHIP_TRADE_4_TYPE                   0x00D4
 #define SHIP_GC_GBA_FILE_REQ_TYPE           0x00D7
 #define SHIP_GC_INFOBOARD_REQ_TYPE          0x00D8
 #define SHIP_GC_INFOBOARD_WRITE_TYPE        0x00D9

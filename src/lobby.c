@@ -67,8 +67,9 @@ lobby_t *lobby_create_default(block_t *block, uint32_t lobby_id, uint8_t ev) {
 
 /* This list of numbers was borrowed from newserv. Hopefully Fuzziqer won't
    mind too much. */
-static const uint32_t maps[0x20] =
-    {1,1,1,5,1,5,3,2,3,2,3,2,3,2,3,2,3,2,3,2,3,2,1,1,1,1,1,1,1,1,1,1};
+static const uint32_t maps[2][0x20] = {
+    {1,1,1,5,1,5,3,2,3,2,3,2,3,2,3,2,3,2,3,2,3,2,1,1,1,1,1,1,1,1,1,1},
+    {1,1,2,1,2,1,2,1,2,1,1,3,1,3,1,3,2,2,1,3,2,2,2,2,1,1,1,1,1,1,1,1}};
 
 lobby_t *lobby_create_game(block_t *block, char name[16], char passwd[16],
                            uint8_t difficulty, uint8_t battle, uint8_t chal,
@@ -120,10 +121,17 @@ lobby_t *lobby_create_game(block_t *block, char name[16], char passwd[16],
     /* Initialize the lobby mutex. */
     pthread_mutex_init(&l->mutex, NULL);
 
+    /* We need episode to be either 1 or 2 for the below map selection code to
+       work. On PSODC and PSOPC, it'll be 0 at this point, so make it 1 (as it
+       would be expected to be). */
+    if(version < CLIENT_VERSION_GC) {
+        episode = 1;
+    }
+
     /* Generate the random maps we'll be using for this game. */
     for(i = 0; i < 0x20; ++i) {
-        if(maps[i] != 1) {
-            l->maps[i] = genrand_int32() % maps[i];
+        if(maps[episode - 1][i] != 1) {
+            l->maps[i] = genrand_int32() % maps[episode - 1][i];
         }
     }
 

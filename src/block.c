@@ -1392,6 +1392,20 @@ static int dc_process_arrow(ship_client_t *c, uint8_t flag) {
     return send_lobby_arrows(c->cur_lobby);
 }
 
+/* Process a client's trade request. */
+static int process_trade(ship_client_t *c, gc_trade_pkt *pkt) {
+    lobby_t *l = c->cur_lobby;
+    ship_client_t *dest;
+    
+    /* Find the destination. */
+    dest = l->clients[pkt->who];
+
+    send_simple(dest, SHIP_TRADE_1_TYPE, 0);
+    pkt->hdr.pkt_type = SHIP_TRADE_3_TYPE;
+    send_pkt_dc(dest, (dc_pkt_hdr_t *)pkt);
+    return send_simple(dest, SHIP_TRADE_4_TYPE, 1);
+}
+
 /* Process block commands for a Dreamcast client. */
 static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
     uint8_t type;
@@ -1557,6 +1571,13 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
 
         case SHIP_GC_INFOBOARD_REQ_TYPE:
             return send_infoboard(c, c->cur_lobby);
+
+        case SHIP_TRADE_0_TYPE:
+            return process_trade(c, (gc_trade_pkt *)pkt);
+
+        case SHIP_TRADE_2_TYPE:
+            /* Ignore. */
+            return 0;
 
         default:
             debug(DBG_LOG, "Unknown packet!\n");
