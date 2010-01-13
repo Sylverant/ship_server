@@ -458,7 +458,6 @@ static int handle_item4(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
 /* Usage: /v1 */
 static int handle_v1(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
-    int lvl;
     lobby_t *l = c->cur_lobby;
 
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
@@ -561,6 +560,64 @@ static int handle_event(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return send_txt(c, "\tE\tC7Event set.");
 }
 
+/* Usage: /passwd newpass */
+static int handle_passwd(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    lobby_t *l = c->cur_lobby;
+
+    /* Make sure that the requester is in a game lobby, not a lobby lobby. */
+    if(!(l->type & LOBBY_TYPE_GAME)) {
+        return send_txt(c, "\tE\tC7Only valid in a game lobby.");
+    }
+
+    /* Make sure the requester is the leader of the team. */
+    if(l->leader_id != c->client_id) {
+        return send_txt(c, "\tE\tC7Only the leader may use this command.");
+    }
+
+    /* Check the length of the provided password. */
+    if(strlen(params) > 16) {
+        return send_txt(c, "\tE\tC7Password too long.");
+    }
+
+    pthread_mutex_lock(&l->mutex);
+
+    /* Copy the new password in. */
+    strcpy(l->passwd, params);
+
+    pthread_mutex_unlock(&l->mutex);
+
+    return send_txt(c, "\tE\tC7Password set.");
+}
+
+/* Usage: /lname newname */
+static int handle_lname(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    lobby_t *l = c->cur_lobby;
+
+    /* Make sure that the requester is in a game lobby, not a lobby lobby. */
+    if(!(l->type & LOBBY_TYPE_GAME)) {
+        return send_txt(c, "\tE\tC7Only valid in a game lobby.");
+    }
+
+    /* Make sure the requester is the leader of the team. */
+    if(l->leader_id != c->client_id) {
+        return send_txt(c, "\tE\tC7Only the leader may use this command.");
+    }
+
+    /* Check the length of the provided lobby name. */
+    if(strlen(params) > 16) {
+        return send_txt(c, "\tE\tC7Lobby name too long.");
+    }
+
+    pthread_mutex_lock(&l->mutex);
+
+    /* Copy the new name in. */
+    strcpy(l->name, params);
+
+    pthread_mutex_unlock(&l->mutex);
+
+    return send_txt(c, "\tE\tC7Lobby name set.");
+}
+
 static command_t cmds[] = {
     { "warp"   , handle_warp      },
     { "kill"   , handle_kill      },
@@ -577,6 +634,8 @@ static command_t cmds[] = {
     { "item4"  , handle_item4     },
     { "v1"     , handle_v1        },
     { "event"  , handle_event     },
+    { "passwd" , handle_passwd    },
+    { "lname"  , handle_lname     },
     { ""       , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

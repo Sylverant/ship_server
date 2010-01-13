@@ -68,8 +68,8 @@ struct lobby {
     uint32_t max_level;
     uint32_t rand_seed;
 
-    char name[16];
-    char passwd[16];
+    char name[17];
+    char passwd[17];
     uint32_t maps[0x20];
 
     ship_client_t *clients[LOBBY_MAX_CLIENTS];

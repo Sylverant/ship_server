@@ -97,6 +97,14 @@ static void *block_thd(void *d) {
                 it->last_sent = now;
             }
 
+            /* Check if the user's character data has been updated recently. */
+            if(now > it->last_update + 300) {
+                if(send_simple(it, SHIP_CHAR_DATA_REQUEST_TYPE, 0)) {
+                    it->disconnected = 1;
+                    continue;
+                }
+            }
+
             FD_SET(it->sock, &readfds);
 
             /* Only add to the write fd set if we have something to send out. */
@@ -616,6 +624,7 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
 
     /* Copy the character data to the client's structure. */
     memcpy(c->pl, &pkt->data, sizeof(player_t));
+    c->last_update = time(NULL);
 
     /* If this packet is coming after the client has left a game, then don't
        do anything else here, they'll take care of it by sending an 0x84. */

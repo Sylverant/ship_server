@@ -89,6 +89,7 @@ struct ship_client {
 
     time_t last_sent;
     time_t join_time;
+    time_t last_update;
 
     uint32_t next_item[4];
 
