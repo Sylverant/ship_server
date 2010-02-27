@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009 Lawrence Sebald
+    Copyright (C) 2009, 2010 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License version 3 as
@@ -3494,7 +3494,6 @@ static int send_pc_warp(ship_client_t *c, uint8_t area) {
 int send_warp(ship_client_t *c, uint8_t area) {
     /* Call the appropriate function. */
     switch(c->version) {
-        case CLIENT_VERSION_DCV1:
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_GC:
             return send_dc_warp(c, area);
@@ -3504,6 +3503,32 @@ int send_warp(ship_client_t *c, uint8_t area) {
     }
 
     return -1;
+}
+
+int send_lobby_warp(lobby_t *l, uint8_t area) {
+    int i;
+
+    for(i = 0; i < l->max_clients; ++i) {
+        if(l->clients[i] != NULL) {
+            pthread_mutex_lock(&l->clients[i]->mutex);
+
+            /* Call the appropriate function. */
+            switch(l->clients[i]->version) {
+                case CLIENT_VERSION_DCV2:
+                case CLIENT_VERSION_GC:
+                    send_dc_warp(l->clients[i], area);
+                    break;
+
+                case CLIENT_VERSION_PC:
+                    send_pc_warp(l->clients[i], area);
+                    break;
+            }
+
+            pthread_mutex_unlock(&l->clients[i]->mutex);
+        }
+    }
+
+    return 0;
 }
 
 /* Send the choice search option list to the client. */

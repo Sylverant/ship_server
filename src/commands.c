@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009 Lawrence Sebald
+    Copyright (C) 2009, 2010 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License version 3 as
@@ -34,10 +34,16 @@ typedef struct command {
 /* Usage: /warp area */
 static int handle_warp(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     unsigned long area;
+    lobby_t *l = c->cur_lobby;
 
     /* Make sure the requester is a GM. */
     if(!c->is_gm) {
         return send_txt(c, "\tE\tC7Nice try.");
+    }
+
+    /* Make sure that the requester is in a game lobby, not a lobby lobby. */
+    if(!(l->type & LOBBY_TYPE_GAME)) {
+        return send_txt(c, "\tE\tC7Only valid in a game lobby.");
     }
 
     /* Figure out the floor requested */
@@ -56,6 +62,39 @@ static int handle_warp(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     /* Send the person to the requested place */
     return send_warp(c, (uint8_t)area);
+}
+
+/* Usage: /warpall area */
+static int handle_warpall(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    unsigned long area;
+    lobby_t *l = c->cur_lobby;
+
+    /* Make sure the requester is a GM. */
+    if(!c->is_gm) {
+        return send_txt(c, "\tE\tC7Nice try.");
+    }
+
+    /* Make sure that the requester is in a game lobby, not a lobby lobby. */
+    if(!(l->type & LOBBY_TYPE_GAME)) {
+        return send_txt(c, "\tE\tC7Only valid in a game lobby.");
+    }
+
+    /* Figure out the floor requested */
+    errno = 0;
+    area = strtoul(params, NULL, 10);
+
+    if(errno) {
+        /* Send a message saying invalid area */
+        return send_txt(c, "\tE\tC7Invalid Area!");
+    }
+
+    if(area > 17) {
+        /* Area too large, give up */
+        return send_txt(c, "\tE\tC7Invalid Area!");
+    }
+
+    /* Send the person to the requested place */
+    return send_lobby_warp(l, (uint8_t)area);
 }
 
 /* Usage: /kill guildcard */
@@ -636,6 +675,7 @@ static command_t cmds[] = {
     { "event"  , handle_event     },
     { "passwd" , handle_passwd    },
     { "lname"  , handle_lname     },
+    { "warpall", handle_warpall   },
     { ""       , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

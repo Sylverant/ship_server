@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009 Lawrence Sebald
+    Copyright (C) 2009, 2010 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License version 3 as
@@ -855,6 +855,9 @@ int send_ship_list(ship_client_t *c, miniship_t *l, int ships);
 
 /* Send a warp command to the client. */
 int send_warp(ship_client_t *c, uint8_t area);
+
+/* Send a warp command to a whole lobby (DCv2 and higher only). */
+int send_lobby_warp(lobby_t *l, uint8_t area);
 
 /* Send the choice search option list to the client. */
 int send_choice_search(ship_client_t *c);
