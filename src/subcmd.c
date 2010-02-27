@@ -24,7 +24,7 @@
 #include "utils.h"
 
 /* Handle a Guild card send packet. */
-static int handle_dc_gcsend(ship_client_t *d, subcmd_dc_gcsend_t *pkt) {
+int handle_dc_gcsend(ship_client_t *d, subcmd_dc_gcsend_t *pkt) {
     /* This differs based on the destination client's version. */
     switch(d->version) {
         case CLIENT_VERSION_DCV1:

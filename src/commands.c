@@ -25,6 +25,8 @@
 
 #include "ship_packets.h"
 #include "lobby.h"
+#include "subcmd.h"
+#include "utils.h"
 
 typedef struct command {
     char trigger[8];
@@ -657,6 +659,35 @@ static int handle_lname(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return send_txt(c, "\tE\tC7Lobby name set.");
 }
 
+/* Usage: /bug */
+static int handle_bug(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    subcmd_dc_gcsend_t gcpkt;
+    extern int handle_dc_gcsend(ship_client_t *d, subcmd_dc_gcsend_t *pkt);
+
+    /* Forge a guildcard send packet. */
+    gcpkt.hdr.pkt_type = SHIP_GAME_COMMAND2_TYPE;
+    gcpkt.hdr.flags = c->client_id;
+    gcpkt.hdr.pkt_len = LE16(0x88);
+    gcpkt.type = SUBCMD_GUILDCARD;
+    gcpkt.size = 0x21;
+    gcpkt.unused = 0;
+    gcpkt.tag = LE32(0x00010000);
+    gcpkt.guildcard = LE32(BUG_REPORT_GC);
+    gcpkt.unused2 = 0;
+    gcpkt.one[0] = gcpkt.one[1] = 1;
+    gcpkt.section = 0;
+    gcpkt.char_class = 8;
+    gcpkt.padding[0] = gcpkt.padding[1] = gcpkt.padding[1] = 0;
+    sprintf(gcpkt.name, "Report Bug");
+    sprintf(gcpkt.text, "Send a Simple Mail to this guildcard to report a bug");
+
+    send_txt(c, "\tE\tC7Send a mail to the\n"
+                "'Report Bug' user to report\n"
+                "a bug.");
+
+    return handle_dc_gcsend(c, &gcpkt);
+}
+
 static command_t cmds[] = {
     { "warp"   , handle_warp      },
     { "kill"   , handle_kill      },
@@ -676,6 +707,7 @@ static command_t cmds[] = {
     { "passwd" , handle_passwd    },
     { "lname"  , handle_lname     },
     { "warpall", handle_warpall   },
+    { "bug"    , handle_bug       },
     { ""       , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

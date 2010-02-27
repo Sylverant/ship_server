@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009 Lawrence Sebald
+    Copyright (C) 2009, 2010 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License version 3 as
@@ -18,6 +18,13 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+#include "ship_packets.h"
+
+#define BUG_REPORT_GC   1
+
 void print_packet(unsigned char *pkt, int pkt_len);
+
+int dc_bug_report(ship_client_t *c, dc_simple_mail_pkt *pkt);
+int pc_bug_report(ship_client_t *c, pc_simple_mail_pkt *pkt);
 
 #endif /* !UTILS_H */

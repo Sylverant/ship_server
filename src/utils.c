@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009 Lawrence Sebald
+    Copyright (C) 2009, 2010 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License version 3 as
@@ -16,6 +16,10 @@
 */
 
 #include <stdio.h>
+#include <time.h>
+#include <sys/time.h>
+#include <iconv.h>
+#include <string.h>
 
 #include "utils.h"
 
@@ -81,4 +85,101 @@ void print_packet(unsigned char *pkt, int len) {
 
         printf("\n");
     }
+}
+
+int dc_bug_report(ship_client_t *c, dc_simple_mail_pkt *pkt) {
+    struct timeval rawtime;
+    struct tm cooked;
+    char filename[64];
+    char text[0x91];
+    FILE *fp;
+
+    /* Get the timestamp */
+    gettimeofday(&rawtime, NULL);
+    
+    /* Get UTC */
+    gmtime_r(&rawtime.tv_sec, &cooked);
+
+    /* Figure out the name of the file we'll be writing to. */
+    sprintf(filename, "bugs/%u.%02u.%02u.%02u.%02u.%02u.%03u-%d",
+            cooked.tm_year + 1900, cooked.tm_mon + 1, cooked.tm_mday,
+            cooked.tm_hour, cooked.tm_min, cooked.tm_sec,
+            (unsigned int)(rawtime.tv_usec / 1000), c->guildcard);
+
+    strncpy(text, pkt->stuff, 0x90);
+    text[0x90] = '\0';
+
+    /* Attempt to open up the file. */
+    fp = fopen(filename, "w");
+
+    if(!fp) {
+        return -1;
+    }
+
+    /* Write the bug report out. */
+    fprintf(fp, "Bug report from %s (%d) v%d @ %u.%02u.%02u %02u:%02u:%02u\n\n",
+            c->pl->name, c->guildcard, c->version, cooked.tm_year + 1900,
+            cooked.tm_mon + 1, cooked.tm_mday, cooked.tm_hour, cooked.tm_min,
+            cooked.tm_sec);
+
+    fprintf(fp, "%s", text);
+
+    fclose(fp);
+
+    return send_txt(c, "\tE\tC7Thank you for your report");
+}
+
+int pc_bug_report(ship_client_t *c, pc_simple_mail_pkt *pkt) {
+    struct timeval rawtime;
+    struct tm cooked;
+    char filename[64];
+    char text[0x91];
+    FILE *fp;
+    iconv_t ic = iconv_open("SHIFT_JIS", "UTF-16LE");
+    char *inptr, *outptr;
+    size_t in, out;
+
+    if(ic == (iconv_t)-1) {
+        return -1;
+    }
+
+    /* Get the timestamp */
+    gettimeofday(&rawtime, NULL);
+
+    /* Get UTC */
+    gmtime_r(&rawtime.tv_sec, &cooked);
+
+    /* Figure out the name of the file we'll be writing to. */
+    sprintf(filename, "bugs/%u.%02u.%02u.%02u.%02u.%02u.%03u-%d",
+            cooked.tm_year + 1900, cooked.tm_mon + 1, cooked.tm_mday,
+            cooked.tm_hour, cooked.tm_min, cooked.tm_sec,
+            (unsigned int)(rawtime.tv_usec / 1000), c->guildcard);
+
+    in = 0x120;
+    out = 0x90;
+    inptr = pkt->stuff;
+    outptr = text;
+    iconv(ic, &inptr, &in, &outptr, &out);
+    iconv_close(ic);
+
+    text[0x90] = '\0';
+
+    /* Attempt to open up the file. */
+    fp = fopen(filename, "w");
+
+    if(!fp) {
+        return -1;
+    }
+
+    /* Write the bug report out. */
+    fprintf(fp, "Bug report from %s (%d) v%d @ %u.%02u.%02u %02u:%02u:%02u\n\n",
+            c->pl->name, c->guildcard, c->version, cooked.tm_year + 1900,
+            cooked.tm_mon + 1, cooked.tm_mday, cooked.tm_hour, cooked.tm_min,
+            cooked.tm_sec);
+
+    fprintf(fp, "%s", text);
+
+    fclose(fp);
+
+    return send_txt(c, "\tE\tC7Thank you for your report");
 }
