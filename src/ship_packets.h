@@ -617,21 +617,21 @@ typedef struct gc_login {
     dc_pkt_hdr_t hdr;
     uint32_t tag;
     uint32_t guildcard;
-    uint8_t padding2[8];
+    uint8_t padding1[8];
     uint8_t version;
-    uint8_t padding3[4];
-    uint8_t one;                /* 0x01 */
-    uint8_t padding4[34];
+    uint8_t padding2[4];
+    uint8_t language_code;
+    uint8_t padding3[34];
     char serial[8];
-    uint8_t padding5[8];
+    uint8_t padding4[8];
     char access_key[12];
-    uint8_t padding6[4];
+    uint8_t padding5[4];
     char serial2[8];
-    uint8_t padding7[40];
+    uint8_t padding6[40];
     char access_key2[12];
-    uint8_t padding8[36];
+    uint8_t padding7[36];
     char name[16];
-    uint8_t padding9[32];
+    uint8_t padding8[32];
 } PACKED gc_login_pkt;
 
 /* The packet used to ask for a GBA file (Gamecube). */
