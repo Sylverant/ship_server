@@ -111,6 +111,14 @@ struct ship_client {
     char *infoboard;
 };
 
+/* String versions of the character classes. */
+static const char *classes[12] = {
+    "HUmar", "HUnewearl", "HUcast",
+    "RAmar", "RAcast", "RAcaseal",
+    "FOmarl", "FOnewm", "FOnewearl",
+    "HUcaseal", "FOmar", "RAmarl"
+};
+
 #ifndef SHIP_CLIENT_DEFINED
 #define SHIP_CLIENT_DEFINED
 typedef struct ship_client ship_client_t;

@@ -440,13 +440,6 @@ int lobby_send_pkt_dc(lobby_t *l, ship_client_t *c, void *h) {
     return 0;
 }
 
-static const char *classes[12] = {
-    "HUmar", "HUnewearl", "HUcast",
-    "RAmar", "RAcast", "RAcaseal",
-    "FOmarl", "FOnewm", "FOnewearl",
-    "HUcaseal", "FOmar", "RAmarl"
-};
-
 static const char language_codes[][3] = {
     "J", "E", "G", "F", "S", "CS", "CT", "K"
 };

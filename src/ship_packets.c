@@ -3619,13 +3619,6 @@ int send_choice_search(ship_client_t *c) {
     return -1;
 }
 
-static const char *classes[12] = {
-    "HUmar", "HUnewearl", "HUcast",
-    "RAmar", "RAcast", "RAcaseal",
-    "FOmarl", "FOnewm", "FOnewearl",
-    "HUcaseal", "FOmar", "RAmarl"
-};
-
 /* Send a reply to a choice search to the client. */
 static int send_dc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
                                 int minlvl, int maxlvl, int cl, in_addr_t a) {

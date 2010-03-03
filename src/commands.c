@@ -20,6 +20,8 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <iconv.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
 
 #include <sylverant/debug.h>
 
@@ -104,6 +106,8 @@ static int handle_kill(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     uint32_t gc;
     block_t *b = c->cur_block;
     ship_client_t *i;
+    char *reason;
+    char msg[256];
 
     /* Make sure the requester is a GM. */
     if(!c->is_gm) {
@@ -112,9 +116,9 @@ static int handle_kill(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     /* Figure out the user requested */
     errno = 0;
-    gc = (uint32_t)strtoul(params, NULL, 10);
+    gc = (uint32_t)strtoul(params, &reason, 10);
 
-    if(errno) {
+    if(errno != 0) {
         /* Send a message saying invalid guildcard number */
         return send_txt(c, "\tE\tC7Invalid Guild Card");
     }
@@ -123,6 +127,15 @@ static int handle_kill(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     TAILQ_FOREACH(i, b->clients, qentry) {
         /* Disconnect them if we find them */
         if(i->guildcard == gc) {
+            if(strlen(reason) > 1) {
+                sprintf(msg, "\tEYou have been kicked by a GM.\n\n"
+                             "Reason:\n%s", reason + 1);
+            }
+            else {
+                strcpy(msg, "\tEYou have been kicked by a GM.");
+            }
+
+            send_message_box(i, msg);                                
             i->disconnected = 1;
             return 0;
         }
@@ -688,6 +701,40 @@ static int handle_bug(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return handle_dc_gcsend(c, &gcpkt);
 }
 
+/* Usage /clinfo client_id */
+static int handle_clinfo(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    lobby_t *l = c->cur_lobby;
+    int id, count;
+    ship_client_t *cl;
+    char info[256];
+    char ip[INET_ADDRSTRLEN];
+
+    /* Make sure the requester is a GM. */
+    if(!c->is_gm) {
+        return send_txt(c, "\tE\tC7Nice try.");
+    }
+
+    /* Copy over the item data. */
+    count = sscanf(params, "%d", &id);
+
+    if(count == EOF || count == 0) {
+        return send_txt(c, "\tE\tC7Invalid Client ID");
+    }
+
+    /* Make sure there is such a client. */
+    if(!(cl = l->clients[id])) {
+        return send_txt(c, "\tE\tC7No such client");
+    }
+
+    /* Fill in the client's info. */
+    inet_ntop(AF_INET, &cl->addr, ip, INET_ADDRSTRLEN);
+    sprintf(info, "\tE\tC7Name: %s\nIP: %s\nGC: %u\n%s Lv.%d", cl->pl->name, ip,
+            cl->guildcard, classes[c->pl->ch_class], c->pl->level + 1);
+
+    /* Send the response. */
+    return send_txt(c, info);
+}
+
 static command_t cmds[] = {
     { "warp"   , handle_warp      },
     { "kill"   , handle_kill      },
@@ -708,6 +755,7 @@ static command_t cmds[] = {
     { "lname"  , handle_lname     },
     { "warpall", handle_warpall   },
     { "bug"    , handle_bug       },
+    { "clinfo" , handle_clinfo    },
     { ""       , NULL             }     /* End marker -- DO NOT DELETE */
 };
 
