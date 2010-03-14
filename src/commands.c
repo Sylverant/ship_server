@@ -101,7 +101,7 @@ static int handle_warpall(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return send_lobby_warp(l, (uint8_t)area);
 }
 
-/* Usage: /kill guildcard */
+/* Usage: /kill guildcard reason */
 static int handle_kill(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     uint32_t gc;
     block_t *b = c->cur_block;
@@ -735,6 +735,219 @@ static int handle_clinfo(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return send_txt(c, info);
 }
 
+/* Usage: /gban:d guildcard reason */
+static int handle_gban_d(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    uint32_t gc;
+    block_t *b = c->cur_block;
+    ship_client_t *i;
+    char *reason;
+    char msg[256];
+
+    /* Make sure the requester is a global GM. */
+    if(c->is_gm >= 2) {
+        return send_txt(c, "\tE\tC7Nice try.");
+    }
+
+    /* Figure out the user requested */
+    errno = 0;
+    gc = (uint32_t)strtoul(params, &reason, 10);
+
+    if(errno != 0) {
+        /* Send a message saying invalid guildcard number */
+        return send_txt(c, "\tE\tC7Invalid Guild Card");
+    }
+
+    /* Set the ban with the shipgate first (86400s = 1 day). */
+    if(shipgate_send_ban(&c->cur_ship->sg, SHDR_TYPE_GCBAN, c->guildcard, gc,
+                         time(NULL) + 86400, reason + 1)) {
+        return send_txt(c, "\tE\tC7Error setting ban!");
+    }
+
+    /* Look for the requested user and kick them if they're currently connected
+       (only on this block). */
+    TAILQ_FOREACH(i, b->clients, qentry) {
+        /* Disconnect them if we find them */
+        if(i->guildcard == gc) {
+            if(strlen(reason) > 1) {
+                sprintf(msg, "\tEYou have been banned by a GM\n"
+                        "Ban Length: 1 day\n"
+                        "Reason:\n%s", reason + 1);
+            }
+            else {
+                strcpy(msg, "\tEYou have been banned by a GM\n"
+                       "Ban Length: 1 day");
+            }
+
+            send_message_box(i, msg);                                
+            i->disconnected = 1;
+            return 0;
+        }
+    }
+
+    /* The person isn't here... There's nothing left to do. */
+    return 0;
+}
+
+/* Usage: /gban:w guildcard reason */
+static int handle_gban_w(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    uint32_t gc;
+    block_t *b = c->cur_block;
+    ship_client_t *i;
+    char *reason;
+    char msg[256];
+
+    /* Make sure the requester is a global GM. */
+    if(c->is_gm >= 2) {
+        return send_txt(c, "\tE\tC7Nice try.");
+    }
+
+    /* Figure out the user requested */
+    errno = 0;
+    gc = (uint32_t)strtoul(params, &reason, 10);
+
+    if(errno != 0) {
+        /* Send a message saying invalid guildcard number */
+        return send_txt(c, "\tE\tC7Invalid Guild Card");
+    }
+
+    /* Set the ban with the shipgate first (604800s = 1 day). */
+    if(shipgate_send_ban(&c->cur_ship->sg, SHDR_TYPE_GCBAN, c->guildcard, gc,
+                         time(NULL) + 604800, reason + 1)) {
+        return send_txt(c, "\tE\tC7Error setting ban!");
+    }
+
+    /* Look for the requested user and kick them if they're currently connected
+       (only on this block). */
+    TAILQ_FOREACH(i, b->clients, qentry) {
+        /* Disconnect them if we find them */
+        if(i->guildcard == gc) {
+            if(strlen(reason) > 1) {
+                sprintf(msg, "\tEYou have been banned by a GM\n"
+                        "Ban Length: 1 week\n"
+                        "Reason:\n%s", reason + 1);
+            }
+            else {
+                strcpy(msg, "\tEYou have been banned by a GM\n"
+                       "Ban Length: 1 week");
+            }
+
+            send_message_box(i, msg);                                
+            i->disconnected = 1;
+            return 0;
+        }
+    }
+
+    /* The person isn't here... There's nothing left to do. */
+    return 0;
+}
+
+/* Usage: /gban:m guildcard reason */
+static int handle_gban_m(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    uint32_t gc;
+    block_t *b = c->cur_block;
+    ship_client_t *i;
+    char *reason;
+    char msg[256];
+
+    /* Make sure the requester is a global GM. */
+    if(c->is_gm >= 2) {
+        return send_txt(c, "\tE\tC7Nice try.");
+    }
+
+    /* Figure out the user requested */
+    errno = 0;
+    gc = (uint32_t)strtoul(params, &reason, 10);
+
+    if(errno != 0) {
+        /* Send a message saying invalid guildcard number */
+        return send_txt(c, "\tE\tC7Invalid Guild Card");
+    }
+
+    /* Set the ban with the shipgate first (2,592,000s = 30 days). */
+    if(shipgate_send_ban(&c->cur_ship->sg, SHDR_TYPE_GCBAN, c->guildcard, gc,
+                         time(NULL) + 2592000, reason + 1)) {
+        return send_txt(c, "\tE\tC7Error setting ban!");
+    }
+
+    /* Look for the requested user and kick them if they're currently connected
+       (only on this block). */
+    TAILQ_FOREACH(i, b->clients, qentry) {
+        /* Disconnect them if we find them */
+        if(i->guildcard == gc) {
+            if(strlen(reason) > 1) {
+                sprintf(msg, "\tEYou have been banned by a GM\n"
+                        "Ban Length: 30 days\n"
+                        "Reason:\n%s", reason + 1);
+            }
+            else {
+                strcpy(msg, "\tEYou have been banned by a GM\n"
+                       "Ban Length: 30 days");
+            }
+
+            send_message_box(i, msg);                                
+            i->disconnected = 1;
+            return 0;
+        }
+    }
+
+    /* The person isn't here... There's nothing left to do. */
+    return 0;
+}
+
+/* Usage: /gban:p guildcard reason */
+static int handle_gban_p(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    uint32_t gc;
+    block_t *b = c->cur_block;
+    ship_client_t *i;
+    char *reason;
+    char msg[256];
+
+    /* Make sure the requester is a global GM. */
+    if(c->is_gm >= 2) {
+        return send_txt(c, "\tE\tC7Nice try.");
+    }
+
+    /* Figure out the user requested */
+    errno = 0;
+    gc = (uint32_t)strtoul(params, &reason, 10);
+
+    if(errno != 0) {
+        /* Send a message saying invalid guildcard number */
+        return send_txt(c, "\tE\tC7Invalid Guild Card");
+    }
+
+    /* Set the ban with the shipgate first (0xFFFFFFFF = forever (or close
+       enough anyway)). */
+    if(shipgate_send_ban(&c->cur_ship->sg, SHDR_TYPE_GCBAN, c->guildcard, gc,
+                         0xFFFFFFFF, reason + 1)) {
+        return send_txt(c, "\tE\tC7Error setting ban!");
+    }
+
+    /* Look for the requested user and kick them if they're currently connected
+       (only on this block). */
+    TAILQ_FOREACH(i, b->clients, qentry) {
+        /* Disconnect them if we find them */
+        if(i->guildcard == gc) {
+            if(strlen(reason) > 1) {
+                sprintf(msg, "\tEYou have been banned by a GM\n"
+                        "Ban Length: Forever\n"
+                        "Reason:\n%s", reason + 1);
+            }
+            else {
+                strcpy(msg, "\tEYou have been banned by a GM\n"
+                       "Ban Length: Forever");
+            }
+
+            send_message_box(i, msg);                                
+            i->disconnected = 1;
+            return 0;
+        }
+    }
+
+    /* The person isn't here... There's nothing left to do. */
+    return 0;
+}
+
 static command_t cmds[] = {
     { "warp"   , handle_warp      },
     { "kill"   , handle_kill      },
@@ -756,6 +969,10 @@ static command_t cmds[] = {
     { "warpall", handle_warpall   },
     { "bug"    , handle_bug       },
     { "clinfo" , handle_clinfo    },
+    { "gban:d" , handle_gban_d    },
+    { "gban:w" , handle_gban_w    },
+    { "gban:m" , handle_gban_m    },
+    { "gban:p" , handle_gban_p    },
     { ""       , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

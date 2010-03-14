@@ -909,6 +909,44 @@ int shipgate_send_gmlogin(shipgate_conn_t *c, uint32_t gc, uint32_t block,
     return send_crypt(c, sizeof(shipgate_gmlogin_req_pkt), sendbuf);
 }
 
+/* Send a ban request. */
+int shipgate_send_ban(shipgate_conn_t *c, uint16_t type, uint32_t requester,
+                      uint32_t target, uint32_t until, char *msg) {
+    uint8_t *sendbuf = get_sendbuf();
+    shipgate_ban_req_pkt *pkt = (shipgate_ban_req_pkt *)sendbuf;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Make sure we're requesting something valid. */
+    switch(type) {
+        case SHDR_TYPE_IPBAN:
+        case SHDR_TYPE_GCBAN:
+            break;
+
+        default:
+            return -1;
+    }
+
+    /* Fill in the data. */
+    memset(pkt, 0, sizeof(shipgate_ban_req_pkt));
+
+    pkt->hdr.pkt_len = htons(sizeof(shipgate_ban_req_pkt));
+    pkt->hdr.pkt_type = htons(type);
+    pkt->hdr.pkt_unc_len = pkt->hdr.pkt_len;
+    pkt->hdr.flags = htons(SHDR_NO_DEFLATE);
+
+    pkt->req_gc = htonl(requester);
+    pkt->target = htonl(target);
+    pkt->until = htonl(until);
+    strncpy(pkt->message, msg, 255); 
+
+    /* Send the packet away */
+    return send_crypt(c, sizeof(shipgate_ban_req_pkt), sendbuf);
+}
+
 static int send_greply(shipgate_conn_t *c, uint32_t gc1, uint32_t gc2,
                        in_addr_t ip, uint16_t port, char game[], int block,
                        char ship[], uint32_t lobby, char name[], uint32_t sid) {
