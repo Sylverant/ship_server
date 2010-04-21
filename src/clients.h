@@ -89,7 +89,6 @@ struct ship_client {
 
     time_t last_sent;
     time_t join_time;
-    time_t last_update;
 
     uint32_t next_item[4];
 
@@ -109,10 +108,12 @@ struct ship_client {
     int sendbuf_start;
 
     char *infoboard;
+    uint8_t *c_rank;                    /* Points into the player struct. */
+    lobby_t *create_lobby;
 };
 
 /* String versions of the character classes. */
-static const char *classes[12] = {
+static const char *classes[12] __attribute__((unused)) = {
     "HUmar", "HUnewearl", "HUcast",
     "RAmar", "RAcast", "RAcaseal",
     "FOmarl", "FOnewm", "FOnewearl",

@@ -210,7 +210,7 @@ typedef struct dc_lobby_join {
     uint32_t padding;
     struct {
         dc_player_hdr_t hdr;
-        player_t data;
+        v1_player_t data;
     } entries[0];
 } PACKED dc_lobby_join_pkt;
 
@@ -226,7 +226,7 @@ typedef struct pc_lobby_join {
     uint32_t padding;
     struct {
         pc_player_hdr_t hdr;
-        player_t data;
+        v1_player_t data;
     } entries[0];
 } PACKED pc_lobby_join_pkt;
 
@@ -638,13 +638,13 @@ typedef struct gc_login {
 typedef struct gc_gba_req {
     dc_pkt_hdr_t hdr;
     char filename[16];
-} gc_gba_req_pkt;
+} PACKED gc_gba_req_pkt;
 
 /* The packet used to write to the info board (Gamecube). */
 typedef struct gc_write_info {
     dc_pkt_hdr_t hdr;
     char msg[];
-} gc_write_info_pkt;
+} PACKED gc_write_info_pkt;
 
 /* The packet sent to clients to read the info board (Gamecube). */
 typedef struct gc_read_info {
@@ -653,14 +653,69 @@ typedef struct gc_read_info {
         char name[0x10];
         char msg[0xAC];
     } entries[0];
-} gc_read_info_pkt;
+} PACKED gc_read_info_pkt;
 
 /* The packet used in trading items (Gamecube). */
 typedef struct gc_trade {
     dc_pkt_hdr_t hdr;
     uint8_t who;
     uint8_t unk[];
-} gc_trade_pkt;
+} PACKED gc_trade_pkt;
+
+/* The packet used to send C-Rank Data (Dreamcast). */
+typedef struct dc_c_rank_update {
+    dc_pkt_hdr_t hdr;
+    struct {
+        uint32_t client_id;
+        union {
+            uint8_t c_rank[0xB8];
+            struct {
+                uint32_t unk1;
+                char string[0x0C];
+                uint8_t unk2[0x68];
+                uint32_t times[9];
+                uint32_t battle[7];
+            };
+        };
+    } entries[0];
+} PACKED dc_c_rank_update_pkt;
+
+/* The packet used to send C-Rank Data (PC). */
+typedef struct pc_c_rank_update {
+    pc_pkt_hdr_t hdr;
+    struct {
+        uint32_t client_id;
+        union {
+            uint8_t c_rank[0xF0];
+            struct {
+                uint32_t unk1;
+                uint16_t string[0x0C];
+                uint8_t unk2[0x94];
+                uint32_t times[9];
+                uint32_t battle[7];
+            };
+        };
+    } entries[0];
+} PACKED pc_c_rank_update_pkt;
+
+/* The packet used to send C-Rank Data (Gamecube). */
+typedef struct gc_c_rank_update {
+    dc_pkt_hdr_t hdr;
+    struct {
+        uint32_t client_id;
+        union {
+            uint8_t c_rank[0x0118];
+            struct {
+                uint32_t unk1;          /* Flip the words for dc/pc! */
+                uint32_t times[9];
+                uint8_t unk2[0xB0];
+                char string[0x0C];
+                uint8_t unk3[0x18];
+                uint32_t battle[7];
+            };
+        };
+    } entries[0];
+} PACKED gc_c_rank_update_pkt;
 
 #undef PACKED
 
@@ -721,11 +776,13 @@ typedef struct gc_trade {
 #define SHIP_CHOICE_SETTING_TYPE            0x00C2
 #define SHIP_CHOICE_SEARCH_TYPE             0x00C3
 #define SHIP_CHOICE_REPLY_TYPE              0x00C4
+#define SHIP_C_RANK_TYPE                    0x00C5
 #define SHIP_TRADE_0_TYPE                   0x00D0
 #define SHIP_TRADE_1_TYPE                   0x00D1
 #define SHIP_TRADE_2_TYPE                   0x00D2
 #define SHIP_TRADE_3_TYPE                   0x00D3
 #define SHIP_TRADE_4_TYPE                   0x00D4
+#define SHIP_GC_MSG_BOX_CLOSED_TYPE         0x00D6
 #define SHIP_GC_GBA_FILE_REQ_TYPE           0x00D7
 #define SHIP_GC_INFOBOARD_REQ_TYPE          0x00D8
 #define SHIP_GC_INFOBOARD_WRITE_TYPE        0x00D9
@@ -833,8 +890,8 @@ int send_quest_categories(ship_client_t *c, sylverant_quest_list_t *l);
 /* Send the list of quests in a category to the client. */
 int send_quest_list(ship_client_t *c, int cat, sylverant_quest_category_t *l);
 
-/* Send information about a quest to the client. */
-int send_quest_info(ship_client_t *c, sylverant_quest_t *q);
+/* Send information about a quest to the lobby. */
+int send_quest_info(lobby_t *l, sylverant_quest_t *q);
 
 /* Send a quest to everyone in a lobby. */
 int send_quest(lobby_t *l, sylverant_quest_t *q);
@@ -870,5 +927,15 @@ int send_simple_mail(int version, ship_client_t *c, dc_pkt_hdr_t *pkt);
 
 /* Send the lobby's info board to the client. */
 int send_infoboard(ship_client_t *c, lobby_t *l);
+
+/* Send the lobby's C-Rank data to the client. */
+int send_lobby_c_rank(ship_client_t *c, lobby_t *l);
+
+/* Send a C-Rank update for a single client to the whole lobby. */
+int send_c_rank_update(ship_client_t *c, lobby_t *l);
+
+/* This is a special case of the information select menu for PSOPC. This allows
+   the user to pick to make a V1 compatible game or not. */
+int send_pc_game_type_sel(ship_client_t *c);
 
 #endif /* !SHIPPACKETS_H */

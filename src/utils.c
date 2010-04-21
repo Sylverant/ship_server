@@ -118,7 +118,7 @@ int dc_bug_report(ship_client_t *c, dc_simple_mail_pkt *pkt) {
 
     /* Write the bug report out. */
     fprintf(fp, "Bug report from %s (%d) v%d @ %u.%02u.%02u %02u:%02u:%02u\n\n",
-            c->pl->name, c->guildcard, c->version, cooked.tm_year + 1900,
+            c->pl->v1.name, c->guildcard, c->version, cooked.tm_year + 1900,
             cooked.tm_mon + 1, cooked.tm_mday, cooked.tm_hour, cooked.tm_min,
             cooked.tm_sec);
 
@@ -173,7 +173,7 @@ int pc_bug_report(ship_client_t *c, pc_simple_mail_pkt *pkt) {
 
     /* Write the bug report out. */
     fprintf(fp, "Bug report from %s (%d) v%d @ %u.%02u.%02u %02u:%02u:%02u\n\n",
-            c->pl->name, c->guildcard, c->version, cooked.tm_year + 1900,
+            c->pl->v1.name, c->guildcard, c->version, cooked.tm_year + 1900,
             cooked.tm_mon + 1, cooked.tm_mday, cooked.tm_hour, cooked.tm_min,
             cooked.tm_sec);
 

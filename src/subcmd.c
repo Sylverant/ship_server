@@ -187,6 +187,33 @@ static int handle_itemreq(ship_client_t *c, subcmd_itemreq_t *req) {
     return 0;
 }
 
+static int handle_levelup(ship_client_t *c, subcmd_levelup_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+
+    /* We can't get these in default lobbies without someone messing with
+       something that they shouldn't be... Disconnect anyone that tries. */
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        return -1;
+    }
+
+    /* Sanity check... Make sure the size of the subcommand and the client id
+       match with what we expect. Disconnect the client if not. */
+    if(pkt->size != 0x05 || pkt->client_id != c->client_id) {
+        return -1;
+    }
+
+    /* Copy over the new data to the client's character structure... */
+    c->pl->v1.atp = pkt->atp;
+    c->pl->v1.mst = pkt->mst;
+    c->pl->v1.evp = pkt->evp;
+    c->pl->v1.hp = pkt->hp;
+    c->pl->v1.dfp = pkt->dfp;
+    c->pl->v1.ata = pkt->ata;
+    c->pl->v1.level = pkt->level;
+
+    return lobby_send_pkt_dc(c->cur_lobby, c, (dc_pkt_hdr_t *)pkt);
+}
+
 /* Handle a 0x62/0x6D packet. */
 int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
     lobby_t *l = c->cur_lobby;
@@ -226,4 +253,17 @@ int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
     }
 
     return -1;
+}
+
+/* Handle a 0x60 packet. */
+int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
+    uint8_t type = pkt->type;
+
+    switch(type) {
+        case SUBCMD_LEVELUP:
+            return handle_levelup(c, (subcmd_levelup_t *)pkt);
+    }
+
+    /* Broadcast anything we don't care to check anything about. */
+    return lobby_send_pkt_dc(c->cur_lobby, c, (dc_pkt_hdr_t *)pkt);
 }

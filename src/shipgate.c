@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009 Lawrence Sebald
+    Copyright (C) 2009, 2010 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License version 3 as
@@ -427,7 +427,8 @@ static int handle_dc_gsearch(shipgate_conn_t *conn, dc_guild_search_pkt *pkt,
                     rv = send_greply(conn, pkt->gc_search, pkt->gc_target,
                                      s->cfg->ship_ip, b->dc_port,
                                      c->cur_lobby->name, b->b, s->cfg->name,
-                                     c->cur_lobby->lobby_id, c->pl->name, sid);
+                                     c->cur_lobby->lobby_id, c->pl->v1.name,
+                                     sid);
                     done = 1;
                 }
                 else if(c->guildcard) {
@@ -525,6 +526,7 @@ insert:
         s->ships[i].ship_addr = p->ship_addr;
         s->ships[i].int_addr = p->int_addr;
         s->ships[i].ship_port = ntohs(p->ship_port);
+        s->ships[i].flags = ntohl(p->flags);
     }
 
     return 0;
@@ -790,7 +792,7 @@ int shipgate_send_ship_info(shipgate_conn_t *c, ship_t *ship) {
     pkt->ship_port = htons(ship->cfg->base_port);
     pkt->ship_key = htons(c->key_idx);
     pkt->connections = 0;
-    pkt->reserved = 0;
+    pkt->flags = 0;
 
     /* Send it away */
     return send_raw(c, sizeof(shipgate_login_reply_pkt), sendbuf);

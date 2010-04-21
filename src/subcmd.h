@@ -96,6 +96,21 @@ typedef struct subcmd_itemgen {
     uint32_t item2[2];
 } PACKED subcmd_itemgen_t;
 
+typedef struct subcmd_levelup {
+    dc_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint8_t client_id;
+    uint8_t unused;
+    uint16_t atp;
+    uint16_t mst;
+    uint16_t evp;
+    uint16_t hp;
+    uint16_t dfp;
+    uint16_t ata;
+    uint32_t level;
+} subcmd_levelup_t;
+
 #undef PACKED
 
 /* Subcommand types we care about (0x62/0x6D). */
@@ -103,9 +118,13 @@ typedef struct subcmd_itemgen {
 #define SUBCMD_ITEMREQ      0x60
 
 /* Subcommand types we might care about (0x60). */
+#define SUBCMD_LEVELUP      0x30
 #define SUBCMD_ITEMDROP     0x5F
 
 /* Handle a 0x62/0x6D packet. */
 int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt);
+
+/* Handle a 0x60 packet. */
+int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt);
 
 #endif /* !SUBCMD_H */

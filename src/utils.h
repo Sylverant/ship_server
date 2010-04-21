@@ -27,4 +27,7 @@ void print_packet(unsigned char *pkt, int pkt_len);
 int dc_bug_report(ship_client_t *c, dc_simple_mail_pkt *pkt);
 int pc_bug_report(ship_client_t *c, pc_simple_mail_pkt *pkt);
 
+/* Actually implemented in list.c, not utils.c. */
+int send_player_list(ship_client_t *c, char *params);
+
 #endif /* !UTILS_H */

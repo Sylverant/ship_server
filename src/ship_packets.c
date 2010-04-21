@@ -23,6 +23,7 @@
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <iconv.h>
+#include <limits.h>
 
 #include <sylverant/encryption.h>
 #include <sylverant/database.h>
@@ -696,8 +697,9 @@ static int send_dc_lobby_join(ship_client_t *c, lobby_t *l) {
         pkt->entries[pls].hdr.ip_addr = 0;
         pkt->entries[pls].hdr.client_id = LE32(i);
 
-        memcpy(pkt->entries[pls].hdr.name, l->clients[i]->pl->name, 16);
-        memcpy(&pkt->entries[pls].data, l->clients[i]->pl, sizeof(player_t));
+        memcpy(pkt->entries[pls].hdr.name, l->clients[i]->pl->v1.name, 16);
+        memcpy(&pkt->entries[pls].data, &l->clients[i]->pl->v1,
+               sizeof(v1_player_t));
 
         ++pls;
         pkt_size += 1084;
@@ -766,13 +768,14 @@ static int send_pc_lobby_join(ship_client_t *c, lobby_t *l) {
         pkt->entries[pls].hdr.client_id = LE32(i);
 
         /* Convert the name to UTF-16. */
-        in = strlen(l->clients[i]->pl->name) + 1;
+        in = strlen(l->clients[i]->pl->v1.name) + 1;
         out = 32;
-        inptr = l->clients[i]->pl->name;
+        inptr = l->clients[i]->pl->v1.name;
         outptr = (char *)pkt->entries[pls].hdr.name;
         iconv(ic, &inptr, &in, &outptr, &out);
 
-        memcpy(&pkt->entries[pls].data, l->clients[i]->pl, sizeof(player_t));
+        memcpy(&pkt->entries[pls].data, &l->clients[i]->pl->v1,
+               sizeof(v1_player_t));
 
         ++pls;
         pkt_size += 1100;
@@ -800,10 +803,18 @@ int send_lobby_join(ship_client_t *c, lobby_t *l) {
                 return -1;
             }
 
+            if(send_lobby_c_rank(c, l)) {
+                return -1;
+            }
+
             return send_dc_lobby_arrows(l, c);
 
         case CLIENT_VERSION_PC:
             if(send_pc_lobby_join(c, l)) {
+                return -1;
+            }
+
+            if(send_lobby_c_rank(c, l)) {
                 return -1;
             }
 
@@ -868,8 +879,8 @@ static int send_dc_lobby_add_player(lobby_t *l, ship_client_t *c,
     pkt->entries[0].hdr.ip_addr = 0;
     pkt->entries[0].hdr.client_id = LE32(nc->client_id);
 
-    memcpy(pkt->entries[0].hdr.name, nc->pl->name, 16);
-    memcpy(&pkt->entries[0].data, nc->pl, sizeof(player_t));
+    memcpy(pkt->entries[0].hdr.name, nc->pl->v1.name, 16);
+    memcpy(&pkt->entries[0].data, &nc->pl->v1, sizeof(v1_player_t));
 
     /* Send it away */
     return crypt_send(c, 0x044C, sendbuf);
@@ -915,13 +926,13 @@ static int send_pc_lobby_add_player(lobby_t *l, ship_client_t *c,
     pkt->entries[0].hdr.client_id = LE32(nc->client_id);
 
     /* Convert the name to UTF-16. */
-    in = strlen(nc->pl->name) + 1;
+    in = strlen(nc->pl->v1.name) + 1;
     out = 32;
-    inptr = nc->pl->name;
+    inptr = nc->pl->v1.name;
     outptr = (char *)pkt->entries[0].hdr.name;
     iconv(ic, &inptr, &in, &outptr, &out);
 
-    memcpy(&pkt->entries[0].data, nc->pl, sizeof(player_t));
+    memcpy(&pkt->entries[0].data, &nc->pl->v1, sizeof(v1_player_t));
 
     /* Send it away */
     return crypt_send(c, 0x045C, sendbuf);
@@ -930,6 +941,9 @@ static int send_pc_lobby_add_player(lobby_t *l, ship_client_t *c,
 /* Send a packet to all clients in the lobby when a new player joins. */
 int send_lobby_add_player(lobby_t *l, ship_client_t *c) {
     int i;
+
+    /* Send the C-Rank of this new character. */
+    send_c_rank_update(c, l);
 
     for(i = 0; i < l->max_clients; ++i) {
         if(l->clients[i] != NULL && l->clients[i] != c) {
@@ -1050,7 +1064,7 @@ static int send_dc_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
     if(msg[0] == '\t') {
         tmp += 2;
     }
-    in = sprintf(tm, "%s\t%s", s->pl->name, tmp) + 1;
+    in = sprintf(tm, "%s\t%s", s->pl->v1.name, tmp) + 1;
 
     /* Convert the message to the appropriate encoding. */
     out = 65520;
@@ -1116,7 +1130,6 @@ static int send_dc_lobby_wchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
     uint8_t *sendbuf = get_sendbuf();
     dc_chat_pkt *pkt = (dc_chat_pkt *)sendbuf;
     iconv_t ic, ic2;
-    uint16_t tm[len];
     char tmp[32];
     size_t in, out;
     char *inptr, *outptr;
@@ -1164,7 +1177,7 @@ static int send_dc_lobby_wchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
     pkt->guildcard = LE32(s->guildcard);
 
     /* Convert the name string first. */
-    in = sprintf(tmp, "%s\t", s->pl->name);
+    in = sprintf(tmp, "%s\t", s->pl->v1.name);
     out = 65520;
     inptr = tmp;
     outptr = pkt->msg;
@@ -1481,7 +1494,7 @@ static int send_dc_game_join(ship_client_t *c, lobby_t *l) {
             pkt->players[i].ip_addr = 0;
             pkt->players[i].client_id = LE32(i);
 
-            memcpy(pkt->players[i].name, l->clients[i]->pl->name, 16);
+            memcpy(pkt->players[i].name, l->clients[i]->pl->v1.name, 16);
             ++clients;
         }
     }
@@ -1541,9 +1554,9 @@ static int send_pc_game_join(ship_client_t *c, lobby_t *l) {
             pkt->players[i].client_id = LE32(i);
 
             /* Convert the name to UTF-16. */
-            in = strlen(l->clients[i]->pl->name) + 1;
+            in = strlen(l->clients[i]->pl->v1.name) + 1;
             out = 32;
-            inptr = l->clients[i]->pl->name;
+            inptr = l->clients[i]->pl->v1.name;
             outptr = (char *)pkt->players[i].name;
             iconv(ic, &inptr, &in, &outptr, &out);
             ++clients;
@@ -1598,7 +1611,7 @@ static int send_gc_game_join(ship_client_t *c, lobby_t *l) {
             pkt->players[i].ip_addr = 0;
             pkt->players[i].client_id = LE32(i);
 
-            memcpy(pkt->players[i].name, l->clients[i]->pl->name, 16);
+            memcpy(pkt->players[i].name, l->clients[i]->pl->v1.name, 16);
             ++clients;
         }
     }
@@ -2039,7 +2052,7 @@ static int send_pc_info_list(ship_client_t *c, ship_t *s) {
     /* Add each info item to the list. */
     for(i = 1; i <= s->cfg->info_file_count; ++i) {
         /* Clear out the ship information */
-        memset(&pkt->entries[i], 0, 0x1C);
+        memset(&pkt->entries[i], 0, 0x2C);
 
         /* Fill in what we have */
         pkt->entries[i].menu_id = LE32(0x00000000);
@@ -2080,13 +2093,85 @@ int send_info_list(ship_client_t *c, ship_t *s) {
     return -1;
 }
 
+/* This is a special case of the information select menu for PSOPC. This allows
+   the user to pick to make a V1 compatible game or not. */
+int send_pc_game_type_sel(ship_client_t *c) {
+    uint8_t *sendbuf = get_sendbuf();
+    pc_block_list_pkt *pkt = (pc_block_list_pkt *)sendbuf;
+    ship_t *s = c->cur_ship;
+    int i;
+    const char str1[16] = "Allow PSOv1";
+    const char str2[16] = "PSOv2 Only";
+    iconv_t ic;
+    size_t in, out;
+    char *inptr, *outptr;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+
+    if(ic == (iconv_t)-1) {
+        perror("iconv_open");
+        return -1;
+    }
+
+    /* Clear the packet */
+    memset(pkt, 0, 0x88);
+
+    /* Fill in the first entry (which isn't shown) */
+    pkt->entries[0].menu_id = LE32(0x00040000);
+    pkt->entries[0].item_id = 0;
+    pkt->entries[0].flags = 0;
+
+    in = strlen(s->cfg->name) + 1;
+    out = 0x20;
+    inptr = s->cfg->name;
+    outptr = (char *)pkt->entries[0].name;
+    iconv(ic, &inptr, &in, &outptr, &out);
+
+    /* Add the "Allow PSOv1" entry */
+    pkt->entries[1].menu_id = LE32(0x00000006);
+    pkt->entries[1].item_id = LE32(0);
+    pkt->entries[1].flags = 0;
+
+    in = strlen(str1) + 1;
+    out = 0x20;
+    inptr = str1;
+    outptr = (char *)pkt->entries[1].name;
+    iconv(ic, &inptr, &in, &outptr, &out);
+
+    /* Add the "PSOv2 Only" entry */
+    pkt->entries[2].menu_id = LE32(0x00000006);
+    pkt->entries[2].item_id = LE32(1);
+    pkt->entries[2].flags = 0;
+
+    in = strlen(str2) + 1;
+    out = 0x20;
+    inptr = str2;
+    outptr = (char *)pkt->entries[2].name;
+    iconv(ic, &inptr, &in, &outptr, &out);
+
+    iconv_close(ic);
+
+    /* Fill in some basic stuff */
+    pkt->hdr.pkt_type = SHIP_LOBBY_INFO_TYPE;
+    pkt->hdr.pkt_len = LE16(0x88);
+    pkt->hdr.flags = 2;
+
+    /* Send the packet away */
+    return crypt_send(c, 0x88, sendbuf);
+}
+
 /* Send a message to the client. */
 static int send_dc_message_box(ship_client_t *c, char msg[]) {
     uint8_t *sendbuf = get_sendbuf();
     dc_msg_box_pkt *pkt = (dc_msg_box_pkt *)sendbuf;
     int len;
     iconv_t ic;
-    size_t in, out, outt;
+    size_t in, out;
     char *inptr, *outptr;
     
     /* Verify we got the sendbuf. */
@@ -2128,7 +2213,7 @@ static int send_dc_message_box(ship_client_t *c, char msg[]) {
     /* Fill in the header */
     len += 0x04;
 
-    if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV1 ||
+    if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
        c->version == CLIENT_VERSION_GC) {
         pkt->hdr.dc.pkt_type = SHIP_MSG_BOX_TYPE;
         pkt->hdr.dc.flags = 0;
@@ -2307,7 +2392,7 @@ static int send_dc_quest_list(ship_client_t *c, int cat,
                               sylverant_quest_category_t *l, uint32_t ver) {
     uint8_t *sendbuf = get_sendbuf();
     dc_quest_list_pkt *pkt = (dc_quest_list_pkt *)sendbuf;
-    int i, len = 0x04, entries = 0;
+    int i, len = 0x04, entries = 0, max = INT_MAX;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -2317,10 +2402,15 @@ static int send_dc_quest_list(ship_client_t *c, int cat,
     /* Clear out the header */
     memset(pkt, 0, 0x04);
 
+    /* If this is for challenge mode, figure out our limit. */
+    if(c->cur_lobby->challenge) {
+        max = c->cur_lobby->max_chal;
+    }
+
     /* Fill in the header */
     pkt->hdr.pkt_type = SHIP_QUEST_LIST_TYPE;
 
-    for(i = 0; i < l->quest_count; ++i) {
+    for(i = 0; i < l->quest_count && i < max; ++i) {
         if(!(l->quests[i].versions & ver)) {
             continue;
         }
@@ -2351,7 +2441,7 @@ static int send_pc_quest_list(ship_client_t *c, int cat,
                               sylverant_quest_category_t *l, uint32_t ver) {
     uint8_t *sendbuf = get_sendbuf();
     pc_quest_list_pkt *pkt = (pc_quest_list_pkt *)sendbuf;
-    int i, len = 0x04, entries = 0;
+    int i, len = 0x04, entries = 0, max = INT_MAX;
     iconv_t ic;
     size_t in, out;
     char *inptr, *outptr;
@@ -2372,10 +2462,15 @@ static int send_pc_quest_list(ship_client_t *c, int cat,
     /* Clear out the header */
     memset(pkt, 0, 0x04);
 
+    /* If this is for challenge mode, figure out our limit. */
+    if(c->cur_lobby->challenge) {
+        max = c->cur_lobby->max_chal;
+    }
+
     /* Fill in the header */
     pkt->hdr.pkt_type = SHIP_QUEST_LIST_TYPE;
 
-    for(i = 0; i < l->quest_count; ++i) {
+    for(i = 0; i < l->quest_count && i < max; ++i) {
         if(!(l->quests[i].versions & ver)) {
             continue;
         }
@@ -2418,7 +2513,7 @@ static int send_gc_quest_list(ship_client_t *c, int cat,
                               sylverant_quest_category_t *l) {
     uint8_t *sendbuf = get_sendbuf();
     dc_quest_list_pkt *pkt = (dc_quest_list_pkt *)sendbuf;
-    int i, len = 0x04, entries = 0;
+    int i, len = 0x04, entries = 0, max = INT_MAX;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -2428,10 +2523,15 @@ static int send_gc_quest_list(ship_client_t *c, int cat,
     /* Clear out the header */
     memset(pkt, 0, 0x04);
 
+    /* If this is for challenge mode, figure out our limit. */
+    if(c->cur_lobby->challenge) {
+        max = c->cur_lobby->max_chal;
+    }
+
     /* Fill in the header */
     pkt->hdr.pkt_type = SHIP_QUEST_LIST_TYPE;
 
-    for(i = 0; i < l->quest_count; ++i) {
+    for(i = 0; i < l->quest_count && i < max; ++i) {
         if(!(l->quests[i].versions & SYLVERANT_QUEST_GC) ||
            l->quests[i].episode != c->cur_lobby->episode) {
             continue;
@@ -2486,7 +2586,7 @@ int send_quest_list(ship_client_t *c, int cat, sylverant_quest_category_t *l) {
     return -1;
 }
 
-/* Send information about a quest to the client. */
+/* Send information about a quest to the lobby. */
 static int send_dc_quest_info(ship_client_t *c, sylverant_quest_t *q) {
     uint8_t *sendbuf = get_sendbuf();
     dc_msg_box_pkt *pkt = (dc_msg_box_pkt *)sendbuf;
@@ -2544,17 +2644,27 @@ static int send_dc_quest_info(ship_client_t *c, sylverant_quest_t *q) {
     return crypt_send(c, len, sendbuf);
 }
 
-int send_quest_info(ship_client_t *c, sylverant_quest_t *q) {
-    /* Call the appropriate function. */
-    switch(c->version) {
-        case CLIENT_VERSION_DCV1:
-        case CLIENT_VERSION_DCV2:
-        case CLIENT_VERSION_PC:
-        case CLIENT_VERSION_GC:
-            return send_dc_quest_info(c, q);
+int send_quest_info(lobby_t *l, sylverant_quest_t *q) {
+    ship_client_t *c;
+    int i;
+
+    for(i = 0; i < l->max_clients; ++i) {
+        c = l->clients[i];
+
+        if(c) {
+            /* Call the appropriate function. */
+            switch(c->version) {
+                case CLIENT_VERSION_DCV1:
+                case CLIENT_VERSION_DCV2:
+                case CLIENT_VERSION_PC:
+                case CLIENT_VERSION_GC:
+                    send_dc_quest_info(c, q);
+                    break;
+            }
+        }
     }
 
-    return -1;
+    return 0;
 }
 
 /* Send a quest to everyone in a lobby. */
@@ -2715,8 +2825,6 @@ static int send_dcv2_quest(ship_client_t *c, sylverant_quest_t *q) {
     if(!bin || !dat) {
         return -1;
     }
-
-    printf("sending %s\n", filename);
 
     /* Figure out how long each of the files are */
     fseek(bin, 0, SEEK_END);
@@ -3179,6 +3287,9 @@ static int send_pc_lobby_name(ship_client_t *c, lobby_t *l) {
     iconv(ic, &inptr, &in, &outptr, &out);
     iconv_close(ic);
 
+    /* Figure out how long the new string is. */
+    len = 65532 - out;
+
     /* Fill in the basics */
     pkt->hdr.pc.pkt_type = SHIP_LOBBY_NAME_TYPE;
     pkt->hdr.pc.flags = 0;
@@ -3333,6 +3444,10 @@ static int send_dc_ship_list(ship_client_t *c, miniship_t *l, int ships) {
 
     for(i = 0; i < ships; ++i) {
         if(l[i].ship_id) {
+            if((l[i].flags & LOGIN_FLAG_GMONLY) && c->is_gm < 2) {
+                continue;
+            }
+
             /* Clear the new entry */
             memset(&pkt->entries[entries], 0, 0x1C);
 
@@ -3390,6 +3505,10 @@ static int send_pc_ship_list(ship_client_t *c, miniship_t *l, int ships) {
 
     for(i = 0; i < ships; ++i) {
         if(l[i].ship_id) {
+            if((l[i].flags & LOGIN_FLAG_GMONLY) && c->is_gm < 2) {
+                continue;
+            }
+
             /* Clear the new entry */
             memset(&pkt->entries[entries], 0, 0x2C);
 
@@ -3630,7 +3749,6 @@ static int send_dc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
     ship_t *s;
     block_t *b;
     ship_client_t *it;
-    char tmp[64];
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -3653,10 +3771,11 @@ static int send_dc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
                 else if(!it->cur_lobby) {
                     continue;
                 }
-                else if(it->pl->level < minlvl || it->pl->level > maxlvl) {
+                else if(it->pl->v1.level < minlvl ||
+                        it->pl->v1.level > maxlvl) {
                     continue;
                 }
-                else if(cl != 0 && it->pl->ch_class != cl - 1) {
+                else if(cl != 0 && it->pl->v1.ch_class != cl - 1) {
                     continue;
                 }
                 else if(it == c) {
@@ -3670,9 +3789,9 @@ static int send_dc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
                 memset(&pkt->entries[entries], 0, 0xD4);
                 pkt->entries[entries].guildcard = LE32(it->guildcard);
 
-                strcpy(pkt->entries[entries].name, it->pl->name);
+                strcpy(pkt->entries[entries].name, it->pl->v1.name);
                 sprintf(pkt->entries[entries].cl_lvl, "%s Lvl %d\n",
-                        classes[it->pl->ch_class], it->pl->level + 1);
+                        classes[it->pl->v1.ch_class], it->pl->v1.level + 1);
                 sprintf(pkt->entries[entries].location, "%s,BLOCK%02d,%s",
                         it->cur_lobby->name, it->cur_block->b, s->cfg->name);
 
@@ -3747,10 +3866,11 @@ static int send_pc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
                 else if(!it->cur_lobby) {
                     continue;
                 }
-                else if(it->pl->level < minlvl || it->pl->level > maxlvl) {
+                else if(it->pl->v1.level < minlvl ||
+                        it->pl->v1.level > maxlvl) {
                     continue;
                 }
-                else if(cl != 0 && it->pl->ch_class != cl - 1) {
+                else if(cl != 0 && it->pl->v1.ch_class != cl - 1) {
                     continue;
                 }
                 else if(it == c) {
@@ -3764,14 +3884,14 @@ static int send_pc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
                 memset(&pkt->entries[entries], 0, 0x154);
                 pkt->entries[entries].guildcard = LE32(it->guildcard);
 
-                in = strlen(it->pl->name) + 1;
+                in = strlen(it->pl->v1.name) + 1;
                 out = 0x20;
-                inptr = it->pl->name;
+                inptr = it->pl->v1.name;
                 outptr = (char *)pkt->entries[entries].name;
                 iconv(ic, &inptr, &in, &outptr, &out);
 
-                in = sprintf(tmp, "%s Lvl %d\n", classes[it->pl->ch_class],
-                             it->pl->level + 1) + 1;
+                in = sprintf(tmp, "%s Lvl %d\n", classes[it->pl->v1.ch_class],
+                             it->pl->v1.level + 1) + 1;
                 out = 0x40;
                 inptr = tmp;
                 outptr = (char *)pkt->entries[entries].cl_lvl;
@@ -3823,7 +3943,6 @@ static int send_gc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
     ship_t *s;
     block_t *b;
     ship_client_t *it;
-    char tmp[64];
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -3846,10 +3965,11 @@ static int send_gc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
                 else if(!it->cur_lobby) {
                     continue;
                 }
-                else if(it->pl->level < minlvl || it->pl->level > maxlvl) {
+                else if(it->pl->v1.level < minlvl ||
+                        it->pl->v1.level > maxlvl) {
                     continue;
                 }
-                else if(cl != 0 && it->pl->ch_class != cl - 1) {
+                else if(cl != 0 && it->pl->v1.ch_class != cl - 1) {
                     continue;
                 }
                 else if(it == c) {
@@ -3863,9 +3983,9 @@ static int send_gc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
                 memset(&pkt->entries[entries], 0, 0xD4);
                 pkt->entries[entries].guildcard = LE32(it->guildcard);
 
-                strcpy(pkt->entries[entries].name, it->pl->name);
+                strcpy(pkt->entries[entries].name, it->pl->v1.name);
                 sprintf(pkt->entries[entries].cl_lvl, "%s Lvl %d\n",
-                        classes[it->pl->ch_class], it->pl->level + 1);
+                        classes[it->pl->v1.ch_class], it->pl->v1.level + 1);
                 sprintf(pkt->entries[entries].location, "%s,BLOCK%02d,%s",
                         it->cur_lobby->name, it->cur_block->b, s->cfg->name);
 
@@ -3911,8 +4031,8 @@ int send_choice_reply(ship_client_t *c, dc_choice_set_t *search) {
     /* Parse the packet for the minimum and maximum levels. */
     switch(LE16(search->entries[0].item_id)) {
         case 0x0001:
-            minlvl = c->pl->level - 5;
-            maxlvl = c->pl->level + 5;
+            minlvl = c->pl->v1.level - 5;
+            maxlvl = c->pl->v1.level + 5;
             break;
 
         case 0x0002:
@@ -4144,7 +4264,7 @@ static int send_gc_infoboard(ship_client_t *c, lobby_t *l) {
             pthread_mutex_lock(&c2->mutex);
 
             memset(&pkt->entries[entries], 0, 0xBC);
-            strcpy(pkt->entries[entries].name, c2->pl->name);
+            strcpy(pkt->entries[entries].name, c2->pl->v1.name);
 
             if(c2->infoboard) {
                 strcpy(pkt->entries[entries].msg, c2->infoboard);
@@ -4186,3 +4306,498 @@ int send_infoboard(ship_client_t *c, lobby_t *l) {
     return -1;
 }
 
+/* Utilities for C-Rank stuff... */
+static void copy_c_rank_gc(gc_c_rank_update_pkt *pkt, int entry,
+                           ship_client_t *s) {
+    int j;
+
+    switch(s->version) {
+        case CLIENT_VERSION_GC:
+            pkt->entries[entry].client_id = LE32(s->client_id);
+            memcpy(pkt->entries[entry].c_rank, s->c_rank, 0x0118);
+            break;
+
+        case CLIENT_VERSION_DCV2:
+            pkt->entries[entry].client_id = LE32(s->client_id);
+
+            memset(pkt->entries[entry].c_rank, 0, 0x0118);
+
+            pkt->entries[entry].unk1 = (s->pl->v2.c_rank.part.unk1 >> 16) |
+                (s->pl->v2.c_rank.part.unk1 << 16);
+
+            /* Copy the rank over. */
+            memcpy(pkt->entries[entry].string, s->pl->v2.c_rank.part.string,
+                   0x0C);
+
+            /* Copy the times for the levels and battle stuff over... */
+            memcpy(pkt->entries[entry].times,
+                   s->pl->v2.c_rank.part.times, 9 * sizeof(uint32_t));
+            memcpy(pkt->entries[entry].battle,
+                   s->pl->v2.c_rank.part.battle, 7 * sizeof(uint32_t));
+            break;
+
+        case CLIENT_VERSION_PC:
+            pkt->entries[entry].client_id = LE32(s->client_id);
+
+            memset(pkt->entries[entry].c_rank, 0, 0x0118);
+
+            pkt->entries[entry].unk1 = s->pl->pc.c_rank.part.unk1;
+
+            /* Copy the rank over. */
+            for(j = 0; j < 0x0C; ++j) {
+                pkt->entries[entry].string[j] =
+                    (char)LE16(s->pl->pc.c_rank.part.string[j]);
+            }
+
+            /* Copy the times for the levels and battle stuff over... */
+            memcpy(pkt->entries[entry].times, s->pl->pc.c_rank.part.times,
+                   9 * sizeof(uint32_t));
+            memcpy(pkt->entries[entry].battle, s->pl->pc.c_rank.part.battle,
+                   7 * sizeof(uint32_t));
+            break;
+
+        default:
+            memset(pkt->entries[entry].c_rank, 0, 0x0118);
+    }
+}
+static void copy_c_rank_dc(dc_c_rank_update_pkt *pkt, int entry,
+                           ship_client_t *s) {
+    int j;
+
+    switch(s->version) {
+        case CLIENT_VERSION_DCV2:
+            pkt->entries[entry].client_id = LE32(s->client_id);
+            memcpy(pkt->entries[entry].c_rank, s->c_rank, 0xB8);
+            break;
+
+        case CLIENT_VERSION_PC:
+            pkt->entries[entry].client_id = LE32(s->client_id);
+
+            memset(pkt->entries[entry].c_rank, 0, 0xB8);
+
+            /* This is a bit hackish.... */
+            pkt->entries[entry].unk1 = s->pl->pc.c_rank.part.unk1;
+
+            /* Copy the rank over. */
+            for(j = 0; j < 0x0C; ++j) {
+                pkt->entries[entry].string[j] =
+                    (char)LE16(s->pl->pc.c_rank.part.string[j]);
+            }
+
+            /* Copy the times for the levels and battle stuff over... */
+            memcpy(pkt->entries[entry].times, s->pl->pc.c_rank.part.times,
+                   9 * sizeof(uint32_t));
+            memcpy(pkt->entries[entry].battle, s->pl->pc.c_rank.part.battle,
+                   7 * sizeof(uint32_t));
+            break;
+
+        case CLIENT_VERSION_GC:
+            pkt->entries[entry].client_id = LE32(s->client_id);
+
+            memset(pkt->entries[entry].c_rank, 0, 0xB8);
+
+            pkt->entries[entry].unk1 = (s->pl->v3.c_rank.part.unk1 >> 16) |
+                (s->pl->v3.c_rank.part.unk1 << 16);
+
+            /* Copy the rank over. */
+            memcpy(pkt->entries[entry].string, s->pl->v3.c_rank.part.string,
+                   0x0C);
+
+            /* Copy the times for the levels and battle stuff over... */
+            memcpy(pkt->entries[entry].times,
+                   s->pl->v3.c_rank.part.times, 9 * sizeof(uint32_t));
+            memcpy(pkt->entries[entry].battle,
+                   s->pl->v3.c_rank.part.battle, 7 * sizeof(uint32_t));
+            break;
+
+        default:
+            memset(pkt->entries[entry].c_rank, 0, 0xB8);
+    }
+}
+
+static void copy_c_rank_pc(pc_c_rank_update_pkt *pkt, int entry,
+                           ship_client_t *s) {
+    int j;
+
+    switch(s->version) {
+        case CLIENT_VERSION_PC:
+            pkt->entries[entry].client_id = LE32(s->client_id);
+            memcpy(pkt->entries[entry].c_rank, s->c_rank, 0xF0);
+            break;
+
+        case CLIENT_VERSION_DCV2:
+            pkt->entries[entry].client_id = LE32(s->client_id);
+
+            memset(pkt->entries[entry].c_rank, 0, 0xF0);
+
+            pkt->entries[entry].unk1 = s->pl->v2.c_rank.part.unk1;
+
+            /* Copy the rank over. */
+            for(j = 0; j < 0x0C; ++j) {
+                pkt->entries[entry].string[j] =
+                    LE16(s->pl->v2.c_rank.part.string[j]);
+            }
+
+            /* Copy the times for the levels and battle stuff over... */
+            memcpy(pkt->entries[entry].times, s->pl->v2.c_rank.part.times,
+                   9 * sizeof(uint32_t));
+            memcpy(pkt->entries[entry].battle, s->pl->v2.c_rank.part.battle,
+                   7 * sizeof(uint32_t));
+            break;
+
+        case CLIENT_VERSION_GC:
+            pkt->entries[entry].client_id = LE32(s->client_id);
+
+            memset(pkt->entries[entry].c_rank, 0, 0xF0);
+
+            pkt->entries[entry].unk1 = (s->pl->v3.c_rank.part.unk1 >> 16) |
+                (s->pl->v3.c_rank.part.unk1 << 16);
+
+            /* Copy the rank over. */
+            for(j = 0; j < 0x0C; ++j) {
+                pkt->entries[entry].string[j] =
+                    LE16(s->pl->v3.c_rank.part.string[j]);
+            }
+
+            /* Copy the times for the levels and battle stuff over... */
+            memcpy(pkt->entries[entry].times,
+                   s->pl->v3.c_rank.part.times, 9 * sizeof(uint32_t));
+            memcpy(pkt->entries[entry].battle,
+                   s->pl->v3.c_rank.part.battle, 7 * sizeof(uint32_t));
+            break;
+
+        default:
+            memset(pkt->entries[entry].c_rank, 0, 0xF0);
+    }
+}
+
+/* Send the lobby's C-Rank data to the client. */
+static int send_gc_lobby_c_rank(ship_client_t *c, lobby_t *l) {
+    int i;
+    uint8_t *sendbuf = get_sendbuf();
+    gc_c_rank_update_pkt *pkt = (gc_c_rank_update_pkt *)sendbuf;
+    int entries = 0, size = 4;
+    ship_client_t *c2;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    for(i = 0; i < l->max_clients; ++i) {
+        if(l->clients[i] != NULL) {
+            c2 = l->clients[i];
+            pthread_mutex_lock(&c2->mutex);
+
+            /* Copy over this character's data... */
+            if(c2->c_rank) {
+                copy_c_rank_gc(pkt, entries, c2);
+                ++entries;
+                size += 0x011C;
+            }
+
+            pthread_mutex_unlock(&c2->mutex);
+        }
+    }
+
+    /* Fill in the header. */
+    pkt->hdr.pkt_type = SHIP_C_RANK_TYPE;
+    pkt->hdr.flags = entries;
+    pkt->hdr.pkt_len = LE16(size);
+
+    return crypt_send(c, size, sendbuf);
+}
+
+static int send_dc_lobby_c_rank(ship_client_t *c, lobby_t *l) {
+    int i;
+    uint8_t *sendbuf = get_sendbuf();
+    dc_c_rank_update_pkt *pkt = (dc_c_rank_update_pkt *)sendbuf;
+    int entries = 0, size = 4;
+    ship_client_t *c2;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    for(i = 0; i < l->max_clients; ++i) {
+        if(l->clients[i] != NULL) {
+            c2 = l->clients[i];
+            pthread_mutex_lock(&c2->mutex);
+
+            /* Copy this character's data... */
+            if(c2->c_rank) {
+                copy_c_rank_dc(pkt, entries, c2);
+                ++entries;
+                size += 0xBC;
+            }
+
+            pthread_mutex_unlock(&c2->mutex);
+        }
+    }
+
+    /* Fill in the header. */
+    pkt->hdr.pkt_type = SHIP_C_RANK_TYPE;
+    pkt->hdr.flags = entries;
+    pkt->hdr.pkt_len = LE16(size);
+
+    return crypt_send(c, size, sendbuf);
+}
+
+static int send_pc_lobby_c_rank(ship_client_t *c, lobby_t *l) {
+    int i;
+    uint8_t *sendbuf = get_sendbuf();
+    pc_c_rank_update_pkt *pkt = (pc_c_rank_update_pkt *)sendbuf;
+    int entries = 0, size = 4;
+    ship_client_t *c2;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    for(i = 0; i < l->max_clients; ++i) {
+        if(l->clients[i] != NULL) {
+            c2 = l->clients[i];
+            pthread_mutex_lock(&c2->mutex);
+
+            /* Copy over this character's data... */
+            if(c2->c_rank) {
+                copy_c_rank_pc(pkt, entries, c2);
+                ++entries;
+                size += 0xF4;
+            }
+#if 0
+            if(c2->c_rank && c2->version == CLIENT_VERSION_PC) {
+                pkt->entries[entries].client_id = LE32(c2->client_id);
+                memcpy(pkt->entries[entries].c_rank, c2->c_rank, 0xF0);
+
+                ++entries;
+                size += 0xF4;
+            }
+            else if(c2->c_rank && c2->version == CLIENT_VERSION_DCV2) {
+                pkt->entries[entries].client_id = LE32(c2->client_id);
+
+                memset(pkt->entries[entries].c_rank, 0, 0xF0);
+
+                /* This is a bit hackish.... */
+                pkt->entries[entries].unk1 = c2->pl->v2.c_rank.part.unk1;
+
+                /* Copy the rank over. */
+                for(j = 0; j < 0x0C; ++j) {
+                    pkt->entries[entries].string[j << 1] =
+                        c2->pl->v2.c_rank.part.string[j];
+                }
+
+                /* Copy the times for the levels and battle stuff over... */
+                memcpy(pkt->entries[entries].times,
+                       c2->pl->v2.c_rank.part.times, 9 * sizeof(uint32_t));
+                memcpy(pkt->entries[entries].battle,
+                       c2->pl->v2.c_rank.part.battle, 7 * sizeof(uint32_t));
+
+                ++entries;
+                size += 0xF4;
+            }
+            else if(c2->c_rank && c2->version == CLIENT_VERSION_GC) {
+                pkt->entries[entries].client_id = LE32(c2->client_id);
+
+                memset(pkt->entries[entries].c_rank, 0, 0xF0);
+
+                /* This is a bit hackish.... */
+                pkt->entries[entries].unk1 =
+                    (c2->pl->v3.c_rank.part.unk1 >> 16) |
+                    (c2->pl->v3.c_rank.part.unk1 << 16);
+
+                /* Copy the rank over. */
+                for(j = 0; j < 0x0C; ++j) {
+                    pkt->entries[entries].string[j << 1] =
+                        c2->pl->v3.c_rank.part.string[j];
+                }
+
+                /* Copy the times for the levels and battle stuff over... */
+                memcpy(pkt->entries[entries].times,
+                       c2->pl->v3.c_rank.part.times, 9 * sizeof(uint32_t));
+                memcpy(pkt->entries[entries].battle,
+                       c2->pl->v3.c_rank.part.battle, 7 * sizeof(uint32_t));
+
+                ++entries;
+                size += 0xF4;
+            }
+#endif
+
+            pthread_mutex_unlock(&c2->mutex);
+        }
+    }
+
+    /* Fill in the header. */
+    pkt->hdr.pkt_type = SHIP_C_RANK_TYPE;
+    pkt->hdr.flags = entries;
+    pkt->hdr.pkt_len = LE16(size);
+
+    return crypt_send(c, size, sendbuf);
+}
+
+int send_lobby_c_rank(ship_client_t *c, lobby_t *l) {
+    switch(c->version) {
+        case CLIENT_VERSION_GC:
+            return send_gc_lobby_c_rank(c, l);
+
+        case CLIENT_VERSION_DCV2:
+            return send_dc_lobby_c_rank(c, l);
+
+        case CLIENT_VERSION_PC:
+            return send_pc_lobby_c_rank(c, l);
+    }
+
+    /* Don't send to unsupporting clients. */
+    return 0;
+}
+
+/* Send a C-Rank update for a single client to the whole lobby. */
+static int send_gc_c_rank_update(ship_client_t *d, ship_client_t *s) {
+    uint8_t *sendbuf = get_sendbuf();
+    gc_c_rank_update_pkt *pkt = (gc_c_rank_update_pkt *)sendbuf;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Copy the data. */
+    copy_c_rank_gc(pkt, 0, s);
+
+    /* Fill in the header. */
+    pkt->hdr.pkt_type = SHIP_C_RANK_TYPE;
+    pkt->hdr.flags = 1;
+    pkt->hdr.pkt_len = LE16(0x0120);
+
+    return crypt_send(d, 0x0120, sendbuf);
+}
+
+static int send_dc_c_rank_update(ship_client_t *d, ship_client_t *s) {
+    uint8_t *sendbuf = get_sendbuf();
+    dc_c_rank_update_pkt *pkt = (dc_c_rank_update_pkt *)sendbuf;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Copy the data. */
+    copy_c_rank_dc(pkt, 0, s);
+
+    /* Fill in the header. */
+    pkt->hdr.pkt_type = SHIP_C_RANK_TYPE;
+    pkt->hdr.flags = 1;
+    pkt->hdr.pkt_len = LE16(0xC0);
+
+    return crypt_send(d, 0xC0, sendbuf);
+}
+
+static int send_pc_c_rank_update(ship_client_t *d, ship_client_t *s) {
+    uint8_t *sendbuf = get_sendbuf();
+    pc_c_rank_update_pkt *pkt = (pc_c_rank_update_pkt *)sendbuf;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Copy the data. */
+    copy_c_rank_pc(pkt, 0, s);
+#if 0
+    switch(s->version) {
+        case CLIENT_VERSION_PC:
+            pkt->entries[0].client_id = LE32(s->client_id);
+            memcpy(pkt->entries[0].c_rank, s->c_rank, 0xF0);
+            break;
+
+        case CLIENT_VERSION_DCV2:
+            pkt->entries[0].client_id = LE32(s->client_id);
+
+            memset(pkt->entries[0].c_rank, 0, 0xF0);
+
+            /* This is a bit hackish.... */
+            pkt->entries[0].unk1 = s->pl->v2.c_rank.part.unk1;
+
+            /* Copy the rank over. */
+            for(j = 0; j < 0x0C; ++j) {
+                pkt->entries[0].string[j << 1] =
+                    s->pl->v2.c_rank.part.string[j];
+            }
+
+            /* Copy the times for the levels and battle stuff over... */
+            memcpy(pkt->entries[0].times, s->pl->v2.c_rank.part.times,
+                   9 * sizeof(uint32_t));
+            memcpy(pkt->entries[0].battle, s->pl->v2.c_rank.part.battle,
+                   7 * sizeof(uint32_t));
+            break;
+
+        case CLIENT_VERSION_GC:
+            pkt->entries[0].client_id = LE32(s->client_id);
+
+            memset(pkt->entries[0].c_rank, 0, 0xF0);
+
+            /* This is a bit hackish.... */
+            pkt->entries[0].unk1 = (s->pl->v3.c_rank.part.unk1 >> 16) |
+                (s->pl->v3.c_rank.part.unk1 << 16);
+
+            /* Copy the rank over. */
+            for(j = 0; j < 0x0C; ++j) {
+                pkt->entries[0].string[j << 1] =
+                    s->pl->v3.c_rank.part.string[j];
+            }
+
+            /* Copy the times for the levels and battle stuff over... */
+            memcpy(pkt->entries[0].times,
+                   s->pl->v3.c_rank.part.times, 9 * sizeof(uint32_t));
+            memcpy(pkt->entries[0].battle,
+                   s->pl->v3.c_rank.part.battle, 7 * sizeof(uint32_t));
+            break;
+
+        default:
+            memset(pkt->entries[0].c_rank, 0, 0xF0);
+    }
+#endif
+
+    /* Fill in the header. */
+    pkt->hdr.pkt_type = SHIP_C_RANK_TYPE;
+    pkt->hdr.flags = 1;
+    pkt->hdr.pkt_len = LE16(0xF8);
+
+    return crypt_send(d, 0xF8, sendbuf);
+}
+
+int send_c_rank_update(ship_client_t *c, lobby_t *l) {
+    int i;
+
+    /* Don't even bother if we don't have something to send. */
+    if(!c->c_rank) {
+        return 0;
+    }
+
+    for(i = 0; i < l->max_clients; ++i) {
+        if(l->clients[i] != NULL && l->clients[i] != c) {
+            pthread_mutex_lock(&l->clients[i]->mutex);
+
+            /* Call the appropriate function. */
+            switch(l->clients[i]->version) {
+                case CLIENT_VERSION_GC:
+                    send_gc_c_rank_update(l->clients[i], c);
+                    break;
+
+                case CLIENT_VERSION_DCV2:
+                    send_dc_c_rank_update(l->clients[i], c);
+                    break;
+
+                case CLIENT_VERSION_PC:
+                    send_pc_c_rank_update(l->clients[i], c);
+                    break;
+            }
+
+            pthread_mutex_unlock(&l->clients[i]->mutex);
+        }
+    }
+
+    return 0;
+}

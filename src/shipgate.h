@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009 Lawrence Sebald
+    Copyright (C) 2009, 2010 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License version 3 as
@@ -91,7 +91,7 @@ typedef struct shipgate_login_reply {
     uint16_t ship_port;
     uint16_t ship_key;
     uint32_t connections;
-    uint32_t reserved;
+    uint32_t flags;
 } PACKED shipgate_login_reply_pkt;
 
 /* A update of the client/games count. */
@@ -119,7 +119,7 @@ typedef struct shipgate_ship_status {
     uint32_t int_addr;
     uint16_t ship_port;
     uint16_t status;
-    uint32_t reserved;
+    uint32_t flags;
 } PACKED shipgate_ship_status_pkt;
 
 /* A packet sent to/from clients to save/restore character data. */
@@ -193,6 +193,10 @@ static const char shipgate_login_msg[] =
 #define SHDR_TYPE_GMLOGIN   0x0016      /* Login request for a Global GM */
 #define SHDR_TYPE_GCBAN     0x0017      /* Guildcard ban */
 #define SHDR_TYPE_IPBAN     0x0018      /* IP ban */
+
+/* Flags that can be set in the login packet */
+#define LOGIN_FLAG_GMONLY   0x00000001  /* Only Global GMs are allowed */
+#define LOGIN_FLAG_PROXY    0x00000002  /* Is a proxy -- exclude many pkts */
 
 /* Attempt to connect to the shipgate. Returns < 0 on error, returns the socket
    for communciation on success. */

@@ -69,7 +69,8 @@ lobby_t *lobby_create_default(block_t *block, uint32_t lobby_id, uint8_t ev) {
    mind too much. */
 static const uint32_t maps[2][0x20] = {
     {1,1,1,5,1,5,3,2,3,2,3,2,3,2,3,2,3,2,3,2,3,2,1,1,1,1,1,1,1,1,1,1},
-    {1,1,2,1,2,1,2,1,2,1,1,3,1,3,1,3,2,2,1,3,2,2,2,2,1,1,1,1,1,1,1,1}};
+    {1,1,2,1,2,1,2,1,2,1,1,3,1,3,1,3,2,2,1,3,2,2,2,2,1,1,1,1,1,1,1,1}
+};
 
 lobby_t *lobby_create_game(block_t *block, char name[16], char passwd[16],
                            uint8_t difficulty, uint8_t battle, uint8_t chal,
@@ -112,6 +113,7 @@ lobby_t *lobby_create_game(block_t *block, char name[16], char passwd[16],
     l->min_level = game_required_level[difficulty];
     l->max_level = 9001;                /* Its OVER 9000! */
     l->rand_seed = genrand_int32();
+    l->max_chal = 0xFF;
 
     /* Copy the game name and password. */
     strcpy(l->name, name);
@@ -136,7 +138,9 @@ lobby_t *lobby_create_game(block_t *block, char name[16], char passwd[16],
     }
 
     /* Add it to the list of lobbies. */
-    TAILQ_INSERT_TAIL(&block->lobbies, l, qentry);
+    if(version != CLIENT_VERSION_PC || battle || chal) {
+        TAILQ_INSERT_TAIL(&block->lobbies, l, qentry);
+    }
 
     return l;
 }
@@ -156,12 +160,109 @@ void lobby_destroy(lobby_t *l) {
     lobby_destroy_locked(l);
 }
 
+static uint8_t lobby_find_max_challenge(lobby_t *l) {
+    int min_lev = 255, i, j;
+    ship_client_t *c;
+
+    if(!l->challenge)
+        return 0;
+
+    /* Look through everyone's list of completed challenge levels to figure out
+       what is the max level for the lobby. */
+    for(j = 0; j < l->max_clients; ++j) {
+        c = l->clients[j];
+
+        if(c != NULL) {
+            switch(c->version) {
+                case CLIENT_VERSION_DCV2:
+                    for(i = 0; i < 9; ++i) {
+                        if(c->pl->v2.c_rank.part.times[i] == 0) {
+                            break;
+                        }
+                    }
+                    
+                    break;
+
+                case CLIENT_VERSION_PC:
+                    for(i = 0; i < 9; ++i) {
+                        if(c->pl->pc.c_rank.part.times[i] == 0) {
+                            break;
+                        }
+                    }
+                    
+                    break;
+
+                case CLIENT_VERSION_GC:
+                    /* XXXX: Handle ep2 stuff too. */
+                    for(i = 0; i < 9; ++i) {
+                        if(c->pl->v3.c_rank.part.times[i] == 0) {
+                            break;
+                        }
+                    }
+
+                    break;
+
+                default:
+                    /* We shouldn't get here... */
+                    return -1;
+            }
+
+            if(i < min_lev) {
+                min_lev = i;
+            }
+        }
+    }
+
+    return (uint8_t)(min_lev + 1);
+}
+
 static int lobby_add_client_locked(ship_client_t *c, lobby_t *l) {
     int i;
+    uint8_t clev = l->max_chal;
 
     /* Sanity check: Do we have space? */
     if(l->num_clients >= l->max_clients) {
         return -1;
+    }
+
+    /* If this is a challenge lobby, check to see what the max level of
+       challenge mode the party can now access is. */
+    if(l->challenge) {
+        switch(c->version) {
+            case CLIENT_VERSION_DCV2:
+                for(i = 0; i < 9; ++i) {
+                    if(c->pl->v2.c_rank.part.times[i] == 0) {
+                        break;
+                    }
+                }
+
+                break;
+
+            case CLIENT_VERSION_PC:
+                for(i = 0; i < 9; ++i) {
+                    if(c->pl->pc.c_rank.part.times[i] == 0) {
+                        break;
+                    }
+                }
+
+                break;
+
+            case CLIENT_VERSION_GC:
+                /* XXXX: Handle ep2 stuff too. */
+                for(i = 0; i < 9; ++i) {
+                    if(c->pl->v3.c_rank.part.times[i] == 0) {
+                        break;
+                    }
+                }
+
+                break;
+
+            default:
+                /* We shouldn't get here... */
+                return -1;
+        }
+
+        clev = (uint8_t)i + 1;
     }
 
     /* Find a place to put the client. */
@@ -173,6 +274,13 @@ static int lobby_add_client_locked(ship_client_t *c, lobby_t *l) {
             c->arrow = 0;
             c->join_time = time(NULL);
             ++l->num_clients;
+
+            /* If this player is at a lower challenge level than the rest of the
+               lobby, fix the maximum challenge level down to their level. */
+            if(l->challenge && l->max_chal > clev) {
+                l->max_chal = clev;
+            }
+
             return 0;
         }
     }
@@ -185,6 +293,13 @@ static int lobby_add_client_locked(ship_client_t *c, lobby_t *l) {
         c->arrow = 0;
         c->join_time = time(NULL);
         ++l->num_clients;
+
+        /* If this player is at a lower challenge level than the rest of the
+           lobby, fix the maximum challenge level down to their level. */
+        if(l->challenge && l->max_chal > clev) {
+            l->max_chal = clev;
+        }
+
         return 0;
     }
 
@@ -243,7 +358,12 @@ static int lobby_remove_client_locked(ship_client_t *c, int client_id,
     l->clients[client_id] = NULL;
     --l->num_clients;
 
-    /* If this is the player current lobby, fix that. */
+    /* Make sure the maximum challenge level available hasn't changed... */
+    if(l->challenge) {
+        l->max_chal = lobby_find_max_challenge(l);
+    }
+
+    /* If this is the player's current lobby, fix that. */
     if(c->cur_lobby == l) {
         c->cur_lobby = NULL;
         c->client_id = 0;
@@ -314,13 +434,13 @@ int lobby_change_lobby(ship_client_t *c, lobby_t *req) {
     }
 
     /* Make sure the character is in the correct level range. */
-    if(req->min_level > LE32(c->pl->level)) {
+    if(req->min_level > LE32(c->pl->v1.level)) {
         /* Too low. */
         rv = -4;
         goto out;
     }
 
-    if(req->max_level < LE32(c->pl->level)) {
+    if(req->max_level < LE32(c->pl->v1.level)) {
         /* Too high. */
         rv = -5;
         goto out;
@@ -468,8 +588,9 @@ int lobby_info_reply(ship_client_t *c, uint32_t lobby) {
         /* Grab the player data and fill in the string */
         pl = l->clients[i]->pl;
 
-        sprintf(msg, "%s%s L%d\n  %s    %s\n", msg, pl->name, pl->level + 1,
-                classes[pl->ch_class], language_codes[pl->inv.language]);
+        sprintf(msg, "%s%s L%d\n  %s    %s\n", msg, pl->v1.name,
+                pl->v1.level + 1, classes[pl->v1.ch_class],
+                language_codes[pl->v1.inv.language]);
     }
 
     /* Unlock the lobby */

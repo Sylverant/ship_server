@@ -510,36 +510,6 @@ static int handle_item4(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return send_txt(c, "\tE\tC7Item4 set succesfully");
 }
 
-/* Usage: /v1 */
-static int handle_v1(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
-    lobby_t *l = c->cur_lobby;
-
-    /* Make sure that the requester is in a game lobby, not a lobby lobby. */
-    if(!(l->type & LOBBY_TYPE_GAME)) {
-        return send_txt(c, "\tE\tC7Only valid in a game lobby.");
-    }
-
-    /* Make sure the requester is the leader of the team. */
-    if(l->leader_id != c->client_id) {
-        return send_txt(c, "\tE\tC7Only the leader may use this command.");
-    }
-
-    /* Make sure we're on a v2 game. */
-    if(!l->v2) {
-        return send_txt(c, "\tE\tC7This command is only valid in a v2 game.");
-    }
-
-    /* Make sure a quest is not in progress. */
-    if(l->flags & LOBBY_FLAG_QUESTING) {
-        return send_txt(c, "\tE\tC7Not valid while quest in progress.");
-    }
-
-    /* Set the version flag on the lobby to v1. */
-    l->v2 = 0;
-
-    return send_txt(c, "\tE\tC7V1 Compatibility mode set.");
-}
-
 /* Usage: /event number */
 static int handle_event(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     lobby_t *l = c->cur_lobby;
@@ -717,7 +687,7 @@ static int handle_clinfo(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     /* Copy over the item data. */
     count = sscanf(params, "%d", &id);
 
-    if(count == EOF || count == 0) {
+    if(count == EOF || count == 0 || id >= l->max_clients) {
         return send_txt(c, "\tE\tC7Invalid Client ID");
     }
 
@@ -728,8 +698,9 @@ static int handle_clinfo(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     /* Fill in the client's info. */
     inet_ntop(AF_INET, &cl->addr, ip, INET_ADDRSTRLEN);
-    sprintf(info, "\tE\tC7Name: %s\nIP: %s\nGC: %u\n%s Lv.%d", cl->pl->name, ip,
-            cl->guildcard, classes[c->pl->ch_class], c->pl->level + 1);
+    sprintf(info, "\tE\tC7Name: %s\nIP: %s\nGC: %u\n%s Lv.%d", cl->pl->v1.name,
+            ip, cl->guildcard, classes[cl->pl->v1.ch_class],
+            cl->pl->v1.level + 1);
 
     /* Send the response. */
     return send_txt(c, info);
@@ -948,6 +919,19 @@ static int handle_gban_p(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return 0;
 }
 
+/* Usage: /list parameters (there's too much to put here) */
+static int handle_list(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    block_t *b = c->cur_block;
+
+    /* Make sure the requester is a global GM. */
+    if(!c->is_gm) {
+        return send_txt(c, "\tE\tC7Nice try.");
+    }
+
+    /* Pass off to the player list code... */
+    return send_player_list(c, params);
+}
+
 static command_t cmds[] = {
     { "warp"   , handle_warp      },
     { "kill"   , handle_kill      },
@@ -962,7 +946,6 @@ static command_t cmds[] = {
     { "login"  , handle_login     },
     { "item"   , handle_item      },
     { "item4"  , handle_item4     },
-    { "v1"     , handle_v1        },
     { "event"  , handle_event     },
     { "passwd" , handle_passwd    },
     { "lname"  , handle_lname     },
@@ -973,6 +956,7 @@ static command_t cmds[] = {
     { "gban:w" , handle_gban_w    },
     { "gban:m" , handle_gban_m    },
     { "gban:p" , handle_gban_p    },
+    { "list"   , handle_list      },
     { ""       , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

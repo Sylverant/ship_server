@@ -49,6 +49,7 @@ typedef struct miniship {
     uint32_t ship_addr;
     uint32_t int_addr;
     uint16_t ship_port;
+    uint32_t flags;
 } miniship_t;
 
 struct ship {

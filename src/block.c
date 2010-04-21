@@ -80,7 +80,7 @@ static void *block_thd(void *d) {
                Disconnect it. */
             if(now > it->last_message + 120) {
                 if(it->pl) {
-                    debug(DBG_LOG, "Ping Timeout: %s(%d)\n", it->pl->name,
+                    debug(DBG_LOG, "Ping Timeout: %s(%d)\n", it->pl->v1.name,
                           it->guildcard);
                 }
 
@@ -95,14 +95,6 @@ static void *block_thd(void *d) {
                 }
 
                 it->last_sent = now;
-            }
-
-            /* Check if the user's character data has been updated recently. */
-            if(now > it->last_update + 300) {
-                if(send_simple(it, SHIP_CHAR_DATA_REQUEST_TYPE, 0)) {
-                    it->disconnected = 1;
-                    continue;
-                }
             }
 
             FD_SET(it->sock, &readfds);
@@ -237,7 +229,7 @@ static void *block_thd(void *d) {
 
             if(it->disconnected) {
                 if(it->pl) {
-                    debug(DBG_LOG, "Disconnecting %s(%d)\n", it->pl->name,
+                    debug(DBG_LOG, "Disconnecting %s(%d)\n", it->pl->v1.name,
                           it->guildcard);
                 }
                 else {
@@ -619,12 +611,37 @@ static int gc_process_login(ship_client_t *c, gc_login_pkt *pkt) {
 /* Process incoming character data, and add to a lobby, if the character isn't
    currently in a lobby. */
 static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
-    uint8_t type = c->version == CLIENT_VERSION_PC ? pkt->hdr.pc.pkt_type :
-                                                     pkt->hdr.dc.pkt_type;
+    uint8_t type = pkt->hdr.dc.pkt_type;
+    uint8_t version = pkt->hdr.dc.flags;
+    int size = sizeof(v1_player_t);
+    int i;
+
+    if(version == 2 && c->version == CLIENT_VERSION_DCV2) {
+        size = sizeof(v2_player_t);
+    }
+    else if(version == 2 && c->version == CLIENT_VERSION_PC) {
+        size = sizeof(pc_player_t);
+    }
+    else if(version == 3) {
+        size = sizeof(v3_player_t);
+    }
 
     /* Copy the character data to the client's structure. */
-    memcpy(c->pl, &pkt->data, sizeof(player_t));
-    c->last_update = time(NULL);
+    memcpy(c->pl, &pkt->data, size);
+
+    /* Copy out the infoboard and c-rank stuff for v3. */
+    if(version == 3) {
+        client_write_infoboard(c, pkt->data.v3.infoboard,
+                               strlen(pkt->data.v3.infoboard));
+        c->c_rank = c->pl->v3.c_rank.all;
+    }
+    else if(version == 2) {
+        /* C-Rank on PC/DCv2 start in the same place, so this will work... */
+        c->c_rank = c->pl->v2.c_rank.all;
+    }
+    else {
+        c->c_rank = NULL;
+    }
 
     /* If this packet is coming after the client has left a game, then don't
        do anything else here, they'll take care of it by sending an 0x84. */
@@ -649,12 +666,6 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
     }
 
     return 0;
-}
-
-/* Process a Packet 0x60 - Game Command 0 packet. For now, just forward to all
-   other clients... We'll deal with specifics later. */
-static int dc_process_g0(ship_client_t *c, dc_pkt_hdr_t *pkt) {
-    return lobby_send_pkt_dc(c->cur_lobby, c, pkt);
 }
 
 /* Process a change lobby packet. */
@@ -761,7 +772,7 @@ static int dc_process_guild_search(ship_client_t *c, dc_guild_search_pkt *pkt) {
                                           it->cur_lobby->name,
                                           s->blocks[i]->b, s->cfg->name,
                                           it->cur_lobby->lobby_id,
-                                          it->pl->name);
+                                          it->pl->v1.name);
                     done = 1;
                     pthread_mutex_unlock(&it->mutex);
                 }
@@ -898,7 +909,7 @@ static int dc_process_game_create(ship_client_t *c, dc_game_create_pkt *pkt) {
     uint8_t event = c->cur_lobby->gevent;
 
     /* Check the user's ability to create a game of that difficulty. */
-    if(c->pl->level < game_required_level[pkt->difficulty]) {
+    if(c->pl->v1.level < game_required_level[pkt->difficulty]) {
         return send_message1(c, "\tC4Can\'t create game!\n\n"
                              "\tC7Your level is too\nlow for that\n"
                              "difficulty.");
@@ -907,7 +918,8 @@ static int dc_process_game_create(ship_client_t *c, dc_game_create_pkt *pkt) {
     /* Create the lobby structure. */
     l = lobby_create_game(c->cur_block, pkt->name, pkt->password,
                           pkt->difficulty, pkt->battle, pkt->challenge,
-                          pkt->version, c->version, c->pl->section, event, 0);
+                          pkt->version, c->version, c->pl->v1.section,
+                          event, 0);
 
     /* If we don't have a game, something went wrong... tell the user. */
     if(!l) {
@@ -958,7 +970,7 @@ static int pc_process_game_create(ship_client_t *c, pc_game_create_pkt *pkt) {
     iconv_close(ic);
 
     /* Check the user's ability to create a game of that difficulty. */
-    if(c->pl->level < game_required_level[pkt->difficulty]) {
+    if(c->pl->v1.level < game_required_level[pkt->difficulty]) {
         return send_message1(c, "\tC4Can\'t create game!\n\n"
                              "\tC7Your level is too\nlow for that\n"
                              "difficulty.");
@@ -967,7 +979,7 @@ static int pc_process_game_create(ship_client_t *c, pc_game_create_pkt *pkt) {
     /* Create the lobby structure. */
     l = lobby_create_game(c->cur_block, name, password, pkt->difficulty,
                           pkt->battle, pkt->challenge, 1, c->version,
-                          c->pl->section, event, 0);
+                          c->pl->v1.section, event, 0);
 
     /* If we don't have a game, something went wrong... tell the user. */
     if(!l) {
@@ -975,8 +987,15 @@ static int pc_process_game_create(ship_client_t *c, pc_game_create_pkt *pkt) {
                              "\tC7Try again later.");
     }
 
+    /* If its a non-challenge, non-battle game, ask the user if they want v1
+       compatibility or not. */
+    if(!pkt->battle && !pkt->challenge) {
+        c->create_lobby = l;
+        return send_pc_game_type_sel(c);
+    }
+
     /* We've got a new game, but nobody's in it yet... Lets put the requester
-       in the game. */
+       in the game (as long as we're still here). */
     if(lobby_change_lobby(c, l)) {
         /* Something broke, destroy the created lobby before anyone tries to
            join it. */
@@ -993,7 +1012,7 @@ static int gc_process_game_create(ship_client_t *c, gc_game_create_pkt *pkt) {
     uint8_t event = c->cur_lobby->gevent;
 
     /* Check the user's ability to create a game of that difficulty. */
-    if(c->pl->level < game_required_level[pkt->difficulty]) {
+    if(c->pl->v1.level < game_required_level[pkt->difficulty]) {
         return send_message1(c, "\tC4Can\'t create game!\n\n"
                              "\tC7Your level is too\nlow for that\n"
                              "difficulty.");
@@ -1002,7 +1021,8 @@ static int gc_process_game_create(ship_client_t *c, gc_game_create_pkt *pkt) {
     /* Create the lobby structure. */
     l = lobby_create_game(c->cur_block, pkt->name, pkt->password,
                           pkt->difficulty, pkt->battle, pkt->challenge,
-                          0, c->version, c->pl->section, event, pkt->episode);
+                          0, c->version, c->pl->v1.section, event,
+                          pkt->episode);
 
     /* If we don't have a game, something went wrong... tell the user. */
     if(!l) {
@@ -1301,7 +1321,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
             int i;
             ship_t *s = c->cur_ship;
             in_addr_t addr;
-            int off;
+            int off = 0;
 
             switch(c->version) {
                 case CLIENT_VERSION_DCV1:
@@ -1350,6 +1370,34 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
             /* We didn't find it, punt. */
             return send_message1(c, "\tC4That ship is now\noffline.");
         }
+
+        /* Game type (PSOPC only) */
+        case 0x06:
+        {
+            lobby_t *l = c->create_lobby;
+
+            if(l) {
+                if(item_id == 0) {
+                    l->v2 = 0;
+                }
+
+                /* Add the lobby to the list of lobbies on the block. */
+                TAILQ_INSERT_TAIL(&c->cur_block->lobbies, l, qentry);
+
+                /* Add the user to the lobby... */
+                if(lobby_change_lobby(c, l)) {
+                    /* Something broke, destroy the created lobby before anyone
+                       tries to join it. */
+                    lobby_destroy(l);
+                    return send_message1(c, "\tC4Please try again");
+                }
+
+                /* All's well in the world if we get here. */
+                return 0;
+            }
+
+            return send_message1(c, "\tC4Huh?");
+        }
     }
 
     return -1;
@@ -1390,7 +1438,7 @@ static int dc_process_info_req(ship_client_t *c, dc_select_pkt *pkt) {
             }
             else {
                 quest = &c->cur_ship->quests.cats[q].quests[item_id];
-                rv = send_quest_info(c, quest);
+                rv = send_quest_info(c->cur_lobby, quest);
             }
 
             pthread_mutex_unlock(&c->cur_ship->qmutex);
@@ -1454,8 +1502,8 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
     debug(DBG_LOG, "%s(%d): Received type 0x%02X\n", c->cur_ship->cfg->name,
           c->cur_block->b, type);
 
-    if(c->guildcard && c->pl->name[0])
-        debug(DBG_LOG, "\tFrom %s (%d)\n", c->pl->name, c->guildcard);
+    if(c->guildcard && c->pl->v1.name[0])
+        debug(DBG_LOG, "\tFrom %s (%d)\n", c->pl->v1.name, c->guildcard);
 
     switch(type) {
         case SHIP_LOGIN_TYPE:
@@ -1465,7 +1513,7 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return dc_process_char(c, (dc_char_data_pkt *)pkt);
 
         case SHIP_GAME_COMMAND0_TYPE:
-            return dc_process_g0(c, dc);
+            return subcmd_handle_bcast(c, (subcmd_pkt_t *)pkt);
 
         case SHIP_GAME_COMMAND2_TYPE:
         case SHIP_GAME_COMMANDD_TYPE:
@@ -1548,6 +1596,7 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             pthread_mutex_lock(&c->cur_lobby->mutex);
             c->cur_lobby->flags &= ~LOBBY_FLAG_QUESTSEL;
             pthread_mutex_unlock(&c->cur_lobby->mutex);
+            
             return 0;
 
         case SHIP_DCV2_LOGIN_TYPE:
@@ -1597,6 +1646,10 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return process_trade(c, (gc_trade_pkt *)pkt);
 
         case SHIP_TRADE_2_TYPE:
+            /* Ignore. */
+            return 0;
+
+        case SHIP_GC_MSG_BOX_CLOSED_TYPE:
             /* Ignore. */
             return 0;
 

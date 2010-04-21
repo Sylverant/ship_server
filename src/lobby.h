@@ -62,6 +62,7 @@ struct lobby {
     uint8_t episode;
 
     uint8_t gevent;
+    uint8_t max_chal;
 
     int version;
     uint32_t min_level;
