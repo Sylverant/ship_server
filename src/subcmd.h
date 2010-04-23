@@ -45,7 +45,8 @@ typedef struct subcmd_dc_gcsend {
     char name[24];
     char text[88];
     uint8_t unused2;
-    uint8_t one[2];
+    uint8_t one;
+    uint8_t language;
     uint8_t section;
     uint8_t char_class;
     uint8_t padding[3];
@@ -62,10 +63,28 @@ typedef struct subcmd_pc_gcsend {
     uint16_t name[24];
     uint16_t text[88];
     uint32_t padding;
-    uint8_t one[2];
+    uint8_t one;
+    uint8_t language;
     uint8_t section;
     uint8_t char_class;
 } PACKED subcmd_pc_gcsend_t;
+
+/* Guild card send packet (Gamecube). */
+typedef struct subcmd_gc_gcsend {
+    dc_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint16_t unused;
+    uint32_t tag;
+    uint32_t guildcard;
+    char name[24];
+    char text[104];
+    uint32_t padding;
+    uint8_t one;
+    uint8_t language;
+    uint8_t section;
+    uint8_t char_class;
+} PACKED subcmd_gc_gcsend_t;
 
 typedef struct subcmd_itemreq {
     dc_pkt_hdr_t hdr;

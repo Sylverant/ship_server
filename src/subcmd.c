@@ -29,8 +29,35 @@ int handle_dc_gcsend(ship_client_t *d, subcmd_dc_gcsend_t *pkt) {
     switch(d->version) {
         case CLIENT_VERSION_DCV1:
         case CLIENT_VERSION_DCV2:
-        case CLIENT_VERSION_GC:
             return send_pkt_dc(d, (dc_pkt_hdr_t *)pkt);
+
+        case CLIENT_VERSION_GC:
+        {
+            subcmd_gc_gcsend_t gc;
+
+            memset(&gc, 0, sizeof(gc));
+
+            /* Copy the name and text over. */
+            memcpy(gc.name, pkt->name, 24);
+            memcpy(gc.text, pkt->text, 88);
+
+            /* Copy the rest over. */
+            gc.hdr.pkt_type = pkt->hdr.pkt_type;
+            gc.hdr.flags = pkt->hdr.flags;
+            gc.hdr.pkt_len = LE16(0x0098);
+            gc.type = pkt->type;
+            gc.size = 0x25;
+            gc.unused = 0;
+            gc.tag = pkt->tag;
+            gc.guildcard = pkt->guildcard;
+            gc.padding = 0;
+            gc.one = 1;
+            gc.language = pkt->language;
+            gc.section = pkt->section;
+            gc.char_class = pkt->char_class;
+
+            return send_pkt_dc(d, (dc_pkt_hdr_t *)&gc);
+        }
 
         case CLIENT_VERSION_PC:
         {
@@ -39,8 +66,13 @@ int handle_dc_gcsend(ship_client_t *d, subcmd_dc_gcsend_t *pkt) {
             size_t in, out;
             char *inptr, *outptr;
 
-            /* Convert from Shift-JIS to UTF-16. */
-            ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+            /* Convert from Shift-JIS/ISO-8859-1 to UTF-16. */
+            if(pkt->text[1] == 'J') {
+                ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+            }
+            else {
+                ic = iconv_open("UTF-16LE", "ISO-8859-1");
+            }
 
             if(ic == (iconv_t)-1) {
                 return 0;
@@ -73,7 +105,8 @@ int handle_dc_gcsend(ship_client_t *d, subcmd_dc_gcsend_t *pkt) {
             pc.tag = pkt->tag;
             pc.guildcard = pkt->guildcard;
             pc.padding = 0;
-            pc.one[0] = pc.one[1] = 1;
+            pc.one = 1;
+            pc.language = pkt->language;
             pc.section = pkt->section;
             pc.char_class = pkt->char_class;
 
@@ -92,15 +125,19 @@ static int handle_pc_gcsend(ship_client_t *d, subcmd_pc_gcsend_t *pkt) {
 
         case CLIENT_VERSION_DCV1:
         case CLIENT_VERSION_DCV2:
-        case CLIENT_VERSION_GC:
         {
             subcmd_dc_gcsend_t dc;
             iconv_t ic;
             size_t in, out;
             char *inptr, *outptr;
     
-            /* Convert from UTF-16 to Shift-JIS. */
-            ic = iconv_open("SHIFT_JIS", "UTF-16LE");
+            /* Convert from UTF-16 to Shift-JIS/ISO-8859-1. */
+            if(LE16(pkt->text[1]) == (uint16_t)('J')) {
+                ic = iconv_open("SHIFT_JIS", "UTF-16LE");
+            }
+            else {
+                ic = iconv_open("ISO-8859-1", "UTF-16LE");
+            }
 
             if(ic == (iconv_t)-1) {
                 return 0;
@@ -133,12 +170,162 @@ static int handle_pc_gcsend(ship_client_t *d, subcmd_pc_gcsend_t *pkt) {
             dc.tag = pkt->tag;
             dc.guildcard = pkt->guildcard;
             dc.unused2 = 0;
-            dc.one[0] = dc.one[1] = 1;
+            dc.one = 1;
+            dc.language = pkt->language;
             dc.section = pkt->section;
             dc.char_class = pkt->char_class;
             dc.padding[0] = dc.padding[1] = dc.padding[2] = 0;
 
             return send_pkt_dc(d, (dc_pkt_hdr_t *)&dc);
+        }
+
+        case CLIENT_VERSION_GC:
+        {
+            subcmd_gc_gcsend_t gc;
+            iconv_t ic;
+            size_t in, out;
+            char *inptr, *outptr;
+
+            /* Convert from UTF-16 to Shift-JIS/ISO-8859-1. */
+            if(LE16(pkt->text[1]) == (uint16_t)('J')) {
+                ic = iconv_open("SHIFT_JIS", "UTF-16LE");
+            }
+            else {
+                ic = iconv_open("ISO-8859-1", "UTF-16LE");
+            }
+
+            if(ic == (iconv_t)-1) {
+                return 0;
+            }
+
+            memset(&gc, 0, sizeof(gc));
+
+            /* First the name. */
+            in = 48;
+            out = 24;
+            inptr = (char *)pkt->name;
+            outptr = gc.name;
+            iconv(ic, &inptr, &in, &outptr, &out);
+
+            /* Then the text. */
+            in = 176;
+            out = 88;
+            inptr = (char *)pkt->text;
+            outptr = gc.text;
+            iconv(ic, &inptr, &in, &outptr, &out);
+            iconv_close(ic);
+
+            /* Copy the rest over. */
+            gc.hdr.pkt_type = pkt->hdr.pkt_type;
+            gc.hdr.flags = pkt->hdr.flags;
+            gc.hdr.pkt_len = LE16(0x0098);
+            gc.type = pkt->type;
+            gc.size = 0x25;
+            gc.unused = 0;
+            gc.tag = pkt->tag;
+            gc.guildcard = pkt->guildcard;
+            gc.padding = 0;
+            gc.one = 1;
+            gc.language = pkt->language;
+            gc.section = pkt->section;
+            gc.char_class = pkt->char_class;
+
+            return send_pkt_dc(d, (dc_pkt_hdr_t *)&gc);
+        }
+
+    }
+
+    return 0;
+}
+
+static int handle_gc_gcsend(ship_client_t *d, subcmd_gc_gcsend_t *pkt) {
+    /* This differs based on the destination client's version. */
+    switch(d->version) {
+        case CLIENT_VERSION_GC:
+            return send_pkt_dc(d, (dc_pkt_hdr_t *)pkt);
+
+        case CLIENT_VERSION_DCV1:
+        case CLIENT_VERSION_DCV2:
+        {
+            subcmd_dc_gcsend_t dc;
+
+            memset(&dc, 0, sizeof(dc));
+
+            /* Copy the name and text over. */
+            memcpy(dc.name, pkt->name, 24);
+            memcpy(dc.text, pkt->text, 88);
+
+            /* Copy the rest over. */
+            dc.hdr.pkt_type = pkt->hdr.pkt_type;
+            dc.hdr.flags = pkt->hdr.flags;
+            dc.hdr.pkt_len = LE16(0x0088);
+            dc.type = pkt->type;
+            dc.size = 0x21;
+            dc.unused = 0;
+            dc.tag = pkt->tag;
+            dc.guildcard = pkt->guildcard;
+            dc.unused2 = 0;
+            dc.one = 1;
+            dc.language = pkt->language;
+            dc.section = pkt->section;
+            dc.char_class = pkt->char_class;
+            dc.padding[0] = dc.padding[1] = dc.padding[2] = 0;
+
+            return send_pkt_dc(d, (dc_pkt_hdr_t *)&dc);
+        }
+
+        case CLIENT_VERSION_PC:
+        {
+            subcmd_pc_gcsend_t pc;
+            iconv_t ic;
+            size_t in, out;
+            char *inptr, *outptr;
+
+            /* Convert from Shift-JIS/ISO-8859-1 to UTF-16. */
+            if(pkt->text[1] == 'J') {
+                ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+            }
+            else {
+                ic = iconv_open("UTF-16LE", "ISO-8859-1");
+            }
+
+            if(ic == (iconv_t)-1) {
+                return 0;
+            }
+
+            memset(&pc, 0, sizeof(pc));
+
+            /* First the name. */
+            in = 24;
+            out = 48;
+            inptr = pkt->name;
+            outptr = (char *)pc.name;
+            iconv(ic, &inptr, &in, &outptr, &out);
+
+            /* Then the text. */
+            in = 88;
+            out = 176;
+            inptr = pkt->text;
+            outptr = (char *)pc.text;
+            iconv(ic, &inptr, &in, &outptr, &out);
+            iconv_close(ic);
+
+            /* Copy the rest over. */
+            pc.hdr.pkt_type = pkt->hdr.pkt_type;
+            pc.hdr.flags = pkt->hdr.flags;
+            pc.hdr.pkt_len = LE16(0x00F8);
+            pc.type = pkt->type;
+            pc.size = 0x3D;
+            pc.unused = 0;
+            pc.tag = pkt->tag;
+            pc.guildcard = pkt->guildcard;
+            pc.padding = 0;
+            pc.one = 1;
+            pc.language = pkt->language;
+            pc.section = pkt->section;
+            pc.char_class = pkt->char_class;
+
+            return send_pkt_dc(d, (dc_pkt_hdr_t *)&pc);
         }
     }
 
@@ -233,8 +420,10 @@ int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
             switch(c->version) {
                 case CLIENT_VERSION_DCV1:
                 case CLIENT_VERSION_DCV2:
-                case CLIENT_VERSION_GC:
                     return handle_dc_gcsend(dest, (subcmd_dc_gcsend_t *)pkt);
+
+                case CLIENT_VERSION_GC:
+                    return handle_gc_gcsend(dest, (subcmd_gc_gcsend_t *)pkt);
 
                 case CLIENT_VERSION_PC:
                     return handle_pc_gcsend(dest, (subcmd_pc_gcsend_t *)pkt);

@@ -657,7 +657,8 @@ static int handle_bug(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     gcpkt.tag = LE32(0x00010000);
     gcpkt.guildcard = LE32(BUG_REPORT_GC);
     gcpkt.unused2 = 0;
-    gcpkt.one[0] = gcpkt.one[1] = 1;
+    gcpkt.one = 1;
+    gcpkt.language = 1;                 /* English */
     gcpkt.section = 0;
     gcpkt.char_class = 8;
     gcpkt.padding[0] = gcpkt.padding[1] = gcpkt.padding[1] = 0;
