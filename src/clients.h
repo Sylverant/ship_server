@@ -107,9 +107,10 @@ struct ship_client {
     int sendbuf_size;
     int sendbuf_start;
 
-    char *infoboard;
+    char *infoboard;                    /* Points into the player struct. */
     uint8_t *c_rank;                    /* Points into the player struct. */
     lobby_t *create_lobby;
+    uint32_t *blacklist;                /* Points into the player struct. */
 };
 
 /* String versions of the character classes. */
@@ -160,8 +161,5 @@ int client_process_pkt(ship_client_t *c);
 
 /* Retrieve the thread-specific recvbuf for the current thread. */
 uint8_t *get_recvbuf();
-
-/* Write to the client's infoboard, allocating as necessary. */
-int client_write_infoboard(ship_client_t *c, char *msg, int len);
 
 #endif /* !CLIENTS_H */

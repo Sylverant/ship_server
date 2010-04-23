@@ -613,33 +613,31 @@ static int gc_process_login(ship_client_t *c, gc_login_pkt *pkt) {
 static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
     uint8_t type = pkt->hdr.dc.pkt_type;
     uint8_t version = pkt->hdr.dc.flags;
-    int size = sizeof(v1_player_t);
 
-    if(version == 2 && c->version == CLIENT_VERSION_DCV2) {
-        size = sizeof(v2_player_t);
+    /* Copy out the player data, and set up pointers. */
+    if(version == 1) {
+        memcpy(c->pl, &pkt->data, sizeof(v1_player_t));
+        c->infoboard = NULL;
+        c->c_rank = NULL;
+        c->blacklist = NULL;
+    }
+    else if(version == 2 && c->version == CLIENT_VERSION_DCV2) {
+        memcpy(c->pl, &pkt->data, sizeof(v2_player_t));
+        c->infoboard = NULL;
+        c->c_rank = c->pl->v2.c_rank.all;
+        c->blacklist = NULL;
     }
     else if(version == 2 && c->version == CLIENT_VERSION_PC) {
-        size = sizeof(pc_player_t);
+        memcpy(c->pl, &pkt->data, sizeof(pc_player_t));
+        c->infoboard = NULL;
+        c->c_rank = c->pl->pc.c_rank.all;
+        c->blacklist = c->pl->pc.blacklist;
     }
     else if(version == 3) {
-        size = sizeof(v3_player_t);
-    }
-
-    /* Copy the character data to the client's structure. */
-    memcpy(c->pl, &pkt->data, size);
-
-    /* Copy out the infoboard and c-rank stuff for v3. */
-    if(version == 3) {
-        client_write_infoboard(c, pkt->data.v3.infoboard,
-                               strlen(pkt->data.v3.infoboard));
+        memcpy(c->pl, &pkt->data, sizeof(v3_player_t));
+        c->infoboard = c->pl->v3.infoboard;
         c->c_rank = c->pl->v3.c_rank.all;
-    }
-    else if(version == 2) {
-        /* C-Rank on PC/DCv2 start in the same place, so this will work... */
-        c->c_rank = c->pl->v2.c_rank.all;
-    }
-    else {
-        c->c_rank = NULL;
+        c->blacklist = c->pl->v3.blacklist;
     }
 
     /* If this packet is coming after the client has left a game, then don't
@@ -1479,6 +1477,22 @@ static int process_trade(ship_client_t *c, gc_trade_pkt *pkt) {
     return send_simple(dest, SHIP_TRADE_4_TYPE, 1);
 }
 
+/* Process a blacklist update packet. */
+static int process_blacklist(ship_client_t *c, gc_blacklist_update_pkt *pkt) {
+    memcpy(c->blacklist, pkt->list, 30 * sizeof(uint32_t));
+    return send_txt(c, "\tE\tC7Updated blacklist.");
+}
+
+/* Process an infoboard update packet. */
+static int process_infoboard(ship_client_t *c, gc_write_info_pkt *pkt) {
+    if(!c->infoboard) {
+        return -1;
+    }
+
+    memcpy(c->infoboard, pkt->msg, LE16(pkt->hdr.pkt_len) - c->hdr_size);
+    return 0;
+}
+
 /* Process block commands for a Dreamcast client. */
 static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
     uint8_t type;
@@ -1640,8 +1654,7 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return send_simple(c, SHIP_QUEST_LOAD_DONE_TYPE, 0);
 
         case SHIP_GC_INFOBOARD_WRITE_TYPE:
-            return client_write_infoboard(c, ((gc_write_info_pkt *)pkt)->msg,
-                                          len - c->hdr_size);
+            return process_infoboard(c, (gc_write_info_pkt *)pkt);
 
         case SHIP_GC_INFOBOARD_REQ_TYPE:
             return send_infoboard(c, c->cur_lobby);
@@ -1656,6 +1669,9 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
         case SHIP_GC_MSG_BOX_CLOSED_TYPE:
             /* Ignore. */
             return 0;
+
+        case SHIP_BLACKLIST_TYPE:
+            return process_blacklist(c, (gc_blacklist_update_pkt *)pkt);
 
         default:
             debug(DBG_LOG, "Unknown packet!\n");

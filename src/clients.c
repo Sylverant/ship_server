@@ -183,10 +183,6 @@ void client_destroy_connection(ship_client_t *c, struct client_queue *clients) {
         free(c->sendbuf);
     }
 
-    if(c->infoboard) {
-        free(c->infoboard);
-    }
-
     if(c->pl) {
         free(c->pl);
     }
@@ -343,25 +339,4 @@ uint8_t *get_recvbuf() {
     }
 
     return recvbuf;
-}
-
-/* Write to the client's infoboard, allocating as necessary. */
-int client_write_infoboard(ship_client_t *c, char *msg, int len) {
-    void *tmp;
-    int rv = 0;
-
-    pthread_mutex_lock(&c->mutex);
-
-    tmp = realloc(c->infoboard, len);
-    if(!tmp) {
-        rv = -1;
-        goto out;
-    }
-
-    c->infoboard = (char *)tmp;
-    memcpy(c->infoboard, tmp, len);
-
-out:
-    pthread_mutex_unlock(&c->mutex);
-    return rv;
 }

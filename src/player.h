@@ -210,7 +210,9 @@ typedef struct pc_player {
             uint32_t battle[7];
         } part;
     } c_rank;
-    uint8_t unk4[0x98];
+    uint32_t unk4[6];
+    uint32_t blacklist[30];
+    uint32_t unused2[2];                /* I think these are blank... maybe? */
 } PACKED pc_player_t;
 
 typedef struct v3_player {
@@ -263,7 +265,9 @@ typedef struct v3_player {
         } part;
     } c_rank;
     uint32_t unk4[6];
-    char infoboard[0x012C];     /* Probably shorter, but this fills it out. */
+    char infoboard[0xAC];
+    uint32_t blacklist[30];
+    uint32_t unused2[2];                /* I think these are blank... maybe? */
 } PACKED v3_player_t;
 
 #undef PACKED

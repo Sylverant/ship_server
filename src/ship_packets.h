@@ -717,6 +717,15 @@ typedef struct gc_c_rank_update {
     } entries[0];
 } PACKED gc_c_rank_update_pkt;
 
+/* The packet used to update the blocked senders list (Gamecube). */
+typedef struct gc_blacklist_update {
+    union {
+        dc_pkt_hdr_t gc;
+        pc_pkt_hdr_t pc;
+    } hdr;
+    uint32_t list[30];
+} PACKED gc_blacklist_update_pkt;
+
 #undef PACKED
 
 /* Parameters for the various packets. */
@@ -777,6 +786,9 @@ typedef struct gc_c_rank_update {
 #define SHIP_CHOICE_SEARCH_TYPE             0x00C3
 #define SHIP_CHOICE_REPLY_TYPE              0x00C4
 #define SHIP_C_RANK_TYPE                    0x00C5
+#define SHIP_BLACKLIST_TYPE                 0x00C6
+#define SHIP_AUTOREPLY_TYPE                 0x00C7
+#define SHIP_STOP_AUTOREPLY_TYPE            0x00C8
 #define SHIP_TRADE_0_TYPE                   0x00D0
 #define SHIP_TRADE_1_TYPE                   0x00D1
 #define SHIP_TRADE_2_TYPE                   0x00D2
