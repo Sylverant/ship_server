@@ -614,7 +614,6 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
     uint8_t type = pkt->hdr.dc.pkt_type;
     uint8_t version = pkt->hdr.dc.flags;
     int size = sizeof(v1_player_t);
-    int i;
 
     if(version == 2 && c->version == CLIENT_VERSION_DCV2) {
         size = sizeof(v2_player_t);
@@ -948,8 +947,13 @@ static int pc_process_game_create(ship_client_t *c, pc_game_create_pkt *pkt) {
     size_t in, out;
     char *inptr, *outptr;
 
-    /* Convert the name/password to Shift-JIS. */
-    ic = iconv_open("SHIFT_JIS", "UTF-16LE");
+    /* Convert the name/password to the appropriate encoding. */
+    if(LE16(pkt->name[1]) == (uint16_t)('J')) {
+        ic = iconv_open("SHIFT_JIS", "UTF-16LE");
+    }
+    else {
+        ic = iconv_open("ISO-8859-1", "UTF-16LE");
+    }
 
     if(ic == (iconv_t)-1) {
         perror("iconv_open");

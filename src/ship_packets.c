@@ -486,10 +486,10 @@ static int send_dc_info_reply(ship_client_t *c, char msg[]) {
 
     if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
        c->version == CLIENT_VERSION_GC) {
-        ic = iconv_open("SHIFT_JIS", "SHIFT_JIS");
+        ic = iconv_open("ASCII", "ASCII");
     }
     else {
-        ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+        ic = iconv_open("UTF-16LE", "ASCII");
     }
 
     if(ic == (iconv_t)-1) {
@@ -728,7 +728,7 @@ static int send_pc_lobby_join(ship_client_t *c, lobby_t *l) {
         return -1;
     }
     
-    ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+    ic = iconv_open("UTF-16LE", "ASCII");
     
     if(ic == (iconv_t)-1) {
         perror("iconv_open");
@@ -899,7 +899,7 @@ static int send_pc_lobby_add_player(lobby_t *l, ship_client_t *c,
         return -1;
     }
     
-    ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+    ic = iconv_open("UTF-16LE", "ASCII");
     
     if(ic == (iconv_t)-1) {
         perror("iconv_open");
@@ -1034,14 +1034,23 @@ static int send_dc_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
     char tm[strlen(msg) + 32];
     size_t in, out, len;
     char *inptr, *outptr;
-    char *tmp = msg;
 
     if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
        c->version == CLIENT_VERSION_GC) {
-        ic = iconv_open("SHIFT_JIS", "SHIFT_JIS");
+        if(msg[1] == 'J') {
+            ic = iconv_open("SHIFT_JIS", "SHIFT_JIS");
+        }
+        else {
+            ic = iconv_open("ISO-8859-1", "ISO-8859-1");
+        }
     }
     else {
-        ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+        if(msg[1] == 'J') {
+            ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+        }
+        else {
+            ic = iconv_open("UTF-16LE", "ISO-8859-1");
+        }
     }
 
     if(ic == (iconv_t)-1) {
@@ -1061,10 +1070,7 @@ static int send_dc_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
     pkt->guildcard = LE32(s->guildcard);
 
     /* Fill in the message */
-    if(msg[0] == '\t') {
-        tmp += 2;
-    }
-    in = sprintf(tm, "%s\t%s", s->pl->v1.name, tmp) + 1;
+    in = sprintf(tm, "%s\t%s", s->pl->v1.name, msg) + 1;
 
     /* Convert the message to the appropriate encoding. */
     out = 65520;
@@ -1142,7 +1148,13 @@ static int send_dc_lobby_wchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
     /* Create everything we need for converting stuff. */
     if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
        c->version == CLIENT_VERSION_GC) {
-        ic = iconv_open("SHIFT_JIS", "UTF-16LE");
+        if(LE16(msg[1]) == ((uint16_t)'J')) {
+            ic = iconv_open("SHIFT_JIS", "UTF-16LE");
+        }
+        else {
+            ic = iconv_open("ISO-8859-1", "UTF-16LE");
+        }
+
         if(ic == (iconv_t)-1) {
             perror("iconv_open");
             return -1;
@@ -1185,14 +1197,8 @@ static int send_dc_lobby_wchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
     iconv_close(ic2);
 
     /* Fill in the message */
-    if(LE16(msg[0]) != (uint16_t)'\t') {
-        in = len;
-        inptr = (char *)msg;
-    }
-    else {
-        in = len - 4;
-        inptr = (char *)(msg + 2);
-    }
+    in = len;
+    inptr = (char *)msg;
 
     /* Convert the message to the appropriate encoding. */
     iconv(ic, &inptr, &in, &outptr, &out);
@@ -1371,10 +1377,10 @@ static int send_dc_message(ship_client_t *c, char msg[], uint16_t type) {
 
     if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
        c->version == CLIENT_VERSION_GC) {
-        ic = iconv_open("SHIFT_JIS", "SHIFT_JIS");
+        ic = iconv_open("ISO-8859-1", "ISO-8859-1");
     }
     else {
-        ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+        ic = iconv_open("UTF-16LE", "ISO-8859-1");
     }
     
     if(ic == (iconv_t)-1) {
@@ -1799,7 +1805,7 @@ static int send_pc_game_list(ship_client_t *c, block_t *b) {
     pc_game_list_pkt *pkt = (pc_game_list_pkt *)sendbuf;
     int entries = 1, len = 0x30;
     lobby_t *l;
-    iconv_t ic;
+    iconv_t ic, ic2;
     size_t in, out;
     char *inptr, *outptr;
 
@@ -1812,6 +1818,14 @@ static int send_pc_game_list(ship_client_t *c, block_t *b) {
 
     if(ic == (iconv_t)-1) {
         perror("iconv_open");
+        return -1;
+    }
+
+    ic2 = iconv_open("UTF-16LE", "ISO-8859-1");
+
+    if(ic2 == (iconv_t)-1) {
+        perror("iconv_open");
+        iconv_close(ic);
         return -1;
     }
 
@@ -1830,7 +1844,7 @@ static int send_pc_game_list(ship_client_t *c, block_t *b) {
     out = 0x20;
     inptr = b->ship->cfg->name;
     outptr = (char *)pkt->entries[0].name;
-    iconv(ic, &inptr, &in, &outptr, &out);
+    iconv(ic2, &inptr, &in, &outptr, &out);
 
     TAILQ_FOREACH(l, &b->lobbies, qentry) {
         /* Ignore default lobbies and Gamecube games */
@@ -1858,7 +1872,13 @@ static int send_pc_game_list(ship_client_t *c, block_t *b) {
         out = 0x20;
         inptr = l->name;
         outptr = (char *)pkt->entries[entries].name;
-        iconv(ic, &inptr, &in, &outptr, &out);
+
+        if(l->name[1] == 'J') {
+            iconv(ic, &inptr, &in, &outptr, &out);
+        }
+        else {
+            iconv(ic2, &inptr, &in, &outptr, &out);
+        }
 
         /* Unlock the lobby */
         pthread_mutex_unlock(&l->mutex);
@@ -1869,6 +1889,7 @@ static int send_pc_game_list(ship_client_t *c, block_t *b) {
     }
 
     iconv_close(ic);
+    iconv_close(ic2);
 
     /* Fill in the rest of the header */
     pkt->hdr.flags = entries - 1;
@@ -2024,7 +2045,7 @@ static int send_pc_info_list(ship_client_t *c, ship_t *s) {
         return -1;
     }
 
-    ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+    ic = iconv_open("UTF-16LE", "ISO-8859-1");
 
     if(ic == (iconv_t)-1) {
         perror("iconv_open");
@@ -2099,7 +2120,6 @@ int send_pc_game_type_sel(ship_client_t *c) {
     uint8_t *sendbuf = get_sendbuf();
     pc_block_list_pkt *pkt = (pc_block_list_pkt *)sendbuf;
     ship_t *s = c->cur_ship;
-    int i;
     const char str1[16] = "Allow PSOv1";
     const char str2[16] = "PSOv2 Only";
     iconv_t ic;
@@ -2111,7 +2131,7 @@ int send_pc_game_type_sel(ship_client_t *c) {
         return -1;
     }
 
-    ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+    ic = iconv_open("UTF-16LE", "ASCII");
 
     if(ic == (iconv_t)-1) {
         perror("iconv_open");
@@ -2139,7 +2159,7 @@ int send_pc_game_type_sel(ship_client_t *c) {
 
     in = strlen(str1) + 1;
     out = 0x20;
-    inptr = str1;
+    inptr = (char *)str1;
     outptr = (char *)pkt->entries[1].name;
     iconv(ic, &inptr, &in, &outptr, &out);
 
@@ -2150,7 +2170,7 @@ int send_pc_game_type_sel(ship_client_t *c) {
 
     in = strlen(str2) + 1;
     out = 0x20;
-    inptr = str2;
+    inptr = (char *)str2;
     outptr = (char *)pkt->entries[2].name;
     iconv(ic, &inptr, &in, &outptr, &out);
 
@@ -2181,10 +2201,20 @@ static int send_dc_message_box(ship_client_t *c, char msg[]) {
 
     if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
        c->version == CLIENT_VERSION_GC) {
-        ic = iconv_open("SHIFT_JIS", "SHIFT_JIS");
+        if(msg[1] == 'J') {
+            ic = iconv_open("SHIFT_JIS", "SHIFT_JIS");
+        }
+        else {
+            ic = iconv_open("ISO-8859-1", "ISO-8859-1");
+        }
     }
     else {
-        ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+        if(msg[1] == 'J') {
+            ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+        }
+        else {
+            ic = iconv_open("UTF-16LE", "ISO-8859-1");
+        }
     }
 
     if(ic == (iconv_t)-1) {
@@ -3271,8 +3301,14 @@ static int send_pc_lobby_name(ship_client_t *c, lobby_t *l) {
         return -1;
     }
 
-    /* Lobby names are stored internally as Shift-JIS, convert to UTF-16. */
-    ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+    /* Lobby names are stored internally as Shift-JIS or ISO-8859-1, convert to
+       UTF-16. */
+    if(l->name[1] == 'J') {
+        ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+    }
+    else {
+        ic = iconv_open("UTF-16LE", "ISO-8859-1");
+    }
 
     if(ic == (iconv_t)-1) {
         perror("iconv_open");
@@ -3475,7 +3511,7 @@ static int send_pc_ship_list(ship_client_t *c, miniship_t *l, int ships) {
     uint8_t *sendbuf = get_sendbuf();
     pc_ship_list_pkt *pkt = (pc_ship_list_pkt *)sendbuf;
     int len = 0x30, i, entries = 0;
-    iconv_t ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+    iconv_t ic = iconv_open("UTF-16LE", "ASCII");
     size_t in, out;
     char *inptr, *outptr;
 
@@ -4113,7 +4149,12 @@ static int send_pc_simple_mail_dc(ship_client_t *c, dc_simple_mail_pkt *p) {
     }
 
     /* Set up the converting stuff. */
-    ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+    if(p->stuff[1] == 'J') {
+        ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+    }
+    else {
+        ic = iconv_open("UTF-16LE", "ISO-8859-1");
+    }
 
     if(ic == (iconv_t)-1) {
         perror("iconv_open");
@@ -4173,7 +4214,12 @@ static int send_dc_simple_mail_pc(ship_client_t *c, pc_simple_mail_pkt *p) {
     }
 
     /* Set up the converting stuff. */
-    ic = iconv_open("SHIFT_JIS", "UTF-16LE");
+    if(p->stuff[2] == 'J') {
+        ic = iconv_open("SHIFT_JIS", "UTF-16LE");
+    }
+    else {
+        ic = iconv_open("ISO-8859-1", "UTF-16LE");
+    }
 
     if(ic == (iconv_t)-1) {
         perror("iconv_open");
@@ -4567,63 +4613,6 @@ static int send_pc_lobby_c_rank(ship_client_t *c, lobby_t *l) {
                 ++entries;
                 size += 0xF4;
             }
-#if 0
-            if(c2->c_rank && c2->version == CLIENT_VERSION_PC) {
-                pkt->entries[entries].client_id = LE32(c2->client_id);
-                memcpy(pkt->entries[entries].c_rank, c2->c_rank, 0xF0);
-
-                ++entries;
-                size += 0xF4;
-            }
-            else if(c2->c_rank && c2->version == CLIENT_VERSION_DCV2) {
-                pkt->entries[entries].client_id = LE32(c2->client_id);
-
-                memset(pkt->entries[entries].c_rank, 0, 0xF0);
-
-                /* This is a bit hackish.... */
-                pkt->entries[entries].unk1 = c2->pl->v2.c_rank.part.unk1;
-
-                /* Copy the rank over. */
-                for(j = 0; j < 0x0C; ++j) {
-                    pkt->entries[entries].string[j << 1] =
-                        c2->pl->v2.c_rank.part.string[j];
-                }
-
-                /* Copy the times for the levels and battle stuff over... */
-                memcpy(pkt->entries[entries].times,
-                       c2->pl->v2.c_rank.part.times, 9 * sizeof(uint32_t));
-                memcpy(pkt->entries[entries].battle,
-                       c2->pl->v2.c_rank.part.battle, 7 * sizeof(uint32_t));
-
-                ++entries;
-                size += 0xF4;
-            }
-            else if(c2->c_rank && c2->version == CLIENT_VERSION_GC) {
-                pkt->entries[entries].client_id = LE32(c2->client_id);
-
-                memset(pkt->entries[entries].c_rank, 0, 0xF0);
-
-                /* This is a bit hackish.... */
-                pkt->entries[entries].unk1 =
-                    (c2->pl->v3.c_rank.part.unk1 >> 16) |
-                    (c2->pl->v3.c_rank.part.unk1 << 16);
-
-                /* Copy the rank over. */
-                for(j = 0; j < 0x0C; ++j) {
-                    pkt->entries[entries].string[j << 1] =
-                        c2->pl->v3.c_rank.part.string[j];
-                }
-
-                /* Copy the times for the levels and battle stuff over... */
-                memcpy(pkt->entries[entries].times,
-                       c2->pl->v3.c_rank.part.times, 9 * sizeof(uint32_t));
-                memcpy(pkt->entries[entries].battle,
-                       c2->pl->v3.c_rank.part.battle, 7 * sizeof(uint32_t));
-
-                ++entries;
-                size += 0xF4;
-            }
-#endif
 
             pthread_mutex_unlock(&c2->mutex);
         }
@@ -4705,60 +4694,6 @@ static int send_pc_c_rank_update(ship_client_t *d, ship_client_t *s) {
 
     /* Copy the data. */
     copy_c_rank_pc(pkt, 0, s);
-#if 0
-    switch(s->version) {
-        case CLIENT_VERSION_PC:
-            pkt->entries[0].client_id = LE32(s->client_id);
-            memcpy(pkt->entries[0].c_rank, s->c_rank, 0xF0);
-            break;
-
-        case CLIENT_VERSION_DCV2:
-            pkt->entries[0].client_id = LE32(s->client_id);
-
-            memset(pkt->entries[0].c_rank, 0, 0xF0);
-
-            /* This is a bit hackish.... */
-            pkt->entries[0].unk1 = s->pl->v2.c_rank.part.unk1;
-
-            /* Copy the rank over. */
-            for(j = 0; j < 0x0C; ++j) {
-                pkt->entries[0].string[j << 1] =
-                    s->pl->v2.c_rank.part.string[j];
-            }
-
-            /* Copy the times for the levels and battle stuff over... */
-            memcpy(pkt->entries[0].times, s->pl->v2.c_rank.part.times,
-                   9 * sizeof(uint32_t));
-            memcpy(pkt->entries[0].battle, s->pl->v2.c_rank.part.battle,
-                   7 * sizeof(uint32_t));
-            break;
-
-        case CLIENT_VERSION_GC:
-            pkt->entries[0].client_id = LE32(s->client_id);
-
-            memset(pkt->entries[0].c_rank, 0, 0xF0);
-
-            /* This is a bit hackish.... */
-            pkt->entries[0].unk1 = (s->pl->v3.c_rank.part.unk1 >> 16) |
-                (s->pl->v3.c_rank.part.unk1 << 16);
-
-            /* Copy the rank over. */
-            for(j = 0; j < 0x0C; ++j) {
-                pkt->entries[0].string[j << 1] =
-                    s->pl->v3.c_rank.part.string[j];
-            }
-
-            /* Copy the times for the levels and battle stuff over... */
-            memcpy(pkt->entries[0].times,
-                   s->pl->v3.c_rank.part.times, 9 * sizeof(uint32_t));
-            memcpy(pkt->entries[0].battle,
-                   s->pl->v3.c_rank.part.battle, 7 * sizeof(uint32_t));
-            break;
-
-        default:
-            memset(pkt->entries[0].c_rank, 0, 0xF0);
-    }
-#endif
 
     /* Fill in the header. */
     pkt->hdr.pkt_type = SHIP_C_RANK_TYPE;
