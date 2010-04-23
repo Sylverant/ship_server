@@ -111,6 +111,8 @@ struct ship_client {
     uint8_t *c_rank;                    /* Points into the player struct. */
     lobby_t *create_lobby;
     uint32_t *blacklist;                /* Points into the player struct. */
+
+    char *autoreply;
 };
 
 /* String versions of the character classes. */
@@ -161,5 +163,14 @@ int client_process_pkt(ship_client_t *c);
 
 /* Retrieve the thread-specific recvbuf for the current thread. */
 uint8_t *get_recvbuf();
+
+/* Set up a simple mail autoreply. */
+int client_set_autoreply(ship_client_t *c, dc_pkt_hdr_t *pkt);
+
+/* Clear the simple mail autoreply from a client (if set). */
+int client_clear_autoreply(ship_client_t *c);
+
+/* Check if a client has blacklisted someone. */
+int client_has_blacklisted(ship_client_t *c, uint32_t gc);
 
 #endif /* !CLIENTS_H */

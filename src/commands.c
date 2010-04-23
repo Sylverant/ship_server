@@ -922,8 +922,6 @@ static int handle_gban_p(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
 /* Usage: /list parameters (there's too much to put here) */
 static int handle_list(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
-    block_t *b = c->cur_block;
-
     /* Make sure the requester is a global GM. */
     if(!c->is_gm) {
         return send_txt(c, "\tE\tC7Nice try.");

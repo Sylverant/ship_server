@@ -22,6 +22,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <sys/socket.h>
+#include <iconv.h>
 
 #include <sylverant/encryption.h>
 #include <sylverant/mtwist.h>
@@ -183,6 +184,10 @@ void client_destroy_connection(ship_client_t *c, struct client_queue *clients) {
         free(c->sendbuf);
     }
 
+    if(c->autoreply) {
+        free(c->autoreply);
+    }
+
     if(c->pl) {
         free(c->pl);
     }
@@ -339,4 +344,100 @@ uint8_t *get_recvbuf() {
     }
 
     return recvbuf;
+}
+
+/* Set up a simple mail autoreply. */
+int client_set_autoreply(ship_client_t *c, dc_pkt_hdr_t *p) {
+    char *tmp;
+    autoreply_set_pkt *pkt = (autoreply_set_pkt *)p;
+
+    if(c->version == CLIENT_VERSION_PC) {
+        int len = LE16(pkt->hdr.dc.pkt_len) - 4;
+        char str[len];
+        iconv_t ic;
+        size_t in, out;
+        char *inptr, *outptr;
+
+        /* Set up for converting the string. */
+        if(pkt->msg[2] == 'J') {
+            ic = iconv_open("SHIFT_JIS", "UTF-16LE");
+        }
+        else {
+            ic = iconv_open("ISO-8859-1", "UTF-16LE");
+        }
+
+        if(!ic) {
+            perror("iconv_open");
+            return -1;
+        }
+
+        /* Convert to the appropriate encoding. */
+        out = in = len;
+        inptr = pkt->msg;
+        outptr = str;
+        iconv(ic, &inptr, &in, &outptr, &out);
+        iconv_close(ic);
+
+        /* Allocate space for the new string. */
+        tmp = (char *)malloc(strlen(pkt->msg) + 1);
+
+        if(!tmp) {
+            perror("malloc");
+            return -1;
+        }
+
+        strcpy(tmp, str);
+    }
+    else {
+        /* Allocate space for the new string. */
+        tmp = (char *)malloc(strlen(pkt->msg) + 1);
+
+        if(!tmp) {
+            perror("malloc");
+            return -1;
+        }
+
+        strcpy(tmp, pkt->msg);
+    }
+
+    /* Clean up any old autoreply we might have. */
+    if(c->autoreply) {
+        free(c->autoreply);
+    }
+
+    /* Finish up by setting the new autoreply string. */
+    c->autoreply = tmp;
+
+    return 0;
+}
+
+/* Clear the simple mail autoreply from a client (if set). */
+int client_clear_autoreply(ship_client_t *c) {
+    if(c->autoreply) {
+        free(c->autoreply);
+        c->autoreply = NULL;
+    }
+
+    return 0;
+}
+
+/* Check if a client has blacklisted someone. */
+int client_has_blacklisted(ship_client_t *c, uint32_t gc) {
+    uint32_t rgc = LE32(gc);
+    int i;
+
+    /* If the user doesn't have a blacklist, this is easy. */
+    if(!c->blacklist) {
+        return 0;
+    }
+
+    /* Look through each blacklist entry. */
+    for(i = 0; i < 30; ++i) {
+        if(c->blacklist[i] == rgc) {
+            return 1;
+        }
+    }
+
+    /* If we didn't find anything, then we're done. */
+    return 0;
 }

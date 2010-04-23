@@ -346,6 +346,31 @@ static int handle_dc_mail(shipgate_conn_t *conn, dc_simple_mail_pkt *pkt) {
                 pthread_mutex_lock(&c->mutex);
 
                 if(c->guildcard == dest && c->pl) {
+                    /* Make sure the user hasn't blacklisted the sender. */
+                    if(client_has_blacklisted(c, LE32(pkt->gc_sender))) {
+                        done = 1;
+                        pthread_mutex_unlock(&c->mutex);
+                        break;
+                    }
+
+                    /* Check if the user has an autoreply set. */
+                    if(c->autoreply) {
+                        dc_simple_mail_pkt rep;
+                        memset(&rep, 0, sizeof(rep));
+
+                        rep.hdr.pkt_type = SHIP_SIMPLE_MAIL_TYPE;
+                        rep.hdr.flags = 0;
+                        rep.hdr.pkt_len = LE16(SHIP_DC_SIMPLE_MAIL_LENGTH);
+
+                        rep.tag = LE32(0x00010000);
+                        rep.gc_sender = pkt->gc_dest;
+                        rep.gc_dest = pkt->gc_sender;
+
+                        strcpy(rep.name, c->pl->v1.name);
+                        strcpy(rep.stuff, c->autoreply);
+                        shipgate_fw_dc(&c->cur_ship->sg, (dc_pkt_hdr_t *)&rep);
+                    }
+
                     /* Forward the packet there. */
                     rv = send_simple_mail(CLIENT_VERSION_DCV1, c,
                                           (dc_pkt_hdr_t *)pkt);
@@ -384,6 +409,31 @@ static int handle_pc_mail(shipgate_conn_t *conn, pc_simple_mail_pkt *pkt) {
                 pthread_mutex_lock(&c->mutex);
 
                 if(c->guildcard == dest && c->pl) {
+                    /* Make sure the user hasn't blacklisted the sender. */
+                    if(client_has_blacklisted(c, LE32(pkt->gc_sender))) {
+                        done = 1;
+                        pthread_mutex_unlock(&c->mutex);
+                        break;
+                    }
+
+                    /* Check if the user has an autoreply set. */
+                    if(c->autoreply) {
+                        dc_simple_mail_pkt rep;
+                        memset(&rep, 0, sizeof(rep));
+
+                        rep.hdr.pkt_type = SHIP_SIMPLE_MAIL_TYPE;
+                        rep.hdr.flags = 0;
+                        rep.hdr.pkt_len = LE16(SHIP_DC_SIMPLE_MAIL_LENGTH);
+
+                        rep.tag = LE32(0x00010000);
+                        rep.gc_sender = pkt->gc_dest;
+                        rep.gc_dest = pkt->gc_sender;
+
+                        strcpy(rep.name, c->pl->v1.name);
+                        strcpy(rep.stuff, c->autoreply);
+                        shipgate_fw_dc(&c->cur_ship->sg, (dc_pkt_hdr_t *)&rep);
+                    }
+
                     /* Forward the packet there. */
                     rv = send_simple_mail(CLIENT_VERSION_PC, c,
                                           (dc_pkt_hdr_t *)pkt);

@@ -822,6 +822,34 @@ static int dc_process_mail(ship_client_t *c, dc_simple_mail_pkt *pkt) {
                    data. */
                 if(it->guildcard == gc && it->pl) {
                     pthread_mutex_lock(&it->mutex);
+
+                    /* Make sure the user hasn't blacklisted the sender. */
+                    if(client_has_blacklisted(it, c->guildcard)) {
+                        done = 1;
+                        pthread_mutex_unlock(&it->mutex);
+                        break;
+                    }
+
+                    /* Check if the user has an autoreply set. */
+                    if(it->autoreply) {
+                        dc_simple_mail_pkt rep;
+                        memset(&rep, 0, sizeof(rep));
+
+                        rep.hdr.pkt_type = SHIP_SIMPLE_MAIL_TYPE;
+                        rep.hdr.flags = 0;
+                        rep.hdr.pkt_len = LE16(SHIP_DC_SIMPLE_MAIL_LENGTH);
+
+                        rep.tag = LE32(0x00010000);
+                        rep.gc_sender = pkt->gc_dest;
+                        rep.gc_dest = pkt->gc_sender;
+
+                        strcpy(rep.name, it->pl->v1.name);
+                        strcpy(rep.stuff, it->autoreply);
+                        send_simple_mail(CLIENT_VERSION_DCV1, c,
+                                         (dc_pkt_hdr_t *)&rep);
+                    }
+
+                    /* Send the mail. */
                     rv = send_simple_mail(c->version, it, (dc_pkt_hdr_t *)pkt);
                     pthread_mutex_unlock(&it->mutex);
                     done = 1;
@@ -874,6 +902,33 @@ static int pc_process_mail(ship_client_t *c, pc_simple_mail_pkt *pkt) {
                    data. */
                 if(it->guildcard == gc && it->pl) {
                     pthread_mutex_lock(&it->mutex);
+
+                    /* Make sure the user hasn't blacklisted the sender. */
+                    if(client_has_blacklisted(it, c->guildcard)) {
+                        done = 1;
+                        pthread_mutex_unlock(&it->mutex);
+                        break;
+                    }
+
+                    /* Check if the user has an autoreply set. */
+                    if(it->autoreply) {
+                        dc_simple_mail_pkt rep;
+                        memset(&rep, 0, sizeof(rep));
+
+                        rep.hdr.pkt_type = SHIP_SIMPLE_MAIL_TYPE;
+                        rep.hdr.flags = 0;
+                        rep.hdr.pkt_len = LE16(SHIP_DC_SIMPLE_MAIL_LENGTH);
+
+                        rep.tag = LE32(0x00010000);
+                        rep.gc_sender = pkt->gc_dest;
+                        rep.gc_dest = pkt->gc_sender;
+
+                        strcpy(rep.name, it->pl->v1.name);
+                        strcpy(rep.stuff, it->autoreply);
+                        send_simple_mail(CLIENT_VERSION_DCV1, c,
+                                         (dc_pkt_hdr_t *)&rep);
+                    }
+
                     rv = send_simple_mail(c->version, it, (dc_pkt_hdr_t *)pkt);
                     pthread_mutex_unlock(&it->mutex);
                     done = 1;
@@ -1672,6 +1727,12 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
 
         case SHIP_BLACKLIST_TYPE:
             return process_blacklist(c, (gc_blacklist_update_pkt *)pkt);
+
+        case SHIP_AUTOREPLY_SET_TYPE:
+            return client_set_autoreply(c, dc);
+
+        case SHIP_AUTOREPLY_CLEAR_TYPE:
+            return client_clear_autoreply(c);
 
         default:
             debug(DBG_LOG, "Unknown packet!\n");

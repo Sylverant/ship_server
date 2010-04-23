@@ -726,6 +726,15 @@ typedef struct gc_blacklist_update {
     uint32_t list[30];
 } PACKED gc_blacklist_update_pkt;
 
+/* The packet used to set a simple mail autoreply (v2 and higher). */
+typedef struct autoreply_set {
+    union {
+        dc_pkt_hdr_t dc;
+        pc_pkt_hdr_t pc;
+    } hdr;
+    char msg[];
+} PACKED autoreply_set_pkt;
+
 #undef PACKED
 
 /* Parameters for the various packets. */
@@ -787,8 +796,8 @@ typedef struct gc_blacklist_update {
 #define SHIP_CHOICE_REPLY_TYPE              0x00C4
 #define SHIP_C_RANK_TYPE                    0x00C5
 #define SHIP_BLACKLIST_TYPE                 0x00C6
-#define SHIP_AUTOREPLY_TYPE                 0x00C7
-#define SHIP_STOP_AUTOREPLY_TYPE            0x00C8
+#define SHIP_AUTOREPLY_SET_TYPE             0x00C7
+#define SHIP_AUTOREPLY_CLEAR_TYPE           0x00C8
 #define SHIP_TRADE_0_TYPE                   0x00D0
 #define SHIP_TRADE_1_TYPE                   0x00D1
 #define SHIP_TRADE_2_TYPE                   0x00D2
