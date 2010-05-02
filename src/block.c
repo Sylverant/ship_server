@@ -1600,7 +1600,12 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return 0;
 
         case SHIP_TYPE_05:
-            /* Ignore these for now. They'll be disconnected soon anyway. */
+            /* If we've already gotten one of these, disconnect the client. */
+            if(c->got_05) {
+                c->disconnected = 1;
+            }
+
+            c->got_05 = 1;
             return 0;
 
         case SHIP_CHAT_TYPE:
