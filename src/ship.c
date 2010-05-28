@@ -494,7 +494,7 @@ void ship_server_stop(ship_t *s) {
     pthread_join(s->thd, NULL);
 }
 
-static int dc_process_login(ship_client_t *c, dc_login_pkt *pkt) {
+static int dc_process_login(ship_client_t *c, dc_login_93_pkt *pkt) {
     if(send_dc_security(c, pkt->guildcard, NULL, 0)) {
         return -1;
     }
@@ -507,7 +507,7 @@ static int dc_process_login(ship_client_t *c, dc_login_pkt *pkt) {
 }
 
 /* Just in case I ever use the rest of the stuff... */
-static int dcv2_process_login(ship_client_t *c, dcv2_login_pkt *pkt) {
+static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
     if(send_dc_security(c, pkt->guildcard, NULL, 0)) {
         return -1;
     }
@@ -519,7 +519,7 @@ static int dcv2_process_login(ship_client_t *c, dcv2_login_pkt *pkt) {
     return 0;
 }
 
-static int gc_process_login(ship_client_t *c, gc_login_pkt *pkt) {
+static int gc_process_login(ship_client_t *c, gc_login_9e_pkt *pkt) {
     if(send_dc_security(c, pkt->guildcard, NULL, 0)) {
         return -1;
     }
@@ -608,7 +608,7 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return 0;
 
         case SHIP_LOGIN_TYPE:
-            return dc_process_login(c, (dc_login_pkt *)pkt);
+            return dc_process_login(c, (dc_login_93_pkt *)pkt);
 
         case SHIP_MENU_SELECT_TYPE:
             return dc_process_block_sel(c, (dc_select_pkt *)pkt);
@@ -617,10 +617,10 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return dc_process_info_req(c, (dc_select_pkt *)pkt);
 
         case SHIP_DCV2_LOGIN_TYPE:
-            return dcv2_process_login(c, (dcv2_login_pkt *)pkt);
+            return dcv2_process_login(c, (dcv2_login_9d_pkt *)pkt);
 
         case SHIP_GC_LOGIN_TYPE:
-            return gc_process_login(c, (gc_login_pkt *)pkt);
+            return gc_process_login(c, (gc_login_9e_pkt *)pkt);
 
         default:
             printf("Unknown packet!\n");

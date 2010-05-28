@@ -279,4 +279,6 @@ typedef union {
     v3_player_t v3;
 } player_t;
 
+#define PLAYER_T_DEFINED
+
 #endif /* !PLAYER_H */

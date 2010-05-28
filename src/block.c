@@ -535,7 +535,7 @@ lobby_t *block_get_lobby(block_t *b, uint32_t lobby_id) {
 
 /* Process a login packet, sending security data, a lobby list, and a character
    data request. */
-static int dc_process_login(ship_client_t *c, dc_login_pkt *pkt) {
+static int dc_process_login(ship_client_t *c, dc_login_93_pkt *pkt) {
     /* Save what we care about in here. */
     c->guildcard = pkt->guildcard;
 
@@ -559,7 +559,7 @@ static int dc_process_login(ship_client_t *c, dc_login_pkt *pkt) {
 
 /* Process a v2 login packet, sending security data, a lobby list, and a
    character data request. */
-static int dcv2_process_login(ship_client_t *c, dcv2_login_pkt *pkt) {
+static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
     /* Save what we care about in here. */
     c->guildcard = LE32(pkt->guildcard);
 
@@ -586,7 +586,7 @@ static int dcv2_process_login(ship_client_t *c, dcv2_login_pkt *pkt) {
 
 /* Process a GC login packet, sending security data, a lobby list, and a
    character data request. */
-static int gc_process_login(ship_client_t *c, gc_login_pkt *pkt) {
+static int gc_process_login(ship_client_t *c, gc_login_9e_pkt *pkt) {
     /* Save what we care about in here. */
     c->guildcard = LE32(pkt->guildcard);
 
@@ -1580,7 +1580,7 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
 
     switch(type) {
         case SHIP_LOGIN_TYPE:
-            return dc_process_login(c, (dc_login_pkt *)pkt);
+            return dc_process_login(c, (dc_login_93_pkt *)pkt);
 
         case SHIP_DC_CHAR_DATA_TYPE:
             return dc_process_char(c, (dc_char_data_pkt *)pkt);
@@ -1678,7 +1678,7 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return 0;
 
         case SHIP_DCV2_LOGIN_TYPE:
-            return dcv2_process_login(c, (dcv2_login_pkt *)pkt);
+            return dcv2_process_login(c, (dcv2_login_9d_pkt *)pkt);
 
         case SHIP_LOBBY_NAME_TYPE:
             return send_lobby_name(c, c->cur_lobby);
@@ -1701,7 +1701,7 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return send_choice_reply(c, (dc_choice_set_t *)pkt);
 
         case SHIP_GC_LOGIN_TYPE:
-            return gc_process_login(c, (gc_login_pkt *)pkt);
+            return gc_process_login(c, (gc_login_9e_pkt *)pkt);
 
         case SHIP_QUEST_CHUNK_TYPE:
         case SHIP_QUEST_FILE_TYPE:

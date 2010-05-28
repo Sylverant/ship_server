@@ -28,6 +28,11 @@
 #include "block.h"
 #include "player.h"
 
+/* Pull in the packet header types. */
+#define PACKETS_H_HEADERS_ONLY
+#include "packets.h"
+#undef PACKETS_H_HEADERS_ONLY
+
 #include <sylverant/encryption.h>
 
 /* Forward declarations. */
@@ -37,31 +42,6 @@ struct lobby;
 #define LOBBY_DEFINED
 typedef struct lobby lobby_t;
 #endif
-
-#ifdef PACKED
-#undef PACKED
-#endif
-
-#define PACKED __attribute__((packed))
-
-typedef struct dc_pkt_hdr {
-    uint8_t pkt_type;
-    uint8_t flags;
-    uint16_t pkt_len;
-} PACKED dc_pkt_hdr_t;
-
-typedef struct pc_pkt_hdr {
-    uint16_t pkt_len;
-    uint8_t pkt_type;
-    uint8_t flags;
-} PACKED pc_pkt_hdr_t;
-
-typedef union pkt_header {
-    dc_pkt_hdr_t dc;
-    pc_pkt_hdr_t pc;
-} pkt_header_t;
-
-#undef PACKED
 
 /* Ship server client structure. */
 struct ship_client {
