@@ -89,7 +89,7 @@ static void *block_thd(void *d) {
             }
             /* Otherwise, if we haven't heard from them in a minute, ping it. */
             else if(now > it->last_message + 60 && now > it->last_sent + 10) {
-                if(send_simple(it, SHIP_PING_TYPE, 0)) {
+                if(send_simple(it, PING_TYPE, 0)) {
                     it->disconnected = 1;
                     continue;
                 }
@@ -550,7 +550,7 @@ static int dc_process_login(ship_client_t *c, dc_login_93_pkt *pkt) {
         return -2;
     }
 
-    if(send_simple(c, SHIP_CHAR_DATA_REQUEST_TYPE, 0)) {
+    if(send_simple(c, CHAR_DATA_REQUEST_TYPE, 0)) {
         return -3;
     }
 
@@ -577,7 +577,7 @@ static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
         return -2;
     }
 
-    if(send_simple(c, SHIP_CHAR_DATA_REQUEST_TYPE, 0)) {
+    if(send_simple(c, CHAR_DATA_REQUEST_TYPE, 0)) {
         return -3;
     }
 
@@ -601,7 +601,7 @@ static int gc_process_login(ship_client_t *c, gc_login_9e_pkt *pkt) {
         return -2;
     }
 
-    if(send_simple(c, SHIP_CHAR_DATA_REQUEST_TYPE, 0)) {
+    if(send_simple(c, CHAR_DATA_REQUEST_TYPE, 0)) {
         return -3;
     }
 
@@ -642,7 +642,7 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
 
     /* If this packet is coming after the client has left a game, then don't
        do anything else here, they'll take care of it by sending an 0x84. */
-    if(type == SHIP_LEAVE_GAME_PL_DATA_TYPE) {
+    if(type == LEAVE_GAME_PL_DATA_TYPE) {
         return 0;
     }
 
@@ -835,9 +835,9 @@ static int dc_process_mail(ship_client_t *c, dc_simple_mail_pkt *pkt) {
                         dc_simple_mail_pkt rep;
                         memset(&rep, 0, sizeof(rep));
 
-                        rep.hdr.pkt_type = SHIP_SIMPLE_MAIL_TYPE;
+                        rep.hdr.pkt_type = SIMPLE_MAIL_TYPE;
                         rep.hdr.flags = 0;
-                        rep.hdr.pkt_len = LE16(SHIP_DC_SIMPLE_MAIL_LENGTH);
+                        rep.hdr.pkt_len = LE16(DC_SIMPLE_MAIL_LENGTH);
 
                         rep.tag = LE32(0x00010000);
                         rep.gc_sender = pkt->gc_dest;
@@ -915,9 +915,9 @@ static int pc_process_mail(ship_client_t *c, pc_simple_mail_pkt *pkt) {
                         dc_simple_mail_pkt rep;
                         memset(&rep, 0, sizeof(rep));
 
-                        rep.hdr.pkt_type = SHIP_SIMPLE_MAIL_TYPE;
+                        rep.hdr.pkt_type = SIMPLE_MAIL_TYPE;
                         rep.hdr.flags = 0;
-                        rep.hdr.pkt_len = LE16(SHIP_DC_SIMPLE_MAIL_LENGTH);
+                        rep.hdr.pkt_len = LE16(DC_SIMPLE_MAIL_LENGTH);
 
                         rep.tag = LE32(0x00010000);
                         rep.gc_sender = pkt->gc_dest;
@@ -1526,10 +1526,10 @@ static int process_trade(ship_client_t *c, gc_trade_pkt *pkt) {
     /* Find the destination. */
     dest = l->clients[pkt->who];
 
-    send_simple(dest, SHIP_TRADE_1_TYPE, 0);
-    pkt->hdr.pkt_type = SHIP_TRADE_3_TYPE;
+    send_simple(dest, TRADE_1_TYPE, 0);
+    pkt->hdr.pkt_type = TRADE_3_TYPE;
     send_pkt_dc(dest, (dc_pkt_hdr_t *)pkt);
-    return send_simple(dest, SHIP_TRADE_4_TYPE, 1);
+    return send_simple(dest, TRADE_4_TYPE, 1);
 }
 
 /* Process a blacklist update packet. */
@@ -1579,27 +1579,27 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
         debug(DBG_LOG, "\tFrom %s (%d)\n", c->pl->v1.name, c->guildcard);
 
     switch(type) {
-        case SHIP_LOGIN_TYPE:
+        case LOGIN_93_TYPE:
             return dc_process_login(c, (dc_login_93_pkt *)pkt);
 
-        case SHIP_DC_CHAR_DATA_TYPE:
+        case CHAR_DATA_TYPE:
             return dc_process_char(c, (dc_char_data_pkt *)pkt);
 
-        case SHIP_GAME_COMMAND0_TYPE:
+        case GAME_COMMAND0_TYPE:
             return subcmd_handle_bcast(c, (subcmd_pkt_t *)pkt);
 
-        case SHIP_GAME_COMMAND2_TYPE:
-        case SHIP_GAME_COMMANDD_TYPE:
+        case GAME_COMMAND2_TYPE:
+        case GAME_COMMANDD_TYPE:
             return subcmd_handle_one(c, (subcmd_pkt_t *)pkt);
 
-        case SHIP_LOBBY_CHANGE_TYPE:
+        case LOBBY_CHANGE_TYPE:
             return dc_process_change_lobby(c, (dc_select_pkt *)pkt);
 
-        case SHIP_PING_TYPE:
+        case PING_TYPE:
             /* Ignore these, they're handled elsewhere. */
             return 0;
 
-        case SHIP_TYPE_05:
+        case TYPE_05:
             /* If we've already gotten one of these, disconnect the client. */
             if(c->got_05) {
                 c->disconnected = 1;
@@ -1608,7 +1608,7 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             c->got_05 = 1;
             return 0;
 
-        case SHIP_CHAT_TYPE:
+        case CHAT_TYPE:
             if(c->version != CLIENT_VERSION_PC) {
                 return dc_process_chat(c, (dc_chat_pkt *)pkt);
             }
@@ -1616,10 +1616,10 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
                 return pc_process_chat(c, (dc_chat_pkt *)pkt);
             }
 
-        case SHIP_GUILD_SEARCH_TYPE:
+        case GUILD_SEARCH_TYPE:
             return dc_process_guild_search(c, (dc_guild_search_pkt *)pkt);
 
-        case SHIP_SIMPLE_MAIL_TYPE:
+        case SIMPLE_MAIL_TYPE:
             if(c->version != CLIENT_VERSION_PC) {
                 return dc_process_mail(c, (dc_simple_mail_pkt *)pkt);
             }
@@ -1627,8 +1627,8 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
                 return pc_process_mail(c, (pc_simple_mail_pkt *)pkt);
             }
 
-        case SHIP_DC_GAME_CREATE_TYPE:
-        case SHIP_GAME_CREATE_TYPE:
+        case DC_GAME_CREATE_TYPE:
+        case GAME_CREATE_TYPE:
             if(c->version != CLIENT_VERSION_PC &&
                c->version != CLIENT_VERSION_GC) {
                 return dc_process_game_create(c, (dc_game_create_pkt *)pkt);
@@ -1640,28 +1640,28 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
                 return gc_process_game_create(c, (gc_game_create_pkt *)pkt);
             }
 
-        case SHIP_DONE_BURSTING_TYPE:
+        case DONE_BURSTING_TYPE:
             return dc_process_done_burst(c);
 
-        case SHIP_GAME_LIST_TYPE:
+        case GAME_LIST_TYPE:
             return send_game_list(c, c->cur_block);
 
-        case SHIP_MENU_SELECT_TYPE:
+        case MENU_SELECT_TYPE:
             return dc_process_menu(c, (dc_select_pkt *)pkt);
 
-        case SHIP_LEAVE_GAME_PL_DATA_TYPE:
+        case LEAVE_GAME_PL_DATA_TYPE:
             return dc_process_char(c, (dc_char_data_pkt *)pkt);
 
-        case SHIP_LOBBY_INFO_TYPE:
+        case LOBBY_INFO_TYPE:
             return dc_process_lobby_inf(c);
 
-        case SHIP_BLOCK_LIST_REQ_TYPE:
+        case BLOCK_LIST_REQ_TYPE:
             return send_block_list(c, c->cur_ship);
 
-        case SHIP_INFO_REQUEST_TYPE:
+        case INFO_REQUEST_TYPE:
             return dc_process_info_req(c, (dc_select_pkt *)pkt);
 
-        case SHIP_QUEST_LIST_TYPE:
+        case QUEST_LIST_TYPE:
             pthread_mutex_lock(&c->cur_ship->qmutex);
             pthread_mutex_lock(&c->cur_lobby->mutex);
             rv = send_quest_categories(c, &c->cur_ship->quests);
@@ -1670,73 +1670,73 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             pthread_mutex_unlock(&c->cur_ship->qmutex);
             return rv;
 
-        case SHIP_QUEST_END_LIST_TYPE:
+        case QUEST_END_LIST_TYPE:
             pthread_mutex_lock(&c->cur_lobby->mutex);
             c->cur_lobby->flags &= ~LOBBY_FLAG_QUESTSEL;
             pthread_mutex_unlock(&c->cur_lobby->mutex);
             
             return 0;
 
-        case SHIP_DCV2_LOGIN_TYPE:
+        case LOGIN_9D_TYPE:
             return dcv2_process_login(c, (dcv2_login_9d_pkt *)pkt);
 
-        case SHIP_LOBBY_NAME_TYPE:
+        case LOBBY_NAME_TYPE:
             return send_lobby_name(c, c->cur_lobby);
 
-        case SHIP_LOBBY_ARROW_CHANGE_TYPE:
+        case LOBBY_ARROW_CHANGE_TYPE:
             return dc_process_arrow(c, flags);
 
-        case SHIP_SHIP_LIST_TYPE:
+        case SHIP_LIST_TYPE:
             return send_ship_list(c, c->cur_ship->ships,
                                   c->cur_ship->ship_count);
 
-        case SHIP_CHOICE_OPTION_TYPE:
+        case CHOICE_OPTION_TYPE:
             return send_choice_search(c);
 
-        case SHIP_CHOICE_SETTING_TYPE:
+        case CHOICE_SETTING_TYPE:
             /* Ignore these for now. */
             return 0;
 
-        case SHIP_CHOICE_SEARCH_TYPE:
+        case CHOICE_SEARCH_TYPE:
             return send_choice_reply(c, (dc_choice_set_t *)pkt);
 
-        case SHIP_GC_LOGIN_TYPE:
+        case LOGIN_9E_TYPE:
             return gc_process_login(c, (gc_login_9e_pkt *)pkt);
 
-        case SHIP_QUEST_CHUNK_TYPE:
-        case SHIP_QUEST_FILE_TYPE:
+        case QUEST_CHUNK_TYPE:
+        case QUEST_FILE_TYPE:
             /* Uhh... Ignore these for now, we've already sent it by the time we
                get this packet from the client. */
             return 0;
 
-        case SHIP_QUEST_LOAD_DONE_TYPE:
+        case QUEST_LOAD_DONE_TYPE:
             /* XXXX: This isn't right... we need to synchronize this. */
-            return send_simple(c, SHIP_QUEST_LOAD_DONE_TYPE, 0);
+            return send_simple(c, QUEST_LOAD_DONE_TYPE, 0);
 
-        case SHIP_GC_INFOBOARD_WRITE_TYPE:
+        case GC_INFOBOARD_WRITE_TYPE:
             return process_infoboard(c, (gc_write_info_pkt *)pkt);
 
-        case SHIP_GC_INFOBOARD_REQ_TYPE:
+        case GC_INFOBOARD_REQ_TYPE:
             return send_infoboard(c, c->cur_lobby);
 
-        case SHIP_TRADE_0_TYPE:
+        case TRADE_0_TYPE:
             return process_trade(c, (gc_trade_pkt *)pkt);
 
-        case SHIP_TRADE_2_TYPE:
+        case TRADE_2_TYPE:
             /* Ignore. */
             return 0;
 
-        case SHIP_GC_MSG_BOX_CLOSED_TYPE:
+        case GC_MSG_BOX_CLOSED_TYPE:
             /* Ignore. */
             return 0;
 
-        case SHIP_BLACKLIST_TYPE:
+        case BLACKLIST_TYPE:
             return process_blacklist(c, (gc_blacklist_update_pkt *)pkt);
 
-        case SHIP_AUTOREPLY_SET_TYPE:
+        case AUTOREPLY_SET_TYPE:
             return client_set_autoreply(c, dc);
 
-        case SHIP_AUTOREPLY_CLEAR_TYPE:
+        case AUTOREPLY_CLEAR_TYPE:
             return client_clear_autoreply(c);
 
         default:

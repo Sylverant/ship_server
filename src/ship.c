@@ -75,7 +75,7 @@ static void *ship_thd(void *d) {
             }
             /* Otherwise, if we haven't heard from them in a minute, ping it. */
             else if(now > it->last_message + 60 && now > it->last_sent + 10) {
-                if(send_simple(it, SHIP_PING_TYPE, 0)) {
+                if(send_simple(it, PING_TYPE, 0)) {
                     it->disconnected = 1;
                     continue;
                 }
@@ -603,23 +603,23 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
     debug(DBG_LOG, "%s: Received type 0x%02X\n", c->cur_ship->cfg->name, type);
 
     switch(type) {
-        case SHIP_PING_TYPE:
+        case PING_TYPE:
             /* Ignore these. */
             return 0;
 
-        case SHIP_LOGIN_TYPE:
+        case LOGIN_93_TYPE:
             return dc_process_login(c, (dc_login_93_pkt *)pkt);
 
-        case SHIP_MENU_SELECT_TYPE:
+        case MENU_SELECT_TYPE:
             return dc_process_block_sel(c, (dc_select_pkt *)pkt);
 
-        case SHIP_INFO_REQUEST_TYPE:
+        case INFO_REQUEST_TYPE:
             return dc_process_info_req(c, (dc_select_pkt *)pkt);
 
-        case SHIP_DCV2_LOGIN_TYPE:
+        case LOGIN_9D_TYPE:
             return dcv2_process_login(c, (dcv2_login_9d_pkt *)pkt);
 
-        case SHIP_GC_LOGIN_TYPE:
+        case LOGIN_9E_TYPE:
             return gc_process_login(c, (gc_login_9e_pkt *)pkt);
 
         default:

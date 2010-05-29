@@ -566,7 +566,7 @@ static int handle_event(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
                             pthread_mutex_lock(&c2->mutex);
 
                             if(c2->version > CLIENT_VERSION_PC) {
-                                send_simple(c2, SHIP_LOBBY_EVENT_TYPE, event);
+                                send_simple(c2, LOBBY_EVENT_TYPE, event);
                             }
 
                             pthread_mutex_unlock(&c2->mutex);
@@ -648,7 +648,7 @@ static int handle_bug(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     extern int handle_dc_gcsend(ship_client_t *d, subcmd_dc_gcsend_t *pkt);
 
     /* Forge a guildcard send packet. */
-    gcpkt.hdr.pkt_type = SHIP_GAME_COMMAND2_TYPE;
+    gcpkt.hdr.pkt_type = GAME_COMMAND2_TYPE;
     gcpkt.hdr.flags = c->client_id;
     gcpkt.hdr.pkt_len = LE16(0x88);
     gcpkt.type = SUBCMD_GUILDCARD;
@@ -1009,7 +1009,7 @@ int wcommand_parse(ship_client_t *c, dc_chat_pkt *pkt) {
     iconv_close(ic);
 
     /* Fill in the rest of the packet. */
-    p2->hdr.dc.pkt_type = SHIP_CHAT_TYPE;
+    p2->hdr.dc.pkt_type = CHAT_TYPE;
     p2->hdr.dc.flags = 0;
     p2->hdr.dc.pkt_len = 12 + (tlen - out);
     p2->padding = 0;

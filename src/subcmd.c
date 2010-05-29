@@ -339,7 +339,7 @@ static int handle_itemreq(ship_client_t *c, subcmd_itemreq_t *req) {
     lobby_t *l = c->cur_lobby;
 
     /* Fill in the packet we'll send out. */
-    gen.hdr.pkt_type = SHIP_GAME_COMMAND0_TYPE;
+    gen.hdr.pkt_type = GAME_COMMAND0_TYPE;
     gen.hdr.flags = 0;
     gen.hdr.pkt_len = LE16(0x30);
     gen.type = SUBCMD_ITEMDROP;

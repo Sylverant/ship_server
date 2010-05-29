@@ -182,12 +182,12 @@ int send_dc_welcome(ship_client_t *c, uint32_t svect, uint32_t cvect) {
     if(c->version == CLIENT_VERSION_DCV1 ||
        c->version == CLIENT_VERSION_DCV2 ||
        c->version == CLIENT_VERSION_GC) {
-        pkt->hdr.dc.pkt_len = LE16(SHIP_DC_WELCOME_LENGTH);
-        pkt->hdr.dc.pkt_type = SHIP_DC_WELCOME_TYPE;
+        pkt->hdr.dc.pkt_len = LE16(DC_WELCOME_LENGTH);
+        pkt->hdr.dc.pkt_type = WELCOME_TYPE;
     }
     else {
-        pkt->hdr.pc.pkt_len = LE16(SHIP_DC_WELCOME_LENGTH);
-        pkt->hdr.pc.pkt_type = SHIP_DC_WELCOME_TYPE;
+        pkt->hdr.pc.pkt_len = LE16(DC_WELCOME_LENGTH);
+        pkt->hdr.pc.pkt_type = WELCOME_TYPE;
     }
 
     /* Fill in the required message */
@@ -198,7 +198,7 @@ int send_dc_welcome(ship_client_t *c, uint32_t svect, uint32_t cvect) {
     pkt->cvect = LE32(cvect);
 
     /* Send the packet away */
-    return send_raw(c, SHIP_DC_WELCOME_LENGTH, sendbuf);
+    return send_raw(c, DC_WELCOME_LENGTH, sendbuf);
 }
 
 /* Send the Dreamcast security packet to the given client. */
@@ -219,11 +219,11 @@ int send_dc_security(ship_client_t *c, uint32_t gc, uint8_t *data,
     if(c->version == CLIENT_VERSION_DCV1 ||
        c->version == CLIENT_VERSION_DCV2 ||
        c->version == CLIENT_VERSION_GC) {
-        pkt->hdr.dc.pkt_type = SHIP_DC_SECURITY_TYPE;
+        pkt->hdr.dc.pkt_type = SECURITY_TYPE;
         pkt->hdr.dc.pkt_len = LE16((0x0C + data_len));
     }
     else {
-        pkt->hdr.pc.pkt_type = SHIP_DC_SECURITY_TYPE;
+        pkt->hdr.pc.pkt_type = SECURITY_TYPE;
         pkt->hdr.pc.pkt_len = LE16((0x0C + data_len));
     }
 
@@ -250,18 +250,18 @@ static int send_dc_redirect(ship_client_t *c, in_addr_t ip, uint16_t port) {
     }
 
     /* Wipe the packet */
-    memset(pkt, 0, SHIP_DC_REDIRECT_LENGTH);
+    memset(pkt, 0, DC_REDIRECT_LENGTH);
 
     /* Fill in the header */
     if(c->version == CLIENT_VERSION_DCV1 ||
        c->version == CLIENT_VERSION_DCV2 ||
        c->version == CLIENT_VERSION_GC) {
-        pkt->hdr.dc.pkt_type = SHIP_REDIRECT_TYPE;
-        pkt->hdr.dc.pkt_len = LE16(SHIP_DC_REDIRECT_LENGTH);
+        pkt->hdr.dc.pkt_type = REDIRECT_TYPE;
+        pkt->hdr.dc.pkt_len = LE16(DC_REDIRECT_LENGTH);
     }
     else {
-        pkt->hdr.pc.pkt_type = SHIP_REDIRECT_TYPE;
-        pkt->hdr.pc.pkt_len = LE16(SHIP_DC_REDIRECT_LENGTH);
+        pkt->hdr.pc.pkt_type = REDIRECT_TYPE;
+        pkt->hdr.pc.pkt_len = LE16(DC_REDIRECT_LENGTH);
     }
 
     /* Fill in the IP and port */
@@ -269,7 +269,7 @@ static int send_dc_redirect(ship_client_t *c, in_addr_t ip, uint16_t port) {
     pkt->port = LE16(port);
 
     /* Send the packet away */
-    return crypt_send(c, SHIP_DC_REDIRECT_LENGTH, sendbuf);
+    return crypt_send(c, DC_REDIRECT_LENGTH, sendbuf);
 }
 
 int send_redirect(ship_client_t *c, in_addr_t ip, uint16_t port) {
@@ -298,18 +298,18 @@ static int send_dc_timestamp(ship_client_t *c) {
     }
 
     /* Wipe the packet */
-    memset(pkt, 0, SHIP_DC_TIMESTAMP_LENGTH);
+    memset(pkt, 0, DC_TIMESTAMP_LENGTH);
 
     /* Fill in the header */
     if(c->version == CLIENT_VERSION_DCV1 ||
        c->version == CLIENT_VERSION_DCV2 ||
        c->version == CLIENT_VERSION_GC) {
-        pkt->hdr.dc.pkt_type = SHIP_TIMESTAMP_TYPE;
-        pkt->hdr.dc.pkt_len = LE16(SHIP_DC_TIMESTAMP_LENGTH);
+        pkt->hdr.dc.pkt_type = TIMESTAMP_TYPE;
+        pkt->hdr.dc.pkt_len = LE16(DC_TIMESTAMP_LENGTH);
     }
     else {
-        pkt->hdr.pc.pkt_type = SHIP_TIMESTAMP_TYPE;
-        pkt->hdr.pc.pkt_len = LE16(SHIP_DC_TIMESTAMP_LENGTH);
+        pkt->hdr.pc.pkt_type = TIMESTAMP_TYPE;
+        pkt->hdr.pc.pkt_len = LE16(DC_TIMESTAMP_LENGTH);
     }
 
     /* Get the timestamp */
@@ -325,7 +325,7 @@ static int send_dc_timestamp(ship_client_t *c) {
             (unsigned int)(rawtime.tv_usec / 1000));
 
     /* Send the packet away */
-    return crypt_send(c, SHIP_DC_TIMESTAMP_LENGTH, sendbuf);
+    return crypt_send(c, DC_TIMESTAMP_LENGTH, sendbuf);
 }
 
 int send_timestamp(ship_client_t *c) {
@@ -357,7 +357,7 @@ static int send_dc_block_list(ship_client_t *c, ship_t *s) {
     memset(pkt, 0, sizeof(dc_block_list_pkt));
 
     /* Fill in some basic stuff */
-    pkt->hdr.pkt_type = SHIP_DC_BLOCK_LIST_TYPE;
+    pkt->hdr.pkt_type = BLOCK_LIST_TYPE;
 
     /* Fill in the ship name entry */
     memset(&pkt->entries[0], 0, 0x1C);
@@ -414,7 +414,7 @@ static int send_pc_block_list(ship_client_t *c, ship_t *s) {
     memset(pkt, 0, sizeof(pc_block_list_pkt));
 
     /* Fill in some basic stuff */
-    pkt->hdr.pkt_type = SHIP_DC_BLOCK_LIST_TYPE;
+    pkt->hdr.pkt_type = BLOCK_LIST_TYPE;
 
     /* Fill in the ship name entry */
     memset(&pkt->entries[0], 0, 0x2C);
@@ -521,12 +521,12 @@ static int send_dc_info_reply(ship_client_t *c, char msg[]) {
     if(c->version == CLIENT_VERSION_DCV1 ||
        c->version == CLIENT_VERSION_DCV2 ||
        c->version == CLIENT_VERSION_GC) {
-        pkt->hdr.dc.pkt_type = SHIP_INFO_REPLY_TYPE;
+        pkt->hdr.dc.pkt_type = INFO_REPLY_TYPE;
         pkt->hdr.dc.flags = 0;
         pkt->hdr.dc.pkt_len = LE16(out);
     }
     else {
-        pkt->hdr.pc.pkt_type = SHIP_INFO_REPLY_TYPE;
+        pkt->hdr.pc.pkt_type = INFO_REPLY_TYPE;
         pkt->hdr.pc.flags = 0;
         pkt->hdr.pc.pkt_len = LE16(out);
     }
@@ -614,14 +614,14 @@ static int send_dc_lobby_list(ship_client_t *c) {
     /* Fill in the header */
     if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
        c->version == CLIENT_VERSION_GC) {
-        pkt->hdr.dc.pkt_type = SHIP_LOBBY_LIST_TYPE;
+        pkt->hdr.dc.pkt_type = LOBBY_LIST_TYPE;
         pkt->hdr.dc.flags = 0x0F;                               /* 15 lobbies */
-        pkt->hdr.dc.pkt_len = LE16(SHIP_DC_LOBBY_LIST_LENGTH);
+        pkt->hdr.dc.pkt_len = LE16(DC_LOBBY_LIST_LENGTH);
     }
     else {
-        pkt->hdr.pc.pkt_type = SHIP_LOBBY_LIST_TYPE;
+        pkt->hdr.pc.pkt_type = LOBBY_LIST_TYPE;
         pkt->hdr.pc.flags = 0x0F;                               /* 15 lobbies */
-        pkt->hdr.pc.pkt_len = LE16(SHIP_DC_LOBBY_LIST_LENGTH);
+        pkt->hdr.pc.pkt_len = LE16(DC_LOBBY_LIST_LENGTH);
     }
 
     /* Fill in the lobbies. */
@@ -636,7 +636,7 @@ static int send_dc_lobby_list(ship_client_t *c) {
     pkt->entries[15].item_id = 0;
     pkt->entries[15].padding = 0;
 
-    return crypt_send(c, SHIP_DC_LOBBY_LIST_LENGTH, sendbuf);
+    return crypt_send(c, DC_LOBBY_LIST_LENGTH, sendbuf);
 }
 
 int send_lobby_list(ship_client_t *c) {
@@ -674,7 +674,7 @@ static int send_dc_lobby_join(ship_client_t *c, lobby_t *l) {
     }
 
     /* Fill in the basics. */
-    pkt->hdr.pkt_type = SHIP_LOBBY_JOIN_TYPE;
+    pkt->hdr.pkt_type = LOBBY_JOIN_TYPE;
     pkt->leader_id = l->leader_id;
     pkt->one = 1;
     pkt->lobby_num = l->lobby_id - 1;
@@ -744,7 +744,7 @@ static int send_pc_lobby_join(ship_client_t *c, lobby_t *l) {
     memset(pkt, 0, sizeof(pc_lobby_join_pkt));
 
     /* Fill in the basics. */
-    pkt->hdr.pkt_type = SHIP_LOBBY_JOIN_TYPE;
+    pkt->hdr.pkt_type = LOBBY_JOIN_TYPE;
     pkt->leader_id = l->leader_id;
     pkt->one = 1;
     pkt->lobby_num = l->lobby_id - 1;
@@ -865,7 +865,7 @@ static int send_dc_lobby_add_player(lobby_t *l, ship_client_t *c,
 
     /* Fill in the basics. */
     pkt->hdr.pkt_type = l->type & LOBBY_TYPE_DEFAULT ? 
-        SHIP_LOBBY_ADD_PLAYER_TYPE : SHIP_GAME_ADD_PLAYER_TYPE;
+        LOBBY_ADD_PLAYER_TYPE : GAME_ADD_PLAYER_TYPE;
     pkt->hdr.flags = 1;
     pkt->hdr.pkt_len = LE16(0x044C);
     pkt->leader_id = l->leader_id;
@@ -911,7 +911,7 @@ static int send_pc_lobby_add_player(lobby_t *l, ship_client_t *c,
 
     /* Fill in the basics. */
     pkt->hdr.pkt_type = l->type & LOBBY_TYPE_DEFAULT ? 
-        SHIP_LOBBY_ADD_PLAYER_TYPE : SHIP_GAME_ADD_PLAYER_TYPE;
+        LOBBY_ADD_PLAYER_TYPE : GAME_ADD_PLAYER_TYPE;
     pkt->hdr.flags = 1;
     pkt->hdr.pkt_len = LE16(0x045C);
     pkt->leader_id = l->leader_id;
@@ -983,15 +983,15 @@ static int send_dc_lobby_leave(lobby_t *l, ship_client_t *c, int client_id) {
     if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
        c->version == CLIENT_VERSION_GC) {
         pkt->hdr.dc.pkt_type = l->type & LOBBY_TYPE_DEFAULT ?
-            SHIP_LOBBY_LEAVE_TYPE : SHIP_GAME_LEAVE_TYPE;
+            LOBBY_LEAVE_TYPE : GAME_LEAVE_TYPE;
         pkt->hdr.dc.flags = client_id;
-        pkt->hdr.dc.pkt_len = LE16(SHIP_DC_LOBBY_LEAVE_LENGTH);
+        pkt->hdr.dc.pkt_len = LE16(DC_LOBBY_LEAVE_LENGTH);
     }
     else {
         pkt->hdr.pc.pkt_type = l->type & LOBBY_TYPE_DEFAULT ?
-            SHIP_LOBBY_LEAVE_TYPE : SHIP_GAME_LEAVE_TYPE;
+            LOBBY_LEAVE_TYPE : GAME_LEAVE_TYPE;
         pkt->hdr.pc.flags = client_id;
-        pkt->hdr.pc.pkt_len = LE16(SHIP_DC_LOBBY_LEAVE_LENGTH);
+        pkt->hdr.pc.pkt_len = LE16(DC_LOBBY_LEAVE_LENGTH);
     }
 
     pkt->client_id = client_id;
@@ -999,7 +999,7 @@ static int send_dc_lobby_leave(lobby_t *l, ship_client_t *c, int client_id) {
     pkt->padding = 0;
 
     /* Send it away */
-    return crypt_send(c, SHIP_DC_LOBBY_LEAVE_LENGTH, sendbuf);
+    return crypt_send(c, DC_LOBBY_LEAVE_LENGTH, sendbuf);
 }
 
 int send_lobby_leave(lobby_t *l, ship_client_t *c, int client_id) {
@@ -1092,12 +1092,12 @@ static int send_dc_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
 
     if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
        c->version == CLIENT_VERSION_GC) {
-        pkt->hdr.dc.pkt_type = SHIP_CHAT_TYPE;
+        pkt->hdr.dc.pkt_type = CHAT_TYPE;
         pkt->hdr.dc.flags = 0;
         pkt->hdr.dc.pkt_len = LE16(len);
     }
     else {
-        pkt->hdr.pc.pkt_type = SHIP_CHAT_TYPE;
+        pkt->hdr.pc.pkt_type = CHAT_TYPE;
         pkt->hdr.pc.flags = 0;
         pkt->hdr.pc.pkt_len = LE16(len);
     }
@@ -1217,12 +1217,12 @@ static int send_dc_lobby_wchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
 
     if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
        c->version == CLIENT_VERSION_GC) {
-        pkt->hdr.dc.pkt_type = SHIP_CHAT_TYPE;
+        pkt->hdr.dc.pkt_type = CHAT_TYPE;
         pkt->hdr.dc.flags = 0;
         pkt->hdr.dc.pkt_len = LE16(len);
     }
     else {
-        pkt->hdr.pc.pkt_type = SHIP_CHAT_TYPE;
+        pkt->hdr.pc.pkt_type = CHAT_TYPE;
         pkt->hdr.pc.flags = 0;
         pkt->hdr.pc.pkt_len = LE16(len);
     }
@@ -1270,11 +1270,11 @@ static int send_dc_guild_reply(ship_client_t *c, uint32_t gc, in_addr_t ip,
     }
 
     /* Clear it out first */
-    memset(pkt, 0, SHIP_DC_GUILD_REPLY_LENGTH);
+    memset(pkt, 0, DC_GUILD_REPLY_LENGTH);
 
     /* Fill in the simple stuff */
-    pkt->hdr.pkt_type = SHIP_DC_GUILD_REPLY_TYPE;
-    pkt->hdr.pkt_len = LE16(SHIP_DC_GUILD_REPLY_LENGTH);
+    pkt->hdr.pkt_type = GUILD_REPLY_TYPE;
+    pkt->hdr.pkt_len = LE16(DC_GUILD_REPLY_LENGTH);
     pkt->tag = LE32(0x00010000);
     pkt->gc_search = LE32(c->guildcard);
     pkt->gc_target = LE32(gc);
@@ -1288,7 +1288,7 @@ static int send_dc_guild_reply(ship_client_t *c, uint32_t gc, in_addr_t ip,
     sprintf(pkt->location, "%s,BLOCK%02d,%s", game, block, ship);
 
     /* Send it away */
-    return crypt_send(c, SHIP_DC_GUILD_REPLY_LENGTH, sendbuf);
+    return crypt_send(c, DC_GUILD_REPLY_LENGTH, sendbuf);
 }
 
 static int send_pc_guild_reply(ship_client_t *c, uint32_t gc, in_addr_t ip,
@@ -1314,11 +1314,11 @@ static int send_pc_guild_reply(ship_client_t *c, uint32_t gc, in_addr_t ip,
     }
 
     /* Clear it out first */
-    memset(pkt, 0, SHIP_PC_GUILD_REPLY_LENGTH);
+    memset(pkt, 0, PC_GUILD_REPLY_LENGTH);
 
     /* Fill in the simple stuff */
-    pkt->hdr.pkt_type = SHIP_DC_GUILD_REPLY_TYPE;
-    pkt->hdr.pkt_len = LE16(SHIP_PC_GUILD_REPLY_LENGTH);
+    pkt->hdr.pkt_type = GUILD_REPLY_TYPE;
+    pkt->hdr.pkt_len = LE16(PC_GUILD_REPLY_LENGTH);
     pkt->tag = LE32(0x00010000);
     pkt->gc_search = LE32(c->guildcard);
     pkt->gc_target = LE32(gc);
@@ -1344,7 +1344,7 @@ static int send_pc_guild_reply(ship_client_t *c, uint32_t gc, in_addr_t ip,
     iconv_close(ic);
 
     /* Send it away */
-    return crypt_send(c, SHIP_PC_GUILD_REPLY_LENGTH, sendbuf);
+    return crypt_send(c, PC_GUILD_REPLY_LENGTH, sendbuf);
 }
 
 int send_guild_reply(ship_client_t *c, uint32_t gc, in_addr_t ip, uint16_t port,
@@ -1441,7 +1441,7 @@ int send_message1(ship_client_t *c, char msg[]) {
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_PC:
         case CLIENT_VERSION_GC:
-            return send_dc_message(c, msg, SHIP_MSG1_TYPE);
+            return send_dc_message(c, msg, MSG1_TYPE);
     }
     
     return -1;
@@ -1455,7 +1455,7 @@ int send_txt(ship_client_t *c, char msg[]) {
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_PC:
         case CLIENT_VERSION_GC:
-            return send_dc_message(c, msg, SHIP_TEXT_MSG_TYPE);
+            return send_dc_message(c, msg, TEXT_MSG_TYPE);
     }
 
     return -1;
@@ -1474,11 +1474,11 @@ static int send_dc_game_join(ship_client_t *c, lobby_t *l) {
     }
 
     /* Clear it out first. */
-    memset(pkt, 0, SHIP_DC_GAME_JOIN_LENGTH);
+    memset(pkt, 0, DC_GAME_JOIN_LENGTH);
 
     /* Fill in the basics. */
-    pkt->hdr.pkt_type = SHIP_GAME_JOIN_TYPE;
-    pkt->hdr.pkt_len = LE16(SHIP_DC_GAME_JOIN_LENGTH);
+    pkt->hdr.pkt_type = GAME_JOIN_TYPE;
+    pkt->hdr.pkt_len = LE16(DC_GAME_JOIN_LENGTH);
     pkt->client_id = c->client_id;
     pkt->leader_id = l->leader_id;
     pkt->one = 1;
@@ -1509,7 +1509,7 @@ static int send_dc_game_join(ship_client_t *c, lobby_t *l) {
     pkt->hdr.flags = (uint8_t) clients;
 
     /* Send it away */
-    return crypt_send(c, SHIP_DC_GAME_JOIN_LENGTH, sendbuf);
+    return crypt_send(c, DC_GAME_JOIN_LENGTH, sendbuf);
 }
 
 static int send_pc_game_join(ship_client_t *c, lobby_t *l) {
@@ -1536,7 +1536,7 @@ static int send_pc_game_join(ship_client_t *c, lobby_t *l) {
     memset(pkt, 0, sizeof(pc_game_join_pkt));
 
     /* Fill in the basics. */
-    pkt->hdr.pkt_type = SHIP_GAME_JOIN_TYPE;
+    pkt->hdr.pkt_type = GAME_JOIN_TYPE;
     pkt->hdr.pkt_len = LE16(sizeof(pc_game_join_pkt));
     pkt->client_id = c->client_id;
     pkt->leader_id = l->leader_id;
@@ -1589,11 +1589,11 @@ static int send_gc_game_join(ship_client_t *c, lobby_t *l) {
     }
 
     /* Clear it out first. */
-    memset(pkt, 0, SHIP_GC_GAME_JOIN_LENGTH);
+    memset(pkt, 0, GC_GAME_JOIN_LENGTH);
 
     /* Fill in the basics. */
-    pkt->hdr.pkt_type = SHIP_GAME_JOIN_TYPE;
-    pkt->hdr.pkt_len = LE16(SHIP_GC_GAME_JOIN_LENGTH);
+    pkt->hdr.pkt_type = GAME_JOIN_TYPE;
+    pkt->hdr.pkt_len = LE16(GC_GAME_JOIN_LENGTH);
     pkt->client_id = c->client_id;
     pkt->leader_id = l->leader_id;
     pkt->one = 1;
@@ -1626,7 +1626,7 @@ static int send_gc_game_join(ship_client_t *c, lobby_t *l) {
     pkt->hdr.flags = (uint8_t) clients;
 
     /* Send it away */
-    return crypt_send(c, SHIP_GC_GAME_JOIN_LENGTH, sendbuf);
+    return crypt_send(c, GC_GAME_JOIN_LENGTH, sendbuf);
 }
 
 int send_game_join(ship_client_t *c, lobby_t *l) {
@@ -1660,7 +1660,7 @@ static int send_dc_lobby_done_burst(lobby_t *l, ship_client_t *c,
     memset(pkt, 0, 8);
 
     /* Fill in the basics. */
-    pkt->pkt_type = SHIP_GAME_COMMAND0_TYPE;
+    pkt->pkt_type = GAME_COMMAND0_TYPE;
     pkt->flags = 0;
     pkt->pkt_len = LE16(0x0008);
 
@@ -1688,7 +1688,7 @@ static int send_pc_lobby_done_burst(lobby_t *l, ship_client_t *c,
     memset(pkt, 0, 8);
 
     /* Fill in the basics. */
-    pkt->pkt_type = SHIP_GAME_COMMAND0_TYPE;
+    pkt->pkt_type = GAME_COMMAND0_TYPE;
     pkt->flags = 0;
     pkt->pkt_len = LE16(0x0008);
 
@@ -1747,7 +1747,7 @@ static int send_dc_game_list(ship_client_t *c, block_t *b) {
     memset(pkt, 0, 0x20);
 
     /* Fill in the header */
-    pkt->hdr.pkt_type = SHIP_GAME_LIST_TYPE;
+    pkt->hdr.pkt_type = GAME_LIST_TYPE;
 
     /* Fill in the first entry */
     pkt->entries[0].menu_id = 0xFFFFFFFF;
@@ -1833,7 +1833,7 @@ static int send_pc_game_list(ship_client_t *c, block_t *b) {
     memset(pkt, 0, 0x30);
 
     /* Fill in the header */
-    pkt->hdr.pkt_type = SHIP_GAME_LIST_TYPE;
+    pkt->hdr.pkt_type = GAME_LIST_TYPE;
 
     /* Fill in the first entry */
     pkt->entries[0].menu_id = 0xFFFFFFFF;
@@ -1914,7 +1914,7 @@ static int send_gc_game_list(ship_client_t *c, block_t *b) {
     memset(pkt, 0, 0x20);
 
     /* Fill in the header */
-    pkt->hdr.pkt_type = SHIP_GAME_LIST_TYPE;
+    pkt->hdr.pkt_type = GAME_LIST_TYPE;
 
     /* Fill in the first entry */
     pkt->entries[0].menu_id = 0xFFFFFFFF;
@@ -1994,7 +1994,7 @@ static int send_dc_info_list(ship_client_t *c, ship_t *s) {
     memset(pkt, 0, sizeof(dc_block_list_pkt));
 
     /* Fill in some basic stuff */
-    pkt->hdr.pkt_type = SHIP_LOBBY_INFO_TYPE;
+    pkt->hdr.pkt_type = LOBBY_INFO_TYPE;
 
     /* Fill in the ship name entry */
     memset(&pkt->entries[0], 0, 0x1C);
@@ -2056,7 +2056,7 @@ static int send_pc_info_list(ship_client_t *c, ship_t *s) {
     memset(pkt, 0, 0x30);
 
     /* Fill in some basic stuff */
-    pkt->hdr.pkt_type = SHIP_LOBBY_INFO_TYPE;
+    pkt->hdr.pkt_type = LOBBY_INFO_TYPE;
 
     /* Fill in the ship name entry */
     memset(&pkt->entries[0], 0, 0x1C);
@@ -2177,7 +2177,7 @@ int send_pc_game_type_sel(ship_client_t *c) {
     iconv_close(ic);
 
     /* Fill in some basic stuff */
-    pkt->hdr.pkt_type = SHIP_LOBBY_INFO_TYPE;
+    pkt->hdr.pkt_type = LOBBY_INFO_TYPE;
     pkt->hdr.pkt_len = LE16(0x88);
     pkt->hdr.flags = 2;
 
@@ -2245,12 +2245,12 @@ static int send_dc_message_box(ship_client_t *c, char msg[]) {
 
     if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
        c->version == CLIENT_VERSION_GC) {
-        pkt->hdr.dc.pkt_type = SHIP_MSG_BOX_TYPE;
+        pkt->hdr.dc.pkt_type = MSG_BOX_TYPE;
         pkt->hdr.dc.flags = 0;
         pkt->hdr.dc.pkt_len = LE16(len);
     }
     else {
-        pkt->hdr.pc.pkt_type = SHIP_MSG_BOX_TYPE;
+        pkt->hdr.pc.pkt_type = MSG_BOX_TYPE;
         pkt->hdr.pc.flags = 0;
         pkt->hdr.pc.pkt_len = LE16(len);
     }
@@ -2296,7 +2296,7 @@ static int send_dc_quest_categories(ship_client_t *c,
     memset(pkt, 0, 0x04);
 
     /* Fill in the header */
-    pkt->hdr.pkt_type = SHIP_QUEST_LIST_TYPE;
+    pkt->hdr.pkt_type = QUEST_LIST_TYPE;
 
     for(i = 0; i < l->cat_count; ++i) {
         /* Skip quests not of the right type. */
@@ -2360,7 +2360,7 @@ static int send_pc_quest_categories(ship_client_t *c,
     memset(pkt, 0, 0x04);
 
     /* Fill in the header */
-    pkt->hdr.pkt_type = SHIP_QUEST_LIST_TYPE;
+    pkt->hdr.pkt_type = QUEST_LIST_TYPE;
 
     for(i = 0; i < l->cat_count; ++i) {
         /* Skip quests not of the right type. */
@@ -2438,7 +2438,7 @@ static int send_dc_quest_list(ship_client_t *c, int cat,
     }
 
     /* Fill in the header */
-    pkt->hdr.pkt_type = SHIP_QUEST_LIST_TYPE;
+    pkt->hdr.pkt_type = QUEST_LIST_TYPE;
 
     for(i = 0; i < l->quest_count && i < max; ++i) {
         if(!(l->quests[i].versions & ver)) {
@@ -2498,7 +2498,7 @@ static int send_pc_quest_list(ship_client_t *c, int cat,
     }
 
     /* Fill in the header */
-    pkt->hdr.pkt_type = SHIP_QUEST_LIST_TYPE;
+    pkt->hdr.pkt_type = QUEST_LIST_TYPE;
 
     for(i = 0; i < l->quest_count && i < max; ++i) {
         if(!(l->quests[i].versions & ver)) {
@@ -2559,7 +2559,7 @@ static int send_gc_quest_list(ship_client_t *c, int cat,
     }
 
     /* Fill in the header */
-    pkt->hdr.pkt_type = SHIP_QUEST_LIST_TYPE;
+    pkt->hdr.pkt_type = QUEST_LIST_TYPE;
 
     for(i = 0; i < l->quest_count && i < max; ++i) {
         if(!(l->quests[i].versions & SYLVERANT_QUEST_GC) ||
@@ -2644,22 +2644,22 @@ static int send_dc_quest_info(ship_client_t *c, sylverant_quest_t *q) {
     }
 
     /* Clear the packet header */
-    memset(pkt, 0, SHIP_DC_QUEST_INFO_LENGTH);
+    memset(pkt, 0, DC_QUEST_INFO_LENGTH);
 
     /* Fill in the basics */
     if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
        c->version == CLIENT_VERSION_GC) {
-        pkt->hdr.dc.pkt_type = SHIP_QUEST_INFO_TYPE;
+        pkt->hdr.dc.pkt_type = QUEST_INFO_TYPE;
         pkt->hdr.dc.flags = 0;
-        pkt->hdr.dc.pkt_len = LE16(SHIP_DC_QUEST_INFO_LENGTH);
-        len = SHIP_DC_QUEST_INFO_LENGTH;
+        pkt->hdr.dc.pkt_len = LE16(DC_QUEST_INFO_LENGTH);
+        len = DC_QUEST_INFO_LENGTH;
         outt = 0x124;
     }
     else {
-        pkt->hdr.pc.pkt_type = SHIP_QUEST_INFO_TYPE;
+        pkt->hdr.pc.pkt_type = QUEST_INFO_TYPE;
         pkt->hdr.pc.flags = 0;
-        pkt->hdr.pc.pkt_len = LE16(SHIP_PC_QUEST_INFO_LENGTH);
-        len = SHIP_PC_QUEST_INFO_LENGTH;
+        pkt->hdr.pc.pkt_len = LE16(PC_QUEST_INFO_LENGTH);
+        len = PC_QUEST_INFO_LENGTH;
         outt = 0x248;
     }
 
@@ -2740,13 +2740,13 @@ static int send_dcv1_quest(ship_client_t *c, sylverant_quest_t *q) {
 
     sprintf(file->name, "PSO/%s", q->name);
 
-    file->hdr.pkt_type = SHIP_QUEST_FILE_TYPE;
+    file->hdr.pkt_type = QUEST_FILE_TYPE;
     file->hdr.flags = 0x02; /* ??? */
-    file->hdr.pkt_len = LE16(SHIP_DC_QUEST_FILE_LENGTH);
+    file->hdr.pkt_len = LE16(DC_QUEST_FILE_LENGTH);
     sprintf(file->filename, "%sv1.dat", q->prefix);
     file->length = LE32(datlen);
 
-    if(crypt_send(c, SHIP_DC_QUEST_FILE_LENGTH, sendbuf)) {
+    if(crypt_send(c, DC_QUEST_FILE_LENGTH, sendbuf)) {
         return -2;
     }
 
@@ -2755,13 +2755,13 @@ static int send_dcv1_quest(ship_client_t *c, sylverant_quest_t *q) {
 
     sprintf(file->name, "PSO/%s", q->name);
 
-    file->hdr.pkt_type = SHIP_QUEST_FILE_TYPE;
+    file->hdr.pkt_type = QUEST_FILE_TYPE;
     file->hdr.flags = 0x02; /* ??? */
-    file->hdr.pkt_len = LE16(SHIP_DC_QUEST_FILE_LENGTH);
+    file->hdr.pkt_len = LE16(DC_QUEST_FILE_LENGTH);
     sprintf(file->filename, "%sv1.bin", q->prefix);
     file->length = LE32(binlen);
 
-    if(crypt_send(c, SHIP_DC_QUEST_FILE_LENGTH, sendbuf)) {
+    if(crypt_send(c, DC_QUEST_FILE_LENGTH, sendbuf)) {
         return -2;
     }
 
@@ -2773,9 +2773,9 @@ static int send_dcv1_quest(ship_client_t *c, sylverant_quest_t *q) {
             memset(chunk, 0, sizeof(dc_quest_chunk_pkt));
 
             /* Fill in the header */
-            chunk->hdr.dc.pkt_type = SHIP_QUEST_CHUNK_TYPE;
+            chunk->hdr.dc.pkt_type = QUEST_CHUNK_TYPE;
             chunk->hdr.dc.flags = (uint8_t)chunknum;
-            chunk->hdr.dc.pkt_len = LE16(SHIP_DC_QUEST_CHUNK_LENGTH);
+            chunk->hdr.dc.pkt_len = LE16(DC_QUEST_CHUNK_LENGTH);
 
             /* Fill in the rest */
             sprintf(chunk->filename, "%sv1.dat", q->prefix);
@@ -2783,7 +2783,7 @@ static int send_dcv1_quest(ship_client_t *c, sylverant_quest_t *q) {
             chunk->length = LE32(((uint32_t)amt));
 
             /* Send it away */
-            if(crypt_send(c, SHIP_DC_QUEST_CHUNK_LENGTH, sendbuf)) {
+            if(crypt_send(c, DC_QUEST_CHUNK_LENGTH, sendbuf)) {
                 return -3;
             }
 
@@ -2799,9 +2799,9 @@ static int send_dcv1_quest(ship_client_t *c, sylverant_quest_t *q) {
             memset(chunk, 0, sizeof(dc_quest_chunk_pkt));
 
             /* Fill in the header */
-            chunk->hdr.dc.pkt_type = SHIP_QUEST_CHUNK_TYPE;
+            chunk->hdr.dc.pkt_type = QUEST_CHUNK_TYPE;
             chunk->hdr.dc.flags = (uint8_t)chunknum;
-            chunk->hdr.dc.pkt_len = LE16(SHIP_DC_QUEST_CHUNK_LENGTH);
+            chunk->hdr.dc.pkt_len = LE16(DC_QUEST_CHUNK_LENGTH);
 
             /* Fill in the rest */
             sprintf(chunk->filename, "%sv1.bin", q->prefix);
@@ -2809,7 +2809,7 @@ static int send_dcv1_quest(ship_client_t *c, sylverant_quest_t *q) {
             chunk->length = LE32(((uint32_t)amt));
 
             /* Send it away */
-            if(crypt_send(c, SHIP_DC_QUEST_CHUNK_LENGTH, sendbuf)) {
+            if(crypt_send(c, DC_QUEST_CHUNK_LENGTH, sendbuf)) {
                 return -3;
             }
 
@@ -2871,13 +2871,13 @@ static int send_dcv2_quest(ship_client_t *c, sylverant_quest_t *q) {
 
     sprintf(file->name, "PSO/%s", q->name);
 
-    file->hdr.pkt_type = SHIP_QUEST_FILE_TYPE;
+    file->hdr.pkt_type = QUEST_FILE_TYPE;
     file->hdr.flags = 0x02; /* ??? */
-    file->hdr.pkt_len = LE16(SHIP_DC_QUEST_FILE_LENGTH);
+    file->hdr.pkt_len = LE16(DC_QUEST_FILE_LENGTH);
     sprintf(file->filename, "%sv2.dat", q->prefix);
     file->length = LE32(datlen);
 
-    if(crypt_send(c, SHIP_DC_QUEST_FILE_LENGTH, sendbuf)) {
+    if(crypt_send(c, DC_QUEST_FILE_LENGTH, sendbuf)) {
         return -2;
     }
 
@@ -2886,13 +2886,13 @@ static int send_dcv2_quest(ship_client_t *c, sylverant_quest_t *q) {
 
     sprintf(file->name, "PSO/%s", q->name);
     
-    file->hdr.pkt_type = SHIP_QUEST_FILE_TYPE;
+    file->hdr.pkt_type = QUEST_FILE_TYPE;
     file->hdr.flags = 0x02; /* ??? */
-    file->hdr.pkt_len = LE16(SHIP_DC_QUEST_FILE_LENGTH);
+    file->hdr.pkt_len = LE16(DC_QUEST_FILE_LENGTH);
     sprintf(file->filename, "%sv2.bin", q->prefix);
     file->length = LE32(binlen);
 
-    if(crypt_send(c, SHIP_DC_QUEST_FILE_LENGTH, sendbuf)) {
+    if(crypt_send(c, DC_QUEST_FILE_LENGTH, sendbuf)) {
         return -2;
     }
 
@@ -2904,9 +2904,9 @@ static int send_dcv2_quest(ship_client_t *c, sylverant_quest_t *q) {
             memset(chunk, 0, sizeof(dc_quest_chunk_pkt));
 
             /* Fill in the header */
-            chunk->hdr.dc.pkt_type = SHIP_QUEST_CHUNK_TYPE;
+            chunk->hdr.dc.pkt_type = QUEST_CHUNK_TYPE;
             chunk->hdr.dc.flags = (uint8_t)chunknum;
-            chunk->hdr.dc.pkt_len = LE16(SHIP_DC_QUEST_CHUNK_LENGTH);
+            chunk->hdr.dc.pkt_len = LE16(DC_QUEST_CHUNK_LENGTH);
 
             /* Fill in the rest */
             sprintf(chunk->filename, "%sv2.dat", q->prefix);
@@ -2914,7 +2914,7 @@ static int send_dcv2_quest(ship_client_t *c, sylverant_quest_t *q) {
             chunk->length = LE32(((uint32_t)amt));
 
             /* Send it away */
-            if(crypt_send(c, SHIP_DC_QUEST_CHUNK_LENGTH, sendbuf)) {
+            if(crypt_send(c, DC_QUEST_CHUNK_LENGTH, sendbuf)) {
                 return -3;
             }
 
@@ -2930,9 +2930,9 @@ static int send_dcv2_quest(ship_client_t *c, sylverant_quest_t *q) {
             memset(chunk, 0, sizeof(dc_quest_chunk_pkt));
 
             /* Fill in the header */
-            chunk->hdr.dc.pkt_type = SHIP_QUEST_CHUNK_TYPE;
+            chunk->hdr.dc.pkt_type = QUEST_CHUNK_TYPE;
             chunk->hdr.dc.flags = (uint8_t)chunknum;
-            chunk->hdr.dc.pkt_len = LE16(SHIP_DC_QUEST_CHUNK_LENGTH);
+            chunk->hdr.dc.pkt_len = LE16(DC_QUEST_CHUNK_LENGTH);
 
             /* Fill in the rest */
             sprintf(chunk->filename, "%sv2.bin", q->prefix);
@@ -2940,7 +2940,7 @@ static int send_dcv2_quest(ship_client_t *c, sylverant_quest_t *q) {
             chunk->length = LE32(((uint32_t)amt));
 
             /* Send it away */
-            if(crypt_send(c, SHIP_DC_QUEST_CHUNK_LENGTH, sendbuf)) {
+            if(crypt_send(c, DC_QUEST_CHUNK_LENGTH, sendbuf)) {
                 return -3;
             }
 
@@ -3002,14 +3002,14 @@ static int send_pc_quest(ship_client_t *c, sylverant_quest_t *q) {
 
     sprintf(file->name, "PSO/%s", q->name);
 
-    file->hdr.pkt_type = SHIP_QUEST_FILE_TYPE;
+    file->hdr.pkt_type = QUEST_FILE_TYPE;
     file->hdr.flags = 0x00;
-    file->hdr.pkt_len = LE16(SHIP_DC_QUEST_FILE_LENGTH);
+    file->hdr.pkt_len = LE16(DC_QUEST_FILE_LENGTH);
     sprintf(file->filename, "%spc.dat", q->prefix);
     file->length = LE32(datlen);
     file->flags = 0x0002;
 
-    if(crypt_send(c, SHIP_DC_QUEST_FILE_LENGTH, sendbuf)) {
+    if(crypt_send(c, DC_QUEST_FILE_LENGTH, sendbuf)) {
         return -2;
     }
 
@@ -3018,14 +3018,14 @@ static int send_pc_quest(ship_client_t *c, sylverant_quest_t *q) {
 
     sprintf(file->name, "PSO/%s", q->name);
 
-    file->hdr.pkt_type = SHIP_QUEST_FILE_TYPE;
+    file->hdr.pkt_type = QUEST_FILE_TYPE;
     file->hdr.flags = 0x00;
-    file->hdr.pkt_len = LE16(SHIP_DC_QUEST_FILE_LENGTH);
+    file->hdr.pkt_len = LE16(DC_QUEST_FILE_LENGTH);
     sprintf(file->filename, "%spc.bin", q->prefix);
     file->length = LE32(binlen);
     file->flags = 0x0002;
 
-    if(crypt_send(c, SHIP_DC_QUEST_FILE_LENGTH, sendbuf)) {
+    if(crypt_send(c, DC_QUEST_FILE_LENGTH, sendbuf)) {
         return -2;
     }
 
@@ -3037,9 +3037,9 @@ static int send_pc_quest(ship_client_t *c, sylverant_quest_t *q) {
             memset(chunk, 0, sizeof(dc_quest_chunk_pkt));
 
             /* Fill in the header */
-            chunk->hdr.pc.pkt_type = SHIP_QUEST_CHUNK_TYPE;
+            chunk->hdr.pc.pkt_type = QUEST_CHUNK_TYPE;
             chunk->hdr.pc.flags = (uint8_t)chunknum;
-            chunk->hdr.pc.pkt_len = LE16(SHIP_DC_QUEST_CHUNK_LENGTH);
+            chunk->hdr.pc.pkt_len = LE16(DC_QUEST_CHUNK_LENGTH);
 
             /* Fill in the rest */
             sprintf(chunk->filename, "%spc.dat", q->prefix);
@@ -3047,7 +3047,7 @@ static int send_pc_quest(ship_client_t *c, sylverant_quest_t *q) {
             chunk->length = LE32(((uint32_t)amt));
 
             /* Send it away */
-            if(crypt_send(c, SHIP_DC_QUEST_CHUNK_LENGTH, sendbuf)) {
+            if(crypt_send(c, DC_QUEST_CHUNK_LENGTH, sendbuf)) {
                 return -3;
             }
 
@@ -3063,9 +3063,9 @@ static int send_pc_quest(ship_client_t *c, sylverant_quest_t *q) {
             memset(chunk, 0, sizeof(dc_quest_chunk_pkt));
 
             /* Fill in the header */
-            chunk->hdr.pc.pkt_type = SHIP_QUEST_CHUNK_TYPE;
+            chunk->hdr.pc.pkt_type = QUEST_CHUNK_TYPE;
             chunk->hdr.pc.flags = (uint8_t)chunknum;
-            chunk->hdr.pc.pkt_len = LE16(SHIP_DC_QUEST_CHUNK_LENGTH);
+            chunk->hdr.pc.pkt_len = LE16(DC_QUEST_CHUNK_LENGTH);
 
             /* Fill in the rest */
             sprintf(chunk->filename, "%spc.bin", q->prefix);
@@ -3073,7 +3073,7 @@ static int send_pc_quest(ship_client_t *c, sylverant_quest_t *q) {
             chunk->length = LE32(((uint32_t)amt));
 
             /* Send it away */
-            if(crypt_send(c, SHIP_DC_QUEST_CHUNK_LENGTH, sendbuf)) {
+            if(crypt_send(c, DC_QUEST_CHUNK_LENGTH, sendbuf)) {
                 return -3;
             }
 
@@ -3135,14 +3135,14 @@ static int send_gc_quest(ship_client_t *c, sylverant_quest_t *q) {
 
     sprintf(file->name, "PSO/%s", q->name);
 
-    file->hdr.pkt_type = SHIP_QUEST_FILE_TYPE;
+    file->hdr.pkt_type = QUEST_FILE_TYPE;
     file->hdr.flags = 0x00;
-    file->hdr.pkt_len = LE16(SHIP_DC_QUEST_FILE_LENGTH);
+    file->hdr.pkt_len = LE16(DC_QUEST_FILE_LENGTH);
     sprintf(file->filename, "%sgc.dat", q->prefix);
     file->length = LE32(datlen);
     file->flags = 0x0002;
 
-    if(crypt_send(c, SHIP_DC_QUEST_FILE_LENGTH, sendbuf)) {
+    if(crypt_send(c, DC_QUEST_FILE_LENGTH, sendbuf)) {
         return -2;
     }
 
@@ -3151,14 +3151,14 @@ static int send_gc_quest(ship_client_t *c, sylverant_quest_t *q) {
 
     sprintf(file->name, "PSO/%s", q->name);
 
-    file->hdr.pkt_type = SHIP_QUEST_FILE_TYPE;
+    file->hdr.pkt_type = QUEST_FILE_TYPE;
     file->hdr.flags = 0x00;
-    file->hdr.pkt_len = LE16(SHIP_DC_QUEST_FILE_LENGTH);
+    file->hdr.pkt_len = LE16(DC_QUEST_FILE_LENGTH);
     sprintf(file->filename, "%sgc.bin", q->prefix);
     file->length = LE32(binlen);
     file->flags = 0x0002;
 
-    if(crypt_send(c, SHIP_DC_QUEST_FILE_LENGTH, sendbuf)) {
+    if(crypt_send(c, DC_QUEST_FILE_LENGTH, sendbuf)) {
         return -2;
     }
 
@@ -3170,9 +3170,9 @@ static int send_gc_quest(ship_client_t *c, sylverant_quest_t *q) {
             memset(chunk, 0, sizeof(dc_quest_chunk_pkt));
 
             /* Fill in the header */
-            chunk->hdr.dc.pkt_type = SHIP_QUEST_CHUNK_TYPE;
+            chunk->hdr.dc.pkt_type = QUEST_CHUNK_TYPE;
             chunk->hdr.dc.flags = (uint8_t)chunknum;
-            chunk->hdr.dc.pkt_len = LE16(SHIP_DC_QUEST_CHUNK_LENGTH);
+            chunk->hdr.dc.pkt_len = LE16(DC_QUEST_CHUNK_LENGTH);
 
             /* Fill in the rest */
             sprintf(chunk->filename, "%sgc.dat", q->prefix);
@@ -3180,7 +3180,7 @@ static int send_gc_quest(ship_client_t *c, sylverant_quest_t *q) {
             chunk->length = LE32(((uint32_t)amt));
 
             /* Send it away */
-            if(crypt_send(c, SHIP_DC_QUEST_CHUNK_LENGTH, sendbuf)) {
+            if(crypt_send(c, DC_QUEST_CHUNK_LENGTH, sendbuf)) {
                 return -3;
             }
 
@@ -3196,9 +3196,9 @@ static int send_gc_quest(ship_client_t *c, sylverant_quest_t *q) {
             memset(chunk, 0, sizeof(dc_quest_chunk_pkt));
 
             /* Fill in the header */
-            chunk->hdr.dc.pkt_type = SHIP_QUEST_CHUNK_TYPE;
+            chunk->hdr.dc.pkt_type = QUEST_CHUNK_TYPE;
             chunk->hdr.dc.flags = (uint8_t)chunknum;
-            chunk->hdr.dc.pkt_len = LE16(SHIP_DC_QUEST_CHUNK_LENGTH);
+            chunk->hdr.dc.pkt_len = LE16(DC_QUEST_CHUNK_LENGTH);
 
             /* Fill in the rest */
             sprintf(chunk->filename, "%sgc.bin", q->prefix);
@@ -3206,7 +3206,7 @@ static int send_gc_quest(ship_client_t *c, sylverant_quest_t *q) {
             chunk->length = LE32(((uint32_t)amt));
 
             /* Send it away */
-            if(crypt_send(c, SHIP_DC_QUEST_CHUNK_LENGTH, sendbuf)) {
+            if(crypt_send(c, DC_QUEST_CHUNK_LENGTH, sendbuf)) {
                 return -3;
             }
 
@@ -3269,7 +3269,7 @@ static int send_dcv2_lobby_name(ship_client_t *c, lobby_t *l) {
     }
 
     /* Fill in the basics */
-    pkt->hdr.dc.pkt_type = SHIP_LOBBY_NAME_TYPE;
+    pkt->hdr.dc.pkt_type = LOBBY_NAME_TYPE;
     pkt->hdr.dc.flags = 0;
 
     /* Fill in the message */
@@ -3327,7 +3327,7 @@ static int send_pc_lobby_name(ship_client_t *c, lobby_t *l) {
     len = 65532 - out;
 
     /* Fill in the basics */
-    pkt->hdr.pc.pkt_type = SHIP_LOBBY_NAME_TYPE;
+    pkt->hdr.pc.pkt_type = LOBBY_NAME_TYPE;
     pkt->hdr.pc.flags = 0;
 
     /* Add any padding needed */
@@ -3386,12 +3386,12 @@ static int send_dc_lobby_arrows(lobby_t *l, ship_client_t *c) {
 
     /* Fill in the rest of it */
     if(c->version == CLIENT_VERSION_DCV2 || c->version == CLIENT_VERSION_GC) {
-        pkt->hdr.dc.pkt_type = SHIP_LOBBY_ARROW_LIST_TYPE;
+        pkt->hdr.dc.pkt_type = LOBBY_ARROW_LIST_TYPE;
         pkt->hdr.dc.flags = (uint8_t)clients;
         pkt->hdr.dc.pkt_len = LE16(((uint16_t)len));
     }
     else {
-        pkt->hdr.pc.pkt_type = SHIP_LOBBY_ARROW_LIST_TYPE;
+        pkt->hdr.pc.pkt_type = LOBBY_ARROW_LIST_TYPE;
         pkt->hdr.pc.flags = (uint8_t)clients;
         pkt->hdr.pc.pkt_len = LE16(((uint16_t)len));
     }
@@ -3467,7 +3467,7 @@ static int send_dc_ship_list(ship_client_t *c, miniship_t *l, int ships) {
     memset(pkt, 0, 0x20);
 
     /* Fill in the basics. */
-    pkt->hdr.pkt_type = SHIP_SHIP_LIST_TYPE;
+    pkt->hdr.pkt_type = SHIP_LIST_TYPE;
 
     /* Fill in the "DATABASE/JP" entry */
     memset(&pkt->entries[0], 0, 0x1C);
@@ -3529,7 +3529,7 @@ static int send_pc_ship_list(ship_client_t *c, miniship_t *l, int ships) {
     memset(pkt, 0, 0x30);
 
     /* Fill in the basics. */
-    pkt->hdr.pkt_type = SHIP_SHIP_LIST_TYPE;
+    pkt->hdr.pkt_type = SHIP_LIST_TYPE;
 
     /* Fill in the "DATABASE/JP" entry */
     memset(&pkt->entries[0], 0, 0x1C);
@@ -3602,7 +3602,7 @@ static int send_dc_warp(ship_client_t *c, uint8_t area) {
     }
 
     /* Fill in the basics. */
-    pkt->pkt_type = SHIP_GAME_COMMAND2_TYPE;
+    pkt->pkt_type = GAME_COMMAND2_TYPE;
     pkt->flags = c->client_id;
     pkt->pkt_len = LE16(0x000C);
 
@@ -3629,7 +3629,7 @@ static int send_pc_warp(ship_client_t *c, uint8_t area) {
     }
 
     /* Fill in the basics. */
-    pkt->pkt_type = SHIP_GAME_COMMAND2_TYPE;
+    pkt->pkt_type = GAME_COMMAND2_TYPE;
     pkt->flags = c->client_id;
     pkt->pkt_len = LE16(0x000C);
 
@@ -3699,7 +3699,7 @@ static int send_dc_choice_search(ship_client_t *c) {
     }
 
     /* Fill in the basics. */
-    pkt->hdr.pkt_type = SHIP_CHOICE_OPTION_TYPE;
+    pkt->hdr.pkt_type = CHOICE_OPTION_TYPE;
     pkt->hdr.pkt_len = LE16(len);
     pkt->hdr.flags = CS_OPTIONS_COUNT;
 
@@ -3737,7 +3737,7 @@ static int send_pc_choice_search(ship_client_t *c) {
     }
 
     /* Fill in the basics. */
-    pkt->hdr.pkt_type = SHIP_CHOICE_OPTION_TYPE;
+    pkt->hdr.pkt_type = CHOICE_OPTION_TYPE;
     pkt->hdr.pkt_len = LE16(len);
     pkt->hdr.flags = CS_OPTIONS_COUNT;
 
@@ -3851,7 +3851,7 @@ static int send_dc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
     }
 
     /* Fill in the header. */
-    pkt->hdr.pkt_type = SHIP_CHOICE_REPLY_TYPE;
+    pkt->hdr.pkt_type = CHOICE_REPLY_TYPE;
     pkt->hdr.pkt_len = LE16(len);
     pkt->hdr.flags = entries;
 
@@ -3962,7 +3962,7 @@ static int send_pc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
     iconv_close(ic);
 
     /* Fill in the header. */
-    pkt->hdr.pkt_type = SHIP_CHOICE_REPLY_TYPE;
+    pkt->hdr.pkt_type = CHOICE_REPLY_TYPE;
     pkt->hdr.pkt_len = LE16(len);
     pkt->hdr.flags = entries;
 
@@ -4045,7 +4045,7 @@ static int send_gc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
     }
 
     /* Fill in the header. */
-    pkt->hdr.pkt_type = SHIP_CHOICE_REPLY_TYPE;
+    pkt->hdr.pkt_type = CHOICE_REPLY_TYPE;
     pkt->hdr.pkt_len = LE16(len);
     pkt->hdr.flags = entries;
 
@@ -4162,12 +4162,12 @@ static int send_pc_simple_mail_dc(ship_client_t *c, dc_simple_mail_pkt *p) {
     }
 
     /* Scrub the buffer. */
-    memset(pkt, 0, SHIP_PC_SIMPLE_MAIL_LENGTH);
+    memset(pkt, 0, PC_SIMPLE_MAIL_LENGTH);
 
     /* Fill in the header. */
-    pkt->hdr.pkt_type = SHIP_SIMPLE_MAIL_TYPE;
+    pkt->hdr.pkt_type = SIMPLE_MAIL_TYPE;
     pkt->hdr.flags = 0;
-    pkt->hdr.pkt_len = LE16(SHIP_PC_SIMPLE_MAIL_LENGTH);
+    pkt->hdr.pkt_len = LE16(PC_SIMPLE_MAIL_LENGTH);
 
     /* Copy everything that doesn't need to be converted. */
     pkt->tag = p->tag;
@@ -4197,7 +4197,7 @@ static int send_pc_simple_mail_dc(ship_client_t *c, dc_simple_mail_pkt *p) {
     iconv_close(ic);
 
     /* Send it away. */
-    return crypt_send(c, SHIP_PC_SIMPLE_MAIL_LENGTH, sendbuf);
+    return crypt_send(c, PC_SIMPLE_MAIL_LENGTH, sendbuf);
 }
 
 static int send_dc_simple_mail_pc(ship_client_t *c, pc_simple_mail_pkt *p) {
@@ -4227,12 +4227,12 @@ static int send_dc_simple_mail_pc(ship_client_t *c, pc_simple_mail_pkt *p) {
     }
 
     /* Scrub the buffer. */
-    memset(pkt, 0, SHIP_DC_SIMPLE_MAIL_LENGTH);
+    memset(pkt, 0, DC_SIMPLE_MAIL_LENGTH);
 
     /* Fill in the header. */
-    pkt->hdr.pkt_type = SHIP_SIMPLE_MAIL_TYPE;
+    pkt->hdr.pkt_type = SIMPLE_MAIL_TYPE;
     pkt->hdr.flags = 0;
-    pkt->hdr.pkt_len = LE16(SHIP_DC_SIMPLE_MAIL_LENGTH);
+    pkt->hdr.pkt_len = LE16(DC_SIMPLE_MAIL_LENGTH);
 
     /* Copy everything that doesn't need to be converted. */
     pkt->tag = p->tag;
@@ -4261,7 +4261,7 @@ static int send_dc_simple_mail_pc(ship_client_t *c, pc_simple_mail_pkt *p) {
     iconv_close(ic);
 
     /* Send it away. */
-    return crypt_send(c, SHIP_DC_SIMPLE_MAIL_LENGTH, sendbuf);
+    return crypt_send(c, DC_SIMPLE_MAIL_LENGTH, sendbuf);
 }
 
 /* Send a simple mail packet, doing any needed transformations. */
@@ -4336,7 +4336,7 @@ static int send_gc_infoboard(ship_client_t *c, lobby_t *l) {
     }
 
     /* Fill in the header. */
-    pkt->hdr.pkt_type = SHIP_GC_INFOBOARD_REQ_TYPE;
+    pkt->hdr.pkt_type = GC_INFOBOARD_REQ_TYPE;
     pkt->hdr.flags = entries;
     pkt->hdr.pkt_len = LE16(size);
 
@@ -4547,7 +4547,7 @@ static int send_gc_lobby_c_rank(ship_client_t *c, lobby_t *l) {
     }
 
     /* Fill in the header. */
-    pkt->hdr.pkt_type = SHIP_C_RANK_TYPE;
+    pkt->hdr.pkt_type = C_RANK_TYPE;
     pkt->hdr.flags = entries;
     pkt->hdr.pkt_len = LE16(size);
 
@@ -4583,7 +4583,7 @@ static int send_dc_lobby_c_rank(ship_client_t *c, lobby_t *l) {
     }
 
     /* Fill in the header. */
-    pkt->hdr.pkt_type = SHIP_C_RANK_TYPE;
+    pkt->hdr.pkt_type = C_RANK_TYPE;
     pkt->hdr.flags = entries;
     pkt->hdr.pkt_len = LE16(size);
 
@@ -4619,7 +4619,7 @@ static int send_pc_lobby_c_rank(ship_client_t *c, lobby_t *l) {
     }
 
     /* Fill in the header. */
-    pkt->hdr.pkt_type = SHIP_C_RANK_TYPE;
+    pkt->hdr.pkt_type = C_RANK_TYPE;
     pkt->hdr.flags = entries;
     pkt->hdr.pkt_len = LE16(size);
 
@@ -4656,7 +4656,7 @@ static int send_gc_c_rank_update(ship_client_t *d, ship_client_t *s) {
     copy_c_rank_gc(pkt, 0, s);
 
     /* Fill in the header. */
-    pkt->hdr.pkt_type = SHIP_C_RANK_TYPE;
+    pkt->hdr.pkt_type = C_RANK_TYPE;
     pkt->hdr.flags = 1;
     pkt->hdr.pkt_len = LE16(0x0120);
 
@@ -4676,7 +4676,7 @@ static int send_dc_c_rank_update(ship_client_t *d, ship_client_t *s) {
     copy_c_rank_dc(pkt, 0, s);
 
     /* Fill in the header. */
-    pkt->hdr.pkt_type = SHIP_C_RANK_TYPE;
+    pkt->hdr.pkt_type = C_RANK_TYPE;
     pkt->hdr.flags = 1;
     pkt->hdr.pkt_len = LE16(0xC0);
 
@@ -4696,7 +4696,7 @@ static int send_pc_c_rank_update(ship_client_t *d, ship_client_t *s) {
     copy_c_rank_pc(pkt, 0, s);
 
     /* Fill in the header. */
-    pkt->hdr.pkt_type = SHIP_C_RANK_TYPE;
+    pkt->hdr.pkt_type = C_RANK_TYPE;
     pkt->hdr.flags = 1;
     pkt->hdr.pkt_len = LE16(0xF8);
 

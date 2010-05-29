@@ -358,9 +358,9 @@ static int handle_dc_mail(shipgate_conn_t *conn, dc_simple_mail_pkt *pkt) {
                         dc_simple_mail_pkt rep;
                         memset(&rep, 0, sizeof(rep));
 
-                        rep.hdr.pkt_type = SHIP_SIMPLE_MAIL_TYPE;
+                        rep.hdr.pkt_type = SIMPLE_MAIL_TYPE;
                         rep.hdr.flags = 0;
-                        rep.hdr.pkt_len = LE16(SHIP_DC_SIMPLE_MAIL_LENGTH);
+                        rep.hdr.pkt_len = LE16(DC_SIMPLE_MAIL_LENGTH);
 
                         rep.tag = LE32(0x00010000);
                         rep.gc_sender = pkt->gc_dest;
@@ -421,9 +421,9 @@ static int handle_pc_mail(shipgate_conn_t *conn, pc_simple_mail_pkt *pkt) {
                         dc_simple_mail_pkt rep;
                         memset(&rep, 0, sizeof(rep));
 
-                        rep.hdr.pkt_type = SHIP_SIMPLE_MAIL_TYPE;
+                        rep.hdr.pkt_type = SIMPLE_MAIL_TYPE;
                         rep.hdr.flags = 0;
-                        rep.hdr.pkt_len = LE16(SHIP_DC_SIMPLE_MAIL_LENGTH);
+                        rep.hdr.pkt_len = LE16(DC_SIMPLE_MAIL_LENGTH);
 
                         rep.tag = LE32(0x00010000);
                         rep.gc_sender = pkt->gc_dest;
@@ -508,14 +508,14 @@ static int handle_dc(shipgate_conn_t *conn, shipgate_fw_pkt *pkt) {
     uint8_t type = dc->pkt_type;
 
     switch(type) {
-        case SHIP_DC_GUILD_REPLY_TYPE:
+        case GUILD_REPLY_TYPE:
             return handle_dc_greply(conn, (dc_guild_reply_pkt *)dc);
 
-        case SHIP_GUILD_SEARCH_TYPE:
+        case GUILD_SEARCH_TYPE:
             return handle_dc_gsearch(conn, (dc_guild_search_pkt *)dc,
                                      pkt->ship_id);
 
-        case SHIP_SIMPLE_MAIL_TYPE:
+        case SIMPLE_MAIL_TYPE:
             return handle_dc_mail(conn, (dc_simple_mail_pkt *)dc);
     }
 
@@ -527,7 +527,7 @@ static int handle_pc(shipgate_conn_t *conn, shipgate_fw_pkt *pkt) {
     uint8_t type = dc->pkt_type;
 
     switch(type) {
-        case SHIP_SIMPLE_MAIL_TYPE:
+        case SIMPLE_MAIL_TYPE:
             return handle_pc_mail(conn, (pc_simple_mail_pkt *)dc);
     }
 
@@ -1005,7 +1005,7 @@ static int send_greply(shipgate_conn_t *c, uint32_t gc1, uint32_t gc2,
     uint8_t *sendbuf = get_sendbuf();
     shipgate_fw_pkt *pkt = (shipgate_fw_pkt *)sendbuf;
     dc_guild_reply_pkt *dc = (dc_guild_reply_pkt *)pkt->pkt;
-    int full_len = sizeof(shipgate_fw_pkt) + SHIP_DC_GUILD_REPLY_LENGTH;
+    int full_len = sizeof(shipgate_fw_pkt) + DC_GUILD_REPLY_LENGTH;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -1027,8 +1027,8 @@ static int send_greply(shipgate_conn_t *c, uint32_t gc1, uint32_t gc2,
     pkt->ship_id = sid;
 
     /* Fill in the Dreamcast packet stuff */
-    dc->hdr.pkt_type = SHIP_DC_GUILD_REPLY_TYPE;
-    dc->hdr.pkt_len = LE16(SHIP_DC_GUILD_REPLY_LENGTH);
+    dc->hdr.pkt_type = GUILD_REPLY_TYPE;
+    dc->hdr.pkt_len = LE16(DC_GUILD_REPLY_LENGTH);
     dc->tag = LE32(0x00010000);
     dc->gc_search = gc1;
     dc->gc_target = gc2;
