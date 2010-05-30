@@ -70,6 +70,7 @@ struct ship_client {
     time_t last_sent;
     time_t join_time;
     int got_05;
+    int language_code;
 
     uint32_t next_item[4];
 
@@ -123,6 +124,23 @@ extern pthread_key_t sendbuf_key;
 #define CLIENT_VERSION_DCV2     1
 #define CLIENT_VERSION_PC       2
 #define CLIENT_VERSION_GC       3
+
+/* Language codes. */
+#define CLIENT_LANG_JAPANESE        0
+#define CLIENT_LANG_ENGLISH         1
+#define CLIENT_LANG_GERMAN          2
+#define CLIENT_LANG_FRENCH          3
+#define CLIENT_LANG_SPANISH         4
+#define CLIENT_LANG_CHINESE_SIMP    5
+#define CLIENT_LANG_CHINESE_TRAD    6
+#define CLIENT_LANG_KOREAN          7
+
+#define CLIENT_LANG_COUNT           8
+
+/* The list of language codes for the quest directories. */
+static const char language_codes[][3] __attribute__((unused)) = {
+    "jp", "en", "de", "fr", "sp", "cs", "ct", "kr"
+};
 
 /* Initialize the clients system, allocating any thread specific keys */
 int client_init();

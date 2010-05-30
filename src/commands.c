@@ -658,7 +658,7 @@ static int handle_bug(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     gcpkt.guildcard = LE32(BUG_REPORT_GC);
     gcpkt.unused2 = 0;
     gcpkt.one = 1;
-    gcpkt.language = 1;                 /* English */
+    gcpkt.language = CLIENT_LANG_ENGLISH;
     gcpkt.section = 0;
     gcpkt.char_class = 8;
     gcpkt.padding[0] = gcpkt.padding[1] = gcpkt.padding[1] = 0;
@@ -782,7 +782,7 @@ static int handle_gban_w(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
         return send_txt(c, "\tE\tC7Invalid Guild Card");
     }
 
-    /* Set the ban with the shipgate first (604800s = 1 day). */
+    /* Set the ban with the shipgate first (604800s = 1 week). */
     if(shipgate_send_ban(&c->cur_ship->sg, SHDR_TYPE_GCBAN, c->guildcard, gc,
                          time(NULL) + 604800, reason + 1)) {
         return send_txt(c, "\tE\tC7Error setting ban!");

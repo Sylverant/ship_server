@@ -538,6 +538,7 @@ lobby_t *block_get_lobby(block_t *b, uint32_t lobby_id) {
 static int dc_process_login(ship_client_t *c, dc_login_93_pkt *pkt) {
     /* Save what we care about in here. */
     c->guildcard = pkt->guildcard;
+    c->language_code = pkt->language_code;
 
     /* See if this person is a GM. */
     c->is_gm = is_gm(pkt->guildcard, pkt->serial, pkt->access_key, c->cur_ship);
@@ -562,6 +563,7 @@ static int dc_process_login(ship_client_t *c, dc_login_93_pkt *pkt) {
 static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
     /* Save what we care about in here. */
     c->guildcard = LE32(pkt->guildcard);
+    c->language_code = pkt->language_code;
 
     if(c->version != CLIENT_VERSION_PC)
         c->version = CLIENT_VERSION_DCV2;
@@ -589,6 +591,7 @@ static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
 static int gc_process_login(ship_client_t *c, gc_login_9e_pkt *pkt) {
     /* Save what we care about in here. */
     c->guildcard = LE32(pkt->guildcard);
+    c->language_code = pkt->language_code;
 
     /* See if this person is a GM. */
     c->is_gm = is_gm(c->guildcard, pkt->serial, pkt->access_key, c->cur_ship);

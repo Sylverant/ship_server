@@ -560,7 +560,7 @@ int lobby_send_pkt_dc(lobby_t *l, ship_client_t *c, void *h) {
     return 0;
 }
 
-static const char language_codes[][3] = {
+static const char mini_language_codes[][3] = {
     "J", "E", "G", "F", "S", "CS", "CT", "K"
 };
 
@@ -590,7 +590,7 @@ int lobby_info_reply(ship_client_t *c, uint32_t lobby) {
 
         sprintf(msg, "%s%s L%d\n  %s    %s\n", msg, pl->v1.name,
                 pl->v1.level + 1, classes[pl->v1.ch_class],
-                language_codes[pl->v1.inv.language]);
+                mini_language_codes[pl->v1.inv.language]);
     }
 
     /* Unlock the lobby */

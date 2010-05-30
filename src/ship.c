@@ -495,6 +495,8 @@ void ship_server_stop(ship_t *s) {
 }
 
 static int dc_process_login(ship_client_t *c, dc_login_93_pkt *pkt) {
+    c->language_code = pkt->language_code;
+
     if(send_dc_security(c, pkt->guildcard, NULL, 0)) {
         return -1;
     }
@@ -508,6 +510,8 @@ static int dc_process_login(ship_client_t *c, dc_login_93_pkt *pkt) {
 
 /* Just in case I ever use the rest of the stuff... */
 static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
+    c->language_code = pkt->language_code;
+
     if(send_dc_security(c, pkt->guildcard, NULL, 0)) {
         return -1;
     }
@@ -520,6 +524,8 @@ static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
 }
 
 static int gc_process_login(ship_client_t *c, gc_login_9e_pkt *pkt) {
+    c->language_code = pkt->language_code;
+
     if(send_dc_security(c, pkt->guildcard, NULL, 0)) {
         return -1;
     }
