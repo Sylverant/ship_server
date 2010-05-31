@@ -33,6 +33,7 @@
 #include "ship.h"
 #include "clients.h"
 #include "shipgate.h"
+#include "utils.h"
 
 /* Configuration data for the server. */
 sylverant_shipcfg_t *cfg;
@@ -141,15 +142,6 @@ static void load_config() {
         debug(DBG_LOG, "Base Port: %d\n", (int)cfg->ships[i].base_port);
         debug(DBG_LOG, "Blocks: %d\n", cfg->ships[i].blocks);
         debug(DBG_LOG, "Event: %d\n", cfg->ships[i].event);
-
-        /* These are not used by anything other than Blue Burst. */
-        debug(DBG_LOG, "Experience Rate: %f\n", cfg->ships[i].exp_rate);
-
-        debug(DBG_LOG, "Weapon drop rate: %f\n", cfg->ships[i].drops.weapon);
-        debug(DBG_LOG, "Armor drop rate: %f\n", cfg->ships[i].drops.armor);
-        debug(DBG_LOG, "Mag drop rate: %f\n", cfg->ships[i].drops.mag);
-        debug(DBG_LOG, "Tool drop rate: %f\n", cfg->ships[i].drops.tool);
-        debug(DBG_LOG, "Meseta drop rate: %f\n\n", cfg->ships[i].drops.meseta);
     }
 }
 
@@ -229,6 +221,9 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
+    /* Init mini18n if we have it */
+    init_i18n();
+
     /* Start up the servers for the ships we've configured. */
     for(i = 0; i < cfg->ship_count; ++i) {
         ships[i] = ship_server_start(&cfg->ships[i]);
@@ -248,6 +243,7 @@ int main(int argc, char *argv[]) {
     }
 
     /* Clean up... */
+    cleanup_i18n();
     client_shutdown();
     free(ships);
     free(cfg);

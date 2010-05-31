@@ -30,3 +30,4 @@ ship_server_SOURCES = src/block.c src/block.h src/clients.c src/clients.h \
                       src/list.c
 
 datarootdir = @datarootdir@
+SUBDIRS = l10n

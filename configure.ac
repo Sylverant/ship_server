@@ -37,6 +37,7 @@ AC_PROG_CC
 AC_CHECK_LIB([expat], [XML_ParserCreate], , AC_MSG_ERROR([libexpat is required!]))
 AC_CHECK_LIB([sylverant], [sylverant_read_config], , AC_MSG_ERROR([libsylverant is required!]))
 AC_CHECK_LIB([crypto], [RC4], , AC_MSG_ERROR([libcrypto is required!]))
+AC_CHECK_LIB([mini18n], [mini18n_get], , AC_MSG_WARN([Internationalization support requires mini18n]))
 
 AM_ICONV
 AM_ICONV_LINK
@@ -60,6 +61,7 @@ AC_CHECK_FUNCS([gethostname gettimeofday inet_ntoa memmove memset select socket 
 
 ADD_CFLAGS([-Wall])
 
-AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([Makefile]
+                [l10n/Makefile])
 
 AC_OUTPUT

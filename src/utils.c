@@ -21,7 +21,13 @@
 #include <iconv.h>
 #include <string.h>
 
+#include <sylverant/debug.h>
+
 #include "utils.h"
+
+#ifdef HAVE_LIBMINI18N
+mini18n_t langs[CLIENT_LANG_COUNT];
+#endif
 
 void print_packet(unsigned char *pkt, int len) {
     unsigned char *pos = pkt, *row = pkt;
@@ -182,4 +188,42 @@ int pc_bug_report(ship_client_t *c, pc_simple_mail_pkt *pkt) {
     fclose(fp);
 
     return send_txt(c, "\tE\tC7Thank you for your report");
+}
+
+/* Initialize mini18n support. */
+void init_i18n(void) {
+#ifdef HAVE_LIBMINI18N
+	int i;
+	char filename[256];
+
+	for(i = 0; i < CLIENT_LANG_COUNT; ++i) {
+		langs[i] = mini18n_create();
+
+		if(langs[i]) {
+			sprintf(filename, "l10n/ship_server-%s.yts", language_codes[i]);
+
+			/* Attempt to load the l10n file. */
+			if(mini18n_load(langs[i], filename)) {
+				/* If we didn't get it, clean up. */
+				mini18n_destroy(langs[i]);
+				langs[i] = NULL;
+			}
+			else {
+				debug(DBG_LOG, "Read l10n file for %s\n", language_codes[i]);
+			}
+		}
+	}
+#endif
+}
+
+/* Clean up when we're done with mini18n. */
+void cleanup_i18n(void) {
+#ifdef HAVE_LIBMINI18N
+	int i;
+
+	/* Just call the destroy function... It'll handle null values fine. */
+	for(i = 0; i < CLIENT_LANG_COUNT; ++i) {
+		mini18n_destroy(langs[i]);
+	}
+#endif
 }

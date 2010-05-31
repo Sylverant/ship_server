@@ -629,7 +629,7 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return gc_process_login(c, (gc_login_9e_pkt *)pkt);
 
         default:
-            printf("Unknown packet!\n");
+            debug(DBG_LOG, "Unknown packet!\n");
             print_packet((unsigned char *)pkt, len);
             return -3;
     }

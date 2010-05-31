@@ -30,4 +30,18 @@ int pc_bug_report(ship_client_t *c, pc_simple_mail_pkt *pkt);
 /* Actually implemented in list.c, not utils.c. */
 int send_player_list(ship_client_t *c, char *params);
 
+/* Internationalization support */
+#ifdef HAVE_LIBMINI18N
+#include <mini18n-multi.h>
+#include "clients.h"
+
+extern mini18n_t langs[CLIENT_LANG_COUNT];
+#define __(c, s) mini18n_get(langs[c->language_code], s)
+#else
+#define __(c, s) s
+#endif
+
+void init_i18n(void);
+void cleanup_i18n(void);
+
 #endif /* !UTILS_H */
