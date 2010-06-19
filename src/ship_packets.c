@@ -24,6 +24,7 @@
 #include <sys/socket.h>
 #include <iconv.h>
 #include <limits.h>
+#include <stdarg.h>
 
 #include <sylverant/encryption.h>
 #include <sylverant/database.h>
@@ -365,7 +366,9 @@ static int send_dc_block_list(ship_client_t *c, ship_t *s) {
     pkt->entries[0].item_id = 0;
     pkt->entries[0].flags = 0;
 
-    /* Copy the ship's name to the packet. */
+    /* Copy the ship's name to the packet. The ship names are forced to be
+       ASCII, and I believe this part is in ISO-8859-1 (which is the same thing
+       for all ASCII characters (< 0x80)). */
     strncpy(pkt->entries[0].name, s->cfg->name, 0x10);
 
     /* Add what's needed at the end */
@@ -422,7 +425,8 @@ static int send_pc_block_list(ship_client_t *c, ship_t *s) {
     pkt->entries[0].item_id = 0;
     pkt->entries[0].flags = 0;
 
-    /* Copy the ship's name to the packet. */
+    /* Copy the ship's name to the packet. The ship name is always ASCII, so
+       this stupid conversion to UTF-16LE works.*/
     for(i = 0; i < 0x10 && s->cfg->name[i]; ++i) {
         pkt->entries[0].name[i] = LE16(s->cfg->name[i]);
     }
@@ -486,10 +490,15 @@ static int send_dc_info_reply(ship_client_t *c, char msg[]) {
 
     if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
        c->version == CLIENT_VERSION_GC) {
-        ic = iconv_open("ASCII", "ASCII");
+        if(msg[1] == 'J') {
+            ic = iconv_open("SHIFT_JIS", "UTF-8");
+        }
+        else {
+            ic = iconv_open("ISO-8859-1", "UTF-8");
+        }
     }
     else {
-        ic = iconv_open("UTF-16LE", "ASCII");
+        ic = iconv_open("UTF-16LE", "UTF-8");
     }
 
     if(ic == (iconv_t)-1) {
@@ -686,6 +695,7 @@ static int send_dc_lobby_join(ship_client_t *c, lobby_t *l) {
         if(l->clients[i] == NULL) {
             continue;
         }
+
         /* If this is the client we're sending to, mark their client id. */
         else if(l->clients[i] == c) {
             pkt->client_id = (uint8_t)i;
@@ -697,6 +707,7 @@ static int send_dc_lobby_join(ship_client_t *c, lobby_t *l) {
         pkt->entries[pls].hdr.ip_addr = 0;
         pkt->entries[pls].hdr.client_id = LE32(i);
 
+        /* No need to iconv... the encoding is already right */
         memcpy(pkt->entries[pls].hdr.name, l->clients[i]->pl->v1.name, 16);
         memcpy(&pkt->entries[pls].data, &l->clients[i]->pl->v1,
                sizeof(v1_player_t));
@@ -727,9 +738,10 @@ static int send_pc_lobby_join(ship_client_t *c, lobby_t *l) {
     if(!sendbuf) {
         return -1;
     }
-    
-    ic = iconv_open("UTF-16LE", "ASCII");
-    
+
+    /* Names are always ISO-8859-1 for all versions of PSO that are supported */
+    ic = iconv_open("UTF-16LE", "ISO-8859-1");
+
     if(ic == (iconv_t)-1) {
         perror("iconv_open");
         return -1;
@@ -879,6 +891,7 @@ static int send_dc_lobby_add_player(lobby_t *l, ship_client_t *c,
     pkt->entries[0].hdr.ip_addr = 0;
     pkt->entries[0].hdr.client_id = LE32(nc->client_id);
 
+    /* No need to iconv, the enoding is already right */
     memcpy(pkt->entries[0].hdr.name, nc->pl->v1.name, 16);
     memcpy(&pkt->entries[0].data, &nc->pl->v1, sizeof(v1_player_t));
 
@@ -898,9 +911,10 @@ static int send_pc_lobby_add_player(lobby_t *l, ship_client_t *c,
     if(!sendbuf) {
         return -1;
     }
-    
-    ic = iconv_open("UTF-16LE", "ASCII");
-    
+
+    /* Names stored in character data are ISO-8859-1 */
+    ic = iconv_open("UTF-16LE", "ISO-8859-1");
+
     if(ic == (iconv_t)-1) {
         perror("iconv_open");
         return -1;
@@ -1037,6 +1051,7 @@ static int send_dc_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
 
     if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
        c->version == CLIENT_VERSION_GC) {
+        /* Yes, these are both dummy transformations */
         if(msg[1] == 'J') {
             ic = iconv_open("SHIFT_JIS", "SHIFT_JIS");
         }
@@ -1160,7 +1175,7 @@ static int send_dc_lobby_wchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
             return -1;
         }
 
-        ic2 = iconv_open("SHIFT_JIS", "SHIFT_JIS");
+        ic2 = iconv_open("ISO-8859-1", "ISO-8859-1");
         if(ic2 == (iconv_t)-1) {
             perror("iconv_open");
             iconv_close(ic);
@@ -1174,7 +1189,7 @@ static int send_dc_lobby_wchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
             return -1;
         }
 
-        ic2 = iconv_open("UTF-16LE", "SHIFT_JIS");
+        ic2 = iconv_open("UTF-16LE", "ISO-8859-1");
         if(ic2 == (iconv_t)-1) {
             perror("iconv_open");
             iconv_close(ic);
@@ -1282,9 +1297,11 @@ static int send_dc_guild_reply(ship_client_t *c, uint32_t gc, in_addr_t ip,
     pkt->port = LE16(port);
     pkt->menu_id = LE32(0xFFFFFFFF);
     pkt->item_id = LE32(lobby);
+
+    /* No need to iconv, we're not doing anything fancy here */
     strcpy(pkt->name, name);
 
-    /* Fill in the location string */
+    /* Fill in the location string. Everything here is ASCII, so this is safe */
     sprintf(pkt->location, "%s,BLOCK%02d,%s", game, block, ship);
 
     /* Send it away */
@@ -1306,8 +1323,8 @@ static int send_pc_guild_reply(ship_client_t *c, uint32_t gc, in_addr_t ip,
         return -1;
     }
 
-    /* We'll be converting stuff from Shift-JIS to UTF-16. */
-    ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+    /* We'll be converting stuff from ISO-8859-1 to UTF-16. */
+    ic = iconv_open("UTF-16LE", "ISO-8859-1");
 
     if(ic == (iconv_t)-1) {
         return -1;
@@ -1366,27 +1383,15 @@ int send_guild_reply(ship_client_t *c, uint32_t gc, in_addr_t ip, uint16_t port,
     return -1;
 }
 
-static int send_dc_message(ship_client_t *c, char msg[], uint16_t type) {
+static int send_dc_message(ship_client_t *c, uint16_t type, const char *fmt,
+                           va_list args) {
     uint8_t *sendbuf = get_sendbuf();
     dc_chat_pkt *pkt = (dc_chat_pkt *)sendbuf;
     int len;
     iconv_t ic;
-    char tm[strlen(msg) + 3];
+    char tm[512];
     size_t in, out;
     char *inptr, *outptr;
-
-    if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
-       c->version == CLIENT_VERSION_GC) {
-        ic = iconv_open("ISO-8859-1", "ISO-8859-1");
-    }
-    else {
-        ic = iconv_open("UTF-16LE", "ISO-8859-1");
-    }
-    
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
-        return -1;
-    }
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -1397,7 +1402,36 @@ static int send_dc_message(ship_client_t *c, char msg[], uint16_t type) {
     memset(pkt, 0, sizeof(dc_chat_pkt));
 
     /* Fill in the message */
-    in = sprintf(tm, "\tE%s", msg) + 1;
+    if(fmt[0] != '\t' || (fmt[1] != 'E' && fmt[1] != 'J')) {
+        /* Assume Non-Japanese if we don't have a marker. */
+        tm[0] = '\t';
+        tm[1] = 'E';
+        vsnprintf(tm + 2, 510, fmt, args);
+    }
+    else {
+        vsnprintf(tm, 512, fmt, args);
+    }
+
+    /* Set up to convert between encodings */
+    if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
+       c->version == CLIENT_VERSION_GC) {
+        if(tm[1] != 'J') {
+            ic = iconv_open("ISO-8859-1", "UTF-8");
+        }
+        else {
+            ic = iconv_open("SHIFT_JIS", "UTF-8");
+        }
+    }
+    else {
+        ic = iconv_open("UTF-16LE", "UTF-8");
+    }
+
+    if(ic == (iconv_t)-1) {
+        perror("iconv_open");
+        return -1;
+    }
+
+    in = strlen(tm) + 1;
 
     /* Convert the message to the appropriate encoding. */
     out = 65520;
@@ -1434,31 +1468,45 @@ static int send_dc_message(ship_client_t *c, char msg[], uint16_t type) {
 }
 
 /* Send a message to the client. */
-int send_message1(ship_client_t *c, char msg[]) {
+int send_message1(ship_client_t *c, const char *fmt, ...) {
+    va_list args;
+    int rv = -1;
+
+    va_start(args, fmt);
+
     /* Call the appropriate function. */
     switch(c->version) {
         case CLIENT_VERSION_DCV1:
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_PC:
         case CLIENT_VERSION_GC:
-            return send_dc_message(c, msg, MSG1_TYPE);
+            rv = send_dc_message(c, MSG1_TYPE, fmt, args);
     }
+
+    va_end(args);
     
-    return -1;
+    return rv;
 }
 
 /* Send a text message to the client (i.e, for stuff related to commands). */
-int send_txt(ship_client_t *c, char msg[]) {
+int send_txt(ship_client_t *c, const char *fmt, ...) {
+    va_list args;
+    int rv = -1;
+
+    va_start(args, fmt);
+
     /* Call the appropriate function. */
     switch(c->version) {
         case CLIENT_VERSION_DCV1:
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_PC:
         case CLIENT_VERSION_GC:
-            return send_dc_message(c, msg, TEXT_MSG_TYPE);
+            rv = send_dc_message(c, TEXT_MSG_TYPE, fmt, args);
     }
 
-    return -1;
+    va_end(args);
+
+    return rv;
 }
 
 /* Send a packet to the client indicating information about the game they're
@@ -1500,6 +1548,7 @@ static int send_dc_game_join(ship_client_t *c, lobby_t *l) {
             pkt->players[i].ip_addr = 0;
             pkt->players[i].client_id = LE32(i);
 
+            /* No need to iconv, the name is fine as is */
             memcpy(pkt->players[i].name, l->clients[i]->pl->v1.name, 16);
             ++clients;
         }
@@ -1525,7 +1574,9 @@ static int send_pc_game_join(ship_client_t *c, lobby_t *l) {
         return -1;
     }
 
-    ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+    /* Names are sent in the player packets in ISO-8859-1, so that's what we
+       have sitting around */
+    ic = iconv_open("UTF-16LE", "ISO-8859-1");
 
     if(ic == (iconv_t)-1) {
         perror("iconv_open");
@@ -1617,6 +1668,7 @@ static int send_gc_game_join(ship_client_t *c, lobby_t *l) {
             pkt->players[i].ip_addr = 0;
             pkt->players[i].client_id = LE32(i);
 
+            /* No need to iconv the names, they'll be good as is */
             memcpy(pkt->players[i].name, l->clients[i]->pl->v1.name, 16);
             ++clients;
         }
@@ -1781,7 +1833,8 @@ static int send_dc_game_list(ship_client_t *c, block_t *b) {
             pkt->entries[entries].flags |= 0x04;
         }
 
-        /* Copy the name */
+        /* Copy the name. The names are either in Shift-JIS or ISO-8859-1, and
+           should be prefixed with the appropriate language tag already */
         strcpy(pkt->entries[entries].name, l->name);
 
         /* Unlock the lobby */
@@ -2018,6 +2071,7 @@ static int send_dc_info_list(ship_client_t *c, ship_t *s) {
         pkt->entries[i].item_id = LE32((i - 1));
         pkt->entries[i].flags = LE16(0x0000);
 
+        /* These are always ASCII, so this is fine */
         strncpy(pkt->entries[i].name, s->cfg->info_files_desc[i - 1], 0x11);
         pkt->entries[i].name[0x11] = 0;
 
@@ -2201,6 +2255,7 @@ static int send_dc_message_box(ship_client_t *c, char msg[]) {
 
     if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
        c->version == CLIENT_VERSION_GC) {
+        /* Yes, these are both dummy transforms */
         if(msg[1] == 'J') {
             ic = iconv_open("SHIFT_JIS", "SHIFT_JIS");
         }
@@ -2279,9 +2334,29 @@ static int send_dc_quest_categories(ship_client_t *c,
     dc_quest_list_pkt *pkt = (dc_quest_list_pkt *)sendbuf;
     int i, len = 0x04, entries = 0;
     uint32_t type = SYLVERANT_QUEST_NORMAL;
+    iconv_t ic, ic2;
+    size_t in, out;
+    char *inptr, *outptr;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
+        return -1;
+    }
+
+    /* Quest stuff is stored internally as UTF-8, set up for converting to the
+       right encoding */
+    ic = iconv_open("ISO-8859-1", "UTF-8");
+
+    if(ic == (iconv_t)-1) {
+        perror("iconv_open");
+        return -1;
+    }
+
+    ic2 = iconv_open("SHIFT_JIS", "UTF-8");
+
+    if(ic2 == (iconv_t)-1) {
+        perror("iconv_open");
+        iconv_close(ic);
         return -1;
     }
 
@@ -2311,12 +2386,26 @@ static int send_dc_quest_categories(ship_client_t *c,
         pkt->entries[entries].menu_id = LE32(0x00000003);
         pkt->entries[entries].item_id = LE32(i);
 
-        memcpy(pkt->entries[entries].name, l->cats[i].name, 32);
-        memcpy(pkt->entries[entries].desc, l->cats[i].desc, 112);
+        /* Convert the name and the description to the appropriate encoding
+           XXXX: Handle Japanese*/
+        in = 32;
+        out = 32;
+        inptr = l->cats[i].name;
+        outptr = (char *)pkt->entries[entries].name;
+        iconv(ic, &inptr, &in, &outptr, &out);
+
+        in = 112;
+        out = 112;
+        inptr = l->cats[i].desc;
+        outptr = (char *)pkt->entries[entries].desc;
+        iconv(ic, &inptr, &in, &outptr, &out);
 
         ++entries;
         len += 0x98;
     }
+
+    iconv_close(ic2);
+    iconv_close(ic);
 
     /* Fill in the rest of the header */
     pkt->hdr.flags = entries;
@@ -2341,8 +2430,8 @@ static int send_pc_quest_categories(ship_client_t *c,
         return -1;
     }
 
-    /* Quest names are stored internally as Shift-JIS, convert to UTF-16. */
-    ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+    /* Quest names are stored internally as UTF-8, convert to UTF-16. */
+    ic = iconv_open("UTF-16LE", "UTF-8");
 
     if(ic == (iconv_t)-1) {
         perror("iconv_open");
@@ -2423,9 +2512,29 @@ static int send_dc_quest_list(ship_client_t *c, int cat,
     uint8_t *sendbuf = get_sendbuf();
     dc_quest_list_pkt *pkt = (dc_quest_list_pkt *)sendbuf;
     int i, len = 0x04, entries = 0, max = INT_MAX;
+    iconv_t ic, ic2;
+    size_t in, out;
+    char *inptr, *outptr;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
+        return -1;
+    }
+
+    /* Quest stuff is stored internally as UTF-8, set up for converting to the
+       right encoding */
+    ic = iconv_open("ISO-8859-1", "UTF-8");
+
+    if(ic == (iconv_t)-1) {
+        perror("iconv_open");
+        return -1;
+    }
+
+    ic2 = iconv_open("SHIFT_JIS", "UTF-8");
+
+    if(ic2 == (iconv_t)-1) {
+        perror("iconv_open");
+        iconv_close(ic);
         return -1;
     }
 
@@ -2452,12 +2561,26 @@ static int send_dc_quest_list(ship_client_t *c, int cat,
         pkt->entries[entries].menu_id = LE32(((0x00000004) | (cat << 8)));
         pkt->entries[entries].item_id = LE32(i);
 
-        memcpy(pkt->entries[entries].name, l->quests[i].name, 32);
-        memcpy(pkt->entries[entries].desc, l->quests[i].desc, 112);
-        
+        /* Convert the name and the description to the appropriate encoding
+           XXXX: Handle Japanese */
+        in = 32;
+        out = 32;
+        inptr = l->quests[i].name;
+        outptr = (char *)pkt->entries[entries].name;
+        iconv(ic, &inptr, &in, &outptr, &out);
+
+        in = 112;
+        out = 112;
+        inptr = l->quests[i].desc;
+        outptr = (char *)pkt->entries[entries].desc;
+        iconv(ic, &inptr, &in, &outptr, &out);
+
         ++entries;
         len += 0x98;
     }
+
+    iconv_close(ic2);
+    iconv_close(ic);
 
     /* Fill in the rest of the header */
     pkt->hdr.flags = entries;
@@ -2481,8 +2604,8 @@ static int send_pc_quest_list(ship_client_t *c, int cat,
         return -1;
     }
 
-    /* Quest names are stored internally as Shift-JIS, convert to UTF-16. */
-    ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+    /* Quest names are stored internally as UTF-8, convert to UTF-16. */
+    ic = iconv_open("UTF-16LE", "UTF-8");
 
     if(ic == (iconv_t)-1) {
         perror("iconv_open");
@@ -2544,9 +2667,29 @@ static int send_gc_quest_list(ship_client_t *c, int cat,
     uint8_t *sendbuf = get_sendbuf();
     dc_quest_list_pkt *pkt = (dc_quest_list_pkt *)sendbuf;
     int i, len = 0x04, entries = 0, max = INT_MAX;
+    iconv_t ic, ic2;
+    size_t in, out;
+    char *inptr, *outptr;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
+        return -1;
+    }
+
+    /* Quest stuff is stored internally as UTF-8, set up for converting to the
+       right encoding */
+    ic = iconv_open("ISO-8859-1", "UTF-8");
+
+    if(ic == (iconv_t)-1) {
+        perror("iconv_open");
+        return -1;
+    }
+
+    ic2 = iconv_open("SHIFT_JIS", "UTF-8");
+
+    if(ic2 == (iconv_t)-1) {
+        perror("iconv_open");
+        iconv_close(ic);
         return -1;
     }
 
@@ -2574,12 +2717,26 @@ static int send_gc_quest_list(ship_client_t *c, int cat,
         pkt->entries[entries].menu_id = LE32(((0x00000004) | (cat << 8)));
         pkt->entries[entries].item_id = LE32(i);
 
-        memcpy(pkt->entries[entries].name, l->quests[i].name, 32);
-        memcpy(pkt->entries[entries].desc, l->quests[i].desc, 112);
-        
+        /* Convert the name and the description to the appropriate encoding
+           XXXX: Handle Japanese */
+        in = 32;
+        out = 32;
+        inptr = l->quests[i].name;
+        outptr = (char *)pkt->entries[entries].name;
+        iconv(ic, &inptr, &in, &outptr, &out);
+
+        in = 112;
+        out = 112;
+        inptr = l->quests[i].desc;
+        outptr = (char *)pkt->entries[entries].desc;
+        iconv(ic, &inptr, &in, &outptr, &out);
+
         ++entries;
         len += 0x98;
     }
+
+    iconv_close(ic2);
+    iconv_close(ic);
 
     /* Fill in the rest of the header */
     pkt->hdr.flags = entries;
@@ -2632,10 +2789,11 @@ static int send_dc_quest_info(ship_client_t *c, sylverant_quest_t *q) {
 
     if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
        c->version == CLIENT_VERSION_GC) {
-        ic = iconv_open("SHIFT_JIS", "SHIFT_JIS");
+        /* XXXX: Handle Japanese text */
+        ic = iconv_open("ISO-8859-1", "UTF-8");
     }
     else {
-        ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+        ic = iconv_open("UTF-16LE", "UTF-8");
     }
 
     if(ic == (iconv_t)-1) {
@@ -3825,6 +3983,8 @@ static int send_dc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
                 memset(&pkt->entries[entries], 0, 0xD4);
                 pkt->entries[entries].guildcard = LE32(it->guildcard);
 
+                /* Everything here is ISO-8859-1 already... so no need to iconv
+                   anything in here */
                 strcpy(pkt->entries[entries].name, it->pl->v1.name);
                 sprintf(pkt->entries[entries].cl_lvl, "%s Lvl %d\n",
                         classes[it->pl->v1.ch_class], it->pl->v1.level + 1);
@@ -3879,7 +4039,7 @@ static int send_pc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
     }
 
     /* Set up the converting stuff. */
-    ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+    ic = iconv_open("UTF-16LE", "ISO-8859-1");
 
     if(ic == (iconv_t)-1) {
         perror("iconv_open");
@@ -4019,6 +4179,7 @@ static int send_gc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
                 memset(&pkt->entries[entries], 0, 0xD4);
                 pkt->entries[entries].guildcard = LE32(it->guildcard);
 
+                /* Everything here is ISO-8859-1 already, so no need to iconv */
                 strcpy(pkt->entries[entries].name, it->pl->v1.name);
                 sprintf(pkt->entries[entries].cl_lvl, "%s Lvl %d\n",
                         classes[it->pl->v1.ch_class], it->pl->v1.level + 1);
@@ -4316,16 +4477,16 @@ static int send_gc_infoboard(ship_client_t *c, lobby_t *l) {
                 strcpy(pkt->entries[entries].msg, c2->infoboard);
             }
             else if(c2->version == CLIENT_VERSION_DCV1) {
-                strcpy(pkt->entries[entries].msg, "PSO DCv1 Client");
+                strcpy(pkt->entries[entries].msg, "\tEPSO DCv1 Client");
             }
             else if(c2->version == CLIENT_VERSION_DCV2) {
-                strcpy(pkt->entries[entries].msg, "PSO DCv2 Client");
+                strcpy(pkt->entries[entries].msg, "\tEPSO DCv2 Client");
             }
             else if(c2->version == CLIENT_VERSION_PC) {
-                strcpy(pkt->entries[entries].msg, "PSOPC Client");
+                strcpy(pkt->entries[entries].msg, "\tEPSOPC Client");
             }
             else if(c2->version == CLIENT_VERSION_GC) {
-                strcpy(pkt->entries[entries].msg, "PSOGC Client");
+                strcpy(pkt->entries[entries].msg, "\tEPSOGC Client");
             }
 
             ++entries;

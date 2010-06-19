@@ -343,7 +343,6 @@ static int handle_bstat(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     lobby_t *i;
     ship_client_t *i2;
     int games = 0, players = 0;
-    char string[256];
 
     pthread_mutex_lock(&b->mutex);
 
@@ -372,9 +371,8 @@ static int handle_bstat(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     pthread_mutex_unlock(&b->mutex);
 
     /* Fill in the string. */
-    sprintf(string, "\tE\tC7BLOCK%02d:\n%d Players\n%d Games", b->b, players,
-            games);
-    return send_txt(c, string);
+    return send_txt(c, "\tE\tC7BLOCK%02d:\n%d Players\n%d Games", b->b,
+                    players, games);
 }
 
 /* Usage /bcast message */
@@ -383,14 +381,11 @@ static int handle_bcast(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     block_t *b;
     int i;
     ship_client_t *i2;
-    char string[256];
 
     /* Make sure the requester is a GM. */
     if(!c->is_gm) {
         return send_txt(c, "\tE\tC7Nice try.");
     }
-
-    sprintf(string, "Global Message:\n%s", params);
 
     /* Go through each block and send the message to anyone that is alive. */
     for(i = 0; i < s->cfg->blocks; ++i) {
@@ -402,7 +397,7 @@ static int handle_bcast(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
             pthread_mutex_lock(&i2->mutex);
 
             if(i2->pl) {
-                send_txt(i2, string);
+                send_txt(i2, "\tE\tC7Global Message:\n%s", params);
             }
 
             pthread_mutex_unlock(&i2->mutex);
@@ -677,7 +672,6 @@ static int handle_clinfo(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     lobby_t *l = c->cur_lobby;
     int id, count;
     ship_client_t *cl;
-    char info[256];
     char ip[INET_ADDRSTRLEN];
 
     /* Make sure the requester is a GM. */
@@ -688,7 +682,7 @@ static int handle_clinfo(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     /* Copy over the item data. */
     count = sscanf(params, "%d", &id);
 
-    if(count == EOF || count == 0 || id >= l->max_clients) {
+    if(count == EOF || count == 0 || id >= l->max_clients || id < 0) {
         return send_txt(c, "\tE\tC7Invalid Client ID");
     }
 
@@ -699,12 +693,9 @@ static int handle_clinfo(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     /* Fill in the client's info. */
     inet_ntop(AF_INET, &cl->addr, ip, INET_ADDRSTRLEN);
-    sprintf(info, "\tE\tC7Name: %s\nIP: %s\nGC: %u\n%s Lv.%d", cl->pl->v1.name,
-            ip, cl->guildcard, classes[cl->pl->v1.ch_class],
-            cl->pl->v1.level + 1);
-
-    /* Send the response. */
-    return send_txt(c, info);
+    return send_txt(c, "\tE\tC7Name: %s\nIP: %s\nGC: %u\n%s Lv.%d",
+                    c->pl->v1.name, ip, cl->guildcard,
+                    classes[cl->pl->v1.ch_class], cl->pl->v1.level + 1);
 }
 
 /* Usage: /gban:d guildcard reason */

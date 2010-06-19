@@ -31,6 +31,16 @@
 /* Pull in the structures for the packets themselves. */
 #include "packets.h"
 
+#ifdef __GNUC__
+#ifndef __printflike
+#define __printflike(n1, n2) __attribute__((format(printf, n1, n2)))
+#endif
+#else
+#ifndef __printflike
+#define __printflike(n1, n2)
+#endif
+#endif
+
 /* This must be placed into the copyright field in the DC welcome packet. */
 const static char dc_welcome_copyright[] =
     "DreamCast Lobby Server. Copyright SEGA Enterprises. 1999";
@@ -88,10 +98,10 @@ int send_guild_reply(ship_client_t *c, uint32_t gc, in_addr_t ip, uint16_t port,
                      char name[]);
 
 /* Send a message to the client. */
-int send_message1(ship_client_t *c, char msg[]);
+int send_message1(ship_client_t *c, const char *fmt, ...) __printflike(2, 3);
 
 /* Send a text message to the client (i.e, for stuff related to commands). */
-int send_txt(ship_client_t *c, char msg[]);
+int send_txt(ship_client_t *c, const char *fmt, ...) __printflike(2, 3);
 
 /* Send a packet to the client indicating information about the game they're
    joining. */
