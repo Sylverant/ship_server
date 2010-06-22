@@ -43,6 +43,7 @@ in_addr_t netmask;
 
 /* The actual ship structures. */
 ship_t **ships;
+char *config_file = NULL;
 
 /* Print information about this program to stdout. */
 static void print_program_info() {
@@ -68,6 +69,8 @@ static void print_help(const char *bin) {
            "--verbose       Log many messages that might help debug a problem\n"
            "--quiet         Only log warning and error messages\n"
            "--reallyquiet   Only log error messages\n"
+           "-C configfile   Use the specified configuration instead of the\n"
+           "                default one.\n"
            "--help          Print this help and exit\n\n"
            "Note that if more than one verbosity level is specified, the last\n"
            "one specified will be used. The default is --verbose.\n", bin);
@@ -91,6 +94,10 @@ static void parse_command_line(int argc, char *argv[]) {
         else if(!strcmp(argv[i], "--reallyquiet")) {
             debug_set_threshold(DBG_ERROR);
         }
+        else if(!strcmp(argv[i], "-C")) {
+            /* Save the config file's name. */
+            config_file = argv[++i];
+        }
         else if(!strcmp(argv[i], "--help")) {
             print_help(argv[0]);
             exit(0);
@@ -110,7 +117,7 @@ static void load_config() {
 
     debug(DBG_LOG, "Loading Sylverant Ship configuration file... ");
 
-    if(sylverant_read_ship_config(&cfg)) {
+    if(sylverant_read_ship_config(config_file, &cfg)) {
         debug(DBG_ERROR, "Cannot load Sylverant Ship configuration file!\n");
         exit(1);
     }
