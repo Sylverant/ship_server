@@ -429,6 +429,22 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
         }
     }
 
+    /* Attempt to read the item limits list in. */
+    if(s->limits_file[0]) {
+        if(sylverant_read_limits(s->limits_file, &rv->limits)) {
+            debug(DBG_ERROR, "%s: Couldn't read limits file!\n", s->name);
+            free(rv->gm_list);
+            sylverant_quests_destroy(&rv->quests);
+            free(rv->clients);
+            free(rv->blocks);
+            free(rv);
+            close(gcsock);
+            close(pcsock);
+            close(dcsock);
+            return NULL;
+        }
+    }
+
     /* Fill in the structure. */
     pthread_mutex_init(&rv->qmutex, NULL);
     TAILQ_INIT(rv->clients);

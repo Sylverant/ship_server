@@ -21,7 +21,6 @@
 #include <inttypes.h>
 #include <netinet/in.h>
 
-#include <sylverant/characters.h>
 #include <sylverant/encryption.h>
 #include <sylverant/quest.h>
 

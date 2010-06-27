@@ -38,6 +38,11 @@ typedef struct ship_client ship_client_t;
 typedef struct block block_t;
 #endif
 
+#ifndef SHIP_DEFINED
+#define SHIP_DEFINED
+typedef struct ship ship_t;
+#endif
+
 struct lobby {
     TAILQ_ENTRY(lobby) qentry;
 
@@ -63,6 +68,7 @@ struct lobby {
 
     uint8_t gevent;
     uint8_t max_chal;
+    uint8_t legit_mode;
 
     int version;
     uint32_t min_level;
@@ -117,5 +123,11 @@ int lobby_remove_player(ship_client_t *c);
 
 /* Send an information reply packet with information about the lobby. */
 int lobby_info_reply(ship_client_t *c, uint32_t lobby);
+
+/* Check if a single player is legit enough for the lobby. */
+int lobby_check_client_legit(lobby_t *l, ship_t *s, ship_client_t *c);
+
+/* Check all current players in a lobby against the legit list for the ship. */
+int lobby_check_legit(lobby_t *l, ship_t *ship);
 
 #endif /* !LOBBY_H */

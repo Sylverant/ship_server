@@ -452,6 +452,13 @@ int lobby_change_lobby(ship_client_t *c, lobby_t *req) {
         goto out;
     }
 
+    /* Make sure that the client is legit enough to be there. */
+    if(l->type != LOBBY_TYPE_DEFAULT && l->legit_mode &&
+       !lobby_check_client_legit(l, c->cur_ship, c)) {
+        rv = -9;
+        goto out;
+    }
+
     if(l != req) {
         /* Attempt to add the client to the new lobby first. */
         if(lobby_add_client_locked(c, req)) {
@@ -598,4 +605,59 @@ int lobby_info_reply(ship_client_t *c, uint32_t lobby) {
 
     /* Send the reply */
     return send_info_reply(c, msg);
+}
+
+/* Check if a single player is legit enough for the lobby. */
+int lobby_check_client_legit(lobby_t *l, ship_t *s, ship_client_t *c) {
+    player_t *pl;
+    int j, rv = 1;
+    sylverant_iitem_t *item;
+
+    /* If we don't have a legit mode set, then everyone's legit! */
+    if(!s->limits) {
+        return 1;
+    }
+
+    /* Lock the client we're looking at */
+    pthread_mutex_lock(&c->mutex);
+    pl = c->pl;
+
+    /* Look through each item */
+    for(j = 0; j < pl->v1.inv.item_count && rv; ++j) {
+        item = (sylverant_iitem_t *)&pl->v1.inv.items[j];
+        rv = sylverant_limits_check_item(s->limits, item);
+    }
+
+    /* Unlock the client */
+    pthread_mutex_unlock(&c->mutex);
+
+    return rv;
+}
+
+/* Check all current players in a lobby against the legit list for the ship. */
+int lobby_check_legit(lobby_t *l, ship_t *ship) {
+    int i, rv = 1;
+
+    /* If we don't have a legit mode set, then everyone's legit! */
+    if(!ship->limits) {
+        return 1;
+    }
+
+    /* Lock the lobby */
+    pthread_mutex_lock(&l->mutex);
+
+    /* Check each client */
+    for(i = 0; i < l->max_clients && rv; ++i) {
+        /* Ignore blank clients */
+        if(!l->clients[i]) {
+            continue;
+        }
+
+        rv = lobby_check_client_legit(l, ship, l->clients[i]);
+    }
+
+    /* Unlock the lobby */
+    pthread_mutex_unlock(&l->mutex);
+
+    return rv;
 }

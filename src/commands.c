@@ -922,6 +922,29 @@ static int handle_list(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return send_player_list(c, params);
 }
 
+/* Usage: /legit */
+static int handle_legit(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    lobby_t *l = c->cur_lobby;
+
+    /* Make sure that the requester is in a game lobby, not a lobby lobby. */
+    if(!(l->type & LOBBY_TYPE_GAME)) {
+        return send_txt(c, "\tE\tC7Only valid in a game lobby.");
+    }
+
+    /* Make sure the requester is the leader of the team. */
+    if(l->leader_id != c->client_id) {
+        return send_txt(c, "\tE\tC7Only the leader may use this command.");
+    }
+
+    /* Make sure we can set this for the current lobby. */
+    if(!lobby_check_legit(l, c->cur_ship)) {
+        return send_txt(c, "\tE\tC7Team legit check failed!");
+    }
+
+    l->legit_mode = 1;
+    return send_txt(c, "\tE\tC7Legit mode set.");
+}
+
 static command_t cmds[] = {
     { "warp"   , handle_warp      },
     { "kill"   , handle_kill      },
@@ -947,6 +970,7 @@ static command_t cmds[] = {
     { "gban:m" , handle_gban_m    },
     { "gban:p" , handle_gban_p    },
     { "list"   , handle_list      },
+    { "legit"  , handle_legit     },
     { ""       , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

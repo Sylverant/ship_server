@@ -23,6 +23,7 @@
 
 #include <sylverant/config.h>
 #include <sylverant/quest.h>
+#include <sylverant/items.h>
 
 #include "gm.h"
 #include "block.h"
@@ -68,6 +69,7 @@ struct ship {
     sylverant_quest_list_t quests;
     shipgate_conn_t sg;
     pthread_mutex_t qmutex;
+    sylverant_limits_t *limits;
 
     local_gm_t *gm_list;
     int gm_count;

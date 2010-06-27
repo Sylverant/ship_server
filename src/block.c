@@ -1284,7 +1284,15 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
             /* Attempt to change the player's lobby. */
             rv = lobby_change_lobby(c, l);
 
-            if(rv == -8) {
+            if(rv == -9) {
+                /* Legit check failed */
+                send_message1(c, "\tC4Can't join game!\n\n"
+                              "\tC7Game mode is set\n"
+                              "to legit and you\n"
+                              "failed the legit\n"
+                              "check!");
+            }
+            else if(rv == -8) {
                 /* Quest selection in progress */
                 send_message1(c, "\tC4Can't join game!\n\n"
                               "\tC7Quest selection\nis in progress");
