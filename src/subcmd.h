@@ -128,7 +128,20 @@ typedef struct subcmd_levelup {
     uint16_t dfp;
     uint16_t ata;
     uint32_t level;
-} subcmd_levelup_t;
+} PACKED subcmd_levelup_t;
+
+/* Packet used to take an item from the bank. */
+typedef struct subcmd_take_item {
+    dc_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint8_t client_id;
+    uint8_t unused;
+    uint32_t data_l[3];
+    uint32_t item_id;
+    uint32_t data2_l;
+    uint32_t unk;
+} PACKED subcmd_take_item_t;
 
 #undef PACKED
 

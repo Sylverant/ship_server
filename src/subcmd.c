@@ -401,6 +401,42 @@ static int handle_levelup(ship_client_t *c, subcmd_levelup_t *pkt) {
     return lobby_send_pkt_dc(c->cur_lobby, c, (dc_pkt_hdr_t *)pkt);
 }
 
+static int handle_take_item(ship_client_t *c, subcmd_take_item_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+    sylverant_iitem_t item;
+
+    /* We can't get these in default lobbies without someone messing with
+       something that they shouldn't be... Disconnect anyone that tries. */
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        return -1;
+    }
+
+    /* Sanity check... Make sure the size of the subcommand and the client id
+       match with what we expect. Disconnect the client if not. */
+    if(pkt->size != 0x07 || pkt->client_id != c->client_id) {
+        return -1;
+    }
+
+    /* If we're in legit mode, we need to check the newly taken item. */
+    if(l->legit_mode && c->cur_ship->limits) {
+        /* Fill in the item structure so we can check it. */
+        memcpy(&item.data_l[0], &pkt->data_l[0], 5 * sizeof(uint32_t));
+
+        if(!sylverant_limits_check_item(c->cur_ship->limits, &item)) {
+            /* The item failed the check, so kick the user. */
+            send_message_box(c, "\tEYou have been kicked from the server.\n\n"
+                             "Reason:\n"
+                             "Attempt to remove a non-legit item from\n"
+                             "the bank in a legit-mode game.");
+            return -1;
+        }
+    }
+
+    /* If we get here, either the game is not in legit mode, or the item is
+       actually legit, so just forward the packet on. */
+    return lobby_send_pkt_dc(c->cur_lobby, c, (dc_pkt_hdr_t *)pkt);
+}
+
 /* Handle a 0x62/0x6D packet. */
 int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
     lobby_t *l = c->cur_lobby;
@@ -449,9 +485,8 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
     uint8_t type = pkt->type;
 
     switch(type) {
-        case SUBCMD_DEPOSIT_ITEM:
         case SUBCMD_TAKE_ITEM:
-            break;
+            return handle_take_item(c, (subcmd_take_item_t *)pkt);
 
         case SUBCMD_LEVELUP:
             return handle_levelup(c, (subcmd_levelup_t *)pkt);
