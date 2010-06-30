@@ -417,6 +417,12 @@ int lobby_change_lobby(ship_client_t *c, lobby_t *req) {
         pthread_mutex_lock(&req->mutex);
     }
 
+    /* Make sure the lobby is actually available at the moment. */
+    if((req->flags & LOBBY_FLAG_TEMP_UNAVAIL)) {
+        rv = -10;
+        goto out;
+    }
+
     /* Make sure there isn't currently a client bursting */
     if((req->flags & LOBBY_FLAG_BURSTING)) {
         rv = -3;
@@ -453,7 +459,7 @@ int lobby_change_lobby(ship_client_t *c, lobby_t *req) {
     }
 
     /* Make sure that the client is legit enough to be there. */
-    if(l->type != LOBBY_TYPE_DEFAULT && l->legit_mode &&
+    if(l->type != LOBBY_TYPE_DEFAULT && (l->flags & LOBBY_FLAG_LEGIT_MODE) &&
        !lobby_check_client_legit(l, c->cur_ship, c)) {
         rv = -9;
         goto out;
@@ -608,19 +614,15 @@ int lobby_info_reply(ship_client_t *c, uint32_t lobby) {
 }
 
 /* Check if a single player is legit enough for the lobby. */
-int lobby_check_client_legit(lobby_t *l, ship_t *s, ship_client_t *c) {
-    player_t *pl;
+int lobby_check_player_legit(lobby_t *l, ship_t *s, player_t *pl) {
     int j, rv = 1;
     sylverant_iitem_t *item;
 
     /* If we don't have a legit mode set, then everyone's legit! */
-    if(!s->limits) {
+    if(!s->limits || (!(l->flags & LOBBY_FLAG_LEGIT_MODE) &&
+                      !(l->flags & LOBBY_FLAG_LEGIT_CHECK))) {
         return 1;
     }
-
-    /* Lock the client we're looking at */
-    pthread_mutex_lock(&c->mutex);
-    pl = c->pl;
 
     /* Look through each item */
     for(j = 0; j < pl->v1.inv.item_count && rv; ++j) {
@@ -628,36 +630,39 @@ int lobby_check_client_legit(lobby_t *l, ship_t *s, ship_client_t *c) {
         rv = sylverant_limits_check_item(s->limits, item);
     }
 
-    /* Unlock the client */
+    return rv;
+}
+
+/* Check if a single client is legit enough for the lobby. */
+int lobby_check_client_legit(lobby_t *l, ship_t *s, ship_client_t *c) {
+    int rv;
+
+    pthread_mutex_lock(&c->mutex);
+    rv = lobby_check_player_legit(l, s, c->pl);
     pthread_mutex_unlock(&c->mutex);
 
     return rv;
 }
 
-/* Check all current players in a lobby against the legit list for the ship. */
-int lobby_check_legit(lobby_t *l, ship_t *ship) {
-    int i, rv = 1;
+/* Finish with a legit check. */
+void lobby_legit_check_finish_locked(lobby_t *l) {
+    int i;
 
-    /* If we don't have a legit mode set, then everyone's legit! */
-    if(!ship->limits) {
-        return 1;
-    }
+    /* If everyone passed, the game is now in legit mode. */
+    if(l->legit_check_passed == l->num_clients) {
+        l->flags |= LOBBY_FLAG_LEGIT_MODE;
 
-    /* Lock the lobby */
-    pthread_mutex_lock(&l->mutex);
-
-    /* Check each client */
-    for(i = 0; i < l->max_clients && rv; ++i) {
-        /* Ignore blank clients */
-        if(!l->clients[i]) {
-            continue;
+        for(i = 0; i < l->max_clients; ++i) {
+            if(l->clients[i]) {
+                send_txt(l->clients[i], "\tE\tC7Legit mode active.");
+            }
         }
-
-        rv = lobby_check_client_legit(l, ship, l->clients[i]);
+    }
+    else {
+        send_txt(l->clients[l->leader_id], "\tE\tC7Team legit check failed!");
     }
 
-    /* Unlock the lobby */
-    pthread_mutex_unlock(&l->mutex);
-
-    return rv;
+    /* Since the legit check is done, clear the flag for that and the
+       temporarily unavailable flag. */
+    l->flags &= ~(LOBBY_FLAG_LEGIT_CHECK | LOBBY_FLAG_TEMP_UNAVAIL);
 }

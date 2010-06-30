@@ -18,6 +18,8 @@
 #include <iconv.h>
 #include <string.h>
 
+#include <sylverant/debug.h>
+
 #include "subcmd.h"
 #include "clients.h"
 #include "ship_packets.h"
@@ -418,7 +420,7 @@ static int handle_take_item(ship_client_t *c, subcmd_take_item_t *pkt) {
     }
 
     /* If we're in legit mode, we need to check the newly taken item. */
-    if(l->legit_mode && c->cur_ship->limits) {
+    if((l->flags & LOBBY_FLAG_LEGIT_MODE) && c->cur_ship->limits) {
         /* Fill in the item structure so we can check it. */
         memcpy(&item.data_l[0], &pkt->data_l[0], 5 * sizeof(uint32_t));
 
@@ -454,7 +456,7 @@ static int handle_itemdrop(ship_client_t *c, subcmd_itemgen_t *pkt) {
     }
 
     /* If we're in legit mode, we need to check the item. */
-    if(l->legit_mode && c->cur_ship->limits) {
+    if((l->flags & LOBBY_FLAG_LEGIT_MODE) && c->cur_ship->limits) {
         /* Fill in the item structure so we can check it. */
         memcpy(&item.data_l[0], &pkt->item[0], 5 * sizeof(uint32_t));
 
@@ -502,11 +504,15 @@ int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
         case SUBCMD_ITEMREQ:
             /* Only pay attention if an item has been set and we're not in
                legit mode. */
-            if(c->next_item[0] && !l->legit_mode) {
+            if(c->next_item[0] && !(l->flags & LOBBY_FLAG_LEGIT_MODE)) {
                 return handle_itemreq(c, (subcmd_itemreq_t *)pkt);
             }
 
         default:
+#ifdef LOG_UNKNOWN_SUBS
+            debug(DBG_LOG, "Unknown 0x62/0x6D: 0x%02X\n", type);
+            print_packet((unsigned char *)pkt, LE16(pkt->hdr.pkt_len));
+#endif /* LOG_UNKNOWN_SUBS */
             /* Forward the packet unchanged to the destination. */
             return send_pkt_dc(dest, (dc_pkt_hdr_t *)pkt);
     }
@@ -527,6 +533,12 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
 
         case SUBCMD_ITEMDROP:
             return handle_itemdrop(c, (subcmd_itemgen_t *)pkt);
+
+#ifdef LOG_UNKNOWN_SUBS
+        default:
+            debug(DBG_LOG, "Unknown 0x60: 0x%02X\n", type);
+            print_packet((unsigned char *)pkt, LE16(pkt->hdr.pkt_len));
+#endif /* LOG_UNKNOWN_SUBS */
     }
 
     /* Broadcast anything we don't care to check anything about. */

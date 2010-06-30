@@ -616,6 +616,31 @@ static int gc_process_login(ship_client_t *c, gc_login_9e_pkt *pkt) {
 static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
     uint8_t type = pkt->hdr.dc.pkt_type;
     uint8_t version = pkt->hdr.dc.flags;
+    lobby_t *l = c->cur_lobby;
+
+    /* Character data requests in game are treated differently, because they
+       should be for the legit checker... */
+    if(type != LEAVE_GAME_PL_DATA_TYPE && l && (l->type & LOBBY_TYPE_GAME) &&
+       (l->flags & LOBBY_FLAG_LEGIT_CHECK)) {
+        pthread_mutex_lock(&l->mutex);
+
+        ++l->legit_check_done;
+
+        /* See if this client passed the test or not. */
+        if(lobby_check_player_legit(l, c->cur_ship, &pkt->data)) {
+            ++l->legit_check_passed;
+        }
+
+        /* Finish the check if we're completely done. */
+        if(l->legit_check_done == l->num_clients) {
+            lobby_legit_check_finish_locked(l);
+        }
+
+        pthread_mutex_unlock(&l->mutex);
+
+        /* Don't update the saved character data for this one! */
+        return 0;
+    }
 
     /* Copy out the player data, and set up pointers. */
     if(version == 1) {
@@ -1284,7 +1309,14 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
             /* Attempt to change the player's lobby. */
             rv = lobby_change_lobby(c, l);
 
-            if(rv == -9) {
+            if(rv == -10) {
+                /* Temporarily unavailable */
+                send_message1(c, "\tC4Can't join game!\n\n"
+                              "\tC7The game is\n"
+                              "temporarily\n"
+                              "unavailable.");
+            }
+            else if(rv == -9) {
                 /* Legit check failed */
                 send_message1(c, "\tC4Can't join game!\n\n"
                               "\tC7Game mode is set\n"

@@ -22,6 +22,8 @@
 #include <inttypes.h>
 #include <sys/queue.h>
 
+#include "player.h"
+
 #define LOBBY_MAX_CLIENTS 12
 
 /* Forward declaration. */
@@ -68,7 +70,8 @@ struct lobby {
 
     uint8_t gevent;
     uint8_t max_chal;
-    uint8_t legit_mode;
+    uint8_t legit_check_passed;
+    uint8_t legit_check_done;
 
     int version;
     uint32_t min_level;
@@ -97,6 +100,9 @@ TAILQ_HEAD(lobby_queue, lobby);
 #define LOBBY_FLAG_BURSTING     0x00000001
 #define LOBBY_FLAG_QUESTING     0x00000002
 #define LOBBY_FLAG_QUESTSEL     0x00000004
+#define LOBBY_FLAG_TEMP_UNAVAIL 0x00000008
+#define LOBBY_FLAG_LEGIT_MODE   0x00000010
+#define LOBBY_FLAG_LEGIT_CHECK  0x00000020
 
 /* The required level for various difficulties. */
 const static int game_required_level[4] = { 0, 20, 40, 80 };
@@ -125,9 +131,12 @@ int lobby_remove_player(ship_client_t *c);
 int lobby_info_reply(ship_client_t *c, uint32_t lobby);
 
 /* Check if a single player is legit enough for the lobby. */
+int lobby_check_player_legit(lobby_t *l, ship_t *s, player_t *pl);
+
+/* Check if a single client is legit enough for the lobby. */
 int lobby_check_client_legit(lobby_t *l, ship_t *s, ship_client_t *c);
 
-/* Check all current players in a lobby against the legit list for the ship. */
-int lobby_check_legit(lobby_t *l, ship_t *ship);
+/* Finish with a legit check. */
+void lobby_legit_check_finish_locked(lobby_t *l);
 
 #endif /* !LOBBY_H */

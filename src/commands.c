@@ -925,24 +925,93 @@ static int handle_list(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 /* Usage: /legit */
 static int handle_legit(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     lobby_t *l = c->cur_lobby;
+    int i;
+
+    /* Lock the lobby mutex... we've got some work to do. */
+    pthread_mutex_lock(&l->mutex);
 
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
     if(!(l->type & LOBBY_TYPE_GAME)) {
+        pthread_mutex_unlock(&l->mutex);
         return send_txt(c, "\tE\tC7Only valid in a game lobby.");
     }
 
     /* Make sure the requester is the leader of the team. */
     if(l->leader_id != c->client_id) {
+        pthread_mutex_unlock(&l->mutex);
         return send_txt(c, "\tE\tC7Only the leader may use this command.");
     }
 
-    /* Make sure we can set this for the current lobby. */
-    if(!lobby_check_legit(l, c->cur_ship)) {
-        return send_txt(c, "\tE\tC7Team legit check failed!");
+    /* Set the temporarily unavailable flag on the lobby so that we can do the
+       legit check, as well as legit check flag (so we know that we're doing the
+       legit check). */
+    l->flags |= LOBBY_FLAG_TEMP_UNAVAIL | LOBBY_FLAG_LEGIT_CHECK;
+    l->legit_check_passed = 0;
+    l->legit_check_done = 0;
+
+    /* Ask each player for updated player data to do the legit check. */
+    for(i = 0; i < l->max_clients; ++i) {
+        if(l->clients[i]) {
+            if(send_simple(l->clients[i], CHAR_DATA_REQUEST_TYPE, 0)) {
+                l->clients[i]->disconnected = 1;
+            }
+        }
     }
 
-    l->legit_mode = 1;
-    return send_txt(c, "\tE\tC7Legit mode set.");
+    /* We're done with the lobby for now... */
+    pthread_mutex_unlock(&l->mutex);
+
+    /* Now, we wait for the legit check to go on. */
+    return 0;
+}
+
+/* Usage: /normal */
+static int handle_normal(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    lobby_t *l = c->cur_lobby;
+    int i;
+
+    /* Lock the lobby mutex... we've got some work to do. */
+    pthread_mutex_lock(&l->mutex);
+
+    /* Make sure that the requester is in a game lobby, not a lobby lobby. */
+    if(!(l->type & LOBBY_TYPE_GAME)) {
+        pthread_mutex_unlock(&l->mutex);
+        return send_txt(c, "\tE\tC7Only valid in a game lobby.");
+    }
+
+    /* Make sure the requester is the leader of the team. */
+    if(l->leader_id != c->client_id) {
+        pthread_mutex_unlock(&l->mutex);
+        return send_txt(c, "\tE\tC7Only the leader may use this command.");
+    }
+
+    /* Can't use this while waiting on a legit check. */
+    if((l->flags & LOBBY_FLAG_LEGIT_CHECK)) {
+        pthread_mutex_unlock(&l->mutex);
+        return send_txt(c, "\tE\tC7Please wait a while before\n"
+                        "using this command.");
+    }
+
+    /* If we're not in legit mode, then this command doesn't do anything... */
+    if(!(l->flags & LOBBY_FLAG_LEGIT_MODE)) {
+        pthread_mutex_unlock(&l->mutex);
+        return send_txt(c, "\tE\tC7Already in normal mode.");
+    }
+
+    /* Clear the flag */
+    l->flags &= ~(LOBBY_FLAG_LEGIT_MODE);
+
+    /* Let everyone know legit mode has been turned off. */
+    for(i = 0; i < l->max_clients; ++i) {
+        if(l->clients[i]) {
+            send_txt(l->clients[i], "\tE\tC7Legit mode deactivated.");
+        }
+    }
+
+    /* Unlock, we're done. */
+    pthread_mutex_unlock(&l->mutex);
+
+    return 0;
 }
 
 static command_t cmds[] = {
@@ -971,6 +1040,7 @@ static command_t cmds[] = {
     { "gban:p" , handle_gban_p    },
     { "list"   , handle_list      },
     { "legit"  , handle_legit     },
+    { "normal" , handle_normal    },
     { ""       , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

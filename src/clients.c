@@ -226,8 +226,6 @@ int client_process_pkt(ship_client_t *c) {
         return -1;
     }
 
-    debug(DBG_LOG, "Read %d from %d\n", (int)sz, c->guildcard);
-
     sz += c->recvbuf_cur;
     c->recvbuf_cur = 0;
     rbp = recvbuf;

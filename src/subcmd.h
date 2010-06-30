@@ -147,12 +147,18 @@ typedef struct subcmd_take_item {
 
 /* Subcommand types we care about (0x62/0x6D). */
 #define SUBCMD_GUILDCARD    0x06
+#define SUBCMD_PICK_UP      0x5A    /* Sent to leader when picking up item */
 #define SUBCMD_ITEMREQ      0x60
 
 /* Subcommand types we might care about (0x60). */
-#define SUBCMD_DEPOSIT_ITEM 0x29
+#define SUBCMD_EQUIP        0x25
+#define SUBCMD_REMOVE_EQUIP 0x26
+#define SUBCMD_USE_ITEM     0x27
+#define SUBCMD_DELETE_ITEM  0x29    /* Selling, deposit in bank, etc */
 #define SUBCMD_TAKE_ITEM    0x2B
 #define SUBCMD_LEVELUP      0x30
+#define SUBCMD_DEL_MAP_ITEM 0x59    /* Sent by leader when item picked up */
+#define SUBCMD_BUY          0x5E
 #define SUBCMD_ITEMDROP     0x5F
 
 /* Handle a 0x62/0x6D packet. */
