@@ -1072,9 +1072,9 @@ static int pc_process_game_create(ship_client_t *c, pc_game_create_pkt *pkt) {
                              "\tC7Try again later.");
     }
 
-    /* If its a non-challenge, non-battle game, ask the user if they want v1
-       compatibility or not. */
-    if(!pkt->battle && !pkt->challenge) {
+    /* If its a non-challenge, non-battle, non-ultimate game, ask the user if
+       they want v1 compatibility or not. */
+    if(!pkt->battle && !pkt->challenge && pkt->difficulty != 3) {
         c->create_lobby = l;
         return send_pc_game_type_sel(c);
     }
