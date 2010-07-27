@@ -138,7 +138,7 @@ lobby_t *lobby_create_game(block_t *block, char name[16], char passwd[16],
     }
 
     /* Add it to the list of lobbies. */
-    if(version != CLIENT_VERSION_PC || battle || chal) {
+    if(version != CLIENT_VERSION_PC || battle || chal || difficulty == 3) {
         TAILQ_INSERT_TAIL(&block->lobbies, l, qentry);
     }
 
