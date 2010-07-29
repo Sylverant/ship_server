@@ -477,6 +477,7 @@ typedef struct dc_game_join {
     uint8_t section;
     uint8_t challenge;
     uint32_t rand_seed;
+    uint32_t padding;
 } PACKED dc_game_join_pkt;
 
 typedef struct pc_game_join {
@@ -909,7 +910,7 @@ typedef struct autoreply_set {
 #define DC_LOBBY_LEAVE_LENGTH           0x0008
 #define PC_GUILD_REPLY_LENGTH           0x0128
 #define DC_GUILD_REPLY_LENGTH           0x00C4
-#define DC_GAME_JOIN_LENGTH             0x0110
+#define DC_GAME_JOIN_LENGTH             0x0114
 #define GC_GAME_JOIN_LENGTH             0x0114
 #define DC_QUEST_INFO_LENGTH            0x0128
 #define PC_QUEST_INFO_LENGTH            0x024C

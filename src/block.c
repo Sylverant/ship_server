@@ -671,7 +671,9 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
     /* If this packet is coming after the client has left a game, then don't
        do anything else here, they'll take care of it by sending an 0x84. */
     if(type == LEAVE_GAME_PL_DATA_TYPE) {
-        return 0;
+        /* Remove the client from the lobby they're in, which will force the
+           0x84 sent later to act like we're adding them to any lobby. */
+        return lobby_remove_player(c);
     }
 
     /* If the client isn't in a lobby already, then add them to the first
@@ -1717,7 +1719,6 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             pthread_mutex_lock(&c->cur_lobby->mutex);
             c->cur_lobby->flags &= ~LOBBY_FLAG_QUESTSEL;
             pthread_mutex_unlock(&c->cur_lobby->mutex);
-            
             return 0;
 
         case LOGIN_9D_TYPE:

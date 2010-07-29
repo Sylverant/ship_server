@@ -410,6 +410,24 @@ int lobby_change_lobby(ship_client_t *c, lobby_t *req) {
     int old_cid = c->client_id;
     int delete_lobby = 0;
 
+    /* If they're not in a lobby, add them to the first available default
+       lobby. */
+    if(!c->cur_lobby) {
+        if(lobby_add_to_any(c)) {
+            return -11;
+        }
+
+        if(send_lobby_join(c, c->cur_lobby)) {
+            return -11;
+        }
+
+        if(send_lobby_add_player(c->cur_lobby, c)) {
+            return -11;
+        }
+
+        return 0;
+    }
+
     /* Swap the data out on the server end before we do anything rash. */
     pthread_mutex_lock(&l->mutex);
 
@@ -549,6 +567,8 @@ int lobby_remove_player(ship_client_t *c) {
     if(delete_lobby) {
         lobby_destroy_locked(l);
     }
+
+    c->cur_lobby = NULL;
 
 out:
     /* We're done, clean up. */

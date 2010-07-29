@@ -876,14 +876,22 @@ static int send_dc_lobby_add_player(lobby_t *l, ship_client_t *c,
     memset(pkt, 0, sizeof(dc_lobby_join_pkt));
 
     /* Fill in the basics. */
-    pkt->hdr.pkt_type = l->type & LOBBY_TYPE_DEFAULT ? 
+    pkt->hdr.pkt_type = (l->type & LOBBY_TYPE_DEFAULT) ? 
         LOBBY_ADD_PLAYER_TYPE : GAME_ADD_PLAYER_TYPE;
     pkt->hdr.flags = 1;
     pkt->hdr.pkt_len = LE16(0x044C);
+    pkt->client_id = c->client_id;
     pkt->leader_id = l->leader_id;
     pkt->one = 1;
-    pkt->lobby_num = l->lobby_id - 1;
-    pkt->block_num = l->block->b;
+    pkt->lobby_num = (l->type & LOBBY_TYPE_DEFAULT) ? l->lobby_id - 1 : 0xFF;
+
+    if(l->type & LOBBY_TYPE_DEFAULT) {
+        pkt->block_num = LE16(l->block->b);
+    }
+    else {
+        pkt->block_num = LE16(0x0001);
+        pkt->event = LE16(0x0001);
+    }
 
     /* Copy the player's data into the packet. */
     pkt->entries[0].hdr.tag = LE32(0x00010000);
@@ -891,7 +899,7 @@ static int send_dc_lobby_add_player(lobby_t *l, ship_client_t *c,
     pkt->entries[0].hdr.ip_addr = 0;
     pkt->entries[0].hdr.client_id = LE32(nc->client_id);
 
-    /* No need to iconv, the enoding is already right */
+    /* No need to iconv, the encoding is already right */
     memcpy(pkt->entries[0].hdr.name, nc->pl->v1.name, 16);
     memcpy(&pkt->entries[0].data, &nc->pl->v1, sizeof(v1_player_t));
 
@@ -924,13 +932,14 @@ static int send_pc_lobby_add_player(lobby_t *l, ship_client_t *c,
     memset(pkt, 0, sizeof(pc_lobby_join_pkt));
 
     /* Fill in the basics. */
-    pkt->hdr.pkt_type = l->type & LOBBY_TYPE_DEFAULT ? 
+    pkt->hdr.pkt_type = (l->type & LOBBY_TYPE_DEFAULT) ? 
         LOBBY_ADD_PLAYER_TYPE : GAME_ADD_PLAYER_TYPE;
     pkt->hdr.flags = 1;
     pkt->hdr.pkt_len = LE16(0x045C);
     pkt->leader_id = l->leader_id;
     pkt->one = 1;
-    pkt->lobby_num = l->lobby_id - 1;
+    pkt->lobby_num = (l->type & LOBBY_TYPE_DEFAULT) ? l->lobby_id - 1 :
+        l->lobby_id;
     pkt->block_num = l->block->b;
 
     /* Copy the player's data into the packet. */
@@ -996,13 +1005,13 @@ static int send_dc_lobby_leave(lobby_t *l, ship_client_t *c, int client_id) {
     /* Fill in the header */
     if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
        c->version == CLIENT_VERSION_GC) {
-        pkt->hdr.dc.pkt_type = l->type & LOBBY_TYPE_DEFAULT ?
+        pkt->hdr.dc.pkt_type = (l->type & LOBBY_TYPE_DEFAULT) ?
             LOBBY_LEAVE_TYPE : GAME_LEAVE_TYPE;
         pkt->hdr.dc.flags = client_id;
         pkt->hdr.dc.pkt_len = LE16(DC_LOBBY_LEAVE_LENGTH);
     }
     else {
-        pkt->hdr.pc.pkt_type = l->type & LOBBY_TYPE_DEFAULT ?
+        pkt->hdr.pc.pkt_type = (l->type & LOBBY_TYPE_DEFAULT) ?
             LOBBY_LEAVE_TYPE : GAME_LEAVE_TYPE;
         pkt->hdr.pc.flags = client_id;
         pkt->hdr.pc.pkt_len = LE16(DC_LOBBY_LEAVE_LENGTH);
@@ -1010,7 +1019,7 @@ static int send_dc_lobby_leave(lobby_t *l, ship_client_t *c, int client_id) {
 
     pkt->client_id = client_id;
     pkt->leader_id = l->leader_id;
-    pkt->padding = 0;
+    pkt->padding = LE16(0x0001);
 
     /* Send it away */
     return crypt_send(c, DC_LOBBY_LEAVE_LENGTH, sendbuf);
@@ -1992,7 +2001,7 @@ static int send_gc_game_list(ship_client_t *c, block_t *b) {
         pkt->entries[entries].item_id = LE32(l->lobby_id);
         pkt->entries[entries].difficulty = 0x22 + l->difficulty;
         pkt->entries[entries].players = l->num_clients;
-        pkt->entries[entries].flags = (l->episode == 1 ? 0x40 : 0x80) |
+        pkt->entries[entries].flags = ((l->episode == 1) ? 0x40 : 0x80) |
             (l->challenge ? 0x20 : 0x00) | (l->battle ? 0x10 : 0x00) |
             (l->passwd[0] ? 0x02 : 0x00);
 
