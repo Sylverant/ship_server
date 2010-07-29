@@ -936,11 +936,18 @@ static int send_pc_lobby_add_player(lobby_t *l, ship_client_t *c,
         LOBBY_ADD_PLAYER_TYPE : GAME_ADD_PLAYER_TYPE;
     pkt->hdr.flags = 1;
     pkt->hdr.pkt_len = LE16(0x045C);
+    pkt->client_id = c->client_id;
     pkt->leader_id = l->leader_id;
     pkt->one = 1;
-    pkt->lobby_num = (l->type & LOBBY_TYPE_DEFAULT) ? l->lobby_id - 1 :
-        l->lobby_id;
-    pkt->block_num = l->block->b;
+    pkt->lobby_num = (l->type & LOBBY_TYPE_DEFAULT) ? l->lobby_id - 1 : 0xFF;
+
+    if(l->type & LOBBY_TYPE_DEFAULT) {
+        pkt->block_num = LE16(l->block->b);
+    }
+    else {
+        pkt->block_num = LE16(0x0001);
+        pkt->event = LE16(0x0001);
+    }
 
     /* Copy the player's data into the packet. */
     pkt->entries[0].hdr.tag = LE32(0x00010000);
@@ -1019,7 +1026,7 @@ static int send_dc_lobby_leave(lobby_t *l, ship_client_t *c, int client_id) {
 
     pkt->client_id = client_id;
     pkt->leader_id = l->leader_id;
-    pkt->padding = LE16(0x0001);
+    pkt->padding = LE16(0x0001);    /* ????: Not padding, apparently? */
 
     /* Send it away */
     return crypt_send(c, DC_LOBBY_LEAVE_LENGTH, sendbuf);
@@ -1564,7 +1571,7 @@ static int send_dc_game_join(ship_client_t *c, lobby_t *l) {
     }
 
     /* Copy the client count over. */
-    pkt->hdr.flags = (uint8_t) clients;
+    pkt->hdr.flags = (uint8_t)clients;
 
     /* Send it away */
     return crypt_send(c, DC_GAME_JOIN_LENGTH, sendbuf);
@@ -1632,7 +1639,7 @@ static int send_pc_game_join(ship_client_t *c, lobby_t *l) {
     iconv_close(ic);
 
     /* Copy the client count over. */
-    pkt->hdr.flags = (uint8_t) clients;
+    pkt->hdr.flags = (uint8_t)clients;
 
     /* Send it away */
     return crypt_send(c, sizeof(pc_game_join_pkt), sendbuf);
@@ -1684,7 +1691,7 @@ static int send_gc_game_join(ship_client_t *c, lobby_t *l) {
     }
 
     /* Copy the client count over. */
-    pkt->hdr.flags = (uint8_t) clients;
+    pkt->hdr.flags = (uint8_t)clients;
 
     /* Send it away */
     return crypt_send(c, GC_GAME_JOIN_LENGTH, sendbuf);
