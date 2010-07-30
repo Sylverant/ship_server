@@ -142,7 +142,8 @@ int pc_bug_report(ship_client_t *c, pc_simple_mail_pkt *pkt) {
     char text[0x91];
     FILE *fp;
     iconv_t ic = iconv_open("SHIFT_JIS", "UTF-16LE");
-    char *inptr, *outptr;
+    ICONV_CONST char *inptr;
+    char *outptr;
     size_t in, out;
 
     if(ic == (iconv_t)-1) {

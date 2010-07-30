@@ -481,7 +481,8 @@ static int send_dc_info_reply(ship_client_t *c, char msg[]) {
     dc_info_reply_pkt *pkt = (dc_info_reply_pkt *)sendbuf;
     iconv_t ic;
     size_t in, out;
-    char *inptr, *outptr;
+    ICONV_CONST char *inptr;
+    char *outptr;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -731,7 +732,8 @@ static int send_pc_lobby_join(ship_client_t *c, lobby_t *l) {
     uint16_t pkt_size = 0x10;
     iconv_t ic;
     size_t in, out;
-    char *inptr, *outptr;
+    ICONV_CONST char *inptr;
+    char *outptr;
     uint8_t event = l->event;
     
     /* Verify we got the sendbuf. */
@@ -913,7 +915,8 @@ static int send_pc_lobby_add_player(lobby_t *l, ship_client_t *c,
     pc_lobby_join_pkt *pkt = (pc_lobby_join_pkt *)sendbuf;
     iconv_t ic;
     size_t in, out;
-    char *inptr, *outptr;
+    ICONV_CONST char *inptr;
+    char *outptr;
     
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -1063,7 +1066,8 @@ static int send_dc_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
     iconv_t ic;
     char tm[strlen(msg) + 32];
     size_t in, out, len;
-    char *inptr, *outptr;
+    ICONV_CONST char *inptr;
+    char *outptr;
 
     if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
        c->version == CLIENT_VERSION_GC) {
@@ -1169,7 +1173,8 @@ static int send_dc_lobby_wchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
     iconv_t ic, ic2;
     char tmp[32];
     size_t in, out;
-    char *inptr, *outptr;
+    ICONV_CONST char *inptr;
+    char *outptr;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -1332,7 +1337,8 @@ static int send_pc_guild_reply(ship_client_t *c, uint32_t gc, in_addr_t ip,
     char tmp[0x44];
     iconv_t ic;
     size_t in, out;
-    char *inptr, *outptr;
+    ICONV_CONST char *inptr;
+    char *outptr;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -1407,7 +1413,8 @@ static int send_dc_message(ship_client_t *c, uint16_t type, const char *fmt,
     iconv_t ic;
     char tm[512];
     size_t in, out;
-    char *inptr, *outptr;
+    ICONV_CONST char *inptr;
+    char *outptr;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -1583,7 +1590,8 @@ static int send_pc_game_join(ship_client_t *c, lobby_t *l) {
     int clients = 0, i;
     iconv_t ic;
     size_t in, out;
-    char *inptr, *outptr;
+    ICONV_CONST char *inptr;
+    char *outptr;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -1876,7 +1884,8 @@ static int send_pc_game_list(ship_client_t *c, block_t *b) {
     lobby_t *l;
     iconv_t ic, ic2;
     size_t in, out;
-    char *inptr, *outptr;
+    ICONV_CONST char *inptr;
+    char *outptr;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -2108,7 +2117,8 @@ static int send_pc_info_list(ship_client_t *c, ship_t *s) {
     int i, len = 0x30;
     iconv_t ic;
     size_t in, out;
-    char *inptr, *outptr;
+    ICONV_CONST char *inptr;
+    char *outptr;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -2194,7 +2204,8 @@ int send_pc_game_type_sel(ship_client_t *c) {
     const char str2[16] = "PSOv2 Only";
     iconv_t ic;
     size_t in, out;
-    char *inptr, *outptr;
+    ICONV_CONST char *inptr;
+    char *outptr;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -2262,8 +2273,9 @@ static int send_dc_message_box(ship_client_t *c, char msg[]) {
     int len;
     iconv_t ic;
     size_t in, out;
-    char *inptr, *outptr;
-    
+    ICONV_CONST char *inptr;
+    char *outptr;
+
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
         return -1;
@@ -2352,7 +2364,8 @@ static int send_dc_quest_categories(ship_client_t *c,
     uint32_t type = SYLVERANT_QUEST_NORMAL;
     iconv_t ic, ic2;
     size_t in, out;
-    char *inptr, *outptr;
+    ICONV_CONST char *inptr;
+    char *outptr;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -2438,7 +2451,8 @@ static int send_pc_quest_categories(ship_client_t *c,
     int i, len = 0x04, entries = 0;
     iconv_t ic;
     size_t in, out;
-    char *inptr, *outptr;
+    ICONV_CONST char *inptr;
+    char *outptr;
     uint32_t type = SYLVERANT_QUEST_NORMAL;
 
     /* Verify we got the sendbuf. */
@@ -2530,7 +2544,8 @@ static int send_dc_quest_list(ship_client_t *c, int cat,
     int i, len = 0x04, entries = 0, max = INT_MAX;
     iconv_t ic, ic2;
     size_t in, out;
-    char *inptr, *outptr;
+    ICONV_CONST char *inptr;
+    char *outptr;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -2613,7 +2628,8 @@ static int send_pc_quest_list(ship_client_t *c, int cat,
     int i, len = 0x04, entries = 0, max = INT_MAX;
     iconv_t ic;
     size_t in, out;
-    char *inptr, *outptr;
+    ICONV_CONST char *inptr;
+    char *outptr;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -2685,7 +2701,8 @@ static int send_gc_quest_list(ship_client_t *c, int cat,
     int i, len = 0x04, entries = 0, max = INT_MAX;
     iconv_t ic, ic2;
     size_t in, out;
-    char *inptr, *outptr;
+    ICONV_CONST char *inptr;
+    char *outptr;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -2795,7 +2812,8 @@ static int send_dc_quest_info(ship_client_t *c, sylverant_quest_t *q) {
     dc_msg_box_pkt *pkt = (dc_msg_box_pkt *)sendbuf;
     iconv_t ic;
     size_t in, out, outt;
-    char *inptr, *outptr;
+    ICONV_CONST char *inptr;
+    char *outptr;
     int len;
 
     /* Verify we got the sendbuf. */
@@ -3468,7 +3486,8 @@ static int send_pc_lobby_name(ship_client_t *c, lobby_t *l) {
     uint16_t len;
     iconv_t ic;
     size_t in, out;
-    char *inptr, *outptr;
+    ICONV_CONST char *inptr;
+    char *outptr;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -3687,7 +3706,8 @@ static int send_pc_ship_list(ship_client_t *c, miniship_t *l, int ships) {
     int len = 0x30, i, entries = 0;
     iconv_t ic = iconv_open("UTF-16LE", "ASCII");
     size_t in, out;
-    char *inptr, *outptr;
+    ICONV_CONST char *inptr;
+    char *outptr;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -3895,7 +3915,8 @@ static int send_pc_choice_search(ship_client_t *c) {
     uint16_t i;
     iconv_t ic;
     size_t in, out;
-    char *inptr, *outptr;
+    ICONV_CONST char *inptr;
+    char *outptr;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -4043,7 +4064,8 @@ static int send_pc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
     int i, j;
     iconv_t ic;
     size_t in, out;
-    char *inptr, *outptr;
+    ICONV_CONST char *inptr;
+    char *outptr;
     ship_t *s;
     block_t *b;
     ship_client_t *it;
@@ -4317,7 +4339,8 @@ static int send_pc_simple_mail_dc(ship_client_t *c, dc_simple_mail_pkt *p) {
     pc_simple_mail_pkt *pkt = (pc_simple_mail_pkt *)sendbuf;
     iconv_t ic;
     size_t in, out;
-    char *inptr, *outptr;
+    ICONV_CONST char *inptr;
+    char *outptr;
     int i;
 
     /* Verify we got the sendbuf. */
@@ -4382,7 +4405,8 @@ static int send_dc_simple_mail_pc(ship_client_t *c, pc_simple_mail_pkt *p) {
     dc_simple_mail_pkt *pkt = (dc_simple_mail_pkt *)sendbuf;
     iconv_t ic;
     size_t in, out;
-    char *inptr, *outptr;
+    ICONV_CONST char *inptr;
+    char *outptr;
     int i;
 
     /* Verify we got the sendbuf. */

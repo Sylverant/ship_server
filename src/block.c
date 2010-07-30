@@ -1028,7 +1028,8 @@ static int pc_process_game_create(ship_client_t *c, pc_game_create_pkt *pkt) {
     char name[16], password[16];
     iconv_t ic;
     size_t in, out;
-    char *inptr, *outptr;
+    ICONV_CONST char *inptr;
+    char *outptr;
 
     /* Convert the name/password to the appropriate encoding. */
     if(LE16(pkt->name[1]) == (uint16_t)('J')) {
@@ -1271,7 +1272,8 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
             if(c->version == CLIENT_VERSION_PC) {
                 iconv_t ic;
                 size_t in, out;
-                char *inptr, *outptr;
+                ICONV_CONST char *inptr;
+                char *outptr;
 
                 ic = iconv_open("SHIFT_JIS", "UTF-16LE");
 
@@ -1485,6 +1487,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
 
                 /* Add the lobby to the list of lobbies on the block. */
                 TAILQ_INSERT_TAIL(&c->cur_block->lobbies, l, qentry);
+                c->create_lobby = NULL;
 
                 /* Add the user to the lobby... */
                 if(lobby_change_lobby(c, l)) {

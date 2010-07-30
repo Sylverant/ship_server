@@ -66,7 +66,8 @@ int handle_dc_gcsend(ship_client_t *d, subcmd_dc_gcsend_t *pkt) {
             subcmd_pc_gcsend_t pc;
             iconv_t ic;
             size_t in, out;
-            char *inptr, *outptr;
+            ICONV_CONST char *inptr;
+            char *outptr;
 
             /* Convert from Shift-JIS/ISO-8859-1 to UTF-16. */
             if(pkt->text[1] == 'J') {
@@ -131,7 +132,8 @@ static int handle_pc_gcsend(ship_client_t *d, subcmd_pc_gcsend_t *pkt) {
             subcmd_dc_gcsend_t dc;
             iconv_t ic;
             size_t in, out;
-            char *inptr, *outptr;
+            ICONV_CONST char *inptr;
+            char *outptr;
     
             /* Convert from UTF-16 to Shift-JIS/ISO-8859-1. */
             if(LE16(pkt->text[1]) == (uint16_t)('J')) {
@@ -186,7 +188,8 @@ static int handle_pc_gcsend(ship_client_t *d, subcmd_pc_gcsend_t *pkt) {
             subcmd_gc_gcsend_t gc;
             iconv_t ic;
             size_t in, out;
-            char *inptr, *outptr;
+            ICONV_CONST char *inptr;
+            char *outptr;
 
             /* Convert from UTF-16 to Shift-JIS/ISO-8859-1. */
             if(LE16(pkt->text[1]) == (uint16_t)('J')) {
@@ -281,7 +284,8 @@ static int handle_gc_gcsend(ship_client_t *d, subcmd_gc_gcsend_t *pkt) {
             subcmd_pc_gcsend_t pc;
             iconv_t ic;
             size_t in, out;
-            char *inptr, *outptr;
+            ICONV_CONST char *inptr;
+            char *outptr;
 
             /* Convert from Shift-JIS/ISO-8859-1 to UTF-16. */
             if(pkt->text[1] == 'J') {

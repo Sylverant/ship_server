@@ -172,6 +172,12 @@ void client_destroy_connection(ship_client_t *c, struct client_queue *clients) {
     pthread_mutex_destroy(&c->mutex);
     ship_dec_clients(c->cur_ship);
 
+    /* If the client has a lobby sitting around that was created but not added
+       to the list of lobbies, destroy it */
+    if(c->create_lobby) {
+        lobby_destroy_noremove(c->create_lobby);
+    }
+
     if(c->sock >= 0) {
         close(c->sock);
     }
@@ -354,7 +360,8 @@ int client_set_autoreply(ship_client_t *c, dc_pkt_hdr_t *p) {
         char str[len];
         iconv_t ic;
         size_t in, out;
-        char *inptr, *outptr;
+        ICONV_CONST char *inptr;
+        char *outptr;
 
         /* Set up for converting the string. */
         if(pkt->msg[2] == 'J') {

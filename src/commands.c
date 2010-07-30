@@ -1077,7 +1077,8 @@ int wcommand_parse(ship_client_t *c, dc_chat_pkt *pkt) {
     int len = LE16(pkt->hdr.dc.pkt_len), tlen = len - 12;
     iconv_t ic;
     size_t in, out;
-    char *inptr, *outptr;
+    ICONV_CONST char *inptr;
+    char *outptr;
     unsigned char buf[len];
     dc_chat_pkt *p2 = (dc_chat_pkt *)buf;
 

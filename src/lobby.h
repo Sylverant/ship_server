@@ -113,6 +113,7 @@ lobby_t *lobby_create_game(block_t *block, char name[16], char passwd[16],
                            uint8_t v2, int version, uint8_t section,
                            uint8_t event, uint8_t episode);
 void lobby_destroy(lobby_t *l);
+void lobby_destroy_noremove(lobby_t *l);
 
 /* Add the client to any available lobby on the current block. */
 int lobby_add_to_any(ship_client_t *c);

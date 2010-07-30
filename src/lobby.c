@@ -145,10 +145,15 @@ lobby_t *lobby_create_game(block_t *block, char name[16], char passwd[16],
     return l;
 }
 
-static void lobby_destroy_locked(lobby_t *l) {
+static void lobby_destroy_locked(lobby_t *l, int remove) {
     pthread_mutex_t m = l->mutex;
 
-    TAILQ_REMOVE(&l->block->lobbies, l, qentry);
+    /* TAILQ_REMOVE may or may not be safe to use if the item was never actually
+       inserted in a list, so don't remove it if it wasn't. */
+    if(remove) {
+        TAILQ_REMOVE(&l->block->lobbies, l, qentry);
+    }
+
     free(l);
 
     pthread_mutex_unlock(&m);
@@ -157,7 +162,12 @@ static void lobby_destroy_locked(lobby_t *l) {
 
 void lobby_destroy(lobby_t *l) {
     pthread_mutex_lock(&l->mutex);
-    lobby_destroy_locked(l);
+    lobby_destroy_locked(l, 1);
+}
+
+void lobby_destroy_noremove(lobby_t *l) {
+    pthread_mutex_lock(&l->mutex);
+    lobby_destroy_locked(l, 0);
 }
 
 static uint8_t lobby_find_max_challenge(lobby_t *l) {
@@ -520,7 +530,7 @@ int lobby_change_lobby(ship_client_t *c, lobby_t *req) {
 
     /* If the old lobby is empty (and not a default lobby), remove it. */
     if(delete_lobby) {
-        lobby_destroy_locked(l);
+        lobby_destroy_locked(l, 1);
     }
 
 out:
@@ -565,7 +575,7 @@ int lobby_remove_player(ship_client_t *c) {
     send_lobby_leave(l, c, client_id);
 
     if(delete_lobby) {
-        lobby_destroy_locked(l);
+        lobby_destroy_locked(l, 1);
     }
 
     c->cur_lobby = NULL;
