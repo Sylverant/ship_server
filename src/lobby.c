@@ -487,8 +487,8 @@ int lobby_change_lobby(ship_client_t *c, lobby_t *req) {
     }
 
     /* Make sure that the client is legit enough to be there. */
-    if(l->type != LOBBY_TYPE_DEFAULT && (l->flags & LOBBY_FLAG_LEGIT_MODE) &&
-       !lobby_check_client_legit(l, c->cur_ship, c)) {
+    if((req->type & LOBBY_TYPE_GAME) && (req->flags & LOBBY_FLAG_LEGIT_MODE) &&
+       !lobby_check_client_legit(req, c->cur_ship, c)) {
         rv = -9;
         goto out;
     }

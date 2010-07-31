@@ -533,6 +533,68 @@ lobby_t *block_get_lobby(block_t *b, uint32_t lobby_id) {
     return rv;
 }
 
+static int join_game(ship_client_t *c, lobby_t *l) {
+    int rv = lobby_change_lobby(c, l);
+
+    if(rv == -10) {
+        /* Temporarily unavailable */
+        send_message1(c, "\tC4Can't join game!\n\n"
+                      "\tC7The game is\n"
+                      "temporarily\n"
+                      "unavailable.");
+    }
+    else if(rv == -9) {
+        /* Legit check failed */
+        send_message1(c, "\tC4Can't join game!\n\n"
+                      "\tC7Game mode is set\n"
+                      "to legit and you\n"
+                      "failed the legit\n"
+                      "check!");
+    }
+    else if(rv == -8) {
+        /* Quest selection in progress */
+        send_message1(c, "\tC4Can't join game!\n\n"
+                      "\tC7Quest selection\nis in progress");
+    }
+    else if(rv == -7) {
+        /* Questing in progress */
+        send_message1(c, "\tC4Can't join game!\n\n"
+                      "\tC7A quest is in\nprogress.");
+    }
+    else if(rv == -6) {
+        /* V1 client attempting to join a V2 only game */
+        send_message1(c, "\tC4Can't join game!\n\n"
+                      "\tC7This game is for\nVersion 2 only.");
+    }
+    else if(rv == -5) {
+        /* Level is too high */
+        send_message1(c, "\tC4Can't join game!\n\n"
+                      "\tC7Your level is\ntoo high.");
+    }
+    else if(rv == -4) {
+        /* Level is too high */
+        send_message1(c, "\tC4Can't join game!\n\n"
+                      "\tC7Your level is\ntoo low.");
+    }
+    else if(rv == -3) {
+        /* A client is bursting. */
+        send_message1(c, "\tC4Can't join game!\n\n"
+                      "\tC7A Player is\nbursting.");
+    }
+    else if(rv == -2) {
+        /* The lobby has disappeared. */
+        send_message1(c, "\tC4Can't join game!\n\n"
+                      "\tC7This game is\nnon-existant.");
+    }
+    else if(rv == -1) {
+        /* The lobby is full. */
+        send_message1(c, "\tC4Can't join game!\n\n"
+                      "\tC7This game is\nfull.");
+    }
+
+    return rv;
+}
+
 /* Process a login packet, sending security data, a lobby list, and a character
    data request. */
 static int dc_process_login(ship_client_t *c, dc_login_93_pkt *pkt) {
@@ -718,6 +780,10 @@ static int dc_process_change_lobby(ship_client_t *c, dc_select_pkt *pkt) {
     if(rv == -1) {
         return send_message1(c, "\tC4Can\'t Change lobby!\n\n"
                                 "\tC7The lobby is full.");
+    }
+    else if(rv < 0) {
+        return send_message1(c, "\tC4Can\'t Change lobby!\n\n"
+                                "\tC7Unknown error occured.");
     }
     else {
         return rv;
@@ -1011,11 +1077,10 @@ static int dc_process_game_create(ship_client_t *c, dc_game_create_pkt *pkt) {
 
     /* We've got a new game, but nobody's in it yet... Lets put the requester
        in the game. */
-    if(lobby_change_lobby(c, l)) {
+    if(join_game(c, l)) {
         /* Something broke, destroy the created lobby before anyone tries to
            join it. */
         lobby_destroy(l);
-        return -1;
     }
 
     /* All is good in the world. */
@@ -1084,11 +1149,10 @@ static int pc_process_game_create(ship_client_t *c, pc_game_create_pkt *pkt) {
 
     /* We've got a new game, but nobody's in it yet... Lets put the requester
        in the game (as long as we're still here). */
-    if(lobby_change_lobby(c, l)) {
+    if(join_game(c, l)) {
         /* Something broke, destroy the created lobby before anyone tries to
            join it. */
         lobby_destroy(l);
-        return -1;
     }
 
     /* All is good in the world. */
@@ -1120,11 +1184,10 @@ static int gc_process_game_create(ship_client_t *c, gc_game_create_pkt *pkt) {
 
     /* We've got a new game, but nobody's in it yet... Lets put the requester
        in the game. */
-    if(lobby_change_lobby(c, l)) {
+    if(join_game(c, l)) {
         /* Something broke, destroy the created lobby before anyone tries to
            join it. */
         lobby_destroy(l);
-        return -1;
     }
 
     /* All is good in the world. */
@@ -1311,63 +1374,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
             }
 
             /* Attempt to change the player's lobby. */
-            rv = lobby_change_lobby(c, l);
-
-            if(rv == -10) {
-                /* Temporarily unavailable */
-                send_message1(c, "\tC4Can't join game!\n\n"
-                              "\tC7The game is\n"
-                              "temporarily\n"
-                              "unavailable.");
-            }
-            else if(rv == -9) {
-                /* Legit check failed */
-                send_message1(c, "\tC4Can't join game!\n\n"
-                              "\tC7Game mode is set\n"
-                              "to legit and you\n"
-                              "failed the legit\n"
-                              "check!");
-            }
-            else if(rv == -8) {
-                /* Quest selection in progress */
-                send_message1(c, "\tC4Can't join game!\n\n"
-                              "\tC7Quest selection\nis in progress");
-            }
-            else if(rv == -7) {
-                /* Questing in progress */
-                send_message1(c, "\tC4Can't join game!\n\n"
-                              "\tC7A quest is in\nprogress.");
-            }
-            else if(rv == -6) {
-                /* V1 client attempting to join a V2 only game */
-                send_message1(c, "\tC4Can't join game!\n\n"
-                              "\tC7This game is for\nVersion 2 only.");
-            }
-            else if(rv == -5) {
-                /* Level is too high */
-                send_message1(c, "\tC4Can't join game!\n\n"
-                              "\tC7Your level is\ntoo high.");
-            }
-            else if(rv == -4) {
-                /* Level is too high */
-                send_message1(c, "\tC4Can't join game!\n\n"
-                              "\tC7Your level is\ntoo low.");
-            }
-            else if(rv == -3) {
-                /* A client is bursting. */
-                send_message1(c, "\tC4Can't join game!\n\n"
-                              "\tC7A Player is\nbursting.");
-            }
-            else if(rv == -2) {
-                /* The lobby has disappeared. */
-                send_message1(c, "\tC4Can't join game!\n\n"
-                              "\tC7This game is\nnon-existant.");
-            }
-            else if(rv == -1) {
-                /* The lobby is full. */
-                send_message1(c, "\tC4Can't join game!\n\n"
-                              "\tC7This game is\nfull.");
-            }
+            join_game(c, l);
 
             return 0;
         }
@@ -1490,11 +1497,10 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
                 c->create_lobby = NULL;
 
                 /* Add the user to the lobby... */
-                if(lobby_change_lobby(c, l)) {
+                if(join_game(c, l)) {
                     /* Something broke, destroy the created lobby before anyone
                        tries to join it. */
                     lobby_destroy(l);
-                    return send_message1(c, "\tC4Please try again");
                 }
 
                 /* All's well in the world if we get here. */
