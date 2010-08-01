@@ -603,7 +603,8 @@ static int dc_process_login(ship_client_t *c, dc_login_93_pkt *pkt) {
     c->language_code = pkt->language_code;
 
     /* See if this person is a GM. */
-    c->is_gm = is_gm(pkt->guildcard, pkt->serial, pkt->access_key, c->cur_ship);
+    c->privilege = is_gm(pkt->guildcard, pkt->serial, pkt->access_key,
+                         c->cur_ship);
 
     if(send_dc_security(c, pkt->guildcard, NULL, 0)) {
         return -1;
@@ -631,7 +632,8 @@ static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
         c->version = CLIENT_VERSION_DCV2;
 
     /* See if this person is a GM. */
-    c->is_gm = is_gm(c->guildcard, pkt->serial, pkt->access_key, c->cur_ship);
+    c->privilege = is_gm(c->guildcard, pkt->serial, pkt->access_key,
+                         c->cur_ship);
 
     if(send_dc_security(c, c->guildcard, NULL, 0)) {
         return -1;
@@ -656,7 +658,8 @@ static int gc_process_login(ship_client_t *c, gc_login_9e_pkt *pkt) {
     c->language_code = pkt->language_code;
 
     /* See if this person is a GM. */
-    c->is_gm = is_gm(c->guildcard, pkt->serial, pkt->access_key, c->cur_ship);
+    c->privilege = is_gm(c->guildcard, pkt->serial, pkt->access_key,
+                         c->cur_ship);
 
     if(send_dc_security(c, c->guildcard, NULL, 0)) {
         return -1;
@@ -1321,7 +1324,6 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
             char tmp[32];
             char passwd[16];
             lobby_t *l;
-            int rv;
             uint16_t len = LE16(pkt->hdr.dc.pkt_len);
 
             /* Read the password if the client provided one. */

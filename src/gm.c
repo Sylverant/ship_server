@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009 Lawrence Sebald
+    Copyright (C) 2009, 2010 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -23,6 +23,7 @@
 
 #include "gm.h"
 #include "ship.h"
+#include "clients.h"
 
 #define BUF_SIZE 8192
 
@@ -42,22 +43,30 @@ static void gm_start_hnd(void *d, const XML_Char *name,
 
         s->gm_list = (local_gm_t *)tmp;
 
+        /* Clear it */
+        memset(&s->gm_list[s->gm_count], 0, sizeof(local_gm_t));
+        s->gm_list[s->gm_count].flags = CLIENT_PRIV_LOCAL_GM;
+
         /* Parse out what we care about. */
         for(i = 0; attrs[i]; i += 2) {
             if(!strcmp(attrs[i], "serial")) {
-                strncpy(s->gm_list[s->gm_count].serial_num, attrs[i + 1], 8);
-                s->gm_list[s->gm_count].serial_num[8] = '\0';
+                strncpy(s->gm_list[s->gm_count].serial_num, attrs[i + 1], 16);
+                s->gm_list[s->gm_count].serial_num[15] = '\0';
                 done |= 1;
             }
             else if(!strcmp(attrs[i], "accesskey")) {
-                strncpy(s->gm_list[s->gm_count].access_key, attrs[i + 1], 8);
-                s->gm_list[s->gm_count].access_key[8] = '\0';
+                strncpy(s->gm_list[s->gm_count].access_key, attrs[i + 1], 16);
+                s->gm_list[s->gm_count].access_key[15] = '\0';
                 done |= 2;
             }
             else if(!strcmp(attrs[i], "guildcard")) {
                 s->gm_list[s->gm_count].guildcard =
                     (uint32_t)strtoul(attrs[i + 1], NULL, 0);
                 done |= 4;
+            }
+            else if(!strcmp(attrs[i], "root") &&
+                    !strcmp(attrs[i + 1], "true")) {
+                s->gm_list[s->gm_count].flags |= CLIENT_PRIV_LOCAL_ROOT;
             }
         }
 
@@ -164,7 +173,7 @@ int is_gm(uint32_t guildcard, char serial[9], char access[9], ship_t *s) {
         if(guildcard == s->gm_list[i].guildcard &&
            !strcmp(serial, s->gm_list[i].serial_num) &&
            !strcmp(access, s->gm_list[i].access_key)) {
-            return 1;
+            return s->gm_list[i].flags;
         }
     }
 

@@ -3673,7 +3673,8 @@ static int send_dc_ship_list(ship_client_t *c, miniship_t *l, int ships) {
 
     for(i = 0; i < ships; ++i) {
         if(l[i].ship_id) {
-            if((l[i].flags & LOGIN_FLAG_GMONLY) && c->is_gm < 2) {
+            if((l[i].flags & LOGIN_FLAG_GMONLY) &&
+               !(c->privilege & CLIENT_PRIV_GLOBAL_GM)) {
                 continue;
             }
 
@@ -3735,7 +3736,8 @@ static int send_pc_ship_list(ship_client_t *c, miniship_t *l, int ships) {
 
     for(i = 0; i < ships; ++i) {
         if(l[i].ship_id) {
-            if((l[i].flags & LOGIN_FLAG_GMONLY) && c->is_gm < 2) {
+            if((l[i].flags & LOGIN_FLAG_GMONLY) &&
+               !(c->privilege & CLIENT_PRIV_GLOBAL_GM)) {
                 continue;
             }
 

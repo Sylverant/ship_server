@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009 Lawrence Sebald
+    Copyright (C) 2009, 2010 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -28,8 +28,9 @@ typedef struct ship ship_t;
 
 typedef struct local_gm {
     uint32_t guildcard;
-    char serial_num[9];
-    char access_key[9];
+    uint32_t flags;
+    char serial_num[16];
+    char access_key[16];
 } local_gm_t;
 
 int gm_list_read(const char *fn, ship_t *s);

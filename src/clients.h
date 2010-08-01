@@ -64,7 +64,7 @@ struct ship_client {
 
     int client_id;
     uint32_t arrow;
-    int is_gm;
+    uint32_t privilege;
     time_t last_message;
 
     time_t last_sent;
@@ -96,6 +96,11 @@ struct ship_client {
 
     char *autoreply;
 };
+
+#define CLIENT_PRIV_LOCAL_GM    0x00000001
+#define CLIENT_PRIV_GLOBAL_GM   0x00000002
+#define CLIENT_PRIV_LOCAL_ROOT  0x00000004
+#define CLIENT_PRIV_GLOBAL_ROOT 0x00000008
 
 /* String versions of the character classes. */
 static const char *classes[12] __attribute__((unused)) = {
