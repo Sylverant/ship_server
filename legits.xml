@@ -1120,15 +1120,15 @@
     <!-- CHU CHU FEVER -->
     <item code="0x2C0101">
         <slots max="0" />
-        <dfp max="140" />
-        <evp max="100" />
+        <dfp max="0" />
+        <evp max="0" />
     </item>
 
     <!-- Shields -->
     <!-- BLUE RING -->
     <item code="0x330201">
-        <dfp max="90" />
-        <evp max="242" />
+        <dfp max="0" />
+        <evp max="0" />
     </item>
 
     <!-- Mags -->
@@ -1604,6 +1604,22 @@
     <!-- Trifluid -->
     <item code="0x020103">
         <stack max="10" />
+    </item>
+
+    <!-- Units -->
+    <!-- God/HP -->
+    <item code="0x130301">
+        <plus max="1" min="-1" />
+    </item>
+
+    <!-- God/TP -->
+    <item code="0x170301">
+        <plus max="1" min="-1" />
+    </item>
+
+    <!-- Perfect/Resist -->
+    <item code="0x320301">
+        <plus max="1" min="-1" />
     </item>
 
     <!-- End of List -->
