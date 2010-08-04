@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <!-- All Items not included are automaticly allowed -->
-<items byteorder="little" default="allow">
+<items byteorder="little" default="allow" check_sranks="true">
     <!-- Offline Quest Weapons -->
     <!-- SOUL EATER -->
     <item code="0x001100">
