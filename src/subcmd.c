@@ -410,6 +410,7 @@ static int handle_levelup(ship_client_t *c, subcmd_levelup_t *pkt) {
 static int handle_take_item(ship_client_t *c, subcmd_take_item_t *pkt) {
     lobby_t *l = c->cur_lobby;
     sylverant_iitem_t item;
+    uint32_t v;
 
     /* We can't get these in default lobbies without someone messing with
        something that they shouldn't be... Disconnect anyone that tries. */
@@ -425,10 +426,28 @@ static int handle_take_item(ship_client_t *c, subcmd_take_item_t *pkt) {
 
     /* If we're in legit mode, we need to check the newly taken item. */
     if((l->flags & LOBBY_FLAG_LEGIT_MODE) && c->cur_ship->limits) {
+        switch(c->version) {
+            case CLIENT_VERSION_DCV1:
+                v = ITEM_VERSION_V1;
+                break;
+
+            case CLIENT_VERSION_DCV2:
+            case CLIENT_VERSION_PC:
+                v = ITEM_VERSION_V2;
+                break;
+
+            case CLIENT_VERSION_GC:
+                v = ITEM_VERSION_GC;
+                break;
+
+            default:
+                return -1;
+        }
+
         /* Fill in the item structure so we can check it. */
         memcpy(&item.data_l[0], &pkt->data_l[0], 5 * sizeof(uint32_t));
 
-        if(!sylverant_limits_check_item(c->cur_ship->limits, &item)) {
+        if(!sylverant_limits_check_item(c->cur_ship->limits, &item, v)) {
             /* The item failed the check, so kick the user. */
             send_message_box(c, "\tEYou have been kicked from the server.\n\n"
                              "Reason:\n"
@@ -446,6 +465,7 @@ static int handle_take_item(ship_client_t *c, subcmd_take_item_t *pkt) {
 static int handle_itemdrop(ship_client_t *c, subcmd_itemgen_t *pkt) {
     lobby_t *l = c->cur_lobby;
     sylverant_iitem_t item;
+    uint32_t v;
 
     /* We can't get these in default lobbies without someone messing with
        something that they shouldn't be... Disconnect anyone that tries. */
@@ -461,10 +481,28 @@ static int handle_itemdrop(ship_client_t *c, subcmd_itemgen_t *pkt) {
 
     /* If we're in legit mode, we need to check the item. */
     if((l->flags & LOBBY_FLAG_LEGIT_MODE) && c->cur_ship->limits) {
+        switch(c->version) {
+            case CLIENT_VERSION_DCV1:
+                v = ITEM_VERSION_V1;
+                break;
+
+            case CLIENT_VERSION_DCV2:
+            case CLIENT_VERSION_PC:
+                v = ITEM_VERSION_V2;
+                break;
+
+            case CLIENT_VERSION_GC:
+                v = ITEM_VERSION_GC;
+                break;
+
+            default:
+                return -1;
+        }
+
         /* Fill in the item structure so we can check it. */
         memcpy(&item.data_l[0], &pkt->item[0], 5 * sizeof(uint32_t));
 
-        if(!sylverant_limits_check_item(c->cur_ship->limits, &item)) {
+        if(!sylverant_limits_check_item(c->cur_ship->limits, &item, v)) {
             /* The item failed the check, so silently ignore the packet, and
                nobody will see it drop. */
             return 0;

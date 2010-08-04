@@ -644,7 +644,7 @@ int lobby_info_reply(ship_client_t *c, uint32_t lobby) {
 }
 
 /* Check if a single player is legit enough for the lobby. */
-int lobby_check_player_legit(lobby_t *l, ship_t *s, player_t *pl) {
+int lobby_check_player_legit(lobby_t *l, ship_t *s, player_t *pl, uint32_t v) {
     int j, rv = 1;
     sylverant_iitem_t *item;
 
@@ -657,7 +657,7 @@ int lobby_check_player_legit(lobby_t *l, ship_t *s, player_t *pl) {
     /* Look through each item */
     for(j = 0; j < pl->v1.inv.item_count && rv; ++j) {
         item = (sylverant_iitem_t *)&pl->v1.inv.items[j];
-        rv = sylverant_limits_check_item(s->limits, item);
+        rv = sylverant_limits_check_item(s->limits, item, v);
     }
 
     return rv;
@@ -666,9 +666,29 @@ int lobby_check_player_legit(lobby_t *l, ship_t *s, player_t *pl) {
 /* Check if a single client is legit enough for the lobby. */
 int lobby_check_client_legit(lobby_t *l, ship_t *s, ship_client_t *c) {
     int rv;
+    uint32_t version;
 
     pthread_mutex_lock(&c->mutex);
-    rv = lobby_check_player_legit(l, s, c->pl);
+
+    switch(c->version) {
+        case CLIENT_VERSION_DCV1:
+            version = ITEM_VERSION_V1;
+            break;
+
+        case CLIENT_VERSION_DCV2:
+        case CLIENT_VERSION_PC:
+            version = ITEM_VERSION_V2;
+            break;
+
+        case CLIENT_VERSION_GC:
+            version = ITEM_VERSION_GC;
+            break;
+
+        default:
+            return 1;
+    }
+
+    rv = lobby_check_player_legit(l, s, c->pl, version);
     pthread_mutex_unlock(&c->mutex);
 
     return rv;

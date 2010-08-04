@@ -5,18 +5,21 @@
     <!-- Offline Quest Weapons -->
     <!-- SOUL EATER -->
     <item code="0x001100">
+        <versions v1="true" v2="true" />
         <grind max="35" />
         <percents max="0" />
     </item>
 
     <!-- AKIKO'S FRYING PAN -->
     <item code="0x001600">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="0" />
     </item>
 
     <!-- GAME MAGAZNE -->
     <item code="0x006E00">
+        <versions v2="true" />
         <grind max="0" />
         <percents max="0" />
     </item>
@@ -24,148 +27,175 @@
     <!-- Rejected items -->
     <!-- DAVIL'S TAIL -->
     <item code="0x003802">
+        <versions v1="true" v2="true" />
         <auto_reject />
     </item>
 
     <!-- Mr Naka's Business Card -->
     <item code="0x240E03">
+        <versions v1="true" v2="true" />
         <auto_reject />
     </item>
 
     <!-- Special Event Ticket -->
     <item code="0x200E03">
+        <versions v1="true" v2="true" />
         <auto_reject />
     </item>
 
     <!-- Proof of Sonic Team -->
     <item code="0x1F0E03">
+        <versions v1="true" v2="true" />
         <auto_reject />
     </item>
 
     <!-- Birthday Card -->
     <item code="0x1E0E03">
+        <versions v1="true" v2="true" />
         <auto_reject />
     </item>
 
     <!-- Christmas Card -->
     <item code="0x1D0E03">
+        <versions v1="true" v2="true" />
         <auto_reject />
     </item>
 
     <!-- New Year's Card -->
     <item code="0x1C0E03">
+        <versions v1="true" v2="true" />
         <auto_reject />
     </item>
 
     <!-- ELENOR -->
     <item code="0x003002">
+        <versions v1="true" v2="true" />
         <auto_reject />
     </item>
 
     <!-- BLACK RING -->
     <item code="0x380201">
+        <versions v1="true" v2="true" />
         <auto_reject />
     </item>
 
     <!-- RED RING -->
     <item code="0x270201">
+        <versions v1="true" v2="true" />
         <auto_reject />
     </item>
 
     <!-- RIKO'S EARRING -->
     <item code="0x320201">
+        <versions v1="true" v2="true" />
         <auto_reject />
     </item>
 
     <!-- RIKO'S GLASSES -->
     <item code="0x310201">
+        <versions v1="true" v2="true" />
         <auto_reject />
     </item>
 
     <!-- GULD MILLA -->
     <item code="0x004B00">
+        <versions v1="true" v2="true" />
         <auto_reject />
     </item>
 
     <!-- TSUMIKIRI J-SWORD -->
     <item code="0x003200">
+        <versions v1="true" v2="true" />
         <auto_reject />
     </item>
 
     <!-- DOUBLE CANNON -->
     <item code="0x003000">
+        <versions v1="true" v2="true" />
         <auto_reject />
     </item>
 
     <!-- Items with conditions (for both v1 items and v2) -->
     <!-- DB'S SABER -->
     <item code="0x050100">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="60" />
     </item>
 
     <!-- KALADBOLG -->
     <item code="0x060100">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="60" />
     </item>
 
     <!-- DURANDAL -->
     <item code="0x070100">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="60" />
     </item>
 
     <!-- FLOWEN'S SWORD -->
     <item code="0x050200">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="60" />
     </item>
 
     <!-- LAST SURVIVOR -->
     <item code="0x060200">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="60" />
     </item>
 
     <!-- DRAGON SLAYER -->
     <item code="0x070200">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="60" />
     </item>
 
     <!-- BLADE DANCE -->
     <item code="0x050300">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="60" />
     </item>
 
     <!-- BLOODY ART -->
     <item code="0x060300">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="60" />
     </item>
 
     <!-- CROSS SCAR -->
     <item code="0x070300">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="60" />
     </item>
 
     <!-- BRIONAC -->
     <item code="0x050400">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="60" />
     </item>
 
     <!-- VJAYA -->
     <item code="0x060400">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="60" />
     </item>
 
     <!-- GAE BOLG -->
     <item code="0x070400">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="60" />
     </item>
@@ -173,144 +203,168 @@
 
     <!-- SLICER OF ASSASSIN -->
     <item code="0x050500">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="60" />
     </item>
 
     <!-- DISKA OF LIBERATOR -->
     <item code="0x060500">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="60" />
     </item>
 
     <!-- DISKA OF BRAVEMAN -->
     <item code="0x070500">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="60" />
     </item>
 
     <!-- VARISTA -->
     <item code="0x050600">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="60" />
     </item>
 
     <!-- CUSTOM RAY ver.OO -->
     <item code="0x060600">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="60" />
     </item>
 
     <!-- BRAVACE -->
     <item code="0x070600">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="60" />
     </item>
 
     <!-- VISK-235W -->
     <item code="0x050700">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="60" />
     </item>
 
     <!-- WALS-MK2 -->
     <item code="0x060700">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="60" />
     </item>
 
     <!-- JUSTY-23ST -->
     <item code="0x070700">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="60" />
     </item>
 
     <!-- M&A60 VISE -->
     <item code="0x050800">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="60" />
     </item>
 
     <!-- H&S25 JUSTICE -->
     <item code="0x060800">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="60" />
     </item>
 
     <!-- L&K14 COMBAT -->
     <item code="0x070800">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="60" />
     </item>
 
     <!-- CRUSH BULLET -->
     <item code="0x050900">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="60" />
     </item>
 
     <!-- METEOR SMASH -->
     <item code="0x060900">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="60" />
     </item>
 
     <!-- FINAL IMPACT -->
     <item code="0x070900">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="60" />
     </item>
 
     <!-- CLUB OF LACONIUM -->
     <item code="0x040A00">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="60" />
     </item>
 
     <!-- MACE OF ADAMAN -->
     <item code="0x050A00">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="60" />
     </item>
 
     <!-- CLUB OF ZUMIURAN -->
     <item code="0x060A00">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="60" />
     </item>
 
     <!-- BATTLE VERGE -->
     <item code="0x040B00">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="60" />
     </item>
 
     <!-- BRAVE HAMMER -->
     <item code="0x050B00">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="60" />
     </item>
 
     <!-- ALIVE AQHU -->
     <item code="0x060B00">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="60" />
     </item>
 
     <!-- FIRE SCEPTER: AGNI -->
     <item code="0x040C00">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="60" />
     </item>
 
     <!-- ICE STAFF: DAGON -->
     <item code="0x050C00">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="60" />
     </item>
 
     <!-- STORM WAND: INDRA -->
     <item code="0x060C00">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="60" />
     </item>
@@ -318,234 +372,273 @@
     <!-- Items with unique look -->
     <!-- PHOTON CLAW -->
     <item code="0x000D00">
+        <versions v1="true" v2="true" />
         <grind max="20" />
         <percents max="60" />
     </item>
 
     <!-- SILENCE CLAW -->
     <item code="0x010D00">
+        <versions v1="true" v2="true" />
         <grind max="15" />
         <percents max="60" />
     </item>
 
     <!-- NEI'S CLAW -->
     <item code="0x020D00">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="15" />
     </item>
 
     <!-- DOUBLE SABER -->
     <item code="0x000E00">
+        <versions v1="true" v2="true" />
         <grind max="20" />
         <percents max="60" />
     </item>
 
     <!-- STAG CUTLERY -->
     <item code="0x010E00">
+        <versions v1="true" v2="true" />
         <grind max="15" />
         <percents max="60" />
     </item>
 
     <!-- TWIN BRAND -->
     <item code="0x020E00">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="60" />
     </item>
 
     <!-- BRAVE KNUCKLE -->
     <item code="0x000F00">
+        <versions v1="true" v2="true" />
         <grind max="55" />
         <percents max="60" />
     </item>
 
     <!-- ANGRY FIST -->
     <item code="0x010F00">
+        <versions v1="true" v2="true" />
         <grind max="30" />
         <percents max="60" />
     </item>
 
     <!-- GOD HAND -->
     <item code="0x020F00">
+        <versions v1="true" v2="true" />
         <grind max="15" />
         <percents max="60" />
     </item>
 
     <!-- SONIC KNUCKLE -->
-    <item code="0x030F00">                  
+    <item code="0x030F00">
+        <versions v1="true" v2="true" />                  
         <grind max="15" />
         <percents max="50" />
     </item>
 
     <!-- OROTIAGITO -->
     <item code="0x040F00">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="0" />
     </item>
 
     <!-- OROTIAGITO -->
     <item code="0x001000">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="0" />
     </item>
 
     <!-- AGITO (1975) -->
     <item code="0x011000">
+        <versions v1="true" v2="true" />
         <grind max="0" />
         <percents max="60" />
     </item>
 
     <!-- AGITO (1983) -->
     <item code="0x021000">
+        <versions v1="true" v2="true" />
         <grind max="0" />
         <percents max="60" />
     </item>
 
     <!-- AGITO (2001) -->
     <item code="0x031000">
+        <versions v1="true" v2="true" />
         <grind max="0" />
         <percents max="60" />
     </item>
 
     <!-- AGITO (1991) -->
     <item code="0x041000">
+        <versions v1="true" v2="true" />
         <grind max="0" />
         <percents max="60" />
     </item>
 
     <!-- AGITO 1977 -->
     <item code="0x051000">
+        <versions v1="true" v2="true" />
         <grind max="0" />
         <percents max="60" />
     </item>
 
     <!-- AGITO 1980 -->
     <item code="0x061000">
+        <versions v1="true" v2="true" />
         <grind max="0" />
         <percents max="60" />
     </item>
 
     <!-- SOUL BANISH -->
     <item code="0x011100">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="60" />
     </item>
 
     <!-- SPREAD NEEDLE -->
     <item code="0x001200">
+        <versions v1="true" v2="true" />
         <grind max="15" />
         <percents max="60" />
     </item>
 
     <!-- HOLY RAY -->
     <item code="0x001300">
+        <versions v1="true" v2="true" />
         <grind max="30" />
         <percents max="60" />
     </item>
 
     <!-- INFERNO BAZOOKA -->
     <item code="0x001400">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="60" />
     </item>
 
     <!-- FLAME VISIT -->
-    <item code="0x001500">               
+    <item code="0x001500">
+        <versions v1="true" v2="true" />               
         <grind max="15" />
         <percents max="60" />
     </item>
 
     <!-- C-SORCERER'S CANE -->
-    <item code="0x001700">                 
+    <item code="0x001700">
+        <versions v1="true" v2="true" />
         <grind max="0" />
         <percents max="50" />
     </item>
 
     <!-- S-BEAT'S BLADE -->
     <item code="0x001800">
+        <versions v1="true" v2="true" />
         <grind max="25" />
         <percents max="50" />
     </item>
 
     <!-- P-ARMS'S BLADE -->
     <item code="0x001900">
+        <versions v1="true" v2="true" />
         <grind max="25" />
         <percents max="50" />
     </item>
 
     <!-- DELSABER'S BUSTER -->
     <item code="0x001A00">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="50" />
     </item>
 
     <!-- C-BRINGER'S RIFLE -->
     <item code="0x001B00">
+        <versions v1="true" v2="true" />
         <grind max="9" />
         <percents max="50" />
     </item>
 
     <!-- EGG BLASTER -->
     <item code="0x001C00">
+        <versions v1="true" v2="true" />
         <grind max="99" />
         <percents max="15" />
     </item>
 
     <!-- PSYCHO WAND -->
     <item code="0x001D00">
+        <versions v1="true" v2="true" />
         <grind max="15" />
         <percents max="60" />
     </item>
 
     <!-- HEAVEN PUNISHER -->
     <item code="0x001E00">
+        <versions v1="true" v2="true" />
         <grind max="15" />
         <percents max="60" />
     </item>
 
     <!-- LAVIS CANNON -->
     <item code="0x001F00">
+        <versions v1="true" v2="true" />
         <grind max="15" />
         <percents max="60" />
     </item>
 
     <!-- VICTOR AXE -->
-    <item code="0x002000">             
+    <item code="0x002000">
+        <versions v1="true" v2="true" />
         <grind max="20" />
         <percents max="55" />
     </item>
 
     <!-- CHAIN SAWD -->
     <item code="0x002100">
+        <versions v1="true" v2="true" />
         <grind max="30" />
         <percents max="60" />
     </item>
 
     <!-- CADUCEUS -->
     <item code="0x002200">
+        <versions v1="true" v2="true" />
         <grind max="0" />
         <percents max="60" />
     </item>
 
     <!-- STING TIP -->
     <item code="0x002300">
+        <versions v1="true" v2="true" />
         <grind max="45" />
         <percents max="60" />
     </item>
 
     <!-- MAGICAL PIECE -->
     <item code="0x002400">
+        <versions v1="true" v2="true" />
         <grind max="0" />
         <percents max="60" />
     </item>
 
     <!-- TECHNICAL CROZIER -->
     <item code="0x002500">
+        <versions v1="true" v2="true" />
         <grind max="0" />
         <percents max="60" />
     </item>
 
     <!-- SUPRESSED GUN -->
     <item code="0x002600">
+        <versions v1="true" v2="true" />
         <grind max="40" />
         <percents max="60" />
     </item>
@@ -553,414 +646,483 @@
     <!-- v2 exclusive items -->
     <!-- ANCIENT SABER -->
     <item code="0x002700">
+        <versions v2="true" />
         <grind max="45" />
         <percents max="55" />
     </item>
 
     <!-- HARISEN BATTLE FAN -->
     <item code="0x002800">
+        <versions v2="true" />
         <grind max="40" />
         <percents max="55" />
     </item>
 
     <!-- YAMIGARASU -->
     <item code="0x002900">
+        <versions v2="true" />
         <grind max="0" />
         <percents max="15" />
     </item>
 
     <!-- AKIKO'S WOK -->
     <item code="0x002A00">
+        <versions v2="true" />
         <grind max="9" />
         <percents max="55" />
     </item>
 
     <!-- TOY HAMMER -->
-    <item code="0x002B00">            
+    <item code="0x002B00">
+        <versions v2="true" />
         <grind max="50" />
         <percents max="0" />
     </item>
 
     <!-- ELYSION -->
     <item code="0x002C00">
+        <versions v2="true" />
         <grind max="25" />
         <percents max="55" />
     </item>
 
     <!-- RED SABER -->
     <item code="0x002D00">
+        <versions v2="true" />
         <grind max="90" />
         <percents max="55" />
     </item>
 
     <!-- METEOR CUDGEL -->
     <item code="0x002E00">
+        <versions v2="true" />
         <grind max="30" />
         <percents max="55" />
     </item>
 
     <!-- MONKEY KING BAR -->
     <item code="0x002F00">
+        <versions v2="true" />
         <grind max="65" />
         <percents max="55" />
     </item>
 
     <!-- HUGE BATTLE FAN -->
     <item code="0x003100">
+        <versions v2="true" />
         <grind max="10" />
         <percents max="55" />
     </item>
 
     <!-- SEALED J-SWORD -->
     <item code="0x003300">
+        <versions v2="true" />
         <grind max="0" />
         <percents max="55" />
     </item>
 
     <!-- RED SWORD -->
     <item code="0x003400">
+        <versions v2="true" />
         <grind max="90" />
         <percents max="55" />
     </item>
 
     <!-- CRAZY TUNE -->
     <item code="0x003500">
+        <versions v2="true" />
         <grind max="10" />
         <percents max="55" />
     </item>
 
     <!-- TWIN CHAKRAM -->
     <item code="0x003600">
+        <versions v2="true" />
         <grind max="45" />
         <percents max="55" />
     </item>
 
     <!-- WOK OF AKIKO'S SHOP -->
-    <item code="0x003700">               
+    <item code="0x003700">
+        <versions v2="true" />
         <grind max="9" />
         <percents max="0" />
     </item>
 
     <!-- LAVIS BLADE -->
     <item code="0x003800">
+        <versions v2="true" />
         <grind max="10" />
         <percents max="55" />
     </item>
 
     <!-- RED DAGGER -->
     <item code="0x003900">
+        <versions v2="true" />
         <grind max="90" />
         <percents max="55" />
     </item>
 
     <!-- MADAM'S PARASOL -->
     <item code="0x003A00">
+        <versions v2="true" />
         <grind max="45" />
         <percents max="55" />
     </item>
 
     <!-- MADAM'S UMBRELLA -->
     <item code="0x003B00">
+        <versions v2="true" />
         <grind max="30" />
         <percents max="55" />
     </item>
 
     <!-- IMPERIAL PICK -->
     <item code="0x003C00">
+        <versions v2="true" />
         <grind max="20" />
         <percents max="55" />
     </item>
 
     <!-- BERDYSH -->
     <item code="0x003D00">
+        <versions v2="true" />
         <grind max="9" />
         <percents max="55" />
     </item>
 
     <!-- RED PARTISAN -->
     <item code="0x003E00">
+        <versions v2="true" />
         <grind max="90" />
         <percents max="55" />
     </item>
 
     <!-- FLIGHT CUTTER -->
     <item code="0x003F00">
+        <versions v2="true" />
         <grind max="20" />
         <percents max="55" />
     </item>
 
     <!-- FLIGHT FAN -->
     <item code="0x004000">
+        <versions v2="true" />
         <grind max="15" />
         <percents max="15" />
     </item>
 
     <!-- RED SLICER -->
     <item code="0x004100">
+        <versions v2="true" />
         <grind max="90" />
         <percents max="55" />
     </item>
 
     <!-- HANDGUN GULD -->
     <item code="0x004200">
+        <versions v2="true" />
         <grind max="9" />
         <percents max="55" />
     </item>
 
     <!-- HANDGUN MILLA -->
     <item code="0x004300">
+        <versions v2="true" />
         <grind max="9" />
         <percents max="55" />
     </item>
 
     <!-- RED HANDGUN -->
     <item code="0x004400">
+        <versions v2="true" />
         <grind max="90" />
         <percents max="55" />
     </item>
 
     <!-- FROZEN SHOOTER -->
     <item code="0x004500">
+        <versions v2="true" />
         <grind max="30" />
         <percents max="55" />
     </item>
 
     <!-- ANTI-ANDROID RIFLE -->
     <item code="0x004600">
+        <versions v2="true" />
         <grind max="80" />
         <percents max="55" />
     </item>
 
     <!-- ROCKET PUNCH -->
     <item code="0x004700">
+        <versions v2="true" />
         <grind max="9" />
         <percents max="55" />
     </item>
 
     <!-- SAMBA MARACAS -->
-    <item code="0x004800">                  
+    <item code="0x004800">
+        <versions v2="true" />
         <grind max="0" />
         <percents max="0" />
     </item>
 
     <!-- TWIN PSYCHOGUN -->
     <item code="0x004900">
+        <versions v2="true" />
         <grind max="9" />
         <percents max="55" />
     </item>
 
     <!-- DRILL LAUNCHER -->
     <item code="0x004A00">
+        <versions v2="true" />
         <grind max="40" />
         <percents max="15" />
     </item>
 
     <!-- RED MECHGUN -->
     <item code="0x004C00">
+        <versions v2="true" />
         <grind max="90" />
         <percents max="55" />
     </item>
 
     <!-- BERLA CANNON -->
-    <item code="0x004D00">          
+    <item code="0x004D00">
+        <versions v2="true" />
         <grind max="9" />
         <percents max="50" />
     </item>
 
     <!-- PANZER FAUST -->
     <item code="0x004E00">
+        <versions v2="true" />
         <grind max="15" />
         <percents max="55" />
     </item>
 
     <!-- SUMMIT MOON -->
     <item code="0x004F00">
+        <versions v2="true" />
         <grind max="45" />
         <percents max="55" />
     </item>
 
     <!-- WINDMILL -->
     <item code="0x005000">
+        <versions v2="true" />
         <grind max="20" />
         <percents max="55" />
     </item>
 
     <!-- EVIL CURST -->
     <item code="0x005100">
+        <versions v2="true" />
         <grind max="60" />
         <percents max="55" />
     </item>
 
     <!-- FLOWER CANE -->
     <item code="0x005200">
+        <versions v2="true" />
         <grind max="90" />
         <percents max="55" />
     </item>
 
     <!-- HILDEBEAR'S CANE -->
-    <item code="0x005300">                 
+    <item code="0x005300">
+        <versions v2="true" />
         <grind max="9" />
         <percents max="50" />
     </item>
 
     <!-- HILDEBLUE'S CANE -->
     <item code="0x005400">
+        <versions v2="true" />
         <grind max="9" />
         <percents max="50" />
     </item>
 
     <!-- RABBIT WAND -->
     <item code="0x005500">
+        <versions v2="true" />
         <grind max="60" />
         <percents max="55" />
     </item>
 
     <!-- PLANTAIN LEAF -->
     <item code="0x005600">
+        <versions v2="true" />
         <grind max="0" />
         <percents max="55" />
     </item>
 
     <!-- DEMONIC FORK -->
     <item code="0x005700">
+        <versions v2="true" />
         <grind max="30" />
         <percents max="55" />
     </item>
 
     <!-- STRIKER OF CHAO -->
     <item code="0x005800">
+        <versions v2="true" />
         <grind max="99" />
         <percents max="15" />
     </item>
 
     <!-- BROOM -->
-    <item code="0x005900">                 
+    <item code="0x005900">
+        <versions v2="true" />
         <grind max="0" />
         <percents max="0" />
     </item>
 
     <!-- PROPHETS OF MOTAV -->
     <item code="0x005A00">
+        <versions v2="true" />
         <grind max="0" />
         <percents max="55" />
     </item>
 
     <!-- THE SIGH OF A GOD -->
     <item code="0x005B00">
+        <versions v2="true" />
         <grind max="15" />
         <percents max="55" />
     </item>
 
     <!-- TWINKLE STAR -->
     <item code="0x005C00">
+        <versions v2="true" />
         <grind max="9" />
         <percents max="55" />
     </item>
 
     <!-- PLANTAIN FAN -->
     <item code="0x005D00">
+        <versions v2="true" />
         <grind max="30" />
         <percents max="15" />
     </item>
 
     <!-- TWIN BLAZE -->
     <item code="0x005E00">
+        <versions v2="true" />
         <grind max="9" />
         <percents max="55" />
     </item>
 
     <!-- MARINA'S BAG -->
     <item code="0x005F00">
+        <versions v2="true" />
         <grind max="20" />
         <percents max="15" />
     </item>
 
     <!-- DRAGON'S CLAW -->
     <item code="0x006000">
+        <versions v2="true" />
         <grind max="35" />
         <percents max="55" />
     </item>
 
     <!-- PANTHER'S CLAW -->
     <item code="0x006100">
+        <versions v2="true" />
         <grind max="9" />
         <percents max="55" />
     </item>
 
     <!-- S-RED'S BLADE -->
-    <item code="0x006200">                   
+    <item code="0x006200">
+        <versions v2="true" />
         <grind max="15" />
         <percents max="50" />
     </item>
 
     <!-- PLANTAIN HUGE FAN -->
     <item code="0x006300">
+        <versions v2="true" />
         <grind max="45" />
         <percents max="15" />
     </item>
 
     <!-- CHAMELEON SCYTHE -->
     <item code="0x006400">
+        <versions v2="true" />
         <grind max="80" />
         <percents max="0" />
     </item>
 
     <!-- YASMINKOV 3000R -->
     <item code="0x006500">
+        <versions v2="true" />
         <grind max="10" />
         <percents max="55" />
     </item>
 
     <!-- ANO RIFLE -->
     <item code="0x006600">
+        <versions v2="true" />
         <grind max="15" />
         <percents max="15" />
     </item>
 
     <!-- BARANZ LAUNCHER -->
     <item code="0x006700">
+        <versions v2="true" />
         <grind max="9" />
         <percents max="15" />
     </item>
 
     <!-- BRANCH OF PAKUPAKU -->
     <item code="0x006800">
+        <versions v2="true" />
         <grind max="0" />
         <percents max="55" />
     </item>
 
     <!-- HEART OF POUMN -->
     <item code="0x006900">
+        <versions v2="true" />
         <grind max="99" />
         <percents max="55" />
     </item>
 
     <!-- YASMINKOV 2000H -->
     <item code="0x006A00">
+        <versions v2="true" />
         <grind max="10" />
         <percents max="55" />
     </item>
 
     <!-- YASMINKOV 7000V -->
     <item code="0x006B00">
+        <versions v2="true" />
         <grind max="10" />
         <percents max="55" />
     </item>
 
     <!-- YASMINKOV 9200M -->
     <item code="0x006C00">
+        <versions v2="true" />
         <grind max="10" />
         <percents max="55" />
     </item>
 
     <!-- MASER BEAM -->
     <item code="0x006D00">
+        <versions v2="true" />
         <grind max="20" />
         <percents max="15" />
     </item>
 
     <!-- FLOWER BOUQUET -->
-    <item code="0x006F00">              
+    <item code="0x006F00">
+        <versions v2="true" />
         <grind max="0" />
         <percents max="50" />
     </item>
@@ -968,150 +1130,175 @@
     <!-- S-ranks -->
     <!-- SABER -->
     <item code="0x007000">
+        <versions v2="true" />
         <grind max="99" />
         <percents max="0" />
     </item>
 
     <!-- SWORD -->
     <item code="0x007100">
+        <versions v2="true" />
         <grind max="99" />
         <percents max="0" />
     </item>
 
     <!-- BLADE -->
     <item code="0x007200">
+        <versions v2="true" />
         <grind max="99" />
         <percents max="0" />
     </item>
 
     <!-- PARTISAN -->
     <item code="0x007300">
+        <versions v2="true" />
         <grind max="99" />
         <percents max="0" />
     </item>
 
     <!-- SLICER -->
     <item code="0x007400">
+        <versions v2="true" />
         <grind max="99" />
         <percents max="0" />
     </item>
 
     <!-- GUN -->
     <item code="0x007500">
+        <versions v2="true" />
         <grind max="99" />
         <percents max="0" />
     </item>
 
     <!-- RIFLE -->
     <item code="0x007600">
+        <versions v2="true" />
         <grind max="99" />
         <percents max="0" />
     </item>
 
     <!-- MECHGUN -->
     <item code="0x007700">
+        <versions v2="true" />
         <grind max="99" />
         <percents max="0" />
     </item>
 
     <!-- SHOT -->
     <item code="0x007800">
+        <versions v2="true" />
         <grind max="99" />
         <percents max="0" />
     </item>
 
     <!-- CANE -->
     <item code="0x007900">
+        <versions v2="true" />
         <grind max="99" />
         <percents max="0" />
     </item>
 
     <!-- ROD -->
     <item code="0x007A00">
+        <versions v2="true" />
         <grind max="99" />
         <percents max="0" />
     </item>
 
     <!-- WAND -->
     <item code="0x007B00">
+        <versions v2="true" />
         <grind max="99" />
         <percents max="0" />
     </item>
 
     <!-- TWIN -->
     <item code="0x007C00">
+        <versions v2="true" />
         <grind max="99" />
         <percents max="0" />
     </item>
 
     <!-- CLAW -->
     <item code="0x007D00">
+        <versions v2="true" />
         <grind max="99" />
         <percents max="0" />
     </item>
 
     <!-- BAZOOKA -->
     <item code="0x007E00">
+        <versions v2="true" />
         <grind max="99" />
         <percents max="0" />
     </item>
 
     <!-- NEEDLE -->
     <item code="0x007F00">
+        <versions v2="true" />
         <grind max="99" />
         <percents max="0" />
     </item>
 
     <!-- SCYTHE -->
     <item code="0x008000">
+        <versions v2="true" />
         <grind max="99" />
         <percents max="0" />
     </item>
 
     <!-- HAMMER -->
     <item code="0x008100">
+        <versions v2="true" />
         <grind max="99" />
         <percents max="0" />
     </item>
 
     <!-- MOON -->
     <item code="0x008200">
+        <versions v2="true" />
         <grind max="99" />
         <percents max="0" />
     </item>
 
     <!-- PSYCHOGUN -->
     <item code="0x008300">
+        <versions v2="true" />
         <grind max="99" />
         <percents max="0" />
     </item>
 
     <!-- PUNCH -->
     <item code="0x008400">
+        <versions v2="true" />
         <grind max="99" />
         <percents max="0" />
     </item>
 
     <!-- WINDMILL -->
     <item code="0x008500">
+        <versions v2="true" />
         <grind max="99" />
         <percents max="0" />
     </item>
 
     <!-- HARISEN -->
     <item code="0x008600">
+        <versions v2="true" />
         <grind max="99" />
         <percents max="0" />
     </item>
 
     <!-- J-BLADE -->
     <item code="0x008700">
+        <versions v2="true" />
         <grind max="99" />
         <percents max="0" />
     </item>
 
     <!-- J-CUTTER -->
     <item code="0x008800">
+        <versions v2="true" />
         <grind max="99" />
         <percents max="0" />
     </item>
@@ -1119,6 +1306,7 @@
     <!-- Armors -->
     <!-- CHU CHU FEVER -->
     <item code="0x2C0101">
+        <versions v1="true" v2="true" />
         <slots max="0" />
         <dfp max="0" />
         <evp max="0" />
@@ -1127,6 +1315,7 @@
     <!-- Shields -->
     <!-- BLUE RING -->
     <item code="0x330201">
+        <versions v1="true" v2="true" />
         <dfp max="0" />
         <evp max="0" />
     </item>
@@ -1134,6 +1323,7 @@
     <!-- Mags -->
     <!-- Soniti -->
     <item code="0x002102">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <def min="5" />
         <pow max="195" />
@@ -1145,6 +1335,7 @@
 
     <!-- Preta -->
     <item code="0x002202">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <def min="5" />
         <pow max="195" />
@@ -1156,6 +1347,7 @@
 
     <!-- Churel -->
     <item code="0x002702">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <def min="5" />
         <pow max="195" />
@@ -1167,6 +1359,7 @@
 
     <!-- Pitri -->
     <item code="0x001D02">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <def min="5" />
         <pow max="195" />
@@ -1178,6 +1371,7 @@
 
     <!-- ROBOCHAO -->
     <item code="0x002802">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <def min="5" />
         <pow max="130" />
@@ -1189,6 +1383,7 @@
 
     <!-- OPA OPA -->
     <item code="0x002902">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <def min="5" />
         <pow max="95" />
@@ -1200,6 +1395,7 @@
 
     <!-- PIAN -->
     <item code="0x002A02">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <def min="5" />
         <pow max="195" />
@@ -1211,6 +1407,7 @@
 
     <!-- CHAO -->
     <item code="0x002B02">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <def min="35" />
         <pow min="35" />
@@ -1222,6 +1419,7 @@
 
     <!-- CHU CHU -->
     <item code="0x002C02">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <synchro max="120" />
         <iq max="200" />
@@ -1229,6 +1427,7 @@
 
     <!-- KAPU KAPU -->
     <item code="0x002D02">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <synchro max="120" />
         <iq max="200" />
@@ -1236,6 +1435,7 @@
 
     <!-- ANGEL'S WING -->
     <item code="0x002E02">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <synchro max="120" />
         <iq max="200" />
@@ -1243,6 +1443,7 @@
 
     <!-- DEVIL'S WING -->
     <item code="0x002F02">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <synchro max="120" />
         <iq max="200" />
@@ -1250,6 +1451,7 @@
 
     <!-- MARK3 -->
     <item code="0x003102">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <synchro max="120" />
         <iq max="200" />
@@ -1257,6 +1459,7 @@
 
     <!-- MASTER SYSTEM -->
     <item code="0x003202">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <synchro max="120" />
         <iq max="200" />
@@ -1264,6 +1467,7 @@
 
     <!-- GENESIS -->
     <item code="0x003302">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <synchro max="120" />
         <iq max="200" />
@@ -1271,6 +1475,7 @@
 
     <!-- SEGA SATURN -->
     <item code="0x003402">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <synchro max="120" />
         <iq max="200" />
@@ -1278,6 +1483,7 @@
 
     <!-- DREAMCAST -->
     <item code="0x003502">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <synchro max="120" />
         <iq max="200" />
@@ -1285,6 +1491,7 @@
 
     <!-- HAMBURGER -->
     <item code="0x003602">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <synchro max="120" />
         <iq max="200" />
@@ -1292,14 +1499,16 @@
 
     <!-- PANZER'S TAIL -->
     <item code="0x003702">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <synchro max="120" />
         <iq max="200" />
     </item>
 
-    <!--non special mags lvl 50 and above-->
+    <!-- non special mags lvl 50 and above -->
     <!-- Andhaka -->
     <item code="0x002302">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <def min="5" />
         <pow max="195" />
@@ -1311,6 +1520,7 @@
 
     <!-- Apsaras -->
     <item code="0x000802">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <def min="5" />
         <pow max="195" />
@@ -1322,6 +1532,7 @@
 
     <!-- Bana -->
     <item code="0x002402">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <def min="5" />
         <pow max="195" />
@@ -1333,6 +1544,7 @@
 
     <!-- Bhirava -->
     <item code="0x000C02">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <def min="5" />
         <pow max="195" />
@@ -1344,6 +1556,7 @@
 
     <!-- Durga -->
     <item code="0x001802">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <def min="5" />
         <pow max="195" />
@@ -1355,6 +1568,7 @@
 
     <!-- Garuda -->
     <item code="0x001202">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <def min="5" />
         <pow max="195" />
@@ -1366,6 +1580,7 @@
 
     <!-- Ila -->
     <item code="0x001702">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <def min="5" />
         <pow max="195" />
@@ -1377,6 +1592,7 @@
 
     <!-- Kabanda -->
     <item code="0x001E02">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <def min="5" />
         <pow max="195" />
@@ -1388,6 +1604,7 @@
 
     <!-- Kaitabha -->
     <item code="0x000A02">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <def min="5" />
         <pow max="195" />
@@ -1399,6 +1616,7 @@
 
     <!-- Kumara -->
     <item code="0x000902">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <def min="5" />
         <pow max="195" />
@@ -1410,6 +1628,7 @@
 
     <!-- Madhu -->
     <item code="0x002602">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <def min="5" />
         <pow max="195" />
@@ -1421,6 +1640,7 @@
 
     <!-- Marica -->
     <item code="0x002002">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <def min="5" />
         <pow max="195" />
@@ -1432,6 +1652,7 @@
 
     <!-- Naga -->
     <item code="0x001C02">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <def min="5" />
         <pow max="195" />
@@ -1443,6 +1664,7 @@
 
     <!-- Nandin -->
     <item code="0x001302">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <def min="5" />
         <pow max="195" />
@@ -1454,6 +1676,7 @@
 
     <!-- Naraka -->
     <item code="0x002502">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <def min="5" />
         <pow max="195" />
@@ -1465,6 +1688,7 @@
 
     <!-- Ravana -->
     <item code="0x001F02">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <def min="5" />
         <pow max="195" />
@@ -1476,6 +1700,7 @@
 
     <!-- Ribhava -->
     <item code="0x001502">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <def min="5" />
         <pow max="195" />
@@ -1487,6 +1712,7 @@
 
     <!-- Sita -->
     <item code="0x001102">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <def min="5" />
         <pow max="195" />
@@ -1498,6 +1724,7 @@
 
     <!-- Soma -->
     <item code="0x001602">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <def min="5" />
         <pow max="195" />
@@ -1509,6 +1736,7 @@
 
     <!-- Ushasu -->
     <item code="0x000702">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <def min="5" />
         <pow max="195" />
@@ -1520,6 +1748,7 @@
 
     <!-- Varaha -->
     <item code="0x000502">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <def min="5" />
         <pow max="195" />
@@ -1531,6 +1760,7 @@
 
     <!-- Yaksa -->
     <item code="0x001002">
+        <versions v1="true" v2="true" />
         <level max="200" />
         <def min="5" />
         <pow max="195" />
@@ -1609,16 +1839,19 @@
     <!-- Units -->
     <!-- God/HP -->
     <item code="0x130301">
+        <versions v1="true" v2="true" />
         <plus max="1" min="-1" />
     </item>
 
     <!-- God/TP -->
     <item code="0x170301">
+        <versions v1="true" v2="true" />
         <plus max="1" min="-1" />
     </item>
 
     <!-- Perfect/Resist -->
     <item code="0x320301">
+        <versions v1="true" v2="true" />
         <plus max="1" min="-1" />
     </item>
 

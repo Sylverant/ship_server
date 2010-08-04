@@ -682,6 +682,7 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
     uint8_t type = pkt->hdr.dc.pkt_type;
     uint8_t version = pkt->hdr.dc.flags;
     lobby_t *l = c->cur_lobby;
+    uint32_t v;
 
     /* Character data requests in game are treated differently, because they
        should be for the legit checker... */
@@ -691,8 +692,26 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
 
         ++l->legit_check_done;
 
+        switch(c->version) {
+            case CLIENT_VERSION_DCV1:
+                v = ITEM_VERSION_V1;
+                break;
+
+            case CLIENT_VERSION_DCV2:
+            case CLIENT_VERSION_PC:
+                v = ITEM_VERSION_V2;
+                break;
+
+            case CLIENT_VERSION_GC:
+                v = ITEM_VERSION_GC;
+                break;
+
+            default:
+                return -1;
+        }
+
         /* See if this client passed the test or not. */
-        if(lobby_check_player_legit(l, c->cur_ship, &pkt->data)) {
+        if(lobby_check_player_legit(l, c->cur_ship, &pkt->data, v)) {
             ++l->legit_check_passed;
         }
 

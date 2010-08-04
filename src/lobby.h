@@ -132,7 +132,7 @@ int lobby_remove_player(ship_client_t *c);
 int lobby_info_reply(ship_client_t *c, uint32_t lobby);
 
 /* Check if a single player is legit enough for the lobby. */
-int lobby_check_player_legit(lobby_t *l, ship_t *s, player_t *pl);
+int lobby_check_player_legit(lobby_t *l, ship_t *s, player_t *pl, uint32_t v);
 
 /* Check if a single client is legit enough for the lobby. */
 int lobby_check_client_legit(lobby_t *l, ship_t *s, ship_client_t *c);
