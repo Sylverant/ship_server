@@ -468,13 +468,13 @@ int lobby_change_lobby(ship_client_t *c, lobby_t *req) {
     }
 
     /* Make sure the character is in the correct level range. */
-    if(req->min_level > LE32(c->pl->v1.level)) {
+    if(req->min_level > (LE32(c->pl->v1.level) + 1)) {
         /* Too low. */
         rv = -4;
         goto out;
     }
 
-    if(req->max_level < LE32(c->pl->v1.level)) {
+    if(req->max_level < (LE32(c->pl->v1.level) + 1)) {
         /* Too high. */
         rv = -5;
         goto out;

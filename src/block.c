@@ -1079,7 +1079,7 @@ static int dc_process_game_create(ship_client_t *c, dc_game_create_pkt *pkt) {
     uint8_t event = c->cur_lobby->gevent;
 
     /* Check the user's ability to create a game of that difficulty. */
-    if(c->pl->v1.level < game_required_level[pkt->difficulty]) {
+    if((LE32(c->pl->v1.level) + 1) < game_required_level[pkt->difficulty]) {
         return send_message1(c, "\tC4Can\'t create game!\n\n"
                              "\tC7Your level is too\nlow for that\n"
                              "difficulty.");
@@ -1145,7 +1145,7 @@ static int pc_process_game_create(ship_client_t *c, pc_game_create_pkt *pkt) {
     iconv_close(ic);
 
     /* Check the user's ability to create a game of that difficulty. */
-    if(c->pl->v1.level < game_required_level[pkt->difficulty]) {
+    if((LE32(c->pl->v1.level) + 1) < game_required_level[pkt->difficulty]) {
         return send_message1(c, "\tC4Can\'t create game!\n\n"
                              "\tC7Your level is too\nlow for that\n"
                              "difficulty.");
@@ -1186,7 +1186,7 @@ static int gc_process_game_create(ship_client_t *c, gc_game_create_pkt *pkt) {
     uint8_t event = c->cur_lobby->gevent;
 
     /* Check the user's ability to create a game of that difficulty. */
-    if(c->pl->v1.level < game_required_level[pkt->difficulty]) {
+    if((LE32(c->pl->v1.level) + 1) < game_required_level[pkt->difficulty]) {
         return send_message1(c, "\tC4Can\'t create game!\n\n"
                              "\tC7Your level is too\nlow for that\n"
                              "difficulty.");
