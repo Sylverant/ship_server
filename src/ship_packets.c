@@ -1308,6 +1308,21 @@ static int send_dc_guild_reply(ship_client_t *c, uint32_t gc, in_addr_t ip,
     /* Clear it out first */
     memset(pkt, 0, DC_GUILD_REPLY_LENGTH);
 
+    /* Adjust the port properly... */
+    switch(c->version) {
+        case CLIENT_VERSION_DCV1:
+        case CLIENT_VERSION_DCV2:
+            break;
+
+        case CLIENT_VERSION_PC:
+            ++port;
+            break;
+
+        case CLIENT_VERSION_GC:
+            port += 2;
+            break;
+    }
+
     /* Fill in the simple stuff */
     pkt->hdr.pkt_type = GUILD_REPLY_TYPE;
     pkt->hdr.pkt_len = LE16(DC_GUILD_REPLY_LENGTH);

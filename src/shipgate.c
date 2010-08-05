@@ -299,6 +299,7 @@ static int handle_dc_greply(shipgate_conn_t *conn, dc_guild_reply_pkt *pkt) {
     ship_client_t *c;
     uint32_t dest = LE32(pkt->gc_search);
     int done = 0, rv = 0;
+    uint16_t port;
 
     for(i = 0; i < s->cfg->blocks && !done; ++i) {
         if(s->blocks[i]) {
@@ -309,7 +310,19 @@ static int handle_dc_greply(shipgate_conn_t *conn, dc_guild_reply_pkt *pkt) {
                 pthread_mutex_lock(&c->mutex);
 
                 if(c->guildcard == dest) {
-                    /* Forward the packet there. */
+                    /* Adjust the port on the packet, if needed */
+                    port = LE16(pkt->port);
+
+                    if(c->version == CLIENT_VERSION_PC) {
+                        ++port;
+                    }
+                    else if(c->version == CLIENT_VERSION_GC) {
+                        port += 2;
+                    }
+
+                    pkt->port = LE16(port);
+
+                    /* Forward the packet on to its destination */
                     rv = send_pkt_dc(c, (dc_pkt_hdr_t *)pkt);
                     done = 1;
                 }
