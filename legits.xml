@@ -1321,6 +1321,10 @@
     </item>
 
     <!-- Mags -->
+    <!-- Set the default disallow list for the center slot. This is common to
+         all mags (only enforced on those in the file though) -->
+    <pbs pos="center" disallow="Pilla, Mylla+Youlla, Golla" />
+
     <!-- Soniti -->
     <item code="0x002102">
         <versions v1="true" v2="true" />
@@ -1417,95 +1421,7 @@
         <iq max="200" />
     </item>
 
-    <!-- CHU CHU -->
-    <item code="0x002C02">
-        <versions v1="true" v2="true" />
-        <level max="200" />
-        <synchro max="120" />
-        <iq max="200" />
-    </item>
-
-    <!-- KAPU KAPU -->
-    <item code="0x002D02">
-        <versions v1="true" v2="true" />
-        <level max="200" />
-        <synchro max="120" />
-        <iq max="200" />
-    </item>
-
-    <!-- ANGEL'S WING -->
-    <item code="0x002E02">
-        <versions v1="true" v2="true" />
-        <level max="200" />
-        <synchro max="120" />
-        <iq max="200" />
-    </item>
-
-    <!-- DEVIL'S WING -->
-    <item code="0x002F02">
-        <versions v1="true" v2="true" />
-        <level max="200" />
-        <synchro max="120" />
-        <iq max="200" />
-    </item>
-
-    <!-- MARK3 -->
-    <item code="0x003102">
-        <versions v1="true" v2="true" />
-        <level max="200" />
-        <synchro max="120" />
-        <iq max="200" />
-    </item>
-
-    <!-- MASTER SYSTEM -->
-    <item code="0x003202">
-        <versions v1="true" v2="true" />
-        <level max="200" />
-        <synchro max="120" />
-        <iq max="200" />
-    </item>
-
-    <!-- GENESIS -->
-    <item code="0x003302">
-        <versions v1="true" v2="true" />
-        <level max="200" />
-        <synchro max="120" />
-        <iq max="200" />
-    </item>
-
-    <!-- SEGA SATURN -->
-    <item code="0x003402">
-        <versions v1="true" v2="true" />
-        <level max="200" />
-        <synchro max="120" />
-        <iq max="200" />
-    </item>
-
-    <!-- DREAMCAST -->
-    <item code="0x003502">
-        <versions v1="true" v2="true" />
-        <level max="200" />
-        <synchro max="120" />
-        <iq max="200" />
-    </item>
-
-    <!-- HAMBURGER -->
-    <item code="0x003602">
-        <versions v1="true" v2="true" />
-        <level max="200" />
-        <synchro max="120" />
-        <iq max="200" />
-    </item>
-
-    <!-- PANZER'S TAIL -->
-    <item code="0x003702">
-        <versions v1="true" v2="true" />
-        <level max="200" />
-        <synchro max="120" />
-        <iq max="200" />
-    </item>
-
-    <!-- non special mags lvl 50 and above -->
+    <!-- Non-special mags level 50 and above -->
     <!-- Andhaka -->
     <item code="0x002302">
         <versions v1="true" v2="true" />
@@ -1769,6 +1685,115 @@
         <synchro max="120" />
         <iq max="200" />
     </item>
+
+    <!-- Clear out the default disallow list for the center slot. Not strictly
+         necessary before resetting it a few lines down, but do it anyway -->
+    <pbs pos="center" disallow="" />
+
+    <!-- The rest of the mags are a bit special... They have a lot of things
+         disallowed, so the default for the rest of the list is to disallow
+         everything -->
+    <pbs pos="center" disallow="Pilla, Leilla, Mylla+Youlla, Estlla, Golla, Farlla" />
+    <pbs pos="right" disallow="Pilla, Leilla, Mylla+Youlla, Estlla, Golla, Farlla" />
+    <pbs pos="left" disallow="Pilla, Leilla, Mylla+Youlla, Estlla, Golla, Farlla" />
+
+    <!-- CHU CHU -->
+    <item code="0x002C02">
+        <versions v1="true" v2="true" />
+        <level max="200" />
+        <synchro max="120" />
+        <iq max="200" />
+    </item>
+
+    <!-- KAPU KAPU -->
+    <item code="0x002D02">
+        <versions v1="true" v2="true" />
+        <level max="200" />
+        <synchro max="120" />
+        <iq max="200" />
+    </item>
+
+    <!-- ANGEL'S WING -->
+    <item code="0x002E02">
+        <versions v1="true" v2="true" />
+        <level max="200" />
+        <synchro max="120" />
+        <iq max="200" />
+    </item>
+
+    <!-- DEVIL'S WING -->
+    <item code="0x002F02">
+        <versions v1="true" v2="true" />
+        <level max="200" />
+        <synchro max="120" />
+        <iq max="200" />
+    </item>
+
+    <!-- MARK3 -->
+    <item code="0x003102">
+        <versions v1="true" v2="true" />
+        <level max="200" />
+        <synchro max="120" />
+        <iq max="200" />
+    </item>
+
+    <!-- MASTER SYSTEM -->
+    <item code="0x003202">
+        <versions v1="true" v2="true" />
+        <level max="200" />
+        <synchro max="120" />
+        <iq max="200" />
+        <pbs pos="right" disallow="Pilla, Leilla, Mylla+Youlla, Golla, Farlla" />
+    </item>
+
+    <!-- GENESIS -->
+    <item code="0x003302">
+        <versions v1="true" v2="true" />
+        <level max="200" />
+        <synchro max="120" />
+        <iq max="200" />
+        <pbs pos="right" disallow="Pilla, Leilla, Estlla, Golla, Farlla" />
+    </item>
+
+    <!-- SEGA SATURN -->
+    <item code="0x003402">
+        <versions v1="true" v2="true" />
+        <level max="200" />
+        <synchro max="120" />
+        <iq max="200" />
+        <pbs pos="right" disallow="Leilla, Mylla+Youlla, Estlla, Golla, Farlla" />
+    </item>
+
+    <!-- DREAMCAST -->
+    <item code="0x003502">
+        <versions v1="true" v2="true" />
+        <level max="200" />
+        <synchro max="120" />
+        <iq max="200" />
+        <pbs pos="right" disallow="Pilla, Leilla, Mylla+Youlla, Estlla, Golla" />
+    </item>
+
+    <!-- HAMBURGER -->
+    <item code="0x003602">
+        <versions v1="true" v2="true" />
+        <level max="200" />
+        <synchro max="120" />
+        <iq max="200" />
+    </item>
+
+    <!-- PANZER'S TAIL -->
+    <item code="0x003702">
+        <versions v1="true" v2="true" />
+        <level max="200" />
+        <synchro max="120" />
+        <iq max="200" />
+    </item>
+
+    <!-- Clear out all the disallow lists, we're done with them. This isn't
+         strictly necessary, but its still a good idea -->
+    <pbs pos="center" disallow="" />
+    <pbs pos="right" disallow="" />
+    <pbs pos="left" disallow="" />
 
     <!-- Item stack -->
     <!-- Sol Atomizer -->
