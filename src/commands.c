@@ -694,7 +694,7 @@ static int handle_clinfo(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     /* Fill in the client's info. */
     inet_ntop(AF_INET, &cl->addr, ip, INET_ADDRSTRLEN);
     return send_txt(c, "\tE\tC7Name: %s\nIP: %s\nGC: %u\n%s Lv.%d",
-                    c->pl->v1.name, ip, cl->guildcard,
+                    cl->pl->v1.name, ip, cl->guildcard,
                     classes[cl->pl->v1.ch_class], cl->pl->v1.level + 1);
 }
 
