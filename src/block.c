@@ -116,11 +116,18 @@ static void *block_thd(void *d) {
         FD_SET(b->gcsock, &readfds);
         nfds = nfds > b->gcsock ? nfds : b->gcsock;
 
+        FD_SET(b->pipes[1], &readfds);
+        nfds = nfds > b->pipes[1] ? nfds : b->pipes[1];
+
         pthread_mutex_unlock(&b->mutex);
         
         /* Wait for some activity... */
         if(select(nfds + 1, &readfds, &writefds, NULL, &timeout) > 0) {
             pthread_mutex_lock(&b->mutex);
+
+            if(FD_ISSET(b->pipes[1], &readfds)) {
+                read(b->pipes[1], &len, 1);
+            }
 
             if(FD_ISSET(b->dcsock, &readfds)) {
                 len = sizeof(struct sockaddr_in);
@@ -359,12 +366,26 @@ block_t *block_server_start(ship_t *s, int b, uint16_t port) {
         return NULL;
     }
 
+    memset(rv, 0, sizeof(block_t));
+
+    /* Make our pipe */
+    if(pipe(rv->pipes) == -1) {
+        debug(DBG_ERROR, "%s(%d): Cannot create pipe!\n", s->cfg->name, b);
+        free(rv);
+        close(gcsock);
+        close(pcsock);
+        close(dcsock);
+        return NULL;
+    }
+
     /* Make room for the client list. */
     rv->clients = (struct client_queue *)malloc(sizeof(struct client_queue));
 
     if(!rv->clients) {
         debug(DBG_ERROR, "%s(%d): Cannot allocate memory for clients!\n",
               s->cfg->name, b);
+        close(rv->pipes[0]);
+        close(rv->pipes[1]);
         free(rv);
         close(gcsock);
         close(pcsock);
@@ -405,6 +426,8 @@ block_t *block_server_start(ship_t *s, int b, uint16_t port) {
     if(pthread_create(&rv->thd, NULL, &block_thd, rv)) {
         debug(DBG_ERROR, "%s(%d): Cannot start block thread!\n",
               s->cfg->name, b);
+        close(rv->pipes[0]);
+        close(rv->pipes[1]);
         close(gcsock);
         close(pcsock);
         close(dcsock);
@@ -431,6 +454,9 @@ void block_server_stop(block_t *b) {
     /* Set the flag to kill the block. */
     b->run = 0;
 
+    /* Send a byte to the pipe so that we actually break out of the select. */
+    write(b->pipes[0], "\xFF", 1);
+
     /* Wait for it to die. */
     pthread_join(b->thd, NULL);
 
@@ -451,6 +477,8 @@ void block_server_stop(block_t *b) {
     }
 
     /* Free the block structure. */
+    close(b->pipes[0]);
+    close(b->pipes[1]);
     close(b->dcsock);
     close(b->pcsock);
     close(b->gcsock);

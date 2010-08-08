@@ -65,6 +65,12 @@ static void *ship_thd(void *d) {
         timeout.tv_usec = 0;
         now = time(NULL);
 
+        /* Break out if we're shutting down now */
+        if(s->shutdown_time && s->shutdown_time <= now) {
+            s->run = 0;
+            break;
+        }
+
         /* Fill the sockets into the fd_sets so we can use select below. */
         TAILQ_FOREACH(it, s->clients, qentry) {
             /* If we haven't heard from a client in 2 minutes, its dead.
@@ -102,6 +108,9 @@ static void *ship_thd(void *d) {
         FD_SET(s->gcsock, &readfds);
         nfds = nfds > s->gcsock ? nfds : s->gcsock;
 
+        FD_SET(s->pipes[1], &readfds);
+        nfds = nfds > s->pipes[1] ? nfds : s->pipes[1];
+
         /* Add the shipgate socket to the fd_sets */
         FD_SET(s->sg.sock, &readfds);
 
@@ -111,8 +120,19 @@ static void *ship_thd(void *d) {
 
         nfds = nfds > s->sg.sock ? nfds : s->sg.sock;
 
+        /* If we're supposed to shut down soon, make sure we aren't in the
+           middle of a select still when its supposed to happen. */
+        if(s->shutdown_time && now + timeout.tv_sec > s->shutdown_time) {
+            timeout.tv_sec = s->shutdown_time - now;
+        }
+
         /* Wait for some activity... */
         if(select(nfds + 1, &readfds, &writefds, NULL, &timeout) > 0) {
+            /* Clear anything written to the pipe */
+            if(FD_ISSET(s->pipes[1], &readfds)) {
+                read(s->pipes[1], &len, 1);
+            }
+
             if(FD_ISSET(s->dcsock, &readfds)) {
                 len = sizeof(struct sockaddr_in);
                 if((sock = accept(s->dcsock, (struct sockaddr *)&addr,
@@ -123,10 +143,19 @@ static void *ship_thd(void *d) {
                 debug(DBG_LOG, "%s: Accepted DC ship connection from %s\n",
                       s->cfg->name, inet_ntoa(addr.sin_addr));
 
-                if(!client_create_connection(sock, CLIENT_VERSION_DCV1,
-                                             CLIENT_TYPE_SHIP, s->clients, s,
-                                             NULL, addr.sin_addr.s_addr)) {
+                if(!(tmp = client_create_connection(sock, CLIENT_VERSION_DCV1,
+                                                    CLIENT_TYPE_SHIP,
+                                                    s->clients, s, NULL,
+                                                    addr.sin_addr.s_addr))) {
                     close(sock);
+                }
+
+                if(s->shutdown_time) {
+                    send_message_box(tmp, "\tEShip is going down for shut"
+                                     "down.\n\n"
+                                     "Please try another ship.\n"
+                                     "Disconnecting.");
+                    tmp->disconnected = 1;
                 }
             }
 
@@ -140,10 +169,19 @@ static void *ship_thd(void *d) {
                 debug(DBG_LOG, "%s: Accepted PC ship connection from %s\n",
                       s->cfg->name, inet_ntoa(addr.sin_addr));
 
-                if(!client_create_connection(sock, CLIENT_VERSION_PC,
-                                             CLIENT_TYPE_SHIP, s->clients, s,
-                                             NULL, addr.sin_addr.s_addr)) {
+                if(!(tmp = client_create_connection(sock, CLIENT_VERSION_PC,
+                                                    CLIENT_TYPE_SHIP,
+                                                    s->clients, s, NULL,
+                                                    addr.sin_addr.s_addr))) {
                     close(sock);
+                }
+
+                if(s->shutdown_time) {
+                    send_message_box(tmp, "\tEShip is going down for shut"
+                                     "down.\n\n"
+                                     "Please try another ship.\n"
+                                     "Disconnecting.");
+                    tmp->disconnected = 1;
                 }
             }
 
@@ -157,10 +195,19 @@ static void *ship_thd(void *d) {
                 debug(DBG_LOG, "%s: Accepted GC ship connection from %s\n",
                       s->cfg->name, inet_ntoa(addr.sin_addr));
 
-                if(!client_create_connection(sock, CLIENT_VERSION_GC,
-                                             CLIENT_TYPE_SHIP, s->clients, s,
-                                             NULL, addr.sin_addr.s_addr)) {
+                if(!(tmp = client_create_connection(sock, CLIENT_VERSION_GC,
+                                                    CLIENT_TYPE_SHIP,
+                                                    s->clients, s, NULL,
+                                                    addr.sin_addr.s_addr))) {
                     close(sock);
+                }
+
+                if(s->shutdown_time) {
+                    send_message_box(tmp, "\tEShip is going down for shut"
+                                     "down.\n\n"
+                                     "Please try another ship.\n"
+                                     "Disconnecting.");
+                    tmp->disconnected = 1;
                 }
             }
 
@@ -237,6 +284,8 @@ static void *ship_thd(void *d) {
         }
     }
 
+    debug(DBG_LOG, "%s: Shutting down...\n", s->cfg->name);
+
     /* Disconnect any clients. */
     it = TAILQ_FIRST(s->clients);
     while(it) {
@@ -256,6 +305,8 @@ static void *ship_thd(void *d) {
     pthread_mutex_destroy(&s->qmutex);
     free(s->gm_list);
     sylverant_quests_destroy(&s->quests);
+    close(s->pipes[0]);
+    close(s->pipes[1]);
     close(s->gcsock);
     close(s->pcsock);
     close(s->dcsock);
@@ -375,11 +426,23 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     /* Clear it out */
     memset(rv, 0, sizeof(ship_t));
 
+    /* Make the pipe */
+    if(pipe(rv->pipes) == -1) {
+        debug(DBG_ERROR, "%s: Cannot create pipe!\n", s->name);
+        free(rv);
+        close(gcsock);
+        close(pcsock);
+        close(dcsock);
+        return NULL;
+    }
+
     /* Make room for the block structures. */
     rv->blocks = (block_t **)malloc(sizeof(block_t *) * s->blocks);
 
     if(!rv->blocks) {
         debug(DBG_ERROR, "%s: Cannot allocate memory for blocks!\n", s->name);
+        close(rv->pipes[0]);
+        close(rv->pipes[1]);
         free(rv);
         close(gcsock);
         close(pcsock);
@@ -393,6 +456,8 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     if(!rv->clients) {
         debug(DBG_ERROR, "%s: Cannot allocate memory for clients!\n", s->name);
         free(rv->blocks);
+        close(rv->pipes[0]);
+        close(rv->pipes[1]);
         free(rv);
         close(gcsock);
         close(pcsock);
@@ -406,6 +471,8 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
             debug(DBG_ERROR, "%s: Couldn't read quests file!\n", s->name);
             free(rv->clients);
             free(rv->blocks);
+            close(rv->pipes[0]);
+            close(rv->pipes[1]);
             free(rv);
             close(gcsock);
             close(pcsock);
@@ -421,6 +488,8 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
             sylverant_quests_destroy(&rv->quests);
             free(rv->clients);
             free(rv->blocks);
+            close(rv->pipes[0]);
+            close(rv->pipes[1]);
             free(rv);
             close(gcsock);
             close(pcsock);
@@ -437,6 +506,8 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
             sylverant_quests_destroy(&rv->quests);
             free(rv->clients);
             free(rv->blocks);
+            close(rv->pipes[0]);
+            close(rv->pipes[1]);
             free(rv);
             close(gcsock);
             close(pcsock);
@@ -462,6 +533,8 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
         sylverant_quests_destroy(&rv->quests);
         free(rv->clients);
         free(rv->blocks);
+        close(rv->pipes[0]);
+        close(rv->pipes[1]);
         free(rv);
         close(pcsock);
         close(dcsock);
@@ -477,6 +550,8 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
         sylverant_quests_destroy(&rv->quests);
         free(rv->clients);
         free(rv->blocks);
+        close(rv->pipes[0]);
+        close(rv->pipes[1]);
         free(rv);
         close(pcsock);
         close(dcsock);
@@ -492,6 +567,8 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
         sylverant_quests_destroy(&rv->quests);
         free(rv->clients);
         free(rv->blocks);
+        close(rv->pipes[0]);
+        close(rv->pipes[1]);
         free(rv);
         close(pcsock);
         close(dcsock);
@@ -506,8 +583,21 @@ void ship_server_stop(ship_t *s) {
     /* Set the flag to kill the ship. */
     s->run = 0;
 
+    /* Send a byte to the pipe so that we actually break out of the select. */
+    write(s->pipes[0], "\xFF", 1);
+
     /* Wait for it to die. */
     pthread_join(s->thd, NULL);
+}
+
+void ship_server_shutdown(ship_t *s, time_t when) {
+    if(when >= time(NULL)) {
+        s->shutdown_time = when;
+
+        /* Send a byte to the pipe so that we actually break out of the select
+           and put a probably more sane amount in the timeout there */
+        write(s->pipes[0], "\xFF", 1);
+    }
 }
 
 static int dc_process_login(ship_client_t *c, dc_login_93_pkt *pkt) {

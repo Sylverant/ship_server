@@ -64,6 +64,10 @@ struct ship {
     int dcsock;
     int pcsock;
     int gcsock;
+
+    time_t shutdown_time;
+    int pipes[2];
+
     uint16_t num_clients;
 
     sylverant_quest_list_t quests;
@@ -85,6 +89,7 @@ typedef struct ship ship_t;
 
 ship_t *ship_server_start(sylverant_ship_t *s);
 void ship_server_stop(ship_t *s);
+void ship_server_shutdown(ship_t *s, time_t when);
 int ship_process_pkt(ship_client_t *c, uint8_t *pkt);
 
 void ship_inc_clients(ship_t *s);

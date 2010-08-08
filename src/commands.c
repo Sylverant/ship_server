@@ -31,7 +31,7 @@
 #include "utils.h"
 
 typedef struct command {
-    char trigger[8];
+    char trigger[10];
     int (*hnd)(ship_client_t *c, dc_chat_pkt *pkt, char *params);
 } command_t;
 
@@ -390,20 +390,23 @@ static int handle_bcast(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     /* Go through each block and send the message to anyone that is alive. */
     for(i = 0; i < s->cfg->blocks; ++i) {
         b = s->blocks[i];
-        pthread_mutex_lock(&b->mutex);
 
-        /* Send the message to each player. */
-        TAILQ_FOREACH(i2, b->clients, qentry) {
-            pthread_mutex_lock(&i2->mutex);
+        if(b && b->run) {
+            pthread_mutex_lock(&b->mutex);
 
-            if(i2->pl) {
-                send_txt(i2, "\tE\tC7Global Message:\n%s", params);
+            /* Send the message to each player. */
+            TAILQ_FOREACH(i2, b->clients, qentry) {
+                pthread_mutex_lock(&i2->mutex);
+
+                if(i2->pl) {
+                    send_txt(i2, "\tE\tC7Global Message:\n%s", params);
+                }
+
+                pthread_mutex_unlock(&i2->mutex);
             }
 
-            pthread_mutex_unlock(&i2->mutex);
+            pthread_mutex_unlock(&b->mutex);
         }
-
-        pthread_mutex_unlock(&b->mutex);
     }
 
     return 0;
@@ -542,8 +545,9 @@ static int handle_event(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     /* Go through all the blocks... */
     for(i = 0; i < s->cfg->blocks; ++i) {
-        if(s->blocks[i]) {
-            b = s->blocks[i];
+        b = s->blocks[i];
+
+        if(b && b->run) {
             pthread_mutex_lock(&b->mutex);
 
             /* ... and set the event code on each default lobby. */
@@ -1014,46 +1018,102 @@ static int handle_normal(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return 0;
 }
 
+/* Usage: /shutdown minutes */
+static int handle_shutdown(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    int i;
+    ship_client_t *i2;
+    uint32_t when;
+    ship_t *s = c->cur_ship;
+    block_t *b;
+
+    /* Make sure the requester is a local root. */
+    if(!(c->privilege & CLIENT_PRIV_LOCAL_ROOT)) {
+        return send_txt(c, "\tE\tC7Nice try.");
+    }
+
+    /* Figure out when we're supposed to shut down. */
+    errno = 0;
+    when = (uint32_t)strtoul(params, NULL, 10);
+
+    if(errno != 0) {
+        /* Send a message saying invalid guildcard number */
+        return send_txt(c, "\tE\tC7Invalid time.");
+    }
+
+    /* Give everyone at least a minute */
+    if(when < 1) {
+        when = 1;
+    }
+
+    /* Go through each block and send a notification to everyone. */
+    for(i = 0; i < s->cfg->blocks; ++i) {
+        b = s->blocks[i];
+
+        if(b && b->run) {
+            pthread_mutex_lock(&b->mutex);
+
+            /* Send the message to each player. */
+            TAILQ_FOREACH(i2, b->clients, qentry) {
+                pthread_mutex_lock(&i2->mutex);
+
+                if(i2->pl) {
+                    send_txt(i2, "\tE\tC7Ship is going down for\n"
+                             "shutdown in %lu minute%s.", (unsigned long)when,
+                             (when > 1) ? "s" : "");
+                }
+
+                pthread_mutex_unlock(&i2->mutex);
+            }
+
+            pthread_mutex_unlock(&b->mutex);
+        }
+    }
+
+    ship_server_shutdown(s, time(NULL) + (when * 60));
+    return 0;
+}
+
 static command_t cmds[] = {
-    { "warp"   , handle_warp      },
-    { "kill"   , handle_kill      },
-    { "minlvl" , handle_min_level },
-    { "maxlvl" , handle_max_level },
-    { "refresh", handle_refresh   },
-    { "save"   , handle_save      },
-    { "restore", handle_restore   },
-    { "bstat"  , handle_bstat     },
-    { "bcast"  , handle_bcast     },
-    { "arrow"  , handle_arrow     },
-    { "login"  , handle_login     },
-    { "item"   , handle_item      },
-    { "item4"  , handle_item4     },
-    { "event"  , handle_event     },
-    { "passwd" , handle_passwd    },
-    { "lname"  , handle_lname     },
-    { "warpall", handle_warpall   },
-    { "bug"    , handle_bug       },
-    { "clinfo" , handle_clinfo    },
-    { "gban:d" , handle_gban_d    },
-    { "gban:w" , handle_gban_w    },
-    { "gban:m" , handle_gban_m    },
-    { "gban:p" , handle_gban_p    },
-    { "list"   , handle_list      },
-    { "legit"  , handle_legit     },
-    { "normal" , handle_normal    },
-    { ""       , NULL             }     /* End marker -- DO NOT DELETE */
+    { "warp"    , handle_warp      },
+    { "kill"    , handle_kill      },
+    { "minlvl"  , handle_min_level },
+    { "maxlvl"  , handle_max_level },
+    { "refresh" , handle_refresh   },
+    { "save"    , handle_save      },
+    { "restore" , handle_restore   },
+    { "bstat"   , handle_bstat     },
+    { "bcast"   , handle_bcast     },
+    { "arrow"   , handle_arrow     },
+    { "login"   , handle_login     },
+    { "item"    , handle_item      },
+    { "item4"   , handle_item4     },
+    { "event"   , handle_event     },
+    { "passwd"  , handle_passwd    },
+    { "lname"   , handle_lname     },
+    { "warpall" , handle_warpall   },
+    { "bug"     , handle_bug       },
+    { "clinfo"  , handle_clinfo    },
+    { "gban:d"  , handle_gban_d    },
+    { "gban:w"  , handle_gban_w    },
+    { "gban:m"  , handle_gban_m    },
+    { "gban:p"  , handle_gban_p    },
+    { "list"    , handle_list      },
+    { "legit"   , handle_legit     },
+    { "normal"  , handle_normal    },
+    { "shutdown", handle_shutdown  },
+    { ""        , NULL             }     /* End marker -- DO NOT DELETE */
 };
 
 int command_parse(ship_client_t *c, dc_chat_pkt *pkt) {
     command_t *i = &cmds[0];
-    char cmd[8];
+    char cmd[10];
     char *ch;
     int len = 0;
 
     /* Figure out what the command the user has requested is */
     ch = pkt->msg + 3;
 
-    while(*ch != ' ' && len < 7) {
+    while(*ch != ' ' && len < 9) {
         cmd[len++] = *ch++;
     }
 

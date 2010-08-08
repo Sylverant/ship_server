@@ -52,6 +52,8 @@ struct block {
     int pcsock;
     int gcsock;
 
+    int pipes[2];
+
     uint16_t dc_port;
     uint16_t pc_port;
     uint16_t gc_port;
