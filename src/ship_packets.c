@@ -4068,11 +4068,9 @@ static int send_dc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
         }
     }
 
-    /* Put in a blank entry if nothing's there, otherwise PSO will crash. */
-    if(entries == 0) {
-        memset(&pkt->entries[0], 0, 0xD4);
-        len += 0xD4;
-    }
+    /* Put in a blank entry at the end... */
+    memset(&pkt->entries[entries], 0, 0xD4);
+    len += 0xD4;
 
     /* Fill in the header. */
     pkt->hdr.pkt_type = CHOICE_REPLY_TYPE;
@@ -4184,11 +4182,9 @@ static int send_pc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
         }
     }
 
-    /* Put in a blank entry if nothing's there, otherwise PSO will crash. */
-    if(entries == 0) {
-        memset(&pkt->entries[0], 0, 0x154);
-        len += 0x154;
-    }
+    /* Put in a blank entry at the end... */
+    memset(&pkt->entries[entries], 0, 0x154);
+    len += 0x154;
 
     iconv_close(ic);
 
@@ -4277,11 +4273,9 @@ static int send_gc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
         }
     }
 
-    /* Put in a blank entry if nothing's there, otherwise PSO will crash. */
-    if(entries == 0) {
-        memset(&pkt->entries[0], 0, 0xD4);
-        len += 0xD4;
-    }
+    /* Put in a blank entry at the end... */
+    memset(&pkt->entries[entries], 0, 0xD4);
+    len += 0xD4;
 
     /* Fill in the header. */
     pkt->hdr.pkt_type = CHOICE_REPLY_TYPE;
