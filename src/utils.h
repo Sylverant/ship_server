@@ -23,6 +23,7 @@
 #define BUG_REPORT_GC   1
 
 void print_packet(unsigned char *pkt, int pkt_len);
+void fprint_packet(FILE *fp, unsigned char *pkt, int len, int dir);
 
 int dc_bug_report(ship_client_t *c, dc_simple_mail_pkt *pkt);
 int pc_bug_report(ship_client_t *c, pc_simple_mail_pkt *pkt);

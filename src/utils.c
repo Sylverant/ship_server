@@ -30,20 +30,30 @@ mini18n_t langs[CLIENT_LANG_COUNT];
 #endif
 
 void print_packet(unsigned char *pkt, int len) {
+    fprint_packet(stdout, pkt, len, -1);
+}
+
+void fprint_packet(FILE *fp, unsigned char *pkt, int len, int dir) {
     unsigned char *pos = pkt, *row = pkt;
     int line = 0, type = 0;
+    time_t now = time(NULL);
+
+    if(dir != -1) {
+        fprintf(fp, "Packet %s at %lu:\n", dir ? "received" : "sent",
+                (unsigned long)now);
+    }
 
     /* Print the packet both in hex and ASCII. */
     while(pos < pkt + len) {
         if(type == 0) {
-            printf("%02X ", *pos);
+            fprintf(fp, "%02X ", *pos);
         }
         else {
             if(*pos >= 0x20 && *pos < 0x7F) {
-                printf("%c", *pos);
+                fprintf(fp, "%c", *pos);
             }
             else {
-                printf(".");
+                fprintf(fp, ".");
             }
         }
 
@@ -52,13 +62,13 @@ void print_packet(unsigned char *pkt, int len) {
 
         if(line == 16) {
             if(type == 0) {
-                printf("\t");
+                fprintf(fp, "\t");
                 pos = row;
                 type = 1;
                 line = 0;
             }
             else {
-                printf("\n");
+                fprintf(fp, "\n");
                 line = 0;
                 row = pos;
                 type = 0;
@@ -70,26 +80,26 @@ void print_packet(unsigned char *pkt, int len) {
     if(len & 0x1F) {
         /* Put spaces in place of the missing hex stuff. */
         while(line != 16) {
-            printf("   ");
+            fprintf(fp, "   ");
             ++line;
         }
 
         pos = row;
-        printf("\t");
+        fprintf(fp, "\t");
 
         /* Here comes the ASCII. */
         while(pos < pkt + len) {
             if(*pos >= 0x20 && *pos < 0x7F) {
-                printf("%c", *pos);
+                fprintf(fp, "%c", *pos);
             }
             else {
-               printf(".");
+                fprintf(fp, ".");
             }
 
             ++pos;
         }
 
-        printf("\n");
+        fprintf(fp, "\n");
     }
 }
 

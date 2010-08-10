@@ -821,7 +821,7 @@ int send_lobby_join(ship_client_t *c, lobby_t *l) {
                 return -1;
             }
 
-            if(send_lobby_c_rank(c, l)) {
+            if(!(l->type & LOBBY_TYPE_GAME) && send_lobby_c_rank(c, l)) {
                 return -1;
             }
 
@@ -832,7 +832,7 @@ int send_lobby_join(ship_client_t *c, lobby_t *l) {
                 return -1;
             }
 
-            if(send_lobby_c_rank(c, l)) {
+            if(!(l->type & LOBBY_TYPE_GAME) && send_lobby_c_rank(c, l)) {
                 return -1;
             }
 
@@ -980,7 +980,9 @@ int send_lobby_add_player(lobby_t *l, ship_client_t *c) {
     int i;
 
     /* Send the C-Rank of this new character. */
-    send_c_rank_update(c, l);
+    if(!(l->type & LOBBY_TYPE_GAME)) {
+        send_c_rank_update(c, l);
+    }
 
     for(i = 0; i < l->max_clients; ++i) {
         if(l->clients[i] != NULL && l->clients[i] != c) {
