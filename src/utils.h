@@ -18,6 +18,8 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+#include <stdio.h>
+
 #include "ship_packets.h"
 
 #define BUG_REPORT_GC   1
