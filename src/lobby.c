@@ -25,6 +25,7 @@
 #include "block.h"
 #include "clients.h"
 #include "ship_packets.h"
+#include "subcmd.h"
 
 lobby_t *lobby_create_default(block_t *block, uint32_t lobby_id, uint8_t ev) {
     lobby_t *l = (lobby_t *)malloc(sizeof(lobby_t));
@@ -58,6 +59,9 @@ lobby_t *lobby_create_default(block_t *block, uint32_t lobby_id, uint8_t ev) {
 
     /* Fill in the name of the lobby. */
     sprintf(l->name, "BLOCK%02d-%02d", block->b, lobby_id);
+
+    /* Initialize the (unused) packet queue */
+    STAILQ_INIT(&l->pkt_queue);
 
     /* Initialize the lobby mutex. */
     pthread_mutex_init(&l->mutex, NULL);
@@ -117,8 +121,10 @@ lobby_t *lobby_create_game(block_t *block, char name[16], char passwd[16],
 
     /* Copy the game name and password. */
     strcpy(l->name, name);
-
     strcpy(l->passwd, passwd);
+
+    /* Initialize the packet queue */
+    STAILQ_INIT(&l->pkt_queue);
 
     /* Initialize the lobby mutex. */
     pthread_mutex_init(&l->mutex, NULL);
@@ -145,6 +151,16 @@ lobby_t *lobby_create_game(block_t *block, char name[16], char passwd[16],
     return l;
 }
 
+static void lobby_empty_pkt_queue(lobby_t *l) {
+    lobby_pkt_t *i;
+
+    while((i = STAILQ_FIRST(&l->pkt_queue))) {
+        STAILQ_REMOVE_HEAD(&l->pkt_queue, qentry);
+        free(i->pkt);
+        free(i);
+    }
+}
+
 static void lobby_destroy_locked(lobby_t *l, int remove) {
     pthread_mutex_t m = l->mutex;
 
@@ -153,6 +169,8 @@ static void lobby_destroy_locked(lobby_t *l, int remove) {
     if(remove) {
         TAILQ_REMOVE(&l->block->lobbies, l, qentry);
     }
+
+    lobby_empty_pkt_queue(l);
 
     free(l);
 
@@ -715,4 +733,91 @@ void lobby_legit_check_finish_locked(lobby_t *l) {
     /* Since the legit check is done, clear the flag for that and the
        temporarily unavailable flag. */
     l->flags &= ~(LOBBY_FLAG_LEGIT_CHECK | LOBBY_FLAG_TEMP_UNAVAIL);
+}
+
+/* Send out any queued packets when we get a done burst signal. */
+int lobby_handle_done_burst(lobby_t *l) {
+    lobby_pkt_t *i;
+    int rv = 0;
+
+    pthread_mutex_lock(&l->mutex);
+
+    /* Go through each packet and handle it */
+    while((i = STAILQ_FIRST(&l->pkt_queue))) {
+        STAILQ_REMOVE_HEAD(&l->pkt_queue, qentry);
+
+        /* As long as we haven't run into issues yet, continue sending the
+           queued packets */
+        if(rv == 0) {
+            switch(i->pkt->pkt_type) {
+                case GAME_COMMAND0_TYPE:
+                    if(subcmd_handle_bcast(i->src, (subcmd_pkt_t *)i->pkt)) {
+                        rv = -1;
+                    }
+                    break;
+
+                case GAME_COMMAND2_TYPE:
+                case GAME_COMMANDD_TYPE:
+                    if(subcmd_handle_one(i->src, (subcmd_pkt_t *)i->pkt)) {
+                        rv = -1;
+                    }
+                    break;
+
+                default:
+                    rv = -1;
+            }
+        }
+
+        free(i->pkt);
+        free(i);
+    }
+
+    pthread_mutex_unlock(&l->mutex);
+    return rv;
+}
+
+/* Enqueue a packet for later sending (due to a player bursting) */
+int lobby_enqueue_pkt(lobby_t *l, ship_client_t *c, dc_pkt_hdr_t *p) {
+    lobby_pkt_t *pkt;
+    int rv = 0;
+    uint16_t len = LE16(p->pkt_len);
+
+    pthread_mutex_lock(&l->mutex);
+
+    /* Sanity checks... */
+    if(!l->flags & LOBBY_FLAG_BURSTING) {
+        rv = -1;
+        goto out;
+    }
+
+    if(p->pkt_type != GAME_COMMAND0_TYPE && p->pkt_type != GAME_COMMAND2_TYPE &&
+       p->pkt_type != GAME_COMMANDD_TYPE) {
+        rv = -2;
+        goto out;
+    }
+
+    /* Allocate space */
+    pkt = (lobby_pkt_t *)malloc(sizeof(lobby_pkt_t));
+    if(!pkt) {
+        rv = -3;
+        goto out;
+    }
+
+    pkt->pkt = (dc_pkt_hdr_t *)malloc(len);
+    if(!pkt->pkt) {
+        free(pkt);
+        rv = -3;
+        goto out;
+    }
+
+    /* Fill in the struct */
+    pkt->src = c;
+    memcpy(pkt->pkt, p, len);
+
+    /* Insert into the packet queue */
+    STAILQ_INSERT_TAIL(&l->pkt_queue, pkt, qentry);
+
+out:
+    pthread_mutex_unlock(&l->mutex);
+    return rv;
 }

@@ -106,10 +106,6 @@ int send_txt(ship_client_t *c, const char *fmt, ...) __printflike(2, 3);
    joining. */
 int send_game_join(ship_client_t *c, lobby_t *l);
 
-/* Send a packet to all clients in the lobby letting them know the new player
-   has finished bursting. */
-int send_lobby_done_burst(lobby_t *l, ship_client_t *c);
-
 /* Send a packet to a client giving them the list of games on the block. */
 int send_game_list(ship_client_t *c, block_t *b);
 

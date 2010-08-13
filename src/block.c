@@ -1247,6 +1247,7 @@ static int gc_process_game_create(ship_client_t *c, gc_game_create_pkt *pkt) {
 /* Process a client's done bursting signal. */
 static int dc_process_done_burst(ship_client_t *c) {
     lobby_t *l = c->cur_lobby;
+    int rv;
 
     /* Sanity check... Is the client in a game lobby? */
     if(!l || !(l->type & LOBBY_TYPE_GAME)) {
@@ -1258,11 +1259,13 @@ static int dc_process_done_burst(ship_client_t *c) {
     pthread_mutex_lock(&l->mutex);
 
     l->flags &= ~LOBBY_FLAG_BURSTING;
-    send_lobby_done_burst(l, c);
+
+    /* Handle the end of burst stuff with the lobby */
+    rv = send_simple(c, PING_TYPE, 0) | lobby_handle_done_burst(l);
 
     pthread_mutex_unlock(&l->mutex);
 
-    return 0;
+    return rv;
 }
 
 static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {

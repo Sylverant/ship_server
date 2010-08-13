@@ -28,7 +28,10 @@
 
 /* General format of a subcommand packet. */
 typedef struct subcmd_pkt {
-    dc_pkt_hdr_t hdr;
+    union {
+        dc_pkt_hdr_t dc;
+        pc_pkt_hdr_t pc;
+    } hdr;
     uint8_t type;
     uint8_t size;
     uint8_t data[0];
@@ -160,6 +163,23 @@ typedef struct subcmd_take_item {
 #define SUBCMD_DEL_MAP_ITEM 0x59    /* Sent by leader when item picked up */
 #define SUBCMD_BUY          0x5E
 #define SUBCMD_ITEMDROP     0x5F
+#define SUBCMD_BURST_DONE   0x72
+
+/* The commands OK to send during bursting (0x62/0x6D). These are named for the
+   order in which they're sent, hence why the names are out of order... */
+#define SUBCMD_BURST2       0x6B
+#define SUBCMD_BURST3       0x6C
+#define SUBCMD_BURST1       0x6D
+#define SUBCMD_BURST4       0x6E
+#define SUBCMD_BURST5       0x6F
+#define SUBCMD_BURST7       0x70
+#define SUBCMD_BURST6       0x71
+
+/* The commands OK to send during bursting (0x60) */
+#define SUBCMD_UNK_1F       0x1F
+#define SUBCMD_UNK_3B       0x3B
+#define SUBCMD_UNK_3F       0x3F
+#define SUBCMD_UNK_7C       0x7C
 
 /* Handle a 0x62/0x6D packet. */
 int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt);

@@ -22,6 +22,10 @@
 #include <inttypes.h>
 #include <sys/queue.h>
 
+#define PACKETS_H_HEADERS_ONLY
+#include "packets.h"
+#undef PACKETS_H_HEADERS_ONLY
+
 #include "player.h"
 
 #define LOBBY_MAX_CLIENTS 12
@@ -44,6 +48,15 @@ typedef struct block block_t;
 #define SHIP_DEFINED
 typedef struct ship ship_t;
 #endif
+
+typedef struct lobby_pkt {
+    STAILQ_ENTRY(lobby_pkt) qentry;
+
+    ship_client_t *src;
+    dc_pkt_hdr_t *pkt;
+} lobby_pkt_t;
+
+STAILQ_HEAD(lobby_pkt_queue, lobby_pkt);
 
 struct lobby {
     TAILQ_ENTRY(lobby) qentry;
@@ -83,6 +96,8 @@ struct lobby {
     uint32_t maps[0x20];
 
     ship_client_t *clients[LOBBY_MAX_CLIENTS];
+
+    struct lobby_pkt_queue pkt_queue;
 };
 
 #ifndef LOBBY_DEFINED
@@ -139,5 +154,11 @@ int lobby_check_client_legit(lobby_t *l, ship_t *s, ship_client_t *c);
 
 /* Finish with a legit check. */
 void lobby_legit_check_finish_locked(lobby_t *l);
+
+/* Send out any queued packets when we get a done burst signal. */
+int lobby_handle_done_burst(lobby_t *l);
+
+/* Enqueue a packet for later sending (due to a player bursting) */
+int lobby_enqueue_pkt(lobby_t *l, ship_client_t *c, dc_pkt_hdr_t *p);
 
 #endif /* !LOBBY_H */

@@ -519,13 +519,38 @@ int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
     lobby_t *l = c->cur_lobby;
     ship_client_t *dest;
     uint8_t type = pkt->type;
-    
+    int rv = -1;
+
+    pthread_mutex_lock(&l->mutex);
+
     /* Find the destination. */
-    dest = l->clients[pkt->hdr.flags];
-    
+    dest = l->clients[pkt->hdr.dc.flags];
+
     /* The destination is now offline, don't bother sending it. */
     if(!dest) {
+        pthread_mutex_unlock(&l->mutex);
         return 0;
+    }
+
+    /* If there's a burst going on in the lobby, delay most packets */
+    if(l->flags & LOBBY_FLAG_BURSTING) {
+        switch(type) {
+            case SUBCMD_BURST1:
+            case SUBCMD_BURST2:
+            case SUBCMD_BURST3:
+            case SUBCMD_BURST4:
+            case SUBCMD_BURST5:
+            case SUBCMD_BURST6:
+            case SUBCMD_BURST7:
+                rv = send_pkt_dc(dest, (dc_pkt_hdr_t *)pkt);
+                break;
+
+            default:
+                rv = lobby_enqueue_pkt(l, c, (dc_pkt_hdr_t *)pkt);
+        }
+
+        pthread_mutex_unlock(&l->mutex);
+        return rv;
     }
 
     switch(type) {
@@ -533,13 +558,16 @@ int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
             switch(c->version) {
                 case CLIENT_VERSION_DCV1:
                 case CLIENT_VERSION_DCV2:
-                    return handle_dc_gcsend(dest, (subcmd_dc_gcsend_t *)pkt);
+                    rv = handle_dc_gcsend(dest, (subcmd_dc_gcsend_t *)pkt);
+                    break;
 
                 case CLIENT_VERSION_GC:
-                    return handle_gc_gcsend(dest, (subcmd_gc_gcsend_t *)pkt);
+                    rv = handle_gc_gcsend(dest, (subcmd_gc_gcsend_t *)pkt);
+                    break;
 
                 case CLIENT_VERSION_PC:
-                    return handle_pc_gcsend(dest, (subcmd_pc_gcsend_t *)pkt);
+                    rv = handle_pc_gcsend(dest, (subcmd_pc_gcsend_t *)pkt);
+                    break;
             }
             break;
 
@@ -547,42 +575,79 @@ int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
             /* Only pay attention if an item has been set and we're not in
                legit mode. */
             if(c->next_item[0] && !(l->flags & LOBBY_FLAG_LEGIT_MODE)) {
-                return handle_itemreq(c, (subcmd_itemreq_t *)pkt);
+                rv = handle_itemreq(c, (subcmd_itemreq_t *)pkt);
             }
+            else {
+                rv = send_pkt_dc(dest, (dc_pkt_hdr_t *)pkt);
+            }
+            break;
 
         default:
 #ifdef LOG_UNKNOWN_SUBS
             debug(DBG_LOG, "Unknown 0x62/0x6D: 0x%02X\n", type);
-            print_packet((unsigned char *)pkt, LE16(pkt->hdr.pkt_len));
+            print_packet((unsigned char *)pkt, LE16(pkt->hdr.dc.pkt_len));
 #endif /* LOG_UNKNOWN_SUBS */
             /* Forward the packet unchanged to the destination. */
-            return send_pkt_dc(dest, (dc_pkt_hdr_t *)pkt);
+            rv = send_pkt_dc(dest, (dc_pkt_hdr_t *)pkt);
     }
 
-    return -1;
+    pthread_mutex_unlock(&l->mutex);
+    return rv;
 }
 
 /* Handle a 0x60 packet. */
 int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
     uint8_t type = pkt->type;
+    lobby_t *l = c->cur_lobby;
+    int rv, sent = 1;
+
+    pthread_mutex_lock(&l->mutex);
+
+    /* If there's a burst going on in the lobby, delay most packets */
+    if(l->flags & LOBBY_FLAG_BURSTING) {
+        switch(type) {
+            case SUBCMD_UNK_1F:
+            case SUBCMD_UNK_3B:
+            case SUBCMD_UNK_3F:
+            case SUBCMD_UNK_7C:
+            case SUBCMD_BURST_DONE:
+                rv = lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt);
+                break;
+
+            default:
+                rv = lobby_enqueue_pkt(l, c, (dc_pkt_hdr_t *)pkt);
+        }
+
+        pthread_mutex_unlock(&l->mutex);
+        return rv;
+    }
 
     switch(type) {
         case SUBCMD_TAKE_ITEM:
-            return handle_take_item(c, (subcmd_take_item_t *)pkt);
+            rv = handle_take_item(c, (subcmd_take_item_t *)pkt);
+            break;
 
         case SUBCMD_LEVELUP:
-            return handle_levelup(c, (subcmd_levelup_t *)pkt);
+            rv = handle_levelup(c, (subcmd_levelup_t *)pkt);
+            break;
 
         case SUBCMD_ITEMDROP:
-            return handle_itemdrop(c, (subcmd_itemgen_t *)pkt);
+            rv = handle_itemdrop(c, (subcmd_itemgen_t *)pkt);
+            break;
 
-#ifdef LOG_UNKNOWN_SUBS
         default:
+#ifdef LOG_UNKNOWN_SUBS
             debug(DBG_LOG, "Unknown 0x60: 0x%02X\n", type);
-            print_packet((unsigned char *)pkt, LE16(pkt->hdr.pkt_len));
+            print_packet((unsigned char *)pkt, LE16(pkt->hdr.dc.pkt_len));
 #endif /* LOG_UNKNOWN_SUBS */
+            sent = 0;
     }
 
     /* Broadcast anything we don't care to check anything about. */
-    return lobby_send_pkt_dc(c->cur_lobby, c, (dc_pkt_hdr_t *)pkt);
+    if(!sent) {
+        rv = lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt);
+    }
+
+    pthread_mutex_unlock(&l->mutex);
+    return rv;
 }

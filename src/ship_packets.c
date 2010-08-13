@@ -31,6 +31,7 @@
 
 #include "ship_packets.h"
 #include "utils.h"
+#include "subcmd.h"
 
 /* Options for choice search. */
 typedef struct cs_opt {
@@ -1743,91 +1744,6 @@ int send_game_join(ship_client_t *c, lobby_t *l) {
     return -1;
 }
 
-static int send_dc_lobby_done_burst(lobby_t *l, ship_client_t *c,
-                                    ship_client_t *nc) {
-    uint8_t *sendbuf = get_sendbuf();
-    dc_pkt_hdr_t *pkt = (dc_pkt_hdr_t *)sendbuf;
-
-    /* Verify we got the sendbuf. */
-    if(!sendbuf) {
-        return -1;
-    }
-
-    /* Clear the packet's header. */
-    memset(pkt, 0, 8);
-
-    /* Fill in the basics. */
-    pkt->pkt_type = GAME_COMMAND0_TYPE;
-    pkt->flags = 0;
-    pkt->pkt_len = LE16(0x0008);
-
-    /* No idea what this does, but its needed, apparently. */
-    sendbuf[4] = 0x72;
-    sendbuf[5] = 0x03;
-    sendbuf[6] = 0x1C;
-    sendbuf[7] = 0x08;
-
-    /* Send it away */
-    return crypt_send(c, 0x08, sendbuf);
-}
-
-static int send_pc_lobby_done_burst(lobby_t *l, ship_client_t *c,
-                                    ship_client_t *nc) {
-    uint8_t *sendbuf = get_sendbuf();
-    pc_pkt_hdr_t *pkt = (pc_pkt_hdr_t *)sendbuf;
-
-    /* Verify we got the sendbuf. */
-    if(!sendbuf) {
-        return -1;
-    }
-
-    /* Clear the packet's header. */
-    memset(pkt, 0, 8);
-
-    /* Fill in the basics. */
-    pkt->pkt_type = GAME_COMMAND0_TYPE;
-    pkt->flags = 0;
-    pkt->pkt_len = LE16(0x0008);
-
-    /* No idea what this does, but its needed, apparently. */
-    sendbuf[4] = 0x72;
-    sendbuf[5] = 0x03;
-    sendbuf[6] = 0x1C;
-    sendbuf[7] = 0x08;
-
-    /* Send it away */
-    return crypt_send(c, 0x08, sendbuf);
-}
-
-/* Send a packet to all clients in the lobby letting them know the new player
-   has finished bursting. */
-int send_lobby_done_burst(lobby_t *l, ship_client_t *c) {
-    int i;
-
-    for(i = 0; i < l->max_clients; ++i) {
-        if(l->clients[i] != NULL && l->clients[i] != c) {
-            pthread_mutex_lock(&l->clients[i]->mutex);
-
-            /* Call the appropriate function. */
-            switch(l->clients[i]->version) {
-                case CLIENT_VERSION_DCV1:
-                case CLIENT_VERSION_DCV2:
-                case CLIENT_VERSION_GC:
-                    send_dc_lobby_done_burst(l, l->clients[i], c);
-                    break;
-
-                case CLIENT_VERSION_PC:
-                    send_pc_lobby_done_burst(l, l->clients[i], c);
-                    break;
-            }
-
-            pthread_mutex_unlock(&l->clients[i]->mutex);
-        }
-    }
-
-    return 0;
-}
-
 /* Send a packet to a client giving them the list of games on the block. */
 static int send_dc_game_list(ship_client_t *c, block_t *b) {
     uint8_t *sendbuf = get_sendbuf();
@@ -1871,12 +1787,8 @@ static int send_dc_game_list(ship_client_t *c, block_t *b) {
         pkt->entries[entries].players = l->num_clients;
         pkt->entries[entries].v2 = l->version;
         pkt->entries[entries].flags = (l->challenge ? 0x20 : 0x00) |
-            (l->battle ? 0x10 : 0x00) | (l->passwd[0] ? 2 : 0);
-
-        /* Disable v2 games for v1 players */
-        if(l->v2 && c->version == CLIENT_VERSION_DCV1) {
-            pkt->entries[entries].flags |= 0x04;
-        }
+            (l->battle ? 0x10 : 0x00) | (l->passwd[0] ? 2 : 0) |
+            (l->v2 ? 0x40 : 0x00);
 
         /* Copy the name. The names are either in Shift-JIS or ISO-8859-1, and
            should be prefixed with the appropriate language tag already */
@@ -1964,7 +1876,8 @@ static int send_pc_game_list(ship_client_t *c, block_t *b) {
         pkt->entries[entries].players = l->num_clients;
         pkt->entries[entries].v2 = l->version;
         pkt->entries[entries].flags = (l->challenge ? 0x20 : 0x00) |
-            (l->battle ? 0x10 : 0x00) | (l->passwd[0] ? 2 : 0);
+            (l->battle ? 0x10 : 0x00) | (l->passwd[0] ? 2 : 0) |
+            (l->v2 ? 0x40 : 0x00);
 
         /* Copy the name */
         in = 0x10;
