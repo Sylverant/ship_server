@@ -100,10 +100,12 @@ static int send_raw(shipgate_conn_t *c, int len, uint8_t *sendbuf) {
 
 /* Encrypt a packet, and send it away. */
 static int send_crypt(shipgate_conn_t *c, int len, uint8_t *sendbuf) {
-    /* Make sure its more than just a header, and encrypt the body. */
-    if(len > 8) {
-        RC4(&c->ship_key, len - 8, sendbuf + 8, sendbuf + 8);
+    /* Make sure its at least a header. */
+    if(len < 8) {
+        return -1;
     }
+
+    RC4(&c->ship_key, len, sendbuf, sendbuf);
 
     return send_raw(c, len, sendbuf);
 }
@@ -124,14 +126,14 @@ int shipgate_send_ping(shipgate_conn_t *c, int reply) {
     pkt->pkt_unc_len = htons(sizeof(shipgate_hdr_t));
 
     if(reply) {
-        pkt->flags = htons(SHDR_NO_DEFLATE | SHDR_NO_ENCRYPT | SHDR_RESPONSE);
+        pkt->flags = htons(SHDR_NO_DEFLATE | SHDR_RESPONSE);
     }
     else {
-        pkt->flags = htons(SHDR_NO_DEFLATE | SHDR_NO_ENCRYPT);
+        pkt->flags = htons(SHDR_NO_DEFLATE);
     }
 
     /* Send it away. */
-    return send_raw(c, sizeof(shipgate_hdr_t), sendbuf);
+    return send_crypt(c, sizeof(shipgate_hdr_t), sendbuf);
 }
 
 /* Attempt to connect to the shipgate. Returns < 0 on error, returns the socket
@@ -196,7 +198,7 @@ int shipgate_connect(ship_t *s, shipgate_conn_t *rv) {
     if(ntohs(pkt.hdr.pkt_len) != SHIPGATE_LOGIN_SIZE ||
        ntohs(pkt.hdr.pkt_type) != SHDR_TYPE_LOGIN ||
        ntohs(pkt.hdr.pkt_unc_len) != SHIPGATE_LOGIN_SIZE ||
-       ntohs(pkt.hdr.flags) != (SHDR_NO_DEFLATE | SHDR_NO_ENCRYPT)) {
+       ntohs(pkt.hdr.flags) != (SHDR_NO_DEFLATE)) {
         debug(DBG_ERROR, "shipgate: Bad header!\n");
         close(sock);
         return -4;
@@ -715,7 +717,6 @@ int shipgate_process_pkt(shipgate_conn_t *c) {
     uint16_t pkt_sz;
     int rv = 0;
     unsigned char *rbp;
-    shipgate_hdr_t pkt;
     uint8_t *recvbuf = get_recvbuf();
     void *tmp;
 
@@ -743,10 +744,13 @@ int shipgate_process_pkt(shipgate_conn_t *c) {
     while(sz >= 8 && rv == 0) {
         /* Copy out the packet header so we know what exactly we're looking
            for, in terms of packet length. */
-        memcpy(&pkt, rbp, 8);
+        if(!c->hdr_read) {
+            RC4(&c->gate_key, 8, rbp, (unsigned char *)&c->pkt);
+            c->hdr_read = 1;
+        }
 
         /* Read the packet size to see how much we're expecting. */
-        pkt_sz = ntohs(pkt.pkt_len);
+        pkt_sz = ntohs(c->pkt.pkt_len);
 
         /* We'll always need a multiple of 8 bytes. */
         if(pkt_sz & 0x07) {
@@ -756,11 +760,8 @@ int shipgate_process_pkt(shipgate_conn_t *c) {
         /* Do we have the whole packet? */
         if(sz >= (ssize_t)pkt_sz) {
             /* Yes, we do, decrypt it. */
-            if(!(c->pkt.flags & SHDR_NO_ENCRYPT)) {
-                RC4(&c->gate_key, pkt_sz - 8, rbp + 8, rbp + 8);
-            }
-
-            memcpy(rbp, &pkt, 8);
+            RC4(&c->gate_key, pkt_sz - 8, rbp + 8, rbp + 8);
+            memcpy(rbp, &c->pkt, 8);
 
             /* Pass it on. */
             if(handle_pkt(c, (shipgate_hdr_t *)rbp)) {
@@ -770,6 +771,7 @@ int shipgate_process_pkt(shipgate_conn_t *c) {
 
             rbp += pkt_sz;
             sz -= pkt_sz;
+            c->hdr_read = 0;
         }
         else {
             /* Nope, we're missing part, break out of the loop, and buffer
@@ -846,7 +848,7 @@ int shipgate_send_ship_info(shipgate_conn_t *c, ship_t *ship) {
     pkt->hdr.pkt_len = htons(sizeof(shipgate_login_reply_pkt));
     pkt->hdr.pkt_type = htons(SHDR_TYPE_LOGIN);
     pkt->hdr.pkt_unc_len = htons(sizeof(shipgate_login_reply_pkt));
-    pkt->hdr.flags = htons(SHDR_NO_DEFLATE | SHDR_NO_ENCRYPT | SHDR_RESPONSE);
+    pkt->hdr.flags = htons(SHDR_NO_DEFLATE | SHDR_RESPONSE);
 
     /* Fill in the packet. */
     strcpy(pkt->name, ship->cfg->name);
