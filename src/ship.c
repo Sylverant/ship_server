@@ -71,6 +71,17 @@ static void *ship_thd(void *d) {
             break;
         }
 
+        /* If the shipgate isn't there, attempt to reconnect */
+        if(s->sg.sock == -1 && s->sg.login_attempt < now) {
+            if(shipgate_reconnect(&s->sg)) {
+                s->sg.login_attempt = now + 60;
+            }
+            else {
+                s->sg.login_attempt = 0;
+                timeout.tv_sec = 30;
+            }
+        }
+
         /* Fill the sockets into the fd_sets so we can use select below. */
         TAILQ_FOREACH(it, s->clients, qentry) {
             /* If we haven't heard from a client in 2 minutes, its dead.
@@ -112,13 +123,18 @@ static void *ship_thd(void *d) {
         nfds = nfds > s->pipes[1] ? nfds : s->pipes[1];
 
         /* Add the shipgate socket to the fd_sets */
-        FD_SET(s->sg.sock, &readfds);
+        if(s->sg.sock != -1) {
+            FD_SET(s->sg.sock, &readfds);
 
-        if(s->sg.sendbuf_cur) {
-            FD_SET(s->sg.sock, &writefds);
+            if(s->sg.sendbuf_cur) {
+                FD_SET(s->sg.sock, &writefds);
+            }
+
+            nfds = nfds > s->sg.sock ? nfds : s->sg.sock;
         }
-
-        nfds = nfds > s->sg.sock ? nfds : s->sg.sock;
+        else {
+            timeout.tv_sec = 30;
+        }
 
         /* If we're supposed to shut down soon, make sure we aren't in the
            middle of a select still when its supposed to happen. */
@@ -212,19 +228,25 @@ static void *ship_thd(void *d) {
             }
 
             /* Process the shipgate */
-            if(FD_ISSET(s->sg.sock, &readfds)) {
+            if(s->sg.sock != -1 && FD_ISSET(s->sg.sock, &readfds)) {
                 if(shipgate_process_pkt(&s->sg)) {
                     debug(DBG_WARN, "%s: Lost connection with shipgate\n",
                           s->cfg->name);
-                    break;
+
+                    /* Close the connection so we can attempt to reconnect */
+                    close(s->sg.sock);
+                    s->sg.sock = -1;
                 }
             }
 
-            if(FD_ISSET(s->sg.sock, &writefds)) {
+            if(s->sg.sock != -1 && FD_ISSET(s->sg.sock, &writefds)) {
                 if(shipgate_send_pkts(&s->sg)) {
                     debug(DBG_WARN, "%s: Lost connection with shipgate\n",
                           s->cfg->name);
-                    break;
+
+                    /* Close the connection so we can attempt to reconnect */
+                    close(s->sg.sock);
+                    s->sg.sock = -1;
                 }
             }
 

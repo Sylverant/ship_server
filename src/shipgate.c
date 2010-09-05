@@ -150,12 +150,13 @@ int shipgate_connect(ship_t *s, shipgate_conn_t *rv) {
     memset(rv, 0, sizeof(shipgate_conn_t));
 
     /* Attempt to read the ship key. */
-    debug(DBG_LOG, "Loading shipgate key...\n");
+    debug(DBG_LOG, "%s: Loading shipgate key...\n", s->cfg->name);
 
     fp = fopen(s->cfg->key_file, "rb");
 
     if(!fp) {
-        debug(DBG_ERROR, "Couldn't load key!\n");
+        debug(DBG_ERROR, "%s: Couldn't load key!\n", s->cfg->name);
+        return -6;
     }
 
     /* Read the file data. */
@@ -165,7 +166,7 @@ int shipgate_connect(ship_t *s, shipgate_conn_t *rv) {
 
     rv->key_idx = (uint16_t)LE32(key_idx);
 
-    debug(DBG_LOG, "Connecting to shipgate...\n");
+    debug(DBG_LOG, "%s: Connecting to shipgate...\n", s->cfg->name);
 
     /* Create the socket for the connection. */
     sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -189,7 +190,7 @@ int shipgate_connect(ship_t *s, shipgate_conn_t *rv) {
 
     /* Wait for the shipgate to respond back. */
     if(recv(sock, &pkt, SHIPGATE_LOGIN_SIZE, 0) != SHIPGATE_LOGIN_SIZE) {
-        debug(DBG_ERROR, "shipgate: Incorrect reply!\n");
+        debug(DBG_ERROR, "%s: Incorrect shipgate reply!\n", s->cfg->name);
         close(sock);
         return -3;
     }
@@ -199,19 +200,19 @@ int shipgate_connect(ship_t *s, shipgate_conn_t *rv) {
        ntohs(pkt.hdr.pkt_type) != SHDR_TYPE_LOGIN ||
        ntohs(pkt.hdr.pkt_unc_len) != SHIPGATE_LOGIN_SIZE ||
        ntohs(pkt.hdr.flags) != (SHDR_NO_DEFLATE)) {
-        debug(DBG_ERROR, "shipgate: Bad header!\n");
+        debug(DBG_ERROR, "%s: Bad shipgate header!\n", s->cfg->name);
         close(sock);
         return -4;
     }
 
     /* Check the copyright message of the packet. */
     if(strcmp(pkt.msg, shipgate_login_msg)) {
-        debug(DBG_ERROR, "shipgate: Incorrect message!\n");
+        debug(DBG_ERROR, "%s: Incorrect shipgate message!\n", s->cfg->name);
         close(sock);
         return -5;
     }
 
-    debug(DBG_LOG, "shipgate: Connected to Shipgate Version %d.%d.%d\n",
+    debug(DBG_LOG, "%s: Connected to Shipgate Version %d.%d.%d\n", s->cfg->name,
           (int)pkt.ver_major, (int)pkt.ver_minor, (int)pkt.ver_micro);
 
     /* Apply the shipgate's nonce first, then ours. */
@@ -241,6 +242,46 @@ int shipgate_connect(ship_t *s, shipgate_conn_t *rv) {
     /* Save a few other things in the struct */
     rv->sock = sock;
     rv->ship = s;
+    rv->has_key = 1;
+
+    return 0;
+}
+
+/* Reconnect to the shipgate if we are disconnected for some reason. */
+int shipgate_reconnect(shipgate_conn_t *conn) {
+    int sock, i;
+    struct sockaddr_in addr;
+
+    /* Clear all ships so we don't keep around stale stuff */
+    for(i = 0; i < conn->ship->ship_count; ++i) {
+        conn->ship->ships[i].ship_id = 0;
+    }
+
+    conn->has_key = 0;
+
+    debug(DBG_LOG, "%s: Reconnecting to shipgate...\n", conn->ship->cfg->name);
+
+    /* Create the socket for the connection. */
+    sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+    if(sock < 0) {
+        perror("socket");
+        return -1;
+    }
+
+    /* Connect the socket to the shipgate. */
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = cfg->shipgate_ip;
+    addr.sin_port = htons(cfg->shipgate_port);
+    memset(addr.sin_zero, 0, 8);
+
+    if(connect(sock, (struct sockaddr *)&addr, sizeof(struct sockaddr_in))) {
+        perror("connect");
+        close(sock);
+        return -2;
+    }
+
+    conn->sock = sock;
 
     return 0;
 }
@@ -679,9 +720,87 @@ out:
     return rv;
 }
 
+static int handle_login(shipgate_conn_t *conn, shipgate_login_pkt *pkt) {
+    int i;
+    FILE *fp;
+    uint8_t key[128], hash[64];
+    uint32_t key_idx;
+
+    /* Attempt to read the ship key. */
+    debug(DBG_LOG, "%s: Loading shipgate key...\n", conn->ship->cfg->name);
+
+    fp = fopen(conn->ship->cfg->key_file, "rb");
+
+    if(!fp) {
+        debug(DBG_ERROR, "%s: Couldn't load key!\n", conn->ship->cfg->name);
+        return -1;
+    }
+
+    /* Read the file data. */
+    fread(&key_idx, 1, 4, fp);
+    fread(key, 1, 128, fp);
+    fclose(fp);
+
+    conn->key_idx = (uint16_t)LE32(key_idx);
+
+    /* Check the header of the packet. */
+    if(ntohs(pkt->hdr.pkt_len) != SHIPGATE_LOGIN_SIZE ||
+       ntohs(pkt->hdr.pkt_type) != SHDR_TYPE_LOGIN ||
+       ntohs(pkt->hdr.pkt_unc_len) != SHIPGATE_LOGIN_SIZE ||
+       ntohs(pkt->hdr.flags) != (SHDR_NO_DEFLATE)) {
+        return -2;
+    }
+
+    /* Check the copyright message of the packet. */
+    if(strcmp(pkt->msg, shipgate_login_msg)) {
+        return -3;
+    }
+
+    debug(DBG_LOG, "%s: Connected to Shipgate Version %d.%d.%d\n",
+          conn->ship->cfg->name, (int)pkt->ver_major, (int)pkt->ver_minor,
+          (int)pkt->ver_micro);
+
+    /* Apply the shipgate's nonce first, then ours. */
+    for(i = 0; i < 128; i += 4) {
+        key[i + 0] ^= pkt->gate_nonce[0];
+        key[i + 1] ^= pkt->gate_nonce[1];
+        key[i + 2] ^= pkt->gate_nonce[2];
+        key[i + 3] ^= pkt->gate_nonce[3];
+    }
+
+    /* Hash the key with SHA-512, and use that as our final key. */
+    sha4(key, 128, hash, 0);
+    RC4_set_key(&conn->gate_key, 64, hash);
+
+    /* Calculate the final ship key. */
+    for(i = 0; i < 128; i += 4) {
+        key[i + 0] ^= pkt->ship_nonce[0];
+        key[i + 1] ^= pkt->ship_nonce[1];
+        key[i + 2] ^= pkt->ship_nonce[2];
+        key[i + 3] ^= pkt->ship_nonce[3];
+    }
+
+    /* Hash the key with SHA-512, and use that as our final key. */
+    sha4(key, 128, hash, 0);
+    RC4_set_key(&conn->ship_key, 64, hash);
+    conn->has_key = 1;
+
+    /* Send our info to the shipgate so it can have things set up right. */
+    return shipgate_send_ship_info(conn, conn->ship);
+}
+
 static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
     uint16_t type = ntohs(pkt->pkt_type);
     uint16_t flags = ntohs(pkt->flags);
+
+    if(!conn->has_key) {
+        /* Silently ignore non-login packets when we're without a key. */
+        if(type != SHDR_TYPE_LOGIN) {
+            return 0;
+        }
+
+        return handle_login(conn, (shipgate_login_pkt *)pkt);
+    }
 
     switch(type) {
         case SHDR_TYPE_DC:
@@ -744,8 +863,12 @@ int shipgate_process_pkt(shipgate_conn_t *c) {
     while(sz >= 8 && rv == 0) {
         /* Copy out the packet header so we know what exactly we're looking
            for, in terms of packet length. */
-        if(!c->hdr_read) {
+        if(!c->hdr_read && c->has_key) {
             RC4(&c->gate_key, 8, rbp, (unsigned char *)&c->pkt);
+            c->hdr_read = 1;
+        }
+        else if(!c->hdr_read) {
+            memcpy(&c->pkt, rbp, 8);
             c->hdr_read = 1;
         }
 
@@ -760,8 +883,13 @@ int shipgate_process_pkt(shipgate_conn_t *c) {
         /* Do we have the whole packet? */
         if(sz >= (ssize_t)pkt_sz) {
             /* Yes, we do, decrypt it. */
-            RC4(&c->gate_key, pkt_sz - 8, rbp + 8, rbp + 8);
-            memcpy(rbp, &c->pkt, 8);
+            if(c->has_key) {
+                RC4(&c->gate_key, pkt_sz - 8, rbp + 8, rbp + 8);
+                memcpy(rbp, &c->pkt, 8);
+            }
+            else {
+                memcpy(rbp, &c->pkt, 8);
+            }
 
             /* Pass it on. */
             if(handle_pkt(c, (shipgate_hdr_t *)rbp)) {
@@ -856,7 +984,7 @@ int shipgate_send_ship_info(shipgate_conn_t *c, ship_t *ship) {
     pkt->int_addr = local_addr;
     pkt->ship_port = htons(ship->cfg->base_port);
     pkt->ship_key = htons(c->key_idx);
-    pkt->connections = 0;
+    pkt->connections = htonl(ship->num_clients);
     pkt->flags = 0;
 
     /* Send it away */

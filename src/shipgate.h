@@ -18,6 +18,7 @@
 #ifndef SHIPGATE_H
 #define SHIPGATE_H
 
+#include <time.h>
 #include <inttypes.h>
 #include <openssl/rc4.h>
 
@@ -47,6 +48,9 @@ typedef struct shipgate_hdr {
 struct shipgate_conn {
     int sock;
     int hdr_read;
+    int has_key;
+
+    time_t login_attempt;
 
     ship_t *ship;
 
@@ -175,7 +179,6 @@ static const char shipgate_login_msg[] =
 
 /* Flags for the flags field of shipgate_hdr_t */
 #define SHDR_NO_DEFLATE     0x0001      /* Packet was not deflate()'d */
-#define SHDR_NO_ENCRYPT     0x0002      /* Packet is not encrypted */
 #define SHDR_RESPONSE       0x8000      /* Response to a request */
 #define SHDR_FAILURE        0x4000      /* Failure to complete request */
 
@@ -198,9 +201,12 @@ static const char shipgate_login_msg[] =
 #define LOGIN_FLAG_GMONLY   0x00000001  /* Only Global GMs are allowed */
 #define LOGIN_FLAG_PROXY    0x00000002  /* Is a proxy -- exclude many pkts */
 
-/* Attempt to connect to the shipgate. Returns < 0 on error, returns the socket
-   for communciation on success. */
+/* Attempt to connect to the shipgate. Returns < 0 on error, returns 0 on
+   success. */
 int shipgate_connect(ship_t *s, shipgate_conn_t *rv);
+
+/* Reconnect to the shipgate if we are disconnected for some reason. */
+int shipgate_reconnect(shipgate_conn_t *conn);
 
 /* Read data from the shipgate. */
 int shipgate_process_pkt(shipgate_conn_t *c);
