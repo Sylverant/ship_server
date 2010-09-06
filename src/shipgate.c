@@ -704,11 +704,11 @@ static int handle_gmlogin(shipgate_conn_t *conn,
     TAILQ_FOREACH(i, b->clients, qentry) {
         if(i->guildcard == gc) {
             if(flags & SHDR_RESPONSE) {
-                i->privilege |= CLIENT_PRIV_LOCAL_GM | CLIENT_PRIV_GLOBAL_GM;
-                rv = send_txt(i, "\tE\tC7GM Login Successful");
+                i->privilege |= pkt->priv;
+                rv = send_txt(i, "\tE\tC7Login Successful");
             }
             else {
-                rv = send_txt(i, "\tE\tC7Nice Try!");
+                rv = send_txt(i, "\tE\tC7Login failed");
             }
 
             goto out;

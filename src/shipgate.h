@@ -156,6 +156,8 @@ typedef struct shipgate_gmlogin_reply {
     shipgate_hdr_t hdr;
     uint32_t guildcard;
     uint32_t block;
+    uint8_t priv;
+    uint8_t reserved[7];
 } PACKED shipgate_gmlogin_reply_pkt;
 
 /* A packet used to set a ban. */
