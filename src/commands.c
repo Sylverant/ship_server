@@ -20,6 +20,8 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <iconv.h>
+#include <time.h>
+#include <sys/time.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 
@@ -1073,6 +1075,131 @@ static int handle_shutdown(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return 0;
 }
 
+/* Usage: /log guildcard */
+static int handle_log(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    uint32_t gc;
+    block_t *b = c->cur_block;
+    ship_client_t *i;
+    struct timeval rawtime;
+    struct tm cooked;
+    char str[64];
+    FILE *fp;
+    time_t now;
+
+    /* Make sure the requester is a local root. */
+    if(!(c->privilege & CLIENT_PRIV_LOCAL_ROOT)) {
+        return send_txt(c, "\tE\tC7Nice try.");
+    }
+
+    /* Figure out the user requested */
+    errno = 0;
+    gc = (uint32_t)strtoul(params, NULL, 10);
+
+    if(errno != 0) {
+        /* Send a message saying invalid guildcard number */
+        return send_txt(c, "\tE\tC7Invalid Guild Card");
+    }
+
+    /* Look for the requested user and start the log */
+    TAILQ_FOREACH(i, b->clients, qentry) {
+        /* Start logging them if we find them */
+        if(i->guildcard == gc) {
+            pthread_mutex_lock(&i->mutex);
+
+            if(i->logfile) {
+                pthread_mutex_unlock(&i->mutex);
+                return send_txt(c, "\tE\tC7The user is already\nbeing logged.");
+            }
+
+            /* Get the timestamp */
+            gettimeofday(&rawtime, NULL);
+
+            /* Get UTC */
+            gmtime_r(&rawtime.tv_sec, &cooked);
+
+            /* Figure out the name of the file we'll be writing to */
+            sprintf(str, "logs/%u.%02u.%02u.%02u.%02u.%02u.%03u-%d",
+                    cooked.tm_year + 1900, cooked.tm_mon + 1, cooked.tm_mday,
+                    cooked.tm_hour, cooked.tm_min, cooked.tm_sec,
+                    (unsigned int)(rawtime.tv_usec / 1000), c->guildcard);
+
+            fp = fopen(str, "wt");
+
+            if(!fp) {
+                pthread_mutex_unlock(&i->mutex);
+                return send_txt(c, "\tE\tC7Cannot make log file");
+            }
+
+            /* Write a nice header to the log */
+            now = time(NULL);
+            ctime_r(&now, str);
+            str[strlen(str) - 1] = 0;
+
+            fprintf(fp, "[%s] Packet log started\n", str);
+            i->logfile = fp;
+
+            /* We're done, so clean up */
+            pthread_mutex_unlock(&i->mutex);
+            return send_txt(c, "\tE\tC7Logging started");
+        }
+    }
+
+    /* The person isn't here... There's nothing left to do. */
+    return send_txt(c, "\tE\tC7Requested user not\nfound");
+}
+
+/* Usage: /endlog guildcard */
+static int handle_endlog(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    uint32_t gc;
+    block_t *b = c->cur_block;
+    ship_client_t *i;
+    time_t now;
+    char str[64];
+
+    /* Make sure the requester is a local root. */
+    if(!(c->privilege & CLIENT_PRIV_LOCAL_ROOT)) {
+        return send_txt(c, "\tE\tC7Nice try.");
+    }
+
+    /* Figure out the user requested */
+    errno = 0;
+    gc = (uint32_t)strtoul(params, NULL, 10);
+
+    if(errno != 0) {
+        /* Send a message saying invalid guildcard number */
+        return send_txt(c, "\tE\tC7Invalid Guild Card");
+    }
+
+    /* Look for the requested user and end the log */
+    TAILQ_FOREACH(i, b->clients, qentry) {
+        /* Finish logging them if we find them */
+        if(i->guildcard == gc) {
+            pthread_mutex_lock(&i->mutex);
+
+            if(!i->logfile) {
+                pthread_mutex_unlock(&i->mutex);
+                return send_txt(c, "\tE\tC7The user is not\nbeing logged.");
+            }
+
+            /* Write a nice footer to the log */
+            now = time(NULL);
+            ctime_r(&now, str);
+            str[strlen(str) - 1] = 0;
+
+            fprintf(i->logfile, "[%s] Packet log ended\n", str);
+            fclose(i->logfile);
+            i->logfile = NULL;
+
+            /* We're done, so clean up */
+            pthread_mutex_unlock(&i->mutex);
+            return send_txt(c, "\tE\tC7Logging ended");
+        }
+    }
+
+    /* The person isn't here... There's nothing left to do. */
+    return send_txt(c, "\tE\tC7Requested user not\nfound");
+}
+
 static command_t cmds[] = {
     { "warp"    , handle_warp      },
     { "kill"    , handle_kill      },
@@ -1101,6 +1228,8 @@ static command_t cmds[] = {
     { "legit"   , handle_legit     },
     { "normal"  , handle_normal    },
     { "shutdown", handle_shutdown  },
+    { "log"     , handle_log       },
+    { "endlog"  , handle_endlog    },
     { ""        , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

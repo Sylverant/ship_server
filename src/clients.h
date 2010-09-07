@@ -95,6 +95,7 @@ struct ship_client {
     uint32_t *blacklist;                /* Points into the player struct. */
 
     char *autoreply;
+    FILE *logfile;
 };
 
 #define CLIENT_PRIV_LOCAL_GM    0x00000001

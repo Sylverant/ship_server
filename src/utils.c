@@ -33,14 +33,18 @@ void print_packet(unsigned char *pkt, int len) {
     fprint_packet(stdout, pkt, len, -1);
 }
 
-void fprint_packet(FILE *fp, unsigned char *pkt, int len, int dir) {
+void fprint_packet(FILE *fp, unsigned char *pkt, int len, int rec) {
     unsigned char *pos = pkt, *row = pkt;
     int line = 0, type = 0;
-    time_t now = time(NULL);
+    time_t now;
+    char tstr[26];
 
-    if(dir != -1) {
-        fprintf(fp, "Packet %s at %lu:\n", dir ? "received" : "sent",
-                (unsigned long)now);
+    if(rec != -1) {
+        now = time(NULL);
+        ctime_r(&now, tstr);
+        tstr[strlen(tstr) - 1] = 0;
+        fprintf(fp, "[%s] Packet %s by server\n", tstr,
+                rec ? "received" : "sent");
     }
 
     /* Print the packet both in hex and ASCII. */
@@ -101,6 +105,8 @@ void fprint_packet(FILE *fp, unsigned char *pkt, int len, int dir) {
 
         fprintf(fp, "\n");
     }
+
+    fflush(fp);
 }
 
 int dc_bug_report(ship_client_t *c, dc_simple_mail_pkt *pkt) {

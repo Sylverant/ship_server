@@ -29,6 +29,7 @@
 #include <sylverant/debug.h>
 
 #include "ship.h"
+#include "utils.h"
 #include "clients.h"
 #include "ship_packets.h"
 
@@ -167,6 +168,9 @@ ship_client_t *client_create_connection(int sock, int version, int type,
 
 /* Destroy a connection, closing the socket and removing it from the list. */
 void client_destroy_connection(ship_client_t *c, struct client_queue *clients) {
+    time_t now;
+    char tstr[26];
+
     TAILQ_REMOVE(clients, c, qentry);
 
     pthread_mutex_destroy(&c->mutex);
@@ -176,6 +180,15 @@ void client_destroy_connection(ship_client_t *c, struct client_queue *clients) {
        to the list of lobbies, destroy it */
     if(c->create_lobby) {
         lobby_destroy_noremove(c->create_lobby);
+    }
+
+    /* If we were logging the user, close the file */
+    if(c->logfile) {
+        now = time(NULL);
+        ctime_r(&now, tstr);
+        tstr[strlen(tstr) - 1] = 0;
+        fprintf(c->logfile, "[%s] Connection closed\n", tstr);
+        fclose(c->logfile);
     }
 
     if(c->sock >= 0) {
@@ -274,6 +287,11 @@ int client_process_pkt(ship_client_t *c) {
             CRYPT_CryptData(&c->ckey, rbp + hsz, pkt_sz - hsz, 0);
             memcpy(rbp, &c->pkt, hsz);
             c->last_message = time(NULL);
+
+            /* If we're logging the client, write into the log */
+            if(c->logfile) {
+                fprint_packet(c->logfile, rbp, pkt_sz, 1);
+            }
 
             /* Pass it onto the correct handler. */
             switch(c->type) {

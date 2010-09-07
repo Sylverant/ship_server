@@ -137,6 +137,11 @@ static int crypt_send(ship_client_t *c, int len, uint8_t *sendbuf) {
         sendbuf[len++] = 0;
     }
 
+    /* If we're logging the client, write into the log */
+    if(c->logfile) {
+        fprint_packet(c->logfile, sendbuf, len, 0);
+    }
+
     /* Encrypt the packet */
     CRYPT_CryptData(&c->skey, sendbuf, len, 1);
 
