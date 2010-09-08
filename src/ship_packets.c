@@ -2206,7 +2206,8 @@ int send_pc_game_type_sel(ship_client_t *c) {
 }
 
 /* Send a message to the client. */
-static int send_dc_message_box(ship_client_t *c, char msg[]) {
+static int send_dc_message_box(ship_client_t *c, const char *fmt,
+                               va_list args) {
     uint8_t *sendbuf = get_sendbuf();
     dc_msg_box_pkt *pkt = (dc_msg_box_pkt *)sendbuf;
     int len;
@@ -2214,29 +2215,36 @@ static int send_dc_message_box(ship_client_t *c, char msg[]) {
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
+    char tm[512];
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
         return -1;
     }
 
+    /* Fill in the message */
+    if(fmt[0] != '\t' || (fmt[1] != 'E' && fmt[1] != 'J')) {
+        /* Assume Non-Japanese if we don't have a marker. */
+        tm[0] = '\t';
+        tm[1] = 'E';
+        vsnprintf(tm + 2, 510, fmt, args);
+    }
+    else {
+        vsnprintf(tm, 512, fmt, args);
+    }
+
+    /* Set up to convert between encodings */
     if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
        c->version == CLIENT_VERSION_GC) {
-        /* Yes, these are both dummy transforms */
-        if(msg[1] == 'J') {
-            ic = iconv_open("SHIFT_JIS", "SHIFT_JIS");
+        if(tm[1] == 'J') {
+            ic = iconv_open("SHIFT_JIS", "UTF-8");
         }
         else {
-            ic = iconv_open("ISO-8859-1", "ISO-8859-1");
+            ic = iconv_open("ISO-8859-1", "UTF-8");
         }
     }
     else {
-        if(msg[1] == 'J') {
-            ic = iconv_open("UTF-16LE", "SHIFT_JIS");
-        }
-        else {
-            ic = iconv_open("UTF-16LE", "ISO-8859-1");
-        }
+        ic = iconv_open("UTF-16LE", "UTF-8");
     }
 
     if(ic == (iconv_t)-1) {
@@ -2249,10 +2257,10 @@ static int send_dc_message_box(ship_client_t *c, char msg[]) {
         return -1;
     }
 
-    /* Fill in the message */
-    in = strlen(msg) + 1;
+    /* Convert the message to the appropriate encoding. */
+    in = strlen(tm) + 1;
     out = 65500;
-    inptr = msg;
+    inptr = tm;
     outptr = (char *)pkt->msg;
     iconv(ic, &inptr, &in, &outptr, &out);
     len = 65500 - out;
@@ -2281,17 +2289,22 @@ static int send_dc_message_box(ship_client_t *c, char msg[]) {
     return crypt_send(c, len, sendbuf);
 }
 
-int send_message_box(ship_client_t *c, char msg[]) {
+int send_message_box(ship_client_t *c, const char *fmt, ...) {
+    va_list args;
+    int rv = -1;
+
     /* Call the appropriate function. */
     switch(c->version) {
         case CLIENT_VERSION_DCV1:
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_PC:
         case CLIENT_VERSION_GC:
-            return send_dc_message_box(c, msg);
+            rv = send_dc_message_box(c, fmt, args);
     }
 
-    return -1;
+    va_end(args);
+
+    return rv;
 }
 
 /* Send the list of quest categories to the client. */

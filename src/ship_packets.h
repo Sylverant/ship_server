@@ -113,7 +113,7 @@ int send_game_list(ship_client_t *c, block_t *b);
 int send_info_list(ship_client_t *c, ship_t *s);
 
 /* Send a message box packet to the client. */
-int send_message_box(ship_client_t *c, char msg[]);
+int send_message_box(ship_client_t *c, const char *fmt, ...) __printflike(2, 3);
 
 /* Send the list of quest categories to the client. */
 int send_quest_categories(ship_client_t *c, sylverant_quest_list_t *l);

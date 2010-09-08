@@ -109,7 +109,6 @@ static int handle_kill(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     block_t *b = c->cur_block;
     ship_client_t *i;
     char *reason;
-    char msg[256];
 
     /* Make sure the requester is a GM. */
     if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
@@ -130,14 +129,13 @@ static int handle_kill(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
         /* Disconnect them if we find them */
         if(i->guildcard == gc) {
             if(strlen(reason) > 1) {
-                sprintf(msg, "\tEYou have been kicked by a GM.\n\n"
-                             "Reason:\n%s", reason + 1);
+                send_message_box(i, "\tEYou have been kicked by a GM.\n\n"
+                                 "Reason:\n%s", reason + 1);
             }
             else {
-                strcpy(msg, "\tEYou have been kicked by a GM.");
+                send_message_box(i, "\tEYou have been kicked by a GM.");
             }
 
-            send_message_box(i, msg);                                
             i->disconnected = 1;
             return 0;
         }
@@ -710,7 +708,6 @@ static int handle_gban_d(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     block_t *b = c->cur_block;
     ship_client_t *i;
     char *reason;
-    char msg[256];
 
     /* Make sure the requester is a global GM. */
     if(!(c->privilege & CLIENT_PRIV_GLOBAL_GM)) {
@@ -738,16 +735,15 @@ static int handle_gban_d(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
         /* Disconnect them if we find them */
         if(i->guildcard == gc) {
             if(strlen(reason) > 1) {
-                sprintf(msg, "\tEYou have been banned by a GM\n"
-                        "Ban Length: 1 day\n"
-                        "Reason:\n%s", reason + 1);
+                send_message_box(i, "\tEYou have been banned by a GM\n"
+                                 "Ban Length: 1 day\n"
+                                 "Reason:\n%s", reason + 1);
             }
             else {
-                strcpy(msg, "\tEYou have been banned by a GM\n"
-                       "Ban Length: 1 day");
+                send_message_box(i, "\tEYou have been banned by a GM\n"
+                                 "Ban Length: 1 day");
             }
 
-            send_message_box(i, msg);                                
             i->disconnected = 1;
             return 0;
         }
@@ -763,7 +759,6 @@ static int handle_gban_w(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     block_t *b = c->cur_block;
     ship_client_t *i;
     char *reason;
-    char msg[256];
 
     /* Make sure the requester is a global GM. */
     if(!(c->privilege & CLIENT_PRIV_GLOBAL_GM)) {
@@ -791,16 +786,15 @@ static int handle_gban_w(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
         /* Disconnect them if we find them */
         if(i->guildcard == gc) {
             if(strlen(reason) > 1) {
-                sprintf(msg, "\tEYou have been banned by a GM\n"
-                        "Ban Length: 1 week\n"
-                        "Reason:\n%s", reason + 1);
+                send_message_box(i, "\tEYou have been banned by a GM\n"
+                                 "Ban Length: 1 week\n"
+                                 "Reason:\n%s", reason + 1);
             }
             else {
-                strcpy(msg, "\tEYou have been banned by a GM\n"
-                       "Ban Length: 1 week");
+                send_message_box(i, "\tEYou have been banned by a GM\n"
+                                 "Ban Length: 1 week");
             }
 
-            send_message_box(i, msg);                                
             i->disconnected = 1;
             return 0;
         }
@@ -816,7 +810,6 @@ static int handle_gban_m(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     block_t *b = c->cur_block;
     ship_client_t *i;
     char *reason;
-    char msg[256];
 
     /* Make sure the requester is a global GM. */
     if(!(c->privilege & CLIENT_PRIV_GLOBAL_GM)) {
@@ -844,16 +837,15 @@ static int handle_gban_m(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
         /* Disconnect them if we find them */
         if(i->guildcard == gc) {
             if(strlen(reason) > 1) {
-                sprintf(msg, "\tEYou have been banned by a GM\n"
-                        "Ban Length: 30 days\n"
-                        "Reason:\n%s", reason + 1);
+                send_message_box(i, "\tEYou have been banned by a GM\n"
+                                 "Ban Length: 30 days\n"
+                                 "Reason:\n%s", reason + 1);
             }
             else {
-                strcpy(msg, "\tEYou have been banned by a GM\n"
-                       "Ban Length: 30 days");
+                send_message_box(i, "\tEYou have been banned by a GM\n"
+                                 "Ban Length: 30 days");
             }
 
-            send_message_box(i, msg);                                
             i->disconnected = 1;
             return 0;
         }
@@ -869,7 +861,6 @@ static int handle_gban_p(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     block_t *b = c->cur_block;
     ship_client_t *i;
     char *reason;
-    char msg[256];
 
     /* Make sure the requester is a global GM. */
     if(!(c->privilege & CLIENT_PRIV_GLOBAL_GM)) {
@@ -898,16 +889,15 @@ static int handle_gban_p(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
         /* Disconnect them if we find them */
         if(i->guildcard == gc) {
             if(strlen(reason) > 1) {
-                sprintf(msg, "\tEYou have been banned by a GM\n"
-                        "Ban Length: Forever\n"
-                        "Reason:\n%s", reason + 1);
+                send_message_box(i, "\tEYou have been banned by a GM\n"
+                                 "Ban Length: Forever\n"
+                                 "Reason:\n%s", reason + 1);
             }
             else {
-                strcpy(msg, "\tEYou have been banned by a GM\n"
-                       "Ban Length: Forever");
+                send_message_box(i, "\tEYou have been banned by a GM\n"
+                                 "Ban Length: Forever");
             }
 
-            send_message_box(i, msg);                                
             i->disconnected = 1;
             return 0;
         }

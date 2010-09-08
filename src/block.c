@@ -1317,7 +1317,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
             buf[len] = 0;
 
             /* Send the message to the client. */
-            return send_message_box(c, buf);
+            return send_message_box(c, "%s", buf);
         }
 
         /* Blocks */
