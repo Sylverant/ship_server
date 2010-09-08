@@ -451,9 +451,9 @@ static int handle_take_item(ship_client_t *c, subcmd_take_item_t *pkt) {
         if(!sylverant_limits_check_item(c->cur_ship->limits, &item, v)) {
             /* The item failed the check, so kick the user. */
             send_message_box(c, "%s\n\n%s\n%s",
-                             __(i, "\tEYou have been kicked from the server."),
-                             __(i, "Reason:"),
-                             __(i, "Attempt to remove a non-legit item from\n"
+                             __(c, "\tEYou have been kicked from the server."),
+                             __(c, "Reason:"),
+                             __(c, "Attempt to remove a non-legit item from\n"
                                 "the bank in a legit-mode game."));
             return -1;
         }

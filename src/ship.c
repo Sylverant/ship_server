@@ -168,10 +168,10 @@ static void *ship_thd(void *d) {
 
                 if(s->shutdown_time) {
                     send_message_box(tmp, "%s\n\n%s\n%s",
-                                     __(i, "\tEShip is going down for shut"
+                                     __(tmp, "\tEShip is going down for shut"
                                         "down"),
-                                     __(i, "Please try another ship."),
-                                     __(i, "Disconnecting."));
+                                     __(tmp, "Please try another ship."),
+                                     __(tmp, "Disconnecting."));
                     tmp->disconnected = 1;
                 }
             }
@@ -195,10 +195,10 @@ static void *ship_thd(void *d) {
 
                 if(s->shutdown_time) {
                     send_message_box(tmp, "%s\n\n%s\n%s",
-                                     __(i, "\tEShip is going down for shut"
+                                     __(tmp, "\tEShip is going down for shut"
                                         "down"),
-                                     __(i, "Please try another ship."),
-                                     __(i, "Disconnecting."));
+                                     __(tmp, "Please try another ship."),
+                                     __(tmp, "Disconnecting."));
                     tmp->disconnected = 1;
                 }
             }
@@ -222,10 +222,10 @@ static void *ship_thd(void *d) {
 
                 if(s->shutdown_time) {
                     send_message_box(tmp, "%s\n\n%s\n%s",
-                                     __(i, "\tEShip is going down for shut"
+                                     __(tmp, "\tEShip is going down for shut"
                                         "down"),
-                                     __(i, "Please try another ship."),
-                                     __(i, "Disconnecting."));
+                                     __(tmp, "Please try another ship."),
+                                     __(tmp, "Disconnecting."));
                     tmp->disconnected = 1;
                 }
             }
