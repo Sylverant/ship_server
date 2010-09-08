@@ -32,6 +32,7 @@
 #include <sylverant/sha4.h>
 
 #include "ship.h"
+#include "utils.h"
 #include "clients.h"
 #include "shipgate.h"
 #include "ship_packets.h"
@@ -705,10 +706,10 @@ static int handle_gmlogin(shipgate_conn_t *conn,
         if(i->guildcard == gc) {
             if(flags & SHDR_RESPONSE) {
                 i->privilege |= pkt->priv;
-                rv = send_txt(i, "\tE\tC7Login Successful");
+                rv = send_txt(i, "%s", __(i, "\tE\tC7Login Successful"));
             }
             else {
-                rv = send_txt(i, "\tE\tC7Login failed");
+                rv = send_txt(i, "%s", __(i, "\tE\tC7Login failed"));
             }
 
             goto out;

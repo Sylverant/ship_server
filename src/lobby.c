@@ -22,6 +22,7 @@
 #include <sylverant/mtwist.h>
 
 #include "lobby.h"
+#include "utils.h"
 #include "block.h"
 #include "clients.h"
 #include "ship_packets.h"
@@ -633,7 +634,7 @@ int lobby_info_reply(ship_client_t *c, uint32_t lobby) {
     player_t *pl;
 
     if(!l) {
-        return send_info_reply(c, "This game is no\nlonger active.");
+        return send_info_reply(c, __(c, "\tEThis game is no\nlonger active."));
     }
 
     /* Lock the lobby */
@@ -722,12 +723,15 @@ void lobby_legit_check_finish_locked(lobby_t *l) {
 
         for(i = 0; i < l->max_clients; ++i) {
             if(l->clients[i]) {
-                send_txt(l->clients[i], "\tE\tC7Legit mode active.");
+                send_txt(l->clients[i], "%s",
+                         __(l->clients[i], "\tE\tC7Legit mode active."));
             }
         }
     }
     else {
-        send_txt(l->clients[l->leader_id], "\tE\tC7Team legit check failed!");
+        send_txt(l->clients[l->leader_id], "%s",
+                 __(l->clients[l->leader_id],
+                    "\tE\tC7Team legit check failed!"));
     }
 
     /* Since the legit check is done, clear the flag for that and the

@@ -566,58 +566,54 @@ static int join_game(ship_client_t *c, lobby_t *l) {
 
     if(rv == -10) {
         /* Temporarily unavailable */
-        send_message1(c, "\tC4Can't join game!\n\n"
-                      "\tC7The game is\n"
-                      "temporarily\n"
-                      "unavailable.");
+        send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't join game!"),
+                      __(c, "\tC7The game is\ntemporarily\nunavailable."));
     }
     else if(rv == -9) {
         /* Legit check failed */
-        send_message1(c, "\tC4Can't join game!\n\n"
-                      "\tC7Game mode is set\n"
-                      "to legit and you\n"
-                      "failed the legit\n"
-                      "check!");
+        send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't join game!"),
+                      __(c, "\tC7Game mode is set\nto legit and you\n"
+                         "failed the legit\ncheck!"));
     }
     else if(rv == -8) {
         /* Quest selection in progress */
-        send_message1(c, "\tC4Can't join game!\n\n"
-                      "\tC7Quest selection\nis in progress");
+        send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't join game!"),
+                      __(c, "\tC7Quest selection\nis in progress"));
     }
     else if(rv == -7) {
         /* Questing in progress */
-        send_message1(c, "\tC4Can't join game!\n\n"
-                      "\tC7A quest is in\nprogress.");
+        send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't join game!"),
+                      __(c, "\tC7A quest is in\nprogress."));
     }
     else if(rv == -6) {
         /* V1 client attempting to join a V2 only game */
-        send_message1(c, "\tC4Can't join game!\n\n"
-                      "\tC7This game is for\nVersion 2 only.");
+        send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't join game!"),
+                      __(c, "\tC7This game is for\nVersion 2 only."));
     }
     else if(rv == -5) {
         /* Level is too high */
-        send_message1(c, "\tC4Can't join game!\n\n"
-                      "\tC7Your level is\ntoo high.");
+        send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't join game!"),
+                      __(c, "\tC7Your level is\ntoo high."));
     }
     else if(rv == -4) {
         /* Level is too high */
-        send_message1(c, "\tC4Can't join game!\n\n"
-                      "\tC7Your level is\ntoo low.");
+        send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't join game!"),
+                      __(c, "\tC7Your level is\ntoo low."));
     }
     else if(rv == -3) {
         /* A client is bursting. */
-        send_message1(c, "\tC4Can't join game!\n\n"
-                      "\tC7A Player is\nbursting.");
+        send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't join game!"),
+                      __(c, "\tC7A Player is\nbursting."));
     }
     else if(rv == -2) {
         /* The lobby has disappeared. */
-        send_message1(c, "\tC4Can't join game!\n\n"
-                      "\tC7This game is\nnon-existant.");
+        send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't join game!"),
+                      __(c, "\tC7This game is\nnon-existant."));
     }
     else if(rv == -1) {
         /* The lobby is full. */
-        send_message1(c, "\tC4Can't join game!\n\n"
-                      "\tC7This game is\nfull.");
+        send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't join game!"),
+                      __(c, "\tC7This game is\nfull."));
     }
 
     return rv;
@@ -821,19 +817,19 @@ static int dc_process_change_lobby(ship_client_t *c, dc_select_pkt *pkt) {
 
     /* The requested lobby is non-existant? What to do... */
     if(req == NULL) {
-        return send_message1(c, "\tC4Can\'t Change lobby!\n\n"
-                                "\tC7The lobby is non-\nexistant.");
+        return send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't Change lobby!"),
+                             __(c, "\tC7The lobby is non-\nexistant."));
     }
 
     rv = lobby_change_lobby(c, req);
 
     if(rv == -1) {
-        return send_message1(c, "\tC4Can\'t Change lobby!\n\n"
-                                "\tC7The lobby is full.");
+        return send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't Change lobby!"),
+                             __(c, "\tC7The lobby is full."));
     }
     else if(rv < 0) {
-        return send_message1(c, "\tC4Can\'t Change lobby!\n\n"
-                                "\tC7Unknown error occured.");
+        return send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't Change lobby!"),
+                             __(c, "\tC7Unknown error occured."));
     }
     else {
         return rv;
@@ -1108,9 +1104,9 @@ static int dc_process_game_create(ship_client_t *c, dc_game_create_pkt *pkt) {
 
     /* Check the user's ability to create a game of that difficulty. */
     if((LE32(c->pl->v1.level) + 1) < game_required_level[pkt->difficulty]) {
-        return send_message1(c, "\tC4Can\'t create game!\n\n"
-                             "\tC7Your level is too\nlow for that\n"
-                             "difficulty.");
+        return send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't create game!"),
+                             __(c, "\tC7Your level is too\nlow for that\n"
+                                "difficulty."));
     }
 
     /* Create the lobby structure. */
@@ -1121,8 +1117,8 @@ static int dc_process_game_create(ship_client_t *c, dc_game_create_pkt *pkt) {
 
     /* If we don't have a game, something went wrong... tell the user. */
     if(!l) {
-        return send_message1(c, "\tC4Can\'t create game!\n\n"
-                             "\tC7Try again later.");
+        return send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't create game!"),
+                             __(c, "\tC7Try again later."));
     }
 
     /* We've got a new game, but nobody's in it yet... Lets put the requester
@@ -1174,9 +1170,9 @@ static int pc_process_game_create(ship_client_t *c, pc_game_create_pkt *pkt) {
 
     /* Check the user's ability to create a game of that difficulty. */
     if((LE32(c->pl->v1.level) + 1) < game_required_level[pkt->difficulty]) {
-        return send_message1(c, "\tC4Can\'t create game!\n\n"
-                             "\tC7Your level is too\nlow for that\n"
-                             "difficulty.");
+        return send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't create game!"),
+                             __(c, "\tC7Your level is too\nlow for that\n"
+                                "difficulty."));
     }
 
     /* Create the lobby structure. */
@@ -1186,8 +1182,8 @@ static int pc_process_game_create(ship_client_t *c, pc_game_create_pkt *pkt) {
 
     /* If we don't have a game, something went wrong... tell the user. */
     if(!l) {
-        return send_message1(c, "\tC4Can\'t create game!\n\n"
-                             "\tC7Try again later.");
+        return send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't create game!"),
+                             __(c, "\tC7Try again later."));
     }
 
     /* If its a non-challenge, non-battle, non-ultimate game, ask the user if
@@ -1215,9 +1211,9 @@ static int gc_process_game_create(ship_client_t *c, gc_game_create_pkt *pkt) {
 
     /* Check the user's ability to create a game of that difficulty. */
     if((LE32(c->pl->v1.level) + 1) < game_required_level[pkt->difficulty]) {
-        return send_message1(c, "\tC4Can\'t create game!\n\n"
-                             "\tC7Your level is too\nlow for that\n"
-                             "difficulty.");
+        return send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't create game!"),
+                             __(c, "\tC7Your level is too\nlow for that\n"
+                                "difficulty."));
     }
 
     /* Create the lobby structure. */
@@ -1228,8 +1224,8 @@ static int gc_process_game_create(ship_client_t *c, gc_game_create_pkt *pkt) {
 
     /* If we don't have a game, something went wrong... tell the user. */
     if(!l) {
-        return send_message1(c, "\tC4Can\'t create game!\n\n"
-                             "\tC7Try again later.");
+        return send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't create game!"),
+                             __(c, "\tC7Try again later."));
     }
 
     /* We've got a new game, but nobody's in it yet... Lets put the requester
@@ -1283,10 +1279,9 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
 
             /* The item_id should be the information the client wants. */
             if(item_id >= c->cur_ship->cfg->info_file_count) {
-                send_message1(c, "\tC4That information is\n"
-                              "classified!\n\n"
-                              "\tC7Nah, it just doesn't\n"
-                              "exist, sorry.");
+                send_message1(c, "%s\n\n%s",
+                              __(c, "\tE\tC4That information is\nclassified!"),
+                              __(c, "\tC7Nah, it just doesn't\nexist, sorry."));
                 return 0;
             }
 
@@ -1294,10 +1289,9 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
             fp = fopen(c->cur_ship->cfg->info_files[item_id], "r");
 
             if(!fp) {
-                send_message1(c, "\tC4That information is\n"
-                              "classified!\n\n"
-                              "\tC7Nah, it just doesn't\n"
-                              "exist, sorry.");
+                send_message1(c, "%s\n\n%s",
+                              __(c, "\tE\tC4That information is\nclassified!"),
+                              __(c, "\tC7Nah, it just doesn't\nexist, sorry."));
                 return 0;
             }
 
@@ -1394,7 +1388,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
 
                 if(ic == (iconv_t)-1) {
                     perror("iconv_open");
-                    return send_message1(c, "\tC4Internal Server\nError");
+                    return send_message1(c, "%s", __(c, "\tE\tC4Try again."));
                 }
 
                 in = 32;
@@ -1413,15 +1407,15 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
 
             if(!l) {
                 /* The lobby has disappeared. */
-                send_message1(c, "\tC4Can't join game!\n\n"
-                              "\tC7This game is\nnon-existant.");
+                send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't join game!"),
+                              __(c, "\tC7This game is\nnon-existant."));
                 return 0;
             }
 
             /* Check the provided password (if any). */
             if(strcmp(passwd, l->passwd)) {
-                send_message1(c, "\tC4Can't join game!\n\n"
-                              "\tC7Wrong Password.");
+                send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't join game!"),
+                              __(c, "\tC7Wrong Password."));
                 return 0;
             }
 
@@ -1439,7 +1433,9 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
             pthread_mutex_lock(&c->cur_ship->qmutex);
 
             if(item_id >= c->cur_ship->quests.cat_count) {
-                rv = send_message1(c, "\tC4That category is\nnon-existant.");
+                rv = send_message1(c, "%s",
+                                   __(c, "\tE\tC4That category is\n"
+                                      "non-existant."));
             }
             else {
                 rv = send_quest_list(c, (int)item_id,
@@ -1460,13 +1456,18 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
             pthread_mutex_lock(&c->cur_ship->qmutex);
 
             if(q >= c->cur_ship->quests.cat_count) {
-                rv = send_message1(c, "\tC4That category is\nnon-existant.");
+                rv = send_message1(c, "%s",
+                                   __(c, "\tE\tC4That category is\n"
+                                      "non-existant."));
             }
             else if(item_id >= c->cur_ship->quests.cats[q].quest_count) {
-                rv = send_message1(c, "\tC4That quest is\nnon-existant.");
+                rv = send_message1(c, "%s",
+                                   __(c, "\tE\tC4That quest is\n"
+                                      "non-existant."));
             }
             else if(c->cur_lobby->flags & LOBBY_FLAG_BURSTING) {
-                rv = send_message1(c, "\tC4Please wait a moment.");
+                rv = send_message1(c, "%s",
+                                   __(c, "\tE\tC4Please wait a moment."));
             }
             else {
                 c->cur_lobby->flags |= LOBBY_FLAG_QUESTING;
@@ -1531,7 +1532,8 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
             }
 
             /* We didn't find it, punt. */
-            return send_message1(c, "\tC4That ship is now\noffline.");
+            return send_message1(c, "%s",
+                                 __(c, "\tE\tC4That ship is now\noffline."));
         }
 
         /* Game type (PSOPC only) */
@@ -1559,7 +1561,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
                 return 0;
             }
 
-            return send_message1(c, "\tC4Huh?");
+            return send_message1(c, "%s", __(c, "\tE\tC4Huh?"));
         }
     }
 
@@ -1594,10 +1596,14 @@ static int dc_process_info_req(ship_client_t *c, dc_select_pkt *pkt) {
             pthread_mutex_lock(&c->cur_ship->qmutex);
 
             if(q >= c->cur_ship->quests.cat_count) {
-                rv = send_message1(c, "\tC4That category is\nnon-existant.");
+                rv = send_message1(c, "%s",
+                                   __(c, "\tE\tC4That category is\n"
+                                      "non-existant."));
             }
             else if(item_id >= c->cur_ship->quests.cats[q].quest_count) {
-                rv = send_message1(c, "\tC4That quest is\nnon-existant.");
+                rv = send_message1(c, "%s",
+                                   __(c, "\tE\tC4That quest is\n"
+                                      "non-existant."));
             }
             else {
                 quest = &c->cur_ship->quests.cats[q].quests[item_id];
@@ -1610,7 +1616,7 @@ static int dc_process_info_req(ship_client_t *c, dc_select_pkt *pkt) {
 
         /* Ship */
         case 0x05:
-            return send_info_reply(c, "Nothing here.");
+            return send_info_reply(c, __(c, "\tENothing here."));
 
         default:
             debug(DBG_WARN, "Unknown info request menu_id: 0x%08X\n", menu_id);
@@ -1641,7 +1647,7 @@ static int process_trade(ship_client_t *c, gc_trade_pkt *pkt) {
 /* Process a blacklist update packet. */
 static int process_blacklist(ship_client_t *c, gc_blacklist_update_pkt *pkt) {
     memcpy(c->blacklist, pkt->list, 30 * sizeof(uint32_t));
-    return send_txt(c, "\tE\tC7Updated blacklist.");
+    return send_txt(c, "%s", __(c, "\tE\tC7Updated blacklist."));
 }
 
 /* Process an infoboard update packet. */

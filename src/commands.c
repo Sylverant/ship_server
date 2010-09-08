@@ -44,12 +44,12 @@ static int handle_warp(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     /* Make sure the requester is a GM. */
     if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
-        return send_txt(c, "\tE\tC7Nice try.");
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
     if(!(l->type & LOBBY_TYPE_GAME)) {
-        return send_txt(c, "\tE\tC7Only valid in a game lobby.");
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
     }
 
     /* Figure out the floor requested */
@@ -58,12 +58,12 @@ static int handle_warp(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     if(errno) {
         /* Send a message saying invalid area */
-        return send_txt(c, "\tE\tC7Invalid Area!");
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid area!"));
     }
 
     if(area > 17) {
         /* Area too large, give up */
-        return send_txt(c, "\tE\tC7Invalid Area!");
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid area!"));
     }
 
     /* Send the person to the requested place */
@@ -77,12 +77,12 @@ static int handle_warpall(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     /* Make sure the requester is a GM. */
     if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
-        return send_txt(c, "\tE\tC7Nice try.");
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
     if(!(l->type & LOBBY_TYPE_GAME)) {
-        return send_txt(c, "\tE\tC7Only valid in a game lobby.");
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
     }
 
     /* Figure out the floor requested */
@@ -91,12 +91,12 @@ static int handle_warpall(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     if(errno) {
         /* Send a message saying invalid area */
-        return send_txt(c, "\tE\tC7Invalid Area!");
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid area!"));
     }
 
     if(area > 17) {
         /* Area too large, give up */
-        return send_txt(c, "\tE\tC7Invalid Area!");
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid area!"));
     }
 
     /* Send the person to the requested place */
@@ -112,7 +112,7 @@ static int handle_kill(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     /* Make sure the requester is a GM. */
     if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
-        return send_txt(c, "\tE\tC7Nice try.");
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
     /* Figure out the user requested */
@@ -121,7 +121,7 @@ static int handle_kill(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     if(errno != 0) {
         /* Send a message saying invalid guildcard number */
-        return send_txt(c, "\tE\tC7Invalid Guild Card");
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card"));
     }
 
     /* Look for the requested user (only on this block) */
@@ -129,11 +129,13 @@ static int handle_kill(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
         /* Disconnect them if we find them */
         if(i->guildcard == gc) {
             if(strlen(reason) > 1) {
-                send_message_box(i, "\tEYou have been kicked by a GM.\n\n"
-                                 "Reason:\n%s", reason + 1);
+                send_message_box(i, "%s\n\n%s\n%s",
+                                 __(i, "\tEYou have been kicked by a GM."),
+                                 __(i, "Reason:"), reason + 1);
             }
             else {
-                send_message_box(i, "\tEYou have been kicked by a GM.");
+                send_message_box(i, "%s",
+                                 __(i, "\tEYou have been kicked by a GM."));
             }
 
             i->disconnected = 1;
@@ -152,12 +154,13 @@ static int handle_min_level(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
     if(!(l->type & LOBBY_TYPE_GAME)) {
-        return send_txt(c, "\tE\tC7Only valid in a game lobby.");
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
     }
 
     /* Make sure the requester is the leader of the team. */
     if(l->leader_id != c->client_id) {
-        return send_txt(c, "\tE\tC7Only the leader may use this command.");
+        return send_txt(c, "%s",
+                        __(c, "\tE\tC7Only the leader may use this command."));
     }
 
     /* Figure out the level requested */
@@ -166,25 +169,27 @@ static int handle_min_level(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     if(errno || lvl > 200 || lvl < 1) {
         /* Send a message saying invalid level */
-        return send_txt(c, "\tE\tC7Invalid level value");
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid level value"));
     }
 
     /* Make sure the requested level is greater than or equal to the value for
        the game's difficulty. */
     if(lvl < game_required_level[l->difficulty]) {
-        return send_txt(c, "\tE\tC7Invalid level for this difficulty.");
+        return send_txt(c, "%s",
+                        __(c, "\tE\tC7Invalid level for this difficulty."));
     }
 
     /* Make sure the requested level is less than or equal to the game's maximum
        level. */
     if(lvl > l->max_level + 1) {
-        return send_txt(c, "\tE\tC7Minimum level must be <= maximum.");
+        return send_txt(c, "%s",
+                        __(c, "\tE\tC7Minimum level must be <= maximum."));
     }
 
     /* Set the value in the structure, and be on our way. */
     l->min_level = lvl - 1;
 
-    return send_txt(c, "\tE\tC7Minimum level set.");
+    return send_txt(c, "%s", __(c, "\tE\tC7Minimum level set."));
 }
 
 /* Usage: /maxlvl level */
@@ -194,12 +199,13 @@ static int handle_max_level(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
     if(!(l->type & LOBBY_TYPE_GAME)) {
-        return send_txt(c, "\tE\tC7Only valid in a game lobby.");
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
     }
 
     /* Make sure the requester is the leader of the team. */
     if(l->leader_id != c->client_id) {
-        return send_txt(c, "\tE\tC7Only the leader may use this command.");
+        return send_txt(c, "%s",
+                        __(c, "\tE\tC7Only the leader may use this command."));
     }
 
     /* Figure out the level requested */
@@ -208,19 +214,20 @@ static int handle_max_level(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     if(errno || lvl > 200 || lvl < 1) {
         /* Send a message saying invalid level */
-        return send_txt(c, "\tE\tC7Invalid level value");
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid level value"));
     }
 
     /* Make sure the requested level is greater than or equal to the value for
        the game's minimum level. */
     if(lvl < l->min_level + 1) {
-        return send_txt(c, "\tE\tC7Maximum level must be >= minimum.");
+        return send_txt(c, "%s",
+                        __(c, "\tE\tC7Maximum level must be >= minimum."));
     }
     
     /* Set the value in the structure, and be on our way. */
     l->max_level = lvl - 1;
 
-    return send_txt(c, "\tE\tC7Maximum level set.");
+    return send_txt(c, "%s", __(c, "\tE\tC7Maximum level set."));
 }
 
 /* Usage: /refresh [quests or gms] */
@@ -230,7 +237,7 @@ static int handle_refresh(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     /* Make sure the requester is a GM. */
     if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
-        return send_txt(c, "\tE\tC7Nice try.");
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
     if(!strcmp(params, "quests")) {
@@ -238,7 +245,8 @@ static int handle_refresh(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
             if(sylverant_quests_read(s->cfg->quests_file, &quests)) {
                 debug(DBG_ERROR, "%s: Couldn't read quests file!\n",
                       s->cfg->name);
-                return send_txt(c, "\tE\tC7Couldn't read quests file!");
+                return send_txt(c, "%s",
+                                __(c, "\tE\tC7Couldn't read quests file!"));
             }
 
             /* Lock the mutex to prevent anyone from trying anything funny. */
@@ -250,10 +258,11 @@ static int handle_refresh(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
             /* Unlock the lock, we're done. */
             pthread_mutex_unlock(&s->qmutex);
-            return send_txt(c, "\tE\tC7Updated quest list");
+            return send_txt(c, "%s", __(c, "\tE\tC7Updated quest list"));
         }
         else {
-            return send_txt(c, "\tE\tC7No configured quests list!");
+            return send_txt(c, "%s",
+                            __(c, "\tE\tC7No configured quests list!"));
         }
     }
     else if(!strcmp(params, "gms")) {
@@ -261,17 +270,18 @@ static int handle_refresh(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
             /* Try to read the GM file. This will clean out the old list as
                well, if needed. */
             if(gm_list_read(s->cfg->gm_file, s)) {
-                return send_txt(c, "\tE\tC7Couldn't read GM list!");
+                return send_txt(c, "%s",
+                                __(c, "\tE\tC7Couldn't read GM list!"));
             }
 
-            return send_txt(c, "\tE\tC7Updated GMs list");
+            return send_txt(c, "%s", __(c, "\tE\tC7Updated GMs list"));
         }
         else {
-            return send_txt(c, "\tE\tC7No configured GM list!");
+            return send_txt(c, "%s", __(c, "\tE\tC7No configured GM list!"));
         }
     }
     else {
-        return send_txt(c, "\tE\tC7Unknown item to refresh");
+        return send_txt(c, "%s", __(c, "\tE\tC7Unknown item to refresh"));
     }
 }
 
@@ -282,7 +292,8 @@ static int handle_save(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     /* Make sure that the requester is in a lobby lobby, not a game lobby */
     if(l->type & LOBBY_TYPE_GAME) {
-        return send_txt(c, "\tE\tC7Only valid in a non-game lobby.");
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a "
+                                    "non-game lobby."));
     }
 
     /* Figure out the slot requested */
@@ -291,7 +302,7 @@ static int handle_save(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     if(errno || slot > 4 || slot < 1) {
         /* Send a message saying invalid slot */
-        return send_txt(c, "\tE\tC7Invalid slot value");
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid slot value"));
     }
 
     /* Adjust so we don't go into the Blue Burst character data */
@@ -300,10 +311,10 @@ static int handle_save(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     /* Send the character data to the shipgate */
     if(shipgate_send_cdata(&c->cur_ship->sg, c->guildcard, slot, c->pl)) {
         /* Send a message saying we couldn't save */
-        return send_txt(c, "\tE\tC7Couldn't save character data");
+        return send_txt(c, "%s", __(c, "\tE\tC7Couldn't save character data"));
     }
 
-    return send_txt(c, "\tE\tC7Saved character data");
+    return send_txt(c, "%s", __(c, "\tE\tC7Saved character data"));
 }
 
 /* Usage: /restore slot */
@@ -313,7 +324,8 @@ static int handle_restore(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     /* Make sure that the requester is in a lobby lobby, not a game lobby */
     if(l->type & LOBBY_TYPE_GAME) {
-        return send_txt(c, "\tE\tC7Only valid in a non-game lobby.");
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a "
+                                    "non-game lobby."));
     }
 
     /* Figure out the slot requested */
@@ -322,7 +334,7 @@ static int handle_restore(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     if(errno || slot > 4 || slot < 1) {
         /* Send a message saying invalid slot */
-        return send_txt(c, "\tE\tC7Invalid slot value");
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid slot value"));
     }
 
     /* Adjust so we don't go into the Blue Burst character data */
@@ -331,7 +343,8 @@ static int handle_restore(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     /* Send the request to the shipgate. */
     if(shipgate_send_creq(&c->cur_ship->sg, c->guildcard, slot)) {
         /* Send a message saying we couldn't request */
-        return send_txt(c, "\tE\tC7Couldn't request character data");
+        return send_txt(c, "%s",
+                        __(c, "\tE\tC7Couldn't request character data"));
     }
 
     return 0;
@@ -371,8 +384,8 @@ static int handle_bstat(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     pthread_mutex_unlock(&b->mutex);
 
     /* Fill in the string. */
-    return send_txt(c, "\tE\tC7BLOCK%02d:\n%d Players\n%d Games", b->b,
-                    players, games);
+    return send_txt(c, "\tE\tC7BLOCK%02d:\n%d %s\n%d %s", b->b,
+                    players, __(c, "Players"), games, __(c, "Games"));
 }
 
 /* Usage /bcast message */
@@ -384,7 +397,7 @@ static int handle_bcast(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     /* Make sure the requester is a GM. */
     if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
-        return send_txt(c, "\tE\tC7Nice try.");
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
     /* Go through each block and send the message to anyone that is alive. */
@@ -399,7 +412,8 @@ static int handle_bcast(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
                 pthread_mutex_lock(&i2->mutex);
 
                 if(i2->pl) {
-                    send_txt(i2, "\tE\tC7Global Message:\n%s", params);
+                    send_txt(i2, "%s\n%s", __(i2, "\tE\tC7Global Message:"),
+                             params);
                 }
 
                 pthread_mutex_unlock(&i2->mutex);
@@ -420,7 +434,7 @@ static int handle_arrow(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     i = atoi(params);
     c->arrow = i;
 
-    send_txt(c, "\tE\tC7Arrow set");
+    send_txt(c, "%s", __(c, "\tE\tC7Arrow set"));
 
     return send_lobby_arrows(c->cur_lobby);
 }
@@ -437,7 +451,7 @@ static int handle_login(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     }
 
     if(len == 32) {
-        return send_txt(c, "\tE\tC7Invalid request");
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid request"));
     }
 
     username[len] = '\0';
@@ -450,7 +464,7 @@ static int handle_login(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     }
 
     if(len == 32) {
-        return send_txt(c, "\tE\tC7Invalid request");
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid request"));
     }
 
     password[len] = '\0';
@@ -467,7 +481,7 @@ static int handle_item(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     /* Make sure the requester is a GM. */
     if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
-        return send_txt(c, "\tE\tC7Nice try.");
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
     /* Copy over the item data. */
@@ -475,7 +489,7 @@ static int handle_item(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
                    item + 3);
 
     if(count == EOF || count == 0) {
-        return send_txt(c, "\tE\tC7Invalid item code");
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid item code"));
     }
 
     c->next_item[0] = item[0];
@@ -483,7 +497,7 @@ static int handle_item(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     c->next_item[2] = item[2];
     c->next_item[3] = item[3];
 
-    return send_txt(c, "\tE\tC7Next item set successfully");
+    return send_txt(c, "%s", __(c, "\tE\tC7Next item set successfully"));
 }
 
 /* Usage /item4 item4 */
@@ -493,19 +507,19 @@ static int handle_item4(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     /* Make sure the requester is a GM. */
     if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
-        return send_txt(c, "\tE\tC7Nice try.");
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
     /* Copy over the item data. */
     count = sscanf(params, "%x", &item);
 
     if(count == EOF || count == 0) {
-        return send_txt(c, "\tE\tC7Invalid item code");
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid item code"));
     }
 
     c->next_item[3] = item;
 
-    return send_txt(c, "\tE\tC7Item4 set succesfully");
+    return send_txt(c, "%s", __(c, "\tE\tC7Next item set successfully"));
 }
 
 /* Usage: /event number */
@@ -518,12 +532,13 @@ static int handle_event(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     /* Make sure the requester is a GM. */
     if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
-        return send_txt(c, "\tE\tC7Nice try.");
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
     /* Make sure that the requester is in a lobby lobby, not a game lobby */
     if(l->type & LOBBY_TYPE_GAME) {
-        return send_txt(c, "\tE\tC7Only valid in a non-game lobby.");
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a "
+                                    "non-game lobby."));
     }
 
     /* Grab the event number */
@@ -540,7 +555,7 @@ static int handle_event(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     }
 
     if(event < 0 || event > 14) {
-        return send_txt(c, "\tE\tC7Invalid event code.");
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid event code."));
     }
 
     /* Go through all the blocks... */
@@ -580,7 +595,7 @@ static int handle_event(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
         }
     }
 
-    return send_txt(c, "\tE\tC7Event set.");
+    return send_txt(c, "%s", __(c, "\tE\tC7Event set."));
 }
 
 /* Usage: /passwd newpass */
@@ -589,17 +604,18 @@ static int handle_passwd(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
     if(!(l->type & LOBBY_TYPE_GAME)) {
-        return send_txt(c, "\tE\tC7Only valid in a game lobby.");
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
     }
 
     /* Make sure the requester is the leader of the team. */
     if(l->leader_id != c->client_id) {
-        return send_txt(c, "\tE\tC7Only the leader may use this command.");
+        return send_txt(c, "%s",
+                        __(c, "\tE\tC7Only the leader may use this command."));
     }
 
     /* Check the length of the provided password. */
     if(strlen(params) > 16) {
-        return send_txt(c, "\tE\tC7Password too long.");
+        return send_txt(c, "%s", __(c, "\tE\tC7Password too long."));
     }
 
     pthread_mutex_lock(&l->mutex);
@@ -609,7 +625,7 @@ static int handle_passwd(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     pthread_mutex_unlock(&l->mutex);
 
-    return send_txt(c, "\tE\tC7Password set.");
+    return send_txt(c, "%s", __(c, "\tE\tC7Password set."));
 }
 
 /* Usage: /lname newname */
@@ -618,17 +634,18 @@ static int handle_lname(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
     if(!(l->type & LOBBY_TYPE_GAME)) {
-        return send_txt(c, "\tE\tC7Only valid in a game lobby.");
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
     }
 
     /* Make sure the requester is the leader of the team. */
     if(l->leader_id != c->client_id) {
-        return send_txt(c, "\tE\tC7Only the leader may use this command.");
+        return send_txt(c, "%s",
+                        __(c, "\tE\tC7Only the leader may use this command."));
     }
 
     /* Check the length of the provided lobby name. */
     if(strlen(params) > 16) {
-        return send_txt(c, "\tE\tC7Lobby name too long.");
+        return send_txt(c, "%s", __(c, "\tE\tC7Lobby name too long."));
     }
 
     pthread_mutex_lock(&l->mutex);
@@ -638,7 +655,7 @@ static int handle_lname(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     pthread_mutex_unlock(&l->mutex);
 
-    return send_txt(c, "\tE\tC7Lobby name set.");
+    return send_txt(c, "%s", __(c, "\tE\tC7Lobby name set."));
 }
 
 /* Usage: /bug */
@@ -661,12 +678,13 @@ static int handle_bug(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     gcpkt.section = 0;
     gcpkt.char_class = 8;
     gcpkt.padding[0] = gcpkt.padding[1] = gcpkt.padding[1] = 0;
-    sprintf(gcpkt.name, "Report Bug");
-    sprintf(gcpkt.text, "Send a Simple Mail to this guildcard to report a bug");
+    sprintf(gcpkt.name, __(c, "Report Bug"));
+    sprintf(gcpkt.text, __(c, "Send a Simple Mail to this guildcard to report "
+                           "a bug"));
 
-    send_txt(c, "\tE\tC7Send a mail to the\n"
-                "'Report Bug' user to report\n"
-                "a bug.");
+    send_txt(c, "%s", __(c, "\tE\tC7Send a mail to the\n"
+                         "'Report Bug' user to report\n"
+                         "a bug."));
 
     return handle_dc_gcsend(c, &gcpkt);
 }
@@ -680,19 +698,19 @@ static int handle_clinfo(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     /* Make sure the requester is a GM. */
     if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
-        return send_txt(c, "\tE\tC7Nice try.");
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
     /* Copy over the item data. */
     count = sscanf(params, "%d", &id);
 
     if(count == EOF || count == 0 || id >= l->max_clients || id < 0) {
-        return send_txt(c, "\tE\tC7Invalid Client ID");
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Client ID"));
     }
 
     /* Make sure there is such a client. */
     if(!(cl = l->clients[id])) {
-        return send_txt(c, "\tE\tC7No such client");
+        return send_txt(c, "%s", __(c, "\tE\tC7No such client"));
     }
 
     /* Fill in the client's info. */
@@ -711,7 +729,7 @@ static int handle_gban_d(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     /* Make sure the requester is a global GM. */
     if(!(c->privilege & CLIENT_PRIV_GLOBAL_GM)) {
-        return send_txt(c, "\tE\tC7Nice try.");
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
     /* Figure out the user requested */
@@ -720,13 +738,13 @@ static int handle_gban_d(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     if(errno != 0) {
         /* Send a message saying invalid guildcard number */
-        return send_txt(c, "\tE\tC7Invalid Guild Card");
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card"));
     }
 
     /* Set the ban with the shipgate first (86400s = 1 day). */
     if(shipgate_send_ban(&c->cur_ship->sg, SHDR_TYPE_GCBAN, c->guildcard, gc,
                          time(NULL) + 86400, reason + 1)) {
-        return send_txt(c, "\tE\tC7Error setting ban!");
+        return send_txt(c, "%s", __(c, "\tE\tC7Error setting ban!"));
     }
 
     /* Look for the requested user and kick them if they're currently connected
@@ -735,13 +753,15 @@ static int handle_gban_d(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
         /* Disconnect them if we find them */
         if(i->guildcard == gc) {
             if(strlen(reason) > 1) {
-                send_message_box(i, "\tEYou have been banned by a GM\n"
-                                 "Ban Length: 1 day\n"
-                                 "Reason:\n%s", reason + 1);
+                send_message_box(i, "%s\n%s: %s\n%s\n%s",
+                                 __(i, "\tEYou have been banned by a GM"),
+                                 __(i, "Ban Length:"), __(i, "1 day"),
+                                 __(i, "Reason:"), reason + 1);
             }
             else {
-                send_message_box(i, "\tEYou have been banned by a GM\n"
-                                 "Ban Length: 1 day");
+                send_message_box(i, "%s\n%s: %s",
+                                 __(i, "\tEYou have been banned by a GM"),
+                                 __(i, "Ban Length:"), __(i, "1 day"));
             }
 
             i->disconnected = 1;
@@ -762,7 +782,7 @@ static int handle_gban_w(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     /* Make sure the requester is a global GM. */
     if(!(c->privilege & CLIENT_PRIV_GLOBAL_GM)) {
-        return send_txt(c, "\tE\tC7Nice try.");
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
     /* Figure out the user requested */
@@ -771,13 +791,13 @@ static int handle_gban_w(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     if(errno != 0) {
         /* Send a message saying invalid guildcard number */
-        return send_txt(c, "\tE\tC7Invalid Guild Card");
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card"));
     }
 
     /* Set the ban with the shipgate first (604800s = 1 week). */
     if(shipgate_send_ban(&c->cur_ship->sg, SHDR_TYPE_GCBAN, c->guildcard, gc,
                          time(NULL) + 604800, reason + 1)) {
-        return send_txt(c, "\tE\tC7Error setting ban!");
+        return send_txt(c, "%s", __(c, "\tE\tC7Error setting ban!"));
     }
 
     /* Look for the requested user and kick them if they're currently connected
@@ -786,13 +806,15 @@ static int handle_gban_w(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
         /* Disconnect them if we find them */
         if(i->guildcard == gc) {
             if(strlen(reason) > 1) {
-                send_message_box(i, "\tEYou have been banned by a GM\n"
-                                 "Ban Length: 1 week\n"
-                                 "Reason:\n%s", reason + 1);
+                send_message_box(i, "%s\n%s: %s\n%s\n%s",
+                                 __(i, "\tEYou have been banned by a GM"),
+                                 __(i, "Ban Length:"), __(i, "1 week"),
+                                 __(i, "Reason:"), reason + 1);
             }
             else {
-                send_message_box(i, "\tEYou have been banned by a GM\n"
-                                 "Ban Length: 1 week");
+                send_message_box(i, "%s\n%s: %s",
+                                 __(i, "\tEYou have been banned by a GM"),
+                                 __(i, "Ban Length:"), __(i, "1 week"));
             }
 
             i->disconnected = 1;
@@ -813,7 +835,7 @@ static int handle_gban_m(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     /* Make sure the requester is a global GM. */
     if(!(c->privilege & CLIENT_PRIV_GLOBAL_GM)) {
-        return send_txt(c, "\tE\tC7Nice try.");
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
     /* Figure out the user requested */
@@ -822,13 +844,13 @@ static int handle_gban_m(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     if(errno != 0) {
         /* Send a message saying invalid guildcard number */
-        return send_txt(c, "\tE\tC7Invalid Guild Card");
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card"));
     }
 
     /* Set the ban with the shipgate first (2,592,000s = 30 days). */
     if(shipgate_send_ban(&c->cur_ship->sg, SHDR_TYPE_GCBAN, c->guildcard, gc,
                          time(NULL) + 2592000, reason + 1)) {
-        return send_txt(c, "\tE\tC7Error setting ban!");
+        return send_txt(c, "%s", __(c, "\tE\tC7Error setting ban!"));
     }
 
     /* Look for the requested user and kick them if they're currently connected
@@ -837,13 +859,15 @@ static int handle_gban_m(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
         /* Disconnect them if we find them */
         if(i->guildcard == gc) {
             if(strlen(reason) > 1) {
-                send_message_box(i, "\tEYou have been banned by a GM\n"
-                                 "Ban Length: 30 days\n"
-                                 "Reason:\n%s", reason + 1);
+                send_message_box(i, "%s\n%s: %s\n%s\n%s",
+                                 __(i, "\tEYou have been banned by a GM"),
+                                 __(i, "Ban Length:"), __(i, "30 days"),
+                                 __(i, "Reason:"), reason + 1);
             }
             else {
-                send_message_box(i, "\tEYou have been banned by a GM\n"
-                                 "Ban Length: 30 days");
+                send_message_box(i, "%s\n%s: %s",
+                                 __(i, "\tEYou have been banned by a GM"),
+                                 __(i, "Ban Length:"), __(i, "30 days"));
             }
 
             i->disconnected = 1;
@@ -864,7 +888,7 @@ static int handle_gban_p(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     /* Make sure the requester is a global GM. */
     if(!(c->privilege & CLIENT_PRIV_GLOBAL_GM)) {
-        return send_txt(c, "\tE\tC7Nice try.");
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
     /* Figure out the user requested */
@@ -873,14 +897,14 @@ static int handle_gban_p(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     if(errno != 0) {
         /* Send a message saying invalid guildcard number */
-        return send_txt(c, "\tE\tC7Invalid Guild Card");
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card"));
     }
 
     /* Set the ban with the shipgate first (0xFFFFFFFF = forever (or close
        enough anyway)). */
     if(shipgate_send_ban(&c->cur_ship->sg, SHDR_TYPE_GCBAN, c->guildcard, gc,
                          0xFFFFFFFF, reason + 1)) {
-        return send_txt(c, "\tE\tC7Error setting ban!");
+        return send_txt(c, "%s", __(c, "\tE\tC7Error setting ban!"));
     }
 
     /* Look for the requested user and kick them if they're currently connected
@@ -889,13 +913,15 @@ static int handle_gban_p(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
         /* Disconnect them if we find them */
         if(i->guildcard == gc) {
             if(strlen(reason) > 1) {
-                send_message_box(i, "\tEYou have been banned by a GM\n"
-                                 "Ban Length: Forever\n"
-                                 "Reason:\n%s", reason + 1);
+                send_message_box(i, "%s\n%s: %s\n%s\n%s",
+                                 __(i, "\tEYou have been banned by a GM"),
+                                 __(i, "Ban Length:"), __(i, "Forever"),
+                                 __(i, "Reason:"), reason + 1);
             }
             else {
-                send_message_box(i, "\tEYou have been banned by a GM\n"
-                                 "Ban Length: Forever");
+                send_message_box(i, "%s\n%s: %s",
+                                 __(i, "\tEYou have been banned by a GM"),
+                                 __(i, "Ban Length:"), __(i, "Forever"));
             }
 
             i->disconnected = 1;
@@ -911,7 +937,7 @@ static int handle_gban_p(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 static int handle_list(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     /* Make sure the requester is a local GM. */
     if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
-        return send_txt(c, "\tE\tC7Nice try.");
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
     /* Pass off to the player list code... */
@@ -929,13 +955,14 @@ static int handle_legit(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
     if(!(l->type & LOBBY_TYPE_GAME)) {
         pthread_mutex_unlock(&l->mutex);
-        return send_txt(c, "\tE\tC7Only valid in a game lobby.");
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
     }
 
     /* Make sure the requester is the leader of the team. */
     if(l->leader_id != c->client_id) {
         pthread_mutex_unlock(&l->mutex);
-        return send_txt(c, "\tE\tC7Only the leader may use this command.");
+        return send_txt(c, "%s",
+                        __(c, "\tE\tC7Only the leader may use this command."));
     }
 
     /* Set the temporarily unavailable flag on the lobby so that we can do the
@@ -972,26 +999,27 @@ static int handle_normal(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
     if(!(l->type & LOBBY_TYPE_GAME)) {
         pthread_mutex_unlock(&l->mutex);
-        return send_txt(c, "\tE\tC7Only valid in a game lobby.");
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
     }
 
     /* Make sure the requester is the leader of the team. */
     if(l->leader_id != c->client_id) {
         pthread_mutex_unlock(&l->mutex);
-        return send_txt(c, "\tE\tC7Only the leader may use this command.");
+        return send_txt(c, "%s",
+                        __(c, "\tE\tC7Only the leader may use this command."));
     }
 
     /* Can't use this while waiting on a legit check. */
     if((l->flags & LOBBY_FLAG_LEGIT_CHECK)) {
         pthread_mutex_unlock(&l->mutex);
-        return send_txt(c, "\tE\tC7Please wait a while before\n"
-                        "using this command.");
+        return send_txt(c, "%s", __(c, "\tE\tC7Please wait a while before\n"
+                                    "using this command."));
     }
 
     /* If we're not in legit mode, then this command doesn't do anything... */
     if(!(l->flags & LOBBY_FLAG_LEGIT_MODE)) {
         pthread_mutex_unlock(&l->mutex);
-        return send_txt(c, "\tE\tC7Already in normal mode.");
+        return send_txt(c, "%s", __(c, "\tE\tC7Already in normal mode."));
     }
 
     /* Clear the flag */
@@ -1000,7 +1028,8 @@ static int handle_normal(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     /* Let everyone know legit mode has been turned off. */
     for(i = 0; i < l->max_clients; ++i) {
         if(l->clients[i]) {
-            send_txt(l->clients[i], "\tE\tC7Legit mode deactivated.");
+            send_txt(l->clients[i], "%s",
+                     __(l->clients[i], "\tE\tC7Legit mode deactivated."));
         }
     }
 
@@ -1020,7 +1049,7 @@ static int handle_shutdown(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     /* Make sure the requester is a local root. */
     if(!(c->privilege & CLIENT_PRIV_LOCAL_ROOT)) {
-        return send_txt(c, "\tE\tC7Nice try.");
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
     /* Figure out when we're supposed to shut down. */
@@ -1028,8 +1057,8 @@ static int handle_shutdown(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     when = (uint32_t)strtoul(params, NULL, 10);
 
     if(errno != 0) {
-        /* Send a message saying invalid guildcard number */
-        return send_txt(c, "\tE\tC7Invalid time.");
+        /* Send a message saying invalid time */
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid time."));
     }
 
     /* Give everyone at least a minute */
@@ -1049,8 +1078,10 @@ static int handle_shutdown(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
                 pthread_mutex_lock(&i2->mutex);
 
                 if(i2->pl) {
-                    send_txt(i2, "\tE\tC7Ship is going down for\n"
-                             "shutdown in %lu minutes.", (unsigned long)when);
+                    send_txt(i2, "%s %lu %s",
+                             __(i2, "\tE\tC7Ship is going down for\n"
+                                "shutdown in"),
+                             (unsigned long)when, __(i2, "minutes."));
                 }
 
                 pthread_mutex_unlock(&i2->mutex);
@@ -1077,7 +1108,7 @@ static int handle_log(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     /* Make sure the requester is a local root. */
     if(!(c->privilege & CLIENT_PRIV_LOCAL_ROOT)) {
-        return send_txt(c, "\tE\tC7Nice try.");
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
     /* Figure out the user requested */
@@ -1086,7 +1117,7 @@ static int handle_log(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     if(errno != 0) {
         /* Send a message saying invalid guildcard number */
-        return send_txt(c, "\tE\tC7Invalid Guild Card");
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card"));
     }
 
     /* Look for the requested user and start the log */
@@ -1097,7 +1128,8 @@ static int handle_log(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
             if(i->logfile) {
                 pthread_mutex_unlock(&i->mutex);
-                return send_txt(c, "\tE\tC7The user is already\nbeing logged.");
+                return send_txt(c, "%s", __(c, "\tE\tC7The user is already\n"
+                                            "being logged."));
             }
 
             /* Get the timestamp */
@@ -1116,7 +1148,8 @@ static int handle_log(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
             if(!fp) {
                 pthread_mutex_unlock(&i->mutex);
-                return send_txt(c, "\tE\tC7Cannot create log file");
+                return send_txt(c, "%s",
+                                __(c, "\tE\tC7Cannot create log file"));
             }
 
             /* Write a nice header to the log */
@@ -1129,12 +1162,12 @@ static int handle_log(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
             /* We're done, so clean up */
             pthread_mutex_unlock(&i->mutex);
-            return send_txt(c, "\tE\tC7Logging started");
+            return send_txt(c, "%s", __(c, "\tE\tC7Logging started"));
         }
     }
 
     /* The person isn't here... There's nothing left to do. */
-    return send_txt(c, "\tE\tC7Requested user not\nfound");
+    return send_txt(c, "%s", __(c, "\tE\tC7Requested user not\nfound"));
 }
 
 /* Usage: /endlog guildcard */
@@ -1147,7 +1180,7 @@ static int handle_endlog(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     /* Make sure the requester is a local root. */
     if(!(c->privilege & CLIENT_PRIV_LOCAL_ROOT)) {
-        return send_txt(c, "\tE\tC7Nice try.");
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
     /* Figure out the user requested */
@@ -1156,7 +1189,7 @@ static int handle_endlog(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     if(errno != 0) {
         /* Send a message saying invalid guildcard number */
-        return send_txt(c, "\tE\tC7Invalid Guild Card");
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card"));
     }
 
     /* Look for the requested user and end the log */
@@ -1167,7 +1200,8 @@ static int handle_endlog(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
             if(!i->logfile) {
                 pthread_mutex_unlock(&i->mutex);
-                return send_txt(c, "\tE\tC7The user is not\nbeing logged.");
+                return send_txt(c, "%s", __(c,"\tE\tC7The user is not\n"
+                                            "being logged."));
             }
 
             /* Write a nice footer to the log */
@@ -1181,12 +1215,12 @@ static int handle_endlog(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
             /* We're done, so clean up */
             pthread_mutex_unlock(&i->mutex);
-            return send_txt(c, "\tE\tC7Logging ended");
+            return send_txt(c, "%s", __(c, "\tE\tC7Logging ended"));
         }
     }
 
     /* The person isn't here... There's nothing left to do. */
-    return send_txt(c, "\tE\tC7Requested user not\nfound");
+    return send_txt(c, "%s", __(c, "\tE\tC7Requested user not\nfound"));
 }
 
 static command_t cmds[] = {
@@ -1248,7 +1282,7 @@ int command_parse(ship_client_t *c, dc_chat_pkt *pkt) {
     }
 
     /* Send the user a message saying invalid command. */
-    return send_txt(c, "\tE\tC7Invalid Command!");
+    return send_txt(c, "%s", __(c, "\tE\tC7Invalid Command!"));
 }
 
 int wcommand_parse(ship_client_t *c, dc_chat_pkt *pkt) {
@@ -1260,12 +1294,12 @@ int wcommand_parse(ship_client_t *c, dc_chat_pkt *pkt) {
     unsigned char buf[len];
     dc_chat_pkt *p2 = (dc_chat_pkt *)buf;
 
-    ic = iconv_open("SHIFT_JIS", "UTF-16LE");
+    ic = iconv_open("ISO-8859-1", "UTF-16LE");
     if(ic == (iconv_t)-1) {
         return -1;
     }
 
-    /* Convert the text to Shift-JIS. */
+    /* Convert the text to ISO-8859-1. */
     in = out = tlen;
     inptr = pkt->msg;
     outptr = p2->msg;
