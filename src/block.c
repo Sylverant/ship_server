@@ -1284,7 +1284,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
             /* The item_id should be the information the client wants. */
             if(item_id >= c->cur_ship->cfg->info_file_count) {
                 send_message1(c, "\tC4That information is\n"
-                              "clasified!\n\n"
+                              "classified!\n\n"
                               "\tC7Nah, it just doesn't\n"
                               "exist, sorry.");
                 return 0;
@@ -1295,7 +1295,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
 
             if(!fp) {
                 send_message1(c, "\tC4That information is\n"
-                              "clasified!\n\n"
+                              "classified!\n\n"
                               "\tC7Nah, it just doesn't\n"
                               "exist, sorry.");
                 return 0;

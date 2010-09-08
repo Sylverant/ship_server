@@ -168,7 +168,7 @@ static int handle_min_level(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     if(errno || lvl > 200 || lvl < 1) {
         /* Send a message saying invalid level */
-        return send_txt(c, "\tE\tC7Invalid Level Value");
+        return send_txt(c, "\tE\tC7Invalid level value");
     }
 
     /* Make sure the requested level is greater than or equal to the value for
@@ -210,7 +210,7 @@ static int handle_max_level(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     if(errno || lvl > 200 || lvl < 1) {
         /* Send a message saying invalid level */
-        return send_txt(c, "\tE\tC7Invalid Level Value");
+        return send_txt(c, "\tE\tC7Invalid level value");
     }
 
     /* Make sure the requested level is greater than or equal to the value for
@@ -293,7 +293,7 @@ static int handle_save(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     if(errno || slot > 4 || slot < 1) {
         /* Send a message saying invalid slot */
-        return send_txt(c, "\tE\tC7Invalid Slot Value");
+        return send_txt(c, "\tE\tC7Invalid slot value");
     }
 
     /* Adjust so we don't go into the Blue Burst character data */
@@ -324,7 +324,7 @@ static int handle_restore(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     if(errno || slot > 4 || slot < 1) {
         /* Send a message saying invalid slot */
-        return send_txt(c, "\tE\tC7Invalid Slot Value");
+        return send_txt(c, "\tE\tC7Invalid slot value");
     }
 
     /* Adjust so we don't go into the Blue Burst character data */
@@ -477,7 +477,7 @@ static int handle_item(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
                    item + 3);
 
     if(count == EOF || count == 0) {
-        return send_txt(c, "\tE\tC7Invalid Item code");
+        return send_txt(c, "\tE\tC7Invalid item code");
     }
 
     c->next_item[0] = item[0];
@@ -502,7 +502,7 @@ static int handle_item4(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     count = sscanf(params, "%x", &item);
 
     if(count == EOF || count == 0) {
-        return send_txt(c, "\tE\tC7Invalid Item code");
+        return send_txt(c, "\tE\tC7Invalid item code");
     }
 
     c->next_item[3] = item;
@@ -1060,8 +1060,7 @@ static int handle_shutdown(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
                 if(i2->pl) {
                     send_txt(i2, "\tE\tC7Ship is going down for\n"
-                             "shutdown in %lu minute%s.", (unsigned long)when,
-                             (when > 1) ? "s" : "");
+                             "shutdown in %lu minutes.", (unsigned long)when);
                 }
 
                 pthread_mutex_unlock(&i2->mutex);
@@ -1127,7 +1126,7 @@ static int handle_log(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
             if(!fp) {
                 pthread_mutex_unlock(&i->mutex);
-                return send_txt(c, "\tE\tC7Cannot make log file");
+                return send_txt(c, "\tE\tC7Cannot create log file");
             }
 
             /* Write a nice header to the log */
