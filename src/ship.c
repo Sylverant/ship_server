@@ -673,6 +673,11 @@ static int dc_process_block_sel(ship_client_t *c, dc_select_pkt *pkt) {
     ship_t *s = c->cur_ship;
     in_addr_t addr;
 
+    /* See if the block selected is the "Ship Select" block */
+    if(block == 0xFFFFFFFF) {
+        return send_ship_list(c, c->cur_ship->ships, c->cur_ship->ship_count);
+    }
+
     /* Make sure the block selected is in range. */
     if(block > s->cfg->blocks) {
         return -1;
@@ -704,18 +709,92 @@ static int dc_process_block_sel(ship_client_t *c, dc_select_pkt *pkt) {
     }
 }
 
+static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
+    uint32_t menu_id = LE32(pkt->menu_id);
+    uint32_t item_id = LE32(pkt->item_id);
+
+    /* Figure out what the client is selecting. */
+    switch(menu_id & 0xFF) {
+        /* Blocks */
+        case 0x01:
+            return dc_process_block_sel(c, pkt);
+
+        /* Ship */
+        case 0x05:
+        {
+            int i;
+            ship_t *s = c->cur_ship;
+            in_addr_t addr;
+            int off = 0;
+
+            switch(c->version) {
+                case CLIENT_VERSION_DCV1:
+                case CLIENT_VERSION_DCV2:
+                    off = 0;
+                    break;
+
+                case CLIENT_VERSION_PC:
+                    off = 1;
+                    break;
+
+                case CLIENT_VERSION_GC:
+                    off = 2;
+                    break;
+            }
+
+            /* Go through all the ships that we know about looking for the one
+               that the user has requested. */
+            for(i = 0; i < s->ship_count; ++i) {
+                if(s->ships[i].ship_id == item_id) {
+                    /* Figure out which address we need to send the client. */
+                    if(c->addr == s->ships[i].ship_addr) {
+                        /* The client and the ship are connecting from the same
+                           address, this one is obvious. */
+                        addr = s->ships[i].int_addr;
+                    }
+                    else if(netmask &&
+                            s->ships[i].ship_addr == s->cfg->ship_ip &&
+                            (c->addr & netmask) == (local_addr & netmask)) {
+                        /* The destination and the source are on the same
+                           network, and the client is on the same network as the
+                           source, thus the client must be on the same network
+                           as the destination, send the internal address. */
+                        addr = s->ships[i].int_addr;
+                    }
+                    else {
+                        /* They should be on different networks if we get here,
+                           send the external IP. */
+                        addr = s->ships[i].ship_addr;
+                    }
+
+                    return send_redirect(c, addr, s->ships[i].ship_port + off);
+                }
+            }
+
+            /* We didn't find it, punt. */
+            return send_message1(c, "%s",
+                                 __(c, "\tE\tC4That ship is now\noffline."));
+        }
+    }
+
+    return -1;
+}
+
 static int dc_process_info_req(ship_client_t *c, dc_select_pkt *pkt) {
     uint32_t menu_id = LE32(pkt->menu_id);
     uint32_t item_id = LE32(pkt->item_id);
 
     /* What kind of information do they want? */
-    switch(menu_id) {
+    switch(menu_id & 0xFF) {
         /* Block */
-        case 0x00000001:
+        case 0x01:
             return block_info_reply(c, (int)item_id);
 
+        /* Ship */
+        case 0x05:
+            return send_info_reply(c, __(c, "\tNothing here."));
+
         default:
-            debug(DBG_WARN, "Unknown info request menu_id: 0x%08X\n", menu_id);
             return -1;
     }
 }
@@ -748,7 +827,7 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return dc_process_login(c, (dc_login_93_pkt *)pkt);
 
         case MENU_SELECT_TYPE:
-            return dc_process_block_sel(c, (dc_select_pkt *)pkt);
+            return dc_process_menu(c, (dc_select_pkt *)pkt);
 
         case INFO_REQUEST_TYPE:
             return dc_process_info_req(c, (dc_select_pkt *)pkt);

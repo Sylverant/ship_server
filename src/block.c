@@ -1321,6 +1321,12 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
             in_addr_t addr;
             uint16_t port;
 
+            /* See if it's the "Ship Select" entry */
+            if(item_id == 0xFFFFFFFF) {
+                return send_ship_list(c, c->cur_ship->ships,
+                                      c->cur_ship->ship_count);
+            }
+
             /* Make sure the block selected is in range. */
             if(item_id > s->cfg->blocks) {
                 return -1;
@@ -1619,7 +1625,6 @@ static int dc_process_info_req(ship_client_t *c, dc_select_pkt *pkt) {
             return send_info_reply(c, __(c, "\tENothing here."));
 
         default:
-            debug(DBG_WARN, "Unknown info request menu_id: 0x%08X\n", menu_id);
             return -1;
     }
 }

@@ -385,7 +385,7 @@ static int send_dc_block_list(ship_client_t *c, ship_t *s) {
     /* Add each block to the list. */
     for(i = 1; i <= s->cfg->blocks; ++i) {
         if(s->blocks[i - 1] && s->blocks[i - 1]->run) {
-            /* Clear out the ship information */
+            /* Clear out the block information */
             memset(&pkt->entries[i], 0, 0x1C);
 
             /* Fill in what we have */
@@ -402,9 +402,23 @@ static int send_dc_block_list(ship_client_t *c, ship_t *s) {
         }
     }
 
+    /* Add the "Ship Select" entry */
+    memset(&pkt->entries[i], 0, 0x1C);
+
+    /* Fill in what we have */
+    pkt->entries[i].menu_id = LE32(0x00000001);
+    pkt->entries[i].item_id = LE32(0xFFFFFFFF);
+    pkt->entries[i].flags = LE16(0x0000);
+
+    /* Create the name string */
+    strncpy(pkt->entries[i].name, "Ship Select", 0x11);
+    pkt->entries[i].name[0x11] = 0;
+
+    len += 0x1C;
+
     /* Fill in the rest of the header */
     pkt->hdr.pkt_len = LE16(len);
-    pkt->hdr.flags = (uint8_t)(s->cfg->blocks);
+    pkt->hdr.flags = (uint8_t)(s->cfg->blocks + 1);
 
     /* Send the packet away */
     return crypt_send(c, len, sendbuf);
@@ -442,7 +456,7 @@ static int send_pc_block_list(ship_client_t *c, ship_t *s) {
     /* Add each block to the list. */
     for(i = 1; i <= s->cfg->blocks; ++i) {
         if(s->blocks[i - 1] && s->blocks[i - 1]->run) {
-            /* Clear out the ship information */
+            /* Clear out the block information */
             memset(&pkt->entries[i], 0, 0x2C);
 
             /* Fill in what we have */
@@ -462,9 +476,27 @@ static int send_pc_block_list(ship_client_t *c, ship_t *s) {
         }
     }
 
+    /* Add the "Ship Select" entry */
+    memset(&pkt->entries[i], 0, 0x2C);
+
+    /* Fill in what we have */
+    pkt->entries[i].menu_id = LE32(0x00000001);
+    pkt->entries[i].item_id = LE32(0xFFFFFFFF);
+    pkt->entries[i].flags = LE16(0x0000);
+
+    /* Create the name string */
+    sprintf(tmp, "Ship Select");
+
+    /* This works here since its ASCII */
+    for(j = 0; j < 0x10 && tmp[j]; ++j) {
+        pkt->entries[i].name[j] = LE16(tmp[j]);
+    }
+
+    len += 0x2C;
+
     /* Fill in the rest of the header */
     pkt->hdr.pkt_len = LE16(len);
-    pkt->hdr.flags = (uint8_t)(s->cfg->blocks);
+    pkt->hdr.flags = (uint8_t)(s->cfg->blocks + 1);
 
     /* Send the packet away */
     return crypt_send(c, len, sendbuf);
