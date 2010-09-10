@@ -96,6 +96,7 @@ struct ship_client {
 
     char *autoreply;
     FILE *logfile;
+    time_t sent_motd;
 };
 
 #define CLIENT_PRIV_LOCAL_GM    0x00000001

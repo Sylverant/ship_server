@@ -798,6 +798,13 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
         if(send_lobby_add_player(c->cur_lobby, c)) {
             return -3;
         }
+
+        /* Send the Message of the Day if we have one and the client hasn't
+           already gotten it this session. */
+        if(!c->sent_motd && c->cur_ship->motd) {
+            send_message_box(c, "%s", c->cur_ship->motd);
+            c->sent_motd = 1;
+        }
     }
 
     return 0;

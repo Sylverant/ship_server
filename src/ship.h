@@ -80,6 +80,8 @@ struct ship {
 
     int ship_count;
     miniship_t *ships;
+
+    char *motd;
 };
 
 #ifndef SHIP_DEFINED

@@ -1483,15 +1483,18 @@ static int send_dc_message(ship_client_t *c, uint16_t type, const char *fmt,
     /* Clear the packet header */
     memset(pkt, 0, sizeof(dc_chat_pkt));
 
-    /* Fill in the message */
-    if(fmt[0] != '\t' || (fmt[1] != 'E' && fmt[1] != 'J')) {
+    /* Do the formatting */
+    vsnprintf(tm, 512, fmt, args);
+    tm[511] = '\0';
+    in = strlen(tm) + 1;
+
+    /* Make sure we have a language code tag */
+    if(tm[0] != '\t' || (tm[1] != 'E' && tm[1] != 'J')) {
         /* Assume Non-Japanese if we don't have a marker. */
+        memmove(&tm[2], &tm[0], in);
         tm[0] = '\t';
         tm[1] = 'E';
-        vsnprintf(tm + 2, 510, fmt, args);
-    }
-    else {
-        vsnprintf(tm, 512, fmt, args);
+        in += 2;
     }
 
     /* Set up to convert between encodings */
@@ -2247,22 +2250,25 @@ static int send_dc_message_box(ship_client_t *c, const char *fmt,
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
-    char tm[512];
+    char tm[514];
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
         return -1;
     }
 
-    /* Fill in the message */
-    if(fmt[0] != '\t' || (fmt[1] != 'E' && fmt[1] != 'J')) {
+    /* Do the formatting */
+    vsnprintf(tm, 512, fmt, args);
+    tm[511] = '\0';
+    in = strlen(tm) + 1;
+
+    /* Make sure we have a language code tag */
+    if(tm[0] != '\t' || (tm[1] != 'E' && tm[1] != 'J')) {
         /* Assume Non-Japanese if we don't have a marker. */
+        memmove(&tm[2], &tm[0], in);
         tm[0] = '\t';
         tm[1] = 'E';
-        vsnprintf(tm + 2, 510, fmt, args);
-    }
-    else {
-        vsnprintf(tm, 512, fmt, args);
+        in += 2;
     }
 
     /* Set up to convert between encodings */
@@ -2290,7 +2296,6 @@ static int send_dc_message_box(ship_client_t *c, const char *fmt,
     }
 
     /* Convert the message to the appropriate encoding. */
-    in = strlen(tm) + 1;
     out = 65500;
     inptr = tm;
     outptr = (char *)pkt->msg;
@@ -2324,6 +2329,8 @@ static int send_dc_message_box(ship_client_t *c, const char *fmt,
 int send_message_box(ship_client_t *c, const char *fmt, ...) {
     va_list args;
     int rv = -1;
+
+    va_start(args, fmt);
 
     /* Call the appropriate function. */
     switch(c->version) {
