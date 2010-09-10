@@ -799,11 +799,10 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
             return -3;
         }
 
-        /* Send the Message of the Day if we have one and the client hasn't
-           already gotten it this session. */
+        /* Set up to send the Message of the Day if we have one and the client
+           hasn't already gotten it this session. */
         if(!c->sent_motd && c->cur_ship->motd) {
-            send_message_box(c, "%s", c->cur_ship->motd);
-            c->sent_motd = 1;
+            send_simple(c, PING_TYPE, 0);
         }
     }
 
@@ -1720,7 +1719,11 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return dc_process_change_lobby(c, (dc_select_pkt *)pkt);
 
         case PING_TYPE:
-            /* Ignore these, they're handled elsewhere. */
+            if(!c->sent_motd) {
+                send_message_box(c, "%s", c->cur_ship->motd);
+                c->sent_motd = 1;
+            }
+
             return 0;
 
         case TYPE_05:
