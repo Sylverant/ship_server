@@ -476,8 +476,9 @@ static int handle_itemdrop(ship_client_t *c, subcmd_itemgen_t *pkt) {
     }
 
     /* Sanity check... Make sure the size of the subcommand matches with what we
-       expect. Disconnect the client if not. */
-    if(pkt->size != 0x0B) {
+       expect. Disconnect the client if not. We accept two different sizes here
+       0x0B for v2 and later, and 0x0A for v1. */
+    if(pkt->size != 0x0B && pkt->size != 0x0A) {
         return -1;
     }
 

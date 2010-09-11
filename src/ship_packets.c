@@ -353,7 +353,7 @@ static int send_dc_block_list(ship_client_t *c, ship_t *s) {
     uint8_t *sendbuf = get_sendbuf();
     dc_block_list_pkt *pkt = (dc_block_list_pkt *)sendbuf;
     char tmp[18];
-    int i, len = 0x20;
+    int i, len = 0x20, entries = 1;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -386,39 +386,40 @@ static int send_dc_block_list(ship_client_t *c, ship_t *s) {
     for(i = 1; i <= s->cfg->blocks; ++i) {
         if(s->blocks[i - 1] && s->blocks[i - 1]->run) {
             /* Clear out the block information */
-            memset(&pkt->entries[i], 0, 0x1C);
+            memset(&pkt->entries[entries], 0, 0x1C);
 
             /* Fill in what we have */
-            pkt->entries[i].menu_id = LE32(0x00000001);
-            pkt->entries[i].item_id = LE32(i);
-            pkt->entries[i].flags = LE16(0x0000);
+            pkt->entries[entries].menu_id = LE32(0x00000001);
+            pkt->entries[entries].item_id = LE32(i);
+            pkt->entries[entries].flags = LE16(0x0000);
 
             /* Create the name string */
             sprintf(tmp, "BLOCK%02d", i);
-            strncpy(pkt->entries[i].name, tmp, 0x11);
-            pkt->entries[i].name[0x11] = 0;
+            strncpy(pkt->entries[entries].name, tmp, 0x11);
+            pkt->entries[entries].name[0x11] = 0;
 
             len += 0x1C;
+            ++entries;
         }
     }
 
     /* Add the "Ship Select" entry */
-    memset(&pkt->entries[i], 0, 0x1C);
+    memset(&pkt->entries[entries], 0, 0x1C);
 
     /* Fill in what we have */
-    pkt->entries[i].menu_id = LE32(0x00000001);
-    pkt->entries[i].item_id = LE32(0xFFFFFFFF);
-    pkt->entries[i].flags = LE16(0x0000);
+    pkt->entries[entries].menu_id = LE32(0x00000001);
+    pkt->entries[entries].item_id = LE32(0xFFFFFFFF);
+    pkt->entries[entries].flags = LE16(0x0000);
 
     /* Create the name string */
-    strncpy(pkt->entries[i].name, "Ship Select", 0x11);
-    pkt->entries[i].name[0x11] = 0;
+    strncpy(pkt->entries[entries].name, "Ship Select", 0x11);
+    pkt->entries[entries].name[0x11] = 0;
 
     len += 0x1C;
 
     /* Fill in the rest of the header */
     pkt->hdr.pkt_len = LE16(len);
-    pkt->hdr.flags = (uint8_t)(s->cfg->blocks + 1);
+    pkt->hdr.flags = (uint8_t)(entries);
 
     /* Send the packet away */
     return crypt_send(c, len, sendbuf);
@@ -428,7 +429,7 @@ static int send_pc_block_list(ship_client_t *c, ship_t *s) {
     uint8_t *sendbuf = get_sendbuf();
     pc_block_list_pkt *pkt = (pc_block_list_pkt *)sendbuf;
     char tmp[18];
-    int i, j, len = 0x30;
+    int i, j, len = 0x30, entries = 1;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -457,46 +458,47 @@ static int send_pc_block_list(ship_client_t *c, ship_t *s) {
     for(i = 1; i <= s->cfg->blocks; ++i) {
         if(s->blocks[i - 1] && s->blocks[i - 1]->run) {
             /* Clear out the block information */
-            memset(&pkt->entries[i], 0, 0x2C);
+            memset(&pkt->entries[entries], 0, 0x2C);
 
             /* Fill in what we have */
-            pkt->entries[i].menu_id = LE32(0x00000001);
-            pkt->entries[i].item_id = LE32(i);
-            pkt->entries[i].flags = LE16(0x0000);
+            pkt->entries[entries].menu_id = LE32(0x00000001);
+            pkt->entries[entries].item_id = LE32(i);
+            pkt->entries[entries].flags = LE16(0x0000);
 
             /* Create the name string */
             sprintf(tmp, "BLOCK%02d", i);
 
             /* This works here since the block name is always ASCII. */
             for(j = 0; j < 0x10 && tmp[j]; ++j) {
-                pkt->entries[i].name[j] = LE16(tmp[j]);
+                pkt->entries[entries].name[j] = LE16(tmp[j]);
             }
 
             len += 0x2C;
+            ++entries;
         }
     }
 
     /* Add the "Ship Select" entry */
-    memset(&pkt->entries[i], 0, 0x2C);
+    memset(&pkt->entries[entries], 0, 0x2C);
 
     /* Fill in what we have */
-    pkt->entries[i].menu_id = LE32(0x00000001);
-    pkt->entries[i].item_id = LE32(0xFFFFFFFF);
-    pkt->entries[i].flags = LE16(0x0000);
+    pkt->entries[entries].menu_id = LE32(0x00000001);
+    pkt->entries[entries].item_id = LE32(0xFFFFFFFF);
+    pkt->entries[entries].flags = LE16(0x0000);
 
     /* Create the name string */
     sprintf(tmp, "Ship Select");
 
     /* This works here since its ASCII */
     for(j = 0; j < 0x10 && tmp[j]; ++j) {
-        pkt->entries[i].name[j] = LE16(tmp[j]);
+        pkt->entries[entries].name[j] = LE16(tmp[j]);
     }
 
     len += 0x2C;
 
     /* Fill in the rest of the header */
     pkt->hdr.pkt_len = LE16(len);
-    pkt->hdr.flags = (uint8_t)(s->cfg->blocks + 1);
+    pkt->hdr.flags = (uint8_t)(entries);
 
     /* Send the packet away */
     return crypt_send(c, len, sendbuf);
