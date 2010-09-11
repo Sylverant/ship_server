@@ -64,7 +64,7 @@ int send_timestamp(ship_client_t *c);
 int send_block_list(ship_client_t *c, ship_t *s);
 
 /* Send a block/ship information reply packet to the client. */
-int send_info_reply(ship_client_t *c, char msg[]);
+int send_info_reply(ship_client_t *c, const char *msg);
 
 /* Send a simple (header-only) packet to the client */
 int send_simple(ship_client_t *c, int type, int flags);

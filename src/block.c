@@ -1378,9 +1378,17 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
         case 0x02:
         {
             char tmp[32];
-            char passwd[16];
+            char passwd[17];
             lobby_t *l;
             uint16_t len = LE16(pkt->hdr.dc.pkt_len);
+
+            /* Make sure the packets aren't too long */
+            if(c->version == CLIENT_VERSION_PC && len > 0x2C) {
+                return -1;
+            }
+            else if(c->version != CLIENT_VERSION_PC && len > 0x1C) {
+                return -1;
+            }
 
             /* Read the password if the client provided one. */
             if(len > 0x0C) {
@@ -1409,9 +1417,11 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
                 outptr = passwd;
                 iconv(ic, &inptr, &in, &outptr, &out);
                 iconv_close(ic);
+                passwd[16] = 0;
             }
             else {
-                strcpy(passwd, tmp);
+                strncpy(passwd, tmp, 16);
+                passwd[16] = 0;
             }
 
             /* The client is selecting a game to join. */

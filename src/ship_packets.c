@@ -518,7 +518,7 @@ int send_block_list(ship_client_t *c, ship_t *s) {
 }
 
 /* Send a block/ship information reply packet to the client. */
-static int send_dc_info_reply(ship_client_t *c, char msg[]) {
+static int send_dc_info_reply(ship_client_t *c, const char *msg) {
     uint8_t *sendbuf = get_sendbuf();
     dc_info_reply_pkt *pkt = (dc_info_reply_pkt *)sendbuf;
     iconv_t ic;
@@ -587,7 +587,7 @@ static int send_dc_info_reply(ship_client_t *c, char msg[]) {
     return crypt_send(c, out, sendbuf);
 }
 
-int send_info_reply(ship_client_t *c, char msg[]) {
+int send_info_reply(ship_client_t *c, const char *msg) {
     /* Call the appropriate function. */
     switch(c->version) {
         case CLIENT_VERSION_DCV1:
@@ -1825,14 +1825,14 @@ static int send_dc_game_list(ship_client_t *c, block_t *b) {
         pkt->entries[entries].item_id = LE32(l->lobby_id);
         pkt->entries[entries].difficulty = 0x22 + l->difficulty;
         pkt->entries[entries].players = l->num_clients;
-        pkt->entries[entries].v2 = l->version;
+        pkt->entries[entries].v2 = l->v2;
         pkt->entries[entries].flags = (l->challenge ? 0x20 : 0x00) |
             (l->battle ? 0x10 : 0x00) | (l->passwd[0] ? 2 : 0) |
             (l->v2 ? 0x40 : 0x00);
 
         /* Copy the name. The names are either in Shift-JIS or ISO-8859-1, and
            should be prefixed with the appropriate language tag already */
-        strcpy(pkt->entries[entries].name, l->name);
+        strncpy(pkt->entries[entries].name, l->name, 16);
 
         /* Unlock the lobby */
         pthread_mutex_unlock(&l->mutex);
@@ -1914,7 +1914,7 @@ static int send_pc_game_list(ship_client_t *c, block_t *b) {
         pkt->entries[entries].item_id = LE32(l->lobby_id);
         pkt->entries[entries].difficulty = 0x22 + l->difficulty;
         pkt->entries[entries].players = l->num_clients;
-        pkt->entries[entries].v2 = l->version;
+        pkt->entries[entries].v2 = l->v2;
         pkt->entries[entries].flags = (l->challenge ? 0x20 : 0x00) |
             (l->battle ? 0x10 : 0x00) | (l->passwd[0] ? 2 : 0) |
             (l->v2 ? 0x40 : 0x00);

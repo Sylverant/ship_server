@@ -77,7 +77,7 @@ static const uint32_t maps[2][0x20] = {
     {1,1,2,1,2,1,2,1,2,1,1,3,1,3,1,3,2,2,1,3,2,2,2,2,1,1,1,1,1,1,1,1}
 };
 
-lobby_t *lobby_create_game(block_t *block, char name[16], char passwd[16],
+lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
                            uint8_t difficulty, uint8_t battle, uint8_t chal,
                            uint8_t v2, int version, uint8_t section,
                            uint8_t event, uint8_t episode) {
@@ -121,8 +121,10 @@ lobby_t *lobby_create_game(block_t *block, char name[16], char passwd[16],
     l->max_chal = 0xFF;
 
     /* Copy the game name and password. */
-    strcpy(l->name, name);
-    strcpy(l->passwd, passwd);
+    strncpy(l->name, name, 16);
+    strncpy(l->passwd, passwd, 16);
+    l->name[16] = 0;
+    l->passwd[16] = 0;
 
     /* Initialize the packet queue */
     STAILQ_INIT(&l->pkt_queue);
