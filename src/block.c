@@ -800,8 +800,10 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
         }
 
         /* Set up to send the Message of the Day if we have one and the client
-           hasn't already gotten it this session. */
-        if(!c->sent_motd && c->cur_ship->motd) {
+           hasn't already gotten it this session.
+           XXXX: Disabled for Gamecube, for now (due to bugginess). */
+        if(!c->sent_motd && c->cur_ship->motd &&
+           c->version != CLIENT_VERSION_GC) {
             send_simple(c, PING_TYPE, 0);
         }
     }
@@ -1729,7 +1731,8 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return dc_process_change_lobby(c, (dc_select_pkt *)pkt);
 
         case PING_TYPE:
-            if(!c->sent_motd) {
+            if(!c->sent_motd && c->cur_ship->motd &&
+               c->version != CLIENT_VERSION_GC) {
                 send_message_box(c, "%s", c->cur_ship->motd);
                 c->sent_motd = 1;
             }

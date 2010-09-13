@@ -28,6 +28,7 @@
 
 #include <sylverant/encryption.h>
 #include <sylverant/database.h>
+#include <sylverant/debug.h>
 
 #include "ship_packets.h"
 #include "utils.h"
@@ -2257,6 +2258,13 @@ static int send_dc_message_box(ship_client_t *c, const char *fmt,
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
         return -1;
+    }
+
+    /* Don't send these to GC players, its very likely they'll crash if they're
+       on a US GC (apparently). */
+    if(c->version == CLIENT_VERSION_GC) {
+        debug(DBG_LOG, "Silently (to the user) dropping message box for GC\n");
+        return 0;
     }
 
     /* Do the formatting */

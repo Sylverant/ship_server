@@ -1223,6 +1223,11 @@ static int handle_endlog(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return send_txt(c, "%s", __(c, "\tE\tC7Requested user not\nfound"));
 }
 
+/* Usage /motd */
+static int handle_motd(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    return send_message_box(c, "%s", c->cur_ship->motd);
+}
+
 static command_t cmds[] = {
     { "warp"    , handle_warp      },
     { "kill"    , handle_kill      },
@@ -1253,6 +1258,7 @@ static command_t cmds[] = {
     { "shutdown", handle_shutdown  },
     { "log"     , handle_log       },
     { "endlog"  , handle_endlog    },
+    { "motd"    , handle_motd      },
     { ""        , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

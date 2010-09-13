@@ -895,6 +895,7 @@ typedef struct autoreply_set {
 #define TRADE_2_TYPE                    0x00D2
 #define TRADE_3_TYPE                    0x00D3
 #define TRADE_4_TYPE                    0x00D4
+#define GC_MSG_BOX_TYPE                 0x00D5
 #define GC_MSG_BOX_CLOSED_TYPE          0x00D6
 #define GC_GBA_FILE_REQ_TYPE            0x00D7
 #define GC_INFOBOARD_REQ_TYPE           0x00D8
