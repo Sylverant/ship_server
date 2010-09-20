@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<!-- All Items not included are automaticly allowed -->
+<!-- All items not included are automatically allowed -->
 <items byteorder="little" default="allow" check_sranks="true" check_pbs="true">
     <!-- Offline Quest Weapons -->
     <!-- SOUL EATER -->
@@ -1313,8 +1313,28 @@
     </item>
 
     <!-- Shields -->
+    <!-- SAFETY HEART -->
+    <item code="0x2A0201">
+        <versions v1="true" v2="true" />
+        <auto_reject />
+    </item>
+
     <!-- BLUE RING -->
     <item code="0x330201">
+        <versions v1="true" v2="true" />
+        <dfp max="0" />
+        <evp max="0" />
+    </item>
+
+    <!-- YELLOW RING -->
+    <item code="0x340201">
+        <versions v1="true" v2="true" />
+        <dfp max="0" />
+        <evp max="0" />
+    </item>
+
+    <!-- WHITE RING -->
+    <item code="0x390201">
         <versions v1="true" v2="true" />
         <dfp max="0" />
         <evp max="0" />
