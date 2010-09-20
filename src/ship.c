@@ -834,7 +834,25 @@ static int dc_process_info_req(ship_client_t *c, dc_select_pkt *pkt) {
 
         /* Ship */
         case 0x05:
-            return send_info_reply(c, __(c, "\tNothing here."));
+        {
+            ship_t *s = c->cur_ship;
+            int i;
+
+            /* Find the ship if its still online */
+            for(i = 0; i < s->ship_count; ++i) {
+                if(s->ships[i].ship_id == item_id) {
+                    char string[256];
+                    sprintf(string, "%s\n\n%d %s\n%d %s",
+                            s->ships[i].name, s->ships[i].clients,
+                            __(c, "Players"), s->ships[i].games,
+                            __(c, "Games"));
+                    return send_info_reply(c, string);
+                }
+            }
+
+            return send_info_reply(c,
+                                   __(c, "\tE\tC4That ship is now\noffline."));
+        }
 
         default:
             return -1;

@@ -496,12 +496,12 @@ int block_info_reply(ship_client_t *c, int block) {
 
     /* Make sure the block selected is in range. */
     if(block > s->cfg->blocks) {
-        return -1;
+        return 0;
     }
 
     /* Make sure that block is up and running. */
     if(s->blocks[block - 1] == NULL  || s->blocks[block - 1]->run == 0) {
-        return -2;
+        return 0;
     }
 
     /* Grab the block in question */
