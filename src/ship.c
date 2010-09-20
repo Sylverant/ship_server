@@ -830,7 +830,7 @@ static int dc_process_info_req(ship_client_t *c, dc_select_pkt *pkt) {
     switch(menu_id & 0xFF) {
         /* Block */
         case 0x01:
-            return block_info_reply(c, (int)item_id);
+            return block_info_reply(c, item_id);
 
         /* Ship */
         case 0x05:

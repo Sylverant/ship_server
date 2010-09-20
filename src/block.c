@@ -486,7 +486,7 @@ void block_server_stop(block_t *b) {
     free(b);
 }
 
-int block_info_reply(ship_client_t *c, int block) {
+int block_info_reply(ship_client_t *c, uint32_t block) {
     ship_t *s = c->cur_ship;
     block_t *b;
     char string[256];
@@ -1606,7 +1606,7 @@ static int dc_process_info_req(ship_client_t *c, dc_select_pkt *pkt) {
     switch(menu_id & 0xFF) {
         /* Block */
         case 0x01:
-            return block_info_reply(c, (int)item_id);
+            return block_info_reply(c, item_id);
 
         /* Game List */
         case 0x02:

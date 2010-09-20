@@ -71,6 +71,6 @@ void block_server_stop(block_t *b);
 int block_process_pkt(ship_client_t *c, uint8_t *pkt);
 
 lobby_t *block_get_lobby(block_t *b, uint32_t lobby_id);
-int block_info_reply(ship_client_t *c, int block);
+int block_info_reply(ship_client_t *c, uint32_t block);
 
 #endif /* !SHIP_H */
