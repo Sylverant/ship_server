@@ -100,5 +100,7 @@ int ship_process_pkt(ship_client_t *c, uint8_t *pkt);
 
 void ship_inc_clients(ship_t *s);
 void ship_dec_clients(ship_t *s);
+void ship_inc_games(ship_t *s);
+void ship_dec_games(ship_t *s);
 
 #endif /* !SHIP_H */

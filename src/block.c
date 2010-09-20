@@ -534,7 +534,8 @@ int block_info_reply(ship_client_t *c, int block) {
     pthread_mutex_unlock(&b->mutex);
 
     /* Fill in the string. */
-    sprintf(string, "BLOCK%02d\n\n%d Players\n%d Games", b->b, players, games);
+    sprintf(string, "BLOCK%02d\n\n%d %s\n%d %s", b->b, players,
+            __(c, "Players"), games, __(c, "Games"));
 
     /* Send the information away. */
     return send_info_reply(c, string);
@@ -1649,9 +1650,10 @@ static int dc_process_info_req(ship_client_t *c, dc_select_pkt *pkt) {
             for(i = 0; i < s->ship_count; ++i) {
                 if(s->ships[i].ship_id == item_id) {
                     char string[256];
-                    sprintf(string, "%s\n\n%d Players\n%d Games",
+                    sprintf(string, "%s\n\n%d %s\n%d %s",
                             s->ships[i].name, s->ships[i].clients,
-                            s->ships[i].games);
+                            __(c, "Players"), s->ships[i].games,
+                            __(c, "Games"));
                     return send_info_reply(c, string);
                 }
             }
