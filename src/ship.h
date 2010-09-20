@@ -50,6 +50,9 @@ typedef struct miniship {
     uint32_t ship_addr;
     uint32_t int_addr;
     uint16_t ship_port;
+    uint16_t clients;
+    uint16_t games;
+    uint16_t menu_code;
     uint32_t flags;
 } miniship_t;
 
@@ -69,6 +72,7 @@ struct ship {
     int pipes[2];
 
     uint16_t num_clients;
+    uint16_t num_games;
 
     sylverant_quest_list_t quests;
     shipgate_conn_t sg;

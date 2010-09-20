@@ -633,6 +633,9 @@ insert:
         s->ships[i].ship_addr = p->ship_addr;
         s->ships[i].int_addr = p->int_addr;
         s->ships[i].ship_port = ntohs(p->ship_port);
+        s->ships[i].clients = ntohs(p->clients);
+        s->ships[i].games = ntohs(p->games);
+        s->ships[i].menu_code = ntohs(p->menu_code);
         s->ships[i].flags = ntohl(p->flags);
     }
 
@@ -790,6 +793,24 @@ static int handle_login(shipgate_conn_t *conn, shipgate_login_pkt *pkt) {
     return shipgate_send_ship_info(conn, conn->ship);
 }
 
+static int handle_count(shipgate_conn_t *conn, shipgate_cnt_pkt *pkt) {
+    uint32_t id = ntohl(pkt->ship_id);
+    int i;
+    ship_t *s = conn->ship;
+
+    for(i = 0; i < s->ship_count; ++i) {
+        /* Find the requested ship and update its counts */
+        if(s->ships[i].ship_id == id) {
+            s->ships[i].clients = ntohs(pkt->clients);
+            s->ships[i].games = ntohs(pkt->games);
+            return 0;
+        }
+    }
+
+    /* We didn't find it... this shouldn't ever happen */
+    return -1;
+}
+
 static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
     uint16_t type = ntohs(pkt->pkt_type);
     uint16_t flags = ntohs(pkt->flags);
@@ -826,6 +847,9 @@ static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
 
         case SHDR_TYPE_GMLOGIN:
             return handle_gmlogin(conn, (shipgate_gmlogin_reply_pkt *)pkt);
+
+        case SHDR_TYPE_COUNT:
+            return handle_count(conn, (shipgate_cnt_pkt *)pkt);
     }
 
     return -1;
@@ -985,15 +1009,17 @@ int shipgate_send_ship_info(shipgate_conn_t *c, ship_t *ship) {
     pkt->int_addr = local_addr;
     pkt->ship_port = htons(ship->cfg->base_port);
     pkt->ship_key = htons(c->key_idx);
-    pkt->connections = htonl(ship->num_clients);
-    pkt->flags = 0;
+    pkt->clients = htons(ship->num_clients);
+    pkt->games = htons(ship->num_games);
+    pkt->menu_code = 0;                 /* XXXX */
+    pkt->flags = 0;                     /* XXXX */
 
     /* Send it away */
     return send_raw(c, sizeof(shipgate_login_reply_pkt), sendbuf);
 }
 
 /* Send a client count update to the shipgate. */
-int shipgate_send_cnt(shipgate_conn_t *c, uint16_t ccnt, uint16_t gcnt) {
+int shipgate_send_cnt(shipgate_conn_t *c, uint16_t clients, uint16_t games) {
     uint8_t *sendbuf = get_sendbuf();
     shipgate_cnt_pkt *pkt = (shipgate_cnt_pkt *)sendbuf;
 
@@ -1009,9 +1035,9 @@ int shipgate_send_cnt(shipgate_conn_t *c, uint16_t ccnt, uint16_t gcnt) {
     pkt->hdr.flags = htons(SHDR_NO_DEFLATE);
 
     /* Fill in the packet. */
-    pkt->ccnt = htons(ccnt);
-    pkt->gcnt = htons(gcnt);
-    pkt->padding = 0;
+    pkt->clients = htons(clients);
+    pkt->games = htons(games);
+    pkt->ship_id = 0;                   /* Ignored on ship->gate packets. */
 
     /* Send it away */
     return send_crypt(c, sizeof(shipgate_cnt_pkt), sendbuf);

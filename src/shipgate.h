@@ -94,16 +94,19 @@ typedef struct shipgate_login_reply {
     uint32_t int_addr;
     uint16_t ship_port;
     uint16_t ship_key;
-    uint32_t connections;
+    uint16_t clients;
+    uint16_t games;
     uint32_t flags;
+    uint16_t menu_code;
+    uint8_t reserved[6];
 } PACKED shipgate_login_reply_pkt;
 
 /* A update of the client/games count. */
 typedef struct shipgate_cnt {
     shipgate_hdr_t hdr;
-    uint16_t ccnt;
-    uint16_t gcnt;
-    uint32_t padding;
+    uint16_t clients;
+    uint16_t games;
+    uint32_t ship_id;                   /* 0 for ship->gate */
 } PACKED shipgate_cnt_pkt;
 
 /* A forwarded player packet. */
@@ -124,6 +127,10 @@ typedef struct shipgate_ship_status {
     uint16_t ship_port;
     uint16_t status;
     uint32_t flags;
+    uint16_t clients;
+    uint16_t games;
+    uint16_t menu_code;
+    uint16_t reserved;
 } PACKED shipgate_ship_status_pkt;
 
 /* A packet sent to/from clients to save/restore character data. */
@@ -220,7 +227,7 @@ int shipgate_send_pkts(shipgate_conn_t *c);
 int shipgate_send_ship_info(shipgate_conn_t *c, ship_t *ship);
 
 /* Send a client/game count update to the shipgate. */
-int shipgate_send_cnt(shipgate_conn_t *c, uint16_t ccnt, uint16_t gcnt);
+int shipgate_send_cnt(shipgate_conn_t *c, uint16_t clients, uint16_t games);
 
 /* Forward a Dreamcast packet to the shipgate. */
 int shipgate_fw_dc(shipgate_conn_t *c, void *dcp);

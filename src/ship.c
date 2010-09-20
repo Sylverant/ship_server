@@ -901,10 +901,20 @@ int ship_process_pkt(ship_client_t *c, uint8_t *pkt) {
 
 void ship_inc_clients(ship_t *s) {
     ++s->num_clients;
-    shipgate_send_cnt(&s->sg, s->num_clients, 0);
+    shipgate_send_cnt(&s->sg, s->num_clients, s->num_games);
 }
 
 void ship_dec_clients(ship_t *s) {
     --s->num_clients;
-    shipgate_send_cnt(&s->sg, s->num_clients, 0);
+    shipgate_send_cnt(&s->sg, s->num_clients, s->num_games);
+}
+
+void ship_inc_games(ship_t *s) {
+    ++s->num_games;
+    shipgate_send_cnt(&s->sg, s->num_clients, s->num_games);
+}
+
+void ship_dec_games(ship_t *s) {
+    --s->num_games;
+    shipgate_send_cnt(&s->sg, s->num_clients, s->num_games);
 }

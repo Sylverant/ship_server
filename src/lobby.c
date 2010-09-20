@@ -27,6 +27,7 @@
 #include "clients.h"
 #include "ship_packets.h"
 #include "subcmd.h"
+#include "ship.h"
 
 lobby_t *lobby_create_default(block_t *block, uint32_t lobby_id, uint8_t ev) {
     lobby_t *l = (lobby_t *)malloc(sizeof(lobby_t));
@@ -146,9 +147,10 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
         }
     }
 
-    /* Add it to the list of lobbies. */
+    /* Add it to the list of lobbies, and increment the game count. */
     if(version != CLIENT_VERSION_PC || battle || chal || difficulty == 3) {
         TAILQ_INSERT_TAIL(&block->lobbies, l, qentry);
+        ship_inc_games(block->ship);
     }
 
     return l;
@@ -171,6 +173,11 @@ static void lobby_destroy_locked(lobby_t *l, int remove) {
        inserted in a list, so don't remove it if it wasn't. */
     if(remove) {
         TAILQ_REMOVE(&l->block->lobbies, l, qentry);
+
+        /* Decrement the game count if it got incremented for this lobby */
+        if(l->type & LOBBY_TYPE_GAME) {
+            ship_dec_games(l->block->ship);
+        }
     }
 
     lobby_empty_pkt_queue(l);

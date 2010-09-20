@@ -1572,6 +1572,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
 
                 /* Add the lobby to the list of lobbies on the block. */
                 TAILQ_INSERT_TAIL(&c->cur_block->lobbies, l, qentry);
+                ship_inc_games(c->cur_ship);
                 c->create_lobby = NULL;
 
                 /* Add the user to the lobby... */
@@ -1640,7 +1641,24 @@ static int dc_process_info_req(ship_client_t *c, dc_select_pkt *pkt) {
 
         /* Ship */
         case 0x05:
-            return send_info_reply(c, __(c, "\tENothing here."));
+        {
+            ship_t *s = c->cur_ship;
+            int i;
+
+            /* Find the ship if its still online */
+            for(i = 0; i < s->ship_count; ++i) {
+                if(s->ships[i].ship_id == item_id) {
+                    char string[256];
+                    sprintf(string, "%s\n\n%d Players\n%d Games",
+                            s->ships[i].name, s->ships[i].clients,
+                            s->ships[i].games);
+                    return send_info_reply(c, string);
+                }
+            }
+
+            return send_info_reply(c,
+                                   __(c, "\tE\tC4That ship is now\noffline."));
+        }
 
         default:
             return -1;
