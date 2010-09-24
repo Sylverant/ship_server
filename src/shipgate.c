@@ -250,12 +250,17 @@ int shipgate_connect(ship_t *s, shipgate_conn_t *rv) {
 
 /* Reconnect to the shipgate if we are disconnected for some reason. */
 int shipgate_reconnect(shipgate_conn_t *conn) {
-    int sock, i;
+    int sock;
     struct sockaddr_in addr;
+    ship_t *s = conn->ship;
+    miniship_t *i, *tmp;
 
     /* Clear all ships so we don't keep around stale stuff */
-    for(i = 0; i < conn->ship->ship_count; ++i) {
-        conn->ship->ships[i].ship_id = 0;
+    i = TAILQ_FIRST(&s->ships);
+    while(i) {
+        tmp = TAILQ_NEXT(i, qentry);
+        free(i);
+        i = tmp;
     }
 
     conn->has_key = 0;
@@ -595,48 +600,41 @@ static int handle_sstatus(shipgate_conn_t *conn, shipgate_ship_status_pkt *p) {
     uint16_t status = ntohs(p->status);
     uint32_t sid = ntohl(p->ship_id);
     ship_t *s = conn->ship;
-    int i;
-    void *tmp;
+    miniship_t *i;
 
+    /* Did a ship go down or come up? */
     if(!status) {
         /* A ship has gone down */
-        for(i = 0; i < s->ship_count; ++i) {
-            /* Clear the ship */
-            if(sid == s->ships[i].ship_id) {
-                s->ships[i].ship_id = 0;
+        TAILQ_FOREACH(i, &s->ships, qentry) {
+            /* Clear the ship, if we've found the right one */
+            if(sid == i->ship_id) {
+                TAILQ_REMOVE(&s->ships, i, qentry);
+                free(i);
+                break;
             }
         }
     }
     else {
-        /* A ship has come up */
-        for(i = 0; i < s->ship_count; ++i) {
-            /* See if we have any empty spots first */
-            if(s->ships[i].ship_id == 0) {
-                goto insert;
-            }
-        }
+        /* Allocate space, and punt if we can't */
+        i = (miniship_t *)malloc(sizeof(miniship_t));
 
-        /* No space if we get here. */
-        tmp = realloc(s->ships, (s->ship_count + 1) * sizeof(miniship_t));
-
-        if(!tmp) {
-            /* Didn't get the space? Punt. */
+        if(!i) {
             return 0;
         }
 
-        s->ships = (miniship_t *)tmp;
+        /* Add the new ship, and copy its data */
+        TAILQ_INSERT_TAIL(&s->ships, i, qentry);
         ++s->ship_count;
 
-insert:
-        memcpy(s->ships[i].name, p->name, 12);
-        s->ships[i].ship_id = sid;
-        s->ships[i].ship_addr = p->ship_addr;
-        s->ships[i].int_addr = p->int_addr;
-        s->ships[i].ship_port = ntohs(p->ship_port);
-        s->ships[i].clients = ntohs(p->clients);
-        s->ships[i].games = ntohs(p->games);
-        s->ships[i].menu_code = ntohs(p->menu_code);
-        s->ships[i].flags = ntohl(p->flags);
+        memcpy(i->name, p->name, 12);
+        i->ship_id = sid;
+        i->ship_addr = p->ship_addr;
+        i->int_addr = p->int_addr;
+        i->ship_port = ntohs(p->ship_port);
+        i->clients = ntohs(p->clients);
+        i->games = ntohs(p->games);
+        i->menu_code = ntohs(p->menu_code);
+        i->flags = ntohl(p->flags);
     }
 
     return 0;
@@ -795,14 +793,14 @@ static int handle_login(shipgate_conn_t *conn, shipgate_login_pkt *pkt) {
 
 static int handle_count(shipgate_conn_t *conn, shipgate_cnt_pkt *pkt) {
     uint32_t id = ntohl(pkt->ship_id);
-    int i;
+    miniship_t *i;
     ship_t *s = conn->ship;
 
-    for(i = 0; i < s->ship_count; ++i) {
+    TAILQ_FOREACH(i, &s->ships, qentry) {
         /* Find the requested ship and update its counts */
-        if(s->ships[i].ship_id == id) {
-            s->ships[i].clients = ntohs(pkt->clients);
-            s->ships[i].games = ntohs(pkt->games);
+        if(i->ship_id == id) {
+            i->clients = ntohs(pkt->clients);
+            i->games = ntohs(pkt->games);
             return 0;
         }
     }

@@ -3647,10 +3647,11 @@ int send_arrows(ship_client_t *c, lobby_t *l) {
 }
 
 /* Send a ship list packet to the client. */
-static int send_dc_ship_list(ship_client_t *c, miniship_t *l, int ships) {
+static int send_dc_ship_list(ship_client_t *c, struct miniship_queue *l) {
     uint8_t *sendbuf = get_sendbuf();
     dc_ship_list_pkt *pkt = (dc_ship_list_pkt *)sendbuf;
-    int len = 0x20, i, entries = 0;
+    int len = 0x20, entries = 0;
+    miniship_t *i;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -3672,9 +3673,9 @@ static int send_dc_ship_list(ship_client_t *c, miniship_t *l, int ships) {
     pkt->entries[0].name[0x11] = 0x08;
     entries = 1;
 
-    for(i = 0; i < ships; ++i) {
-        if(l[i].ship_id) {
-            if((l[i].flags & LOGIN_FLAG_GMONLY) &&
+    TAILQ_FOREACH(i, l, qentry) {
+        if(i->ship_id) {
+            if((i->flags & LOGIN_FLAG_GMONLY) &&
                !(c->privilege & CLIENT_PRIV_GLOBAL_GM)) {
                 continue;
             }
@@ -3684,9 +3685,9 @@ static int send_dc_ship_list(ship_client_t *c, miniship_t *l, int ships) {
 
             /* Copy the ship's information to the packet. */
             pkt->entries[entries].menu_id = LE32(0x00000005);
-            pkt->entries[entries].item_id = LE32(l[i].ship_id);
+            pkt->entries[entries].item_id = LE32(i->ship_id);
             pkt->entries[entries].flags = 0;
-            strcpy(pkt->entries[entries].name, l[i].name);
+            strcpy(pkt->entries[entries].name, i->name);
 
             ++entries;
             len += 0x1C;
@@ -3702,14 +3703,15 @@ static int send_dc_ship_list(ship_client_t *c, miniship_t *l, int ships) {
     return crypt_send(c, len, sendbuf);
 }
 
-static int send_pc_ship_list(ship_client_t *c, miniship_t *l, int ships) {
+static int send_pc_ship_list(ship_client_t *c, struct miniship_queue *l) {
     uint8_t *sendbuf = get_sendbuf();
     pc_ship_list_pkt *pkt = (pc_ship_list_pkt *)sendbuf;
-    int len = 0x30, i, entries = 0;
+    int len = 0x30, entries = 0;
     iconv_t ic = iconv_open("UTF-16LE", "ASCII");
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
+    miniship_t *i;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -3735,9 +3737,9 @@ static int send_pc_ship_list(ship_client_t *c, miniship_t *l, int ships) {
     memcpy(pkt->entries[0].name, "D\0A\0T\0A\0B\0A\0S\0E\0/\0J\0P\0", 22);
     entries = 1;
 
-    for(i = 0; i < ships; ++i) {
-        if(l[i].ship_id) {
-            if((l[i].flags & LOGIN_FLAG_GMONLY) &&
+    TAILQ_FOREACH(i, l, qentry) {
+        if(i->ship_id) {
+            if((i->flags & LOGIN_FLAG_GMONLY) &&
                !(c->privilege & CLIENT_PRIV_GLOBAL_GM)) {
                 continue;
             }
@@ -3747,13 +3749,13 @@ static int send_pc_ship_list(ship_client_t *c, miniship_t *l, int ships) {
 
             /* Copy the ship's information to the packet. */
             pkt->entries[entries].menu_id = LE32(0x00000005);
-            pkt->entries[entries].item_id = LE32(l[i].ship_id);
+            pkt->entries[entries].item_id = LE32(i->ship_id);
             pkt->entries[entries].flags = 0;
 
             /* Convert the name to UTF-16 */
-            in = strlen(l[i].name) + 1;
+            in = strlen(i->name) + 1;
             out = 0x22;
-            inptr = l[i].name;
+            inptr = i->name;
             outptr = (char *)pkt->entries[entries].name;
             iconv(ic, &inptr, &in, &outptr, &out);
 
@@ -3773,16 +3775,16 @@ static int send_pc_ship_list(ship_client_t *c, miniship_t *l, int ships) {
     return crypt_send(c, len, sendbuf);
 }
 
-int send_ship_list(ship_client_t *c, miniship_t *l, int ships) {
+int send_ship_list(ship_client_t *c, struct miniship_queue *l) {
     /* Call the appropriate function. */
     switch(c->version) {
         case CLIENT_VERSION_DCV1:
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_GC:
-            return send_dc_ship_list(c, l, ships);
+            return send_dc_ship_list(c, l);
 
         case CLIENT_VERSION_PC:
-            return send_pc_ship_list(c, l, ships);
+            return send_pc_ship_list(c, l);
     }
 
     return -1;

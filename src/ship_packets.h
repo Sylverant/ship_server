@@ -139,7 +139,7 @@ int send_lobby_arrows(lobby_t *l);
 int send_arrows(ship_client_t *c, lobby_t *l);
 
 /* Send a ship list packet to the client. */
-int send_ship_list(ship_client_t *c, miniship_t *l, int ships);
+int send_ship_list(ship_client_t *c, struct miniship_queue *l);
 
 /* Send a warp command to the client. */
 int send_warp(ship_client_t *c, uint8_t area);

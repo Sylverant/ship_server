@@ -20,6 +20,7 @@
 
 #include <pthread.h>
 #include <inttypes.h>
+#include <sys/queue.h>
 
 #include <sylverant/config.h>
 #include <sylverant/quest.h>
@@ -45,6 +46,8 @@ typedef struct block block_t;
 #endif
 
 typedef struct miniship {
+    TAILQ_ENTRY(miniship) qentry;
+
     char name[12];
     uint32_t ship_id;
     uint32_t ship_addr;
@@ -55,6 +58,8 @@ typedef struct miniship {
     uint16_t menu_code;
     uint32_t flags;
 } miniship_t;
+
+TAILQ_HEAD(miniship_queue, miniship);
 
 struct ship {
     sylverant_ship_t *cfg;
@@ -83,7 +88,8 @@ struct ship {
     int gm_count;
 
     int ship_count;
-    miniship_t *ships;
+    //miniship_t *ships;
+    struct miniship_queue ships;
 
     char *motd;
 };

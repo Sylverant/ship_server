@@ -37,6 +37,17 @@
 extern in_addr_t local_addr;
 extern in_addr_t netmask;
 
+static void clean_shiplist(ship_t *s) {
+    miniship_t *i, *tmp;
+
+    i = TAILQ_FIRST(&s->ships);
+    while(i) {
+        tmp = TAILQ_NEXT(i, qentry);
+        free(i);
+        i = tmp;
+    }
+}
+
 static void *ship_thd(void *d) {
     int i, nfds;
     ship_t *s = (ship_t *)d;
@@ -335,7 +346,7 @@ static void *ship_thd(void *d) {
     close(s->gcsock);
     close(s->pcsock);
     close(s->dcsock);
-    free(s->ships);
+    clean_shiplist(s);
     free(s->clients);
     free(s->blocks);
     free(s);
@@ -717,7 +728,7 @@ static int dc_process_block_sel(ship_client_t *c, dc_select_pkt *pkt) {
 
     /* See if the block selected is the "Ship Select" block */
     if(block == 0xFFFFFFFF) {
-        return send_ship_list(c, c->cur_ship->ships, c->cur_ship->ship_count);
+        return send_ship_list(c, &c->cur_ship->ships);
     }
 
     /* Make sure the block selected is in range. */
@@ -764,7 +775,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
         /* Ship */
         case 0x05:
         {
-            int i;
+            miniship_t *i;
             ship_t *s = c->cur_ship;
             in_addr_t addr;
             int off = 0;
@@ -786,30 +797,30 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
 
             /* Go through all the ships that we know about looking for the one
                that the user has requested. */
-            for(i = 0; i < s->ship_count; ++i) {
-                if(s->ships[i].ship_id == item_id) {
+            TAILQ_FOREACH(i, &s->ships, qentry) {
+                if(i->ship_id == item_id) {
                     /* Figure out which address we need to send the client. */
-                    if(c->addr == s->ships[i].ship_addr) {
+                    if(c->addr == i->ship_addr) {
                         /* The client and the ship are connecting from the same
                            address, this one is obvious. */
-                        addr = s->ships[i].int_addr;
+                        addr = i->int_addr;
                     }
                     else if(netmask &&
-                            s->ships[i].ship_addr == s->cfg->ship_ip &&
+                            i->ship_addr == s->cfg->ship_ip &&
                             (c->addr & netmask) == (local_addr & netmask)) {
                         /* The destination and the source are on the same
                            network, and the client is on the same network as the
                            source, thus the client must be on the same network
                            as the destination, send the internal address. */
-                        addr = s->ships[i].int_addr;
+                        addr = i->int_addr;
                     }
                     else {
                         /* They should be on different networks if we get here,
                            send the external IP. */
-                        addr = s->ships[i].ship_addr;
+                        addr = i->ship_addr;
                     }
 
-                    return send_redirect(c, addr, s->ships[i].ship_port + off);
+                    return send_redirect(c, addr, i->ship_port + off);
                 }
             }
 
@@ -836,16 +847,14 @@ static int dc_process_info_req(ship_client_t *c, dc_select_pkt *pkt) {
         case 0x05:
         {
             ship_t *s = c->cur_ship;
-            int i;
+            miniship_t *i;
 
             /* Find the ship if its still online */
-            for(i = 0; i < s->ship_count; ++i) {
-                if(s->ships[i].ship_id == item_id) {
+            TAILQ_FOREACH(i, &s->ships, qentry) {
+                if(i->ship_id == item_id) {
                     char string[256];
-                    sprintf(string, "%s\n\n%d %s\n%d %s",
-                            s->ships[i].name, s->ships[i].clients,
-                            __(c, "Players"), s->ships[i].games,
-                            __(c, "Games"));
+                    sprintf(string, "%s\n\n%d %s\n%d %s", i->name, i->clients,
+                            __(c, "Players"), i->games, __(c, "Games"));
                     return send_info_reply(c, string);
                 }
             }
