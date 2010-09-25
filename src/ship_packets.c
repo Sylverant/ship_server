@@ -25,6 +25,7 @@
 #include <iconv.h>
 #include <limits.h>
 #include <stdarg.h>
+#include <ctype.h>
 
 #include <sylverant/encryption.h>
 #include <sylverant/database.h>
@@ -3647,11 +3648,12 @@ int send_arrows(ship_client_t *c, lobby_t *l) {
 }
 
 /* Send a ship list packet to the client. */
-static int send_dc_ship_list(ship_client_t *c, struct miniship_queue *l) {
+static int send_dc_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
     uint8_t *sendbuf = get_sendbuf();
     dc_ship_list_pkt *pkt = (dc_ship_list_pkt *)sendbuf;
-    int len = 0x20, entries = 0;
+    int len = 0x20, entries = 0, j;
     miniship_t *i;
+    char tmp[3];
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -3673,8 +3675,8 @@ static int send_dc_ship_list(ship_client_t *c, struct miniship_queue *l) {
     pkt->entries[0].name[0x11] = 0x08;
     entries = 1;
 
-    TAILQ_FOREACH(i, l, qentry) {
-        if(i->ship_id) {
+    TAILQ_FOREACH(i, &s->ships, qentry) {
+        if(i->ship_id && i->menu_code == menu_code) {
             if((i->flags & LOGIN_FLAG_GMONLY) &&
                !(c->privilege & CLIENT_PRIV_GLOBAL_GM)) {
                 continue;
@@ -3694,6 +3696,41 @@ static int send_dc_ship_list(ship_client_t *c, struct miniship_queue *l) {
         }
     }
 
+    /* Fill in the menu codes */
+    for(j = 0; j < s->mccount; ++j) {
+        if(s->menu_codes[j] != menu_code) {
+            tmp[0] = (char)(s->menu_codes[j]);
+            tmp[1] = (char)(s->menu_codes[j] >> 8);
+            tmp[2] = '\0';
+
+            /* Make sure the values are in-bounds */
+            if((tmp[0] || tmp[1]) && (!isalpha(tmp[0]) || !isalpha(tmp[1]))) {
+                continue;
+            }
+
+            /* Clear out the ship information */
+            memset(&pkt->entries[entries], 0, 0x1C);
+
+            /* Fill in what we have */
+            pkt->entries[entries].menu_id = LE32((0x00000005 |
+                                                  (s->menu_codes[j] << 8)));
+            pkt->entries[entries].item_id = LE32(0x00000000);
+            pkt->entries[entries].flags = LE16(0x0000);
+
+            /* Create the name string */
+            if(tmp[0] && tmp[1]) {
+                sprintf(pkt->entries[entries].name, "\tC6%s Ship List", tmp);
+            }
+            else {
+                strcpy(pkt->entries[entries].name, "\tC6Main Ships");
+            }
+
+            /* We're done with this ship, increment the counter */
+            ++entries;
+            len += 0x1C;
+        }
+    }
+
     /* We'll definitely have at least one ship (ourselves), so just fill in the
        rest of it */
     pkt->hdr.flags = (uint8_t)(entries - 1);
@@ -3703,15 +3740,16 @@ static int send_dc_ship_list(ship_client_t *c, struct miniship_queue *l) {
     return crypt_send(c, len, sendbuf);
 }
 
-static int send_pc_ship_list(ship_client_t *c, struct miniship_queue *l) {
+static int send_pc_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
     uint8_t *sendbuf = get_sendbuf();
     pc_ship_list_pkt *pkt = (pc_ship_list_pkt *)sendbuf;
-    int len = 0x30, entries = 0;
+    int len = 0x30, entries = 0, j;
     iconv_t ic = iconv_open("UTF-16LE", "ASCII");
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
     miniship_t *i;
+    char tmp[18], tmp2[3];
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -3737,8 +3775,8 @@ static int send_pc_ship_list(ship_client_t *c, struct miniship_queue *l) {
     memcpy(pkt->entries[0].name, "D\0A\0T\0A\0B\0A\0S\0E\0/\0J\0P\0", 22);
     entries = 1;
 
-    TAILQ_FOREACH(i, l, qentry) {
-        if(i->ship_id) {
+    TAILQ_FOREACH(i, &s->ships, qentry) {
+        if(i->ship_id && i->menu_code == menu_code) {
             if((i->flags & LOGIN_FLAG_GMONLY) &&
                !(c->privilege & CLIENT_PRIV_GLOBAL_GM)) {
                 continue;
@@ -3764,6 +3802,49 @@ static int send_pc_ship_list(ship_client_t *c, struct miniship_queue *l) {
         }
     }
 
+    /* Fill in the menu codes */
+    for(j = 0; j < s->mccount; ++j) {
+        if(s->menu_codes[j] != menu_code) {
+            tmp2[0] = (char)(s->menu_codes[j]);
+            tmp2[1] = (char)(s->menu_codes[j] >> 8);
+            tmp2[2] = '\0';
+
+            /* Make sure the values are in-bounds */
+            if((tmp2[0] || tmp2[1]) &&
+               (!isalpha(tmp2[0]) || !isalpha(tmp2[1]))) {
+                continue;
+            }
+
+            /* Clear out the ship information */
+            memset(&pkt->entries[entries], 0, 0x2C);
+
+            /* Fill in what we have */
+            pkt->entries[entries].menu_id = LE32((0x00000005 |
+                                                  (s->menu_codes[j] << 8)));
+            pkt->entries[entries].item_id = LE32(0x00000000);
+            pkt->entries[entries].flags = LE16(0x0000);
+
+            /* Create the name string (UTF-8) */
+            if(tmp2[0] && tmp2[1]) {
+                sprintf(tmp, "\tC6%s Ship List", tmp2);
+            }
+            else {
+                strcpy(tmp, "\tC6Main Ships");
+            }
+
+            /* And convert to UTF-16 */
+            in = strlen(tmp);
+            out = 0x22;
+            inptr = tmp;
+            outptr = (char *)pkt->entries[entries].name;
+            iconv(ic, &inptr, &in, &outptr, &out);
+
+            /* We're done with this ship, increment the counter */
+            ++entries;
+            len += 0x2C;
+        }
+    }
+
     iconv_close(ic);
 
     /* We'll definitely have at least one ship (ourselves), so just fill in the
@@ -3775,16 +3856,16 @@ static int send_pc_ship_list(ship_client_t *c, struct miniship_queue *l) {
     return crypt_send(c, len, sendbuf);
 }
 
-int send_ship_list(ship_client_t *c, struct miniship_queue *l) {
+int send_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
     /* Call the appropriate function. */
     switch(c->version) {
         case CLIENT_VERSION_DCV1:
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_GC:
-            return send_dc_ship_list(c, l);
+            return send_dc_ship_list(c, s, menu_code);
 
         case CLIENT_VERSION_PC:
-            return send_pc_ship_list(c, l);
+            return send_pc_ship_list(c, s, menu_code);
     }
 
     return -1;

@@ -26,6 +26,7 @@
 
 #include "clients.h"
 #include "player.h"
+#include "ship.h"
 
 /* Pull in the structures for the packets themselves. */
 #include "packets.h"
@@ -139,7 +140,7 @@ int send_lobby_arrows(lobby_t *l);
 int send_arrows(ship_client_t *c, lobby_t *l);
 
 /* Send a ship list packet to the client. */
-int send_ship_list(ship_client_t *c, struct miniship_queue *l);
+int send_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code);
 
 /* Send a warp command to the client. */
 int send_warp(ship_client_t *c, uint8_t area);

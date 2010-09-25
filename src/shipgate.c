@@ -596,23 +596,100 @@ static int handle_pc(shipgate_conn_t *conn, shipgate_fw_pkt *pkt) {
     return -2;
 }
 
+static void menu_code_sort(uint16_t *codes, int count) {
+    int i, j;
+    uint16_t tmp;
+
+    /* This list shouldn't ever get too big, and will be mostly sorted to start
+       with, so insertion sort should do well here. */
+    for(j = 1; j < count; ++j) {
+        tmp = codes[j];
+        i = j - 1;
+
+        while(i >= 0 && codes[i] > tmp) {
+            codes[i + 1] = codes[i];
+            --i;
+        }
+
+        codes[i + 1] = tmp;
+    }
+}
+
+static int menu_code_exists(uint16_t *codes, int count, uint16_t target) {
+    int i = 0, j = count, k;
+
+    /* Simple binary search */
+    while(i < j) {
+        k = i + (j - i) / 2;
+
+        if(codes[k] < target) {
+            i = k + 1;
+        }
+        else {
+            j = k;
+        }
+    }
+
+    /* If we've found the value we're looking for, return success */
+    if(i < count && codes[i] == target) {
+        return 1;
+    }
+
+    return 0;
+}
+
 static int handle_sstatus(shipgate_conn_t *conn, shipgate_ship_status_pkt *p) {
     uint16_t status = ntohs(p->status);
     uint32_t sid = ntohl(p->ship_id);
     ship_t *s = conn->ship;
-    miniship_t *i;
+    miniship_t *i, *j;
+    uint16_t code = 0;
+    void *tmp;
 
     /* Did a ship go down or come up? */
     if(!status) {
         /* A ship has gone down */
         TAILQ_FOREACH(i, &s->ships, qentry) {
-            /* Clear the ship, if we've found the right one */
+            /* Clear the ship from the list, if we've found the right one */
             if(sid == i->ship_id) {
-                TAILQ_REMOVE(&s->ships, i, qentry);
-                free(i);
+                TAILQ_REMOVE(&s->ships, i, qentry);                
                 break;
             }
         }
+
+        /* Figure out if the menu code is still in use */
+        TAILQ_FOREACH(j, &s->ships, qentry) {
+            if(i->menu_code == j->menu_code) {
+                code = 1;
+                break;
+            }
+        }
+
+        /* If the code is not in use, get rid of it */
+        if(!code) {
+            /* Move all higher menu codes down the list */
+            for(code = 0; code < s->mccount - 1; ++code) {
+                if(s->menu_codes[code] >= i->menu_code) {
+                    s->menu_codes[code] = s->menu_codes[code + 1];
+                }
+            }
+
+            /* Chop off the last element (its now a duplicated entry or the one
+               we want to get rid of) */
+            tmp = realloc(s->menu_codes, (s->mccount - 1) * sizeof(uint16_t));
+
+            if(!tmp) {
+                perror("realloc");
+                s->menu_codes[s->mccount - 1] = 0xFFFF;
+            }
+            else {
+                s->menu_codes = (uint16_t *)tmp;
+                --s->mccount;
+            }
+        }
+
+        /* Clean up the miniship */
+        free(i);
     }
     else {
         /* Allocate space, and punt if we can't */
@@ -622,11 +699,29 @@ static int handle_sstatus(shipgate_conn_t *conn, shipgate_ship_status_pkt *p) {
             return 0;
         }
 
+        /* See if we need to deal with the menu code or not here */
+        code = ntohs(p->menu_code);
+
+        if(!menu_code_exists(s->menu_codes, s->mccount, code)) {
+            tmp = realloc(s->menu_codes, (s->mccount + 1) * sizeof(uint16_t));
+
+            /* Can't make space, punt */
+            if(!tmp) {
+                perror("realloc");
+                free(i);
+                return 0;
+            }
+
+            /* Put the new code in, and sort the list */
+            s->menu_codes = (uint16_t *)tmp;
+            s->menu_codes[s->mccount++] = code;
+            menu_code_sort(s->menu_codes, s->mccount);
+        }
+
         memset(i, 0, sizeof(miniship_t));
 
         /* Add the new ship, and copy its data */
         TAILQ_INSERT_TAIL(&s->ships, i, qentry);
-        ++s->ship_count;
 
         memcpy(i->name, p->name, 12);
         i->ship_id = sid;
@@ -635,7 +730,7 @@ static int handle_sstatus(shipgate_conn_t *conn, shipgate_ship_status_pkt *p) {
         i->ship_port = ntohs(p->ship_port);
         i->clients = ntohs(p->clients);
         i->games = ntohs(p->games);
-        i->menu_code = ntohs(p->menu_code);
+        i->menu_code = code;
         i->flags = ntohl(p->flags);
     }
 
@@ -1011,7 +1106,7 @@ int shipgate_send_ship_info(shipgate_conn_t *c, ship_t *ship) {
     pkt->ship_key = htons(c->key_idx);
     pkt->clients = htons(ship->num_clients);
     pkt->games = htons(ship->num_games);
-    pkt->menu_code = 0;                 /* XXXX */
+    pkt->menu_code = htons(ship->menu_code);
     pkt->flags = 0;                     /* XXXX */
 
     /* Send it away */

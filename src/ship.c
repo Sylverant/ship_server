@@ -729,7 +729,7 @@ static int dc_process_block_sel(ship_client_t *c, dc_select_pkt *pkt) {
 
     /* See if the block selected is the "Ship Select" block */
     if(block == 0xFFFFFFFF) {
-        return send_ship_list(c, &c->cur_ship->ships);
+        return send_ship_list(c, s, s->menu_code);
     }
 
     /* Make sure the block selected is in range. */
@@ -780,6 +780,11 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
             ship_t *s = c->cur_ship;
             in_addr_t addr;
             int off = 0;
+
+            /* See if the user picked a Ship List item */
+            if(item_id == 0) {
+                return send_ship_list(c, s, (uint16_t)(menu_id >> 8));
+            }
 
             switch(c->version) {
                 case CLIENT_VERSION_DCV1:

@@ -78,6 +78,7 @@ struct ship {
 
     uint16_t num_clients;
     uint16_t num_games;
+    uint16_t menu_code;
 
     sylverant_quest_list_t quests;
     shipgate_conn_t sg;
@@ -87,8 +88,9 @@ struct ship {
     local_gm_t *gm_list;
     int gm_count;
 
-    int ship_count;
     struct miniship_queue ships;
+    int mccount;
+    uint16_t *menu_codes;
 
     char *motd;
 };
