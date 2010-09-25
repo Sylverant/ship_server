@@ -592,6 +592,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     /* Fill in the structure. */
     pthread_mutex_init(&rv->qmutex, NULL);
     TAILQ_INIT(rv->clients);
+    TAILQ_INIT(&rv->ships);
     rv->cfg = s;
     rv->dcsock = dcsock;
     rv->pcsock = pcsock;

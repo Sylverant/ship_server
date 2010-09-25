@@ -622,6 +622,8 @@ static int handle_sstatus(shipgate_conn_t *conn, shipgate_ship_status_pkt *p) {
             return 0;
         }
 
+        memset(i, 0, sizeof(miniship_t));
+
         /* Add the new ship, and copy its data */
         TAILQ_INSERT_TAIL(&s->ships, i, qentry);
         ++s->ship_count;

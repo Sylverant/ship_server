@@ -88,7 +88,6 @@ struct ship {
     int gm_count;
 
     int ship_count;
-    //miniship_t *ships;
     struct miniship_queue ships;
 
     char *motd;
