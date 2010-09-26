@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009 Lawrence Sebald
+    Copyright (C) 2009, 2010 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -149,6 +149,13 @@ static void load_config() {
         debug(DBG_LOG, "Base Port: %d\n", (int)cfg->ships[i].base_port);
         debug(DBG_LOG, "Blocks: %d\n", cfg->ships[i].blocks);
         debug(DBG_LOG, "Event: %d\n", cfg->ships[i].event);
+        if(cfg->ships[i].menu_code) {
+            debug(DBG_LOG, "Menu: %c%c\n", (char)cfg->ships[i].menu_code,
+                  (char)(cfg->ships[i].menu_code >> 8));
+        }
+        else {
+            debug(DBG_LOG, "Menu: Main\n");
+        }
     }
 }
 

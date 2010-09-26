@@ -78,7 +78,6 @@ struct ship {
 
     uint16_t num_clients;
     uint16_t num_games;
-    uint16_t menu_code;
 
     sylverant_quest_list_t quests;
     shipgate_conn_t sg;

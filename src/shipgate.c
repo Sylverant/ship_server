@@ -1106,7 +1106,7 @@ int shipgate_send_ship_info(shipgate_conn_t *c, ship_t *ship) {
     pkt->ship_key = htons(c->key_idx);
     pkt->clients = htons(ship->num_clients);
     pkt->games = htons(ship->num_games);
-    pkt->menu_code = htons(ship->menu_code);
+    pkt->menu_code = htons(ship->cfg->menu_code);
     pkt->flags = 0;                     /* XXXX */
 
     /* Send it away */

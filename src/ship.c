@@ -729,7 +729,7 @@ static int dc_process_block_sel(ship_client_t *c, dc_select_pkt *pkt) {
 
     /* See if the block selected is the "Ship Select" block */
     if(block == 0xFFFFFFFF) {
-        return send_ship_list(c, s, s->menu_code);
+        return send_ship_list(c, s, s->cfg->menu_code);
     }
 
     /* Make sure the block selected is in range. */
