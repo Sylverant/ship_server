@@ -258,6 +258,7 @@ int shipgate_reconnect(shipgate_conn_t *conn) {
     i = TAILQ_FIRST(&s->ships);
     while(i) {
         tmp = TAILQ_NEXT(i, qentry);
+        TAILQ_REMOVE(&s->ships, i, qentry);
         free(i);
         i = tmp;
     }
