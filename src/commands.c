@@ -314,7 +314,9 @@ static int handle_save(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
         return send_txt(c, "%s", __(c, "\tE\tC7Couldn't save character data"));
     }
 
-    return send_txt(c, "%s", __(c, "\tE\tC7Saved character data"));
+    /* An error or success message will be sent when the shipgate gets its
+       response. */
+    return 0;
 }
 
 /* Usage: /restore slot */
@@ -925,6 +927,9 @@ static int handle_gban_p(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
             }
 
             i->disconnected = 1;
+
+            /* The ban setter will get a message telling them the ban has been
+               set (or an error happened). */
             return 0;
         }
     }
