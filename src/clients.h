@@ -28,6 +28,8 @@
 #include "block.h"
 #include "player.h"
 
+#define CLIENT_MAX_FRIENDS  20
+
 /* Pull in the packet header types. */
 #define PACKETS_H_HEADERS_ONLY
 #include "packets.h"
@@ -97,6 +99,8 @@ struct ship_client {
     char *autoreply;
     FILE *logfile;
     time_t sent_motd;
+
+    uint32_t friendlist[CLIENT_MAX_FRIENDS];
 };
 
 #define CLIENT_PRIV_LOCAL_GM    0x00000001
@@ -178,5 +182,9 @@ int client_clear_autoreply(ship_client_t *c);
 
 /* Check if a client has blacklisted someone. */
 int client_has_blacklisted(ship_client_t *c, uint32_t gc);
+
+/* Send a message to anyone who the specified user appears on the friendlist of
+ telling them that the user has either left or joined */
+void client_send_friendmsg(ship_client_t *c, int on);
 
 #endif /* !CLIENTS_H */

@@ -800,12 +800,21 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
             return -3;
         }
 
-        /* Set up to send the Message of the Day if we have one and the client
-           hasn't already gotten it this session.
-           XXXX: Disabled for Gamecube, for now (due to bugginess). */
-        if(!c->sent_motd && c->cur_ship->motd &&
-           c->version != CLIENT_VERSION_GC) {
-            send_simple(c, PING_TYPE, 0);
+        /* Do a few things that should only be done once per session... */
+        if(!c->sent_motd) {
+            /* Send a message to anyone who has this person on his/her
+               friend list */
+            client_send_friendmsg(c, 1);
+
+            /* Set up to send the Message of the Day if we have one and the
+               client hasn't already gotten it this session.
+               XXXX: Disabled for Gamecube, for now (due to bugginess). */
+            if(c->cur_ship->motd && c->version != CLIENT_VERSION_GC) {
+                send_simple(c, PING_TYPE, 0);
+            }
+            else {
+                c->sent_motd = 1;
+            }
         }
     }
 

@@ -173,6 +173,12 @@ void client_destroy_connection(ship_client_t *c, struct client_queue *clients) {
 
     TAILQ_REMOVE(clients, c, qentry);
 
+    /* If the user was on a block, send a message to anyone who is friends with
+       him/her that he/she has left */
+    if(c->type == CLIENT_TYPE_BLOCK) {
+        client_send_friendmsg(c, 0);
+    }
+
     pthread_mutex_destroy(&c->mutex);
     ship_dec_clients(c->cur_ship);
 
@@ -463,4 +469,37 @@ int client_has_blacklisted(ship_client_t *c, uint32_t gc) {
 
     /* If we didn't find anything, then we're done. */
     return 0;
+}
+
+/* Send a message to anyone who the specified user appears on the friendlist of
+   telling them that the user has either left or joined */
+void client_send_friendmsg(ship_client_t *c, int on) {
+    ship_t *s = c->cur_ship;
+    int i, k, bl = c->cur_block->b;
+    block_t *b;
+    ship_client_t *j;
+    uint32_t gc = c->guildcard;
+
+    for(i = 0; i < s->cfg->blocks; ++i) {
+        if(s->blocks[i]) {
+            b = s->blocks[i];
+            pthread_mutex_lock(&b->mutex);
+
+            TAILQ_FOREACH(j, b->clients, qentry) {
+                pthread_mutex_lock(&j->mutex);
+
+                for(k = 0; k < CLIENT_MAX_FRIENDS; ++k) {
+                    if(j->friendlist[k] == gc) {
+                        send_txt(j, "%s %s\nBLOCK%02d", c->pl->v1.name,
+                                 on ? __(j, "online") : __(j, "offline"), bl);
+                        break;
+                    }
+                }
+
+                pthread_mutex_unlock(&j->mutex);
+            }
+
+            pthread_mutex_unlock(&b->mutex);
+        }
+    }
 }

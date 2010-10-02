@@ -1228,43 +1228,113 @@ static int handle_endlog(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return send_txt(c, "%s", __(c, "\tE\tC7Requested user not\nfound"));
 }
 
-/* Usage /motd */
+/* Usage: /motd */
 static int handle_motd(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return send_message_box(c, "%s", c->cur_ship->motd);
 }
 
+/* Usage: /friendadd guildcard */
+static int handle_friendadd(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    uint32_t gc;
+    int i;
+
+    /* Figure out the user requested */
+    errno = 0;
+    gc = (uint32_t)strtoul(params, NULL, 10);
+
+    if(errno != 0) {
+        /* Send a message saying invalid guildcard number */
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card"));
+    }
+
+    /* Make sure the user isn't in the friend list already */
+    for(i = 0; c->friendlist[i] && i < CLIENT_MAX_FRIENDS; ++i) {
+        if(c->friendlist[i] == gc) {
+            return send_txt(c, "%s", __(c, "\tE\tC7Already in list"));
+        }
+    }
+
+    /* Make sure the list isn't full */
+    if(i == CLIENT_MAX_FRIENDS) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Friend list full"));
+    }
+
+    /* Add the person to the friend list */
+    c->friendlist[i] = gc;
+
+    return send_txt(c, "%s", __(c, "\tE\tC7Friend added"));
+}
+
+/* Usage: /frienddel guildcard */
+static int handle_frienddel(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    uint32_t gc;
+    int i, done = 0;
+
+    /* Figure out the user requested */
+    errno = 0;
+    gc = (uint32_t)strtoul(params, NULL, 10);
+
+    if(errno != 0) {
+        /* Send a message saying invalid guildcard number */
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card"));
+    }
+
+    /* Find the requested person and clear them out */
+    for(i = 0; i < CLIENT_MAX_FRIENDS; ++i) {
+        if(c->friendlist[i] == gc || done) {
+            if(i != CLIENT_MAX_FRIENDS - 1) {
+                c->friendlist[i] = c->friendlist[i + 1];
+            }
+            else {
+                c->friendlist[i] = 0;
+            }
+
+            done = 1;
+        }
+    }
+
+    /* Send a message telling whether we removed something or not */
+    if(!done) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Not in list"));
+    }
+
+    return send_txt(c, "%s", __(c, "\tE\tC7Friend removed"));
+}
+
 static command_t cmds[] = {
-    { "warp"    , handle_warp      },
-    { "kill"    , handle_kill      },
-    { "minlvl"  , handle_min_level },
-    { "maxlvl"  , handle_max_level },
-    { "refresh" , handle_refresh   },
-    { "save"    , handle_save      },
-    { "restore" , handle_restore   },
-    { "bstat"   , handle_bstat     },
-    { "bcast"   , handle_bcast     },
-    { "arrow"   , handle_arrow     },
-    { "login"   , handle_login     },
-    { "item"    , handle_item      },
-    { "item4"   , handle_item4     },
-    { "event"   , handle_event     },
-    { "passwd"  , handle_passwd    },
-    { "lname"   , handle_lname     },
-    { "warpall" , handle_warpall   },
-    { "bug"     , handle_bug       },
-    { "clinfo"  , handle_clinfo    },
-    { "gban:d"  , handle_gban_d    },
-    { "gban:w"  , handle_gban_w    },
-    { "gban:m"  , handle_gban_m    },
-    { "gban:p"  , handle_gban_p    },
-    { "list"    , handle_list      },
-    { "legit"   , handle_legit     },
-    { "normal"  , handle_normal    },
-    { "shutdown", handle_shutdown  },
-    { "log"     , handle_log       },
-    { "endlog"  , handle_endlog    },
-    { "motd"    , handle_motd      },
-    { ""        , NULL             }     /* End marker -- DO NOT DELETE */
+    { "warp"     , handle_warp      },
+    { "kill"     , handle_kill      },
+    { "minlvl"   , handle_min_level },
+    { "maxlvl"   , handle_max_level },
+    { "refresh"  , handle_refresh   },
+    { "save"     , handle_save      },
+    { "restore"  , handle_restore   },
+    { "bstat"    , handle_bstat     },
+    { "bcast"    , handle_bcast     },
+    { "arrow"    , handle_arrow     },
+    { "login"    , handle_login     },
+    { "item"     , handle_item      },
+    { "item4"    , handle_item4     },
+    { "event"    , handle_event     },
+    { "passwd"   , handle_passwd    },
+    { "lname"    , handle_lname     },
+    { "warpall"  , handle_warpall   },
+    { "bug"      , handle_bug       },
+    { "clinfo"   , handle_clinfo    },
+    { "gban:d"   , handle_gban_d    },
+    { "gban:w"   , handle_gban_w    },
+    { "gban:m"   , handle_gban_m    },
+    { "gban:p"   , handle_gban_p    },
+    { "list"     , handle_list      },
+    { "legit"    , handle_legit     },
+    { "normal"   , handle_normal    },
+    { "shutdown" , handle_shutdown  },
+    { "log"      , handle_log       },
+    { "endlog"   , handle_endlog    },
+    { "motd"     , handle_motd      },
+    { "friendadd", handle_friendadd },
+    { "frienddel", handle_frienddel },
+    { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 
 int command_parse(ship_client_t *c, dc_chat_pkt *pkt) {
