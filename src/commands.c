@@ -31,6 +31,7 @@
 #include "lobby.h"
 #include "subcmd.h"
 #include "utils.h"
+#include "shipgate.h"
 
 typedef struct command {
     char trigger[10];
@@ -1236,7 +1237,6 @@ static int handle_motd(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 /* Usage: /friendadd guildcard */
 static int handle_friendadd(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     uint32_t gc;
-    int i;
 
     /* Figure out the user requested */
     errno = 0;
@@ -1247,28 +1247,17 @@ static int handle_friendadd(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
         return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card"));
     }
 
-    /* Make sure the user isn't in the friend list already */
-    for(i = 0; c->friendlist[i] && i < CLIENT_MAX_FRIENDS; ++i) {
-        if(c->friendlist[i] == gc) {
-            return send_txt(c, "%s", __(c, "\tE\tC7Already in list"));
-        }
-    }
+    /* Send a request to the shipgate to do the rest */
+    shipgate_send_friend_update(&c->cur_ship->sg, 1, c->guildcard, gc);
+    
+    /* Any further messages will be handled by the shipgate handler */
+    return 0;
 
-    /* Make sure the list isn't full */
-    if(i == CLIENT_MAX_FRIENDS) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Friend list full"));
-    }
-
-    /* Add the person to the friend list */
-    c->friendlist[i] = gc;
-
-    return send_txt(c, "%s", __(c, "\tE\tC7Friend added"));
 }
 
 /* Usage: /frienddel guildcard */
 static int handle_frienddel(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     uint32_t gc;
-    int i, done = 0;
 
     /* Figure out the user requested */
     errno = 0;
@@ -1279,26 +1268,11 @@ static int handle_frienddel(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
         return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card"));
     }
 
-    /* Find the requested person and clear them out */
-    for(i = 0; i < CLIENT_MAX_FRIENDS; ++i) {
-        if(c->friendlist[i] == gc || done) {
-            if(i != CLIENT_MAX_FRIENDS - 1) {
-                c->friendlist[i] = c->friendlist[i + 1];
-            }
-            else {
-                c->friendlist[i] = 0;
-            }
+    /* Send a request to the shipgate to do the rest */
+    shipgate_send_friend_update(&c->cur_ship->sg, 0, c->guildcard, gc);
 
-            done = 1;
-        }
-    }
-
-    /* Send a message telling whether we removed something or not */
-    if(!done) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Not in list"));
-    }
-
-    return send_txt(c, "%s", __(c, "\tE\tC7Friend removed"));
+    /* Any further messages will be handled by the shipgate handler */
+    return 0;
 }
 
 static command_t cmds[] = {

@@ -56,7 +56,7 @@ static void *ship_thd(void *d) {
     ship_client_t *it, *tmp;
     socklen_t len;
     struct sockaddr_in addr;
-    int sock;
+    int sock, rv;
     ssize_t sent;
     time_t now;
 
@@ -243,13 +243,19 @@ static void *ship_thd(void *d) {
 
             /* Process the shipgate */
             if(s->sg.sock != -1 && FD_ISSET(s->sg.sock, &readfds)) {
-                if(shipgate_process_pkt(&s->sg)) {
+                if((rv = shipgate_process_pkt(&s->sg))) {
                     debug(DBG_WARN, "%s: Lost connection with shipgate\n",
                           s->cfg->name);
 
                     /* Close the connection so we can attempt to reconnect */
                     close(s->sg.sock);
                     s->sg.sock = -1;
+
+                    if(rv < -1) {
+                        debug(DBG_WARN, "%s: Fatal shipgate error, bailing!\n",
+                              s->cfg->name);
+                        s->run = 0;
+                    }
                 }
             }
 

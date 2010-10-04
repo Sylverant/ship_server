@@ -36,7 +36,7 @@ typedef struct ship ship_t;
 
 #define PACKED __attribute__((packed))
 
-#define SHIPGATE_PROTO_VER  1
+#define SHIPGATE_PROTO_VER  2
 
 /* The header that is prepended to any packets sent to the shipgate. */
 typedef struct shipgate_hdr {
@@ -109,6 +109,20 @@ typedef struct shipgate_ban_err {
     uint32_t until;
     uint32_t reserved;
 } PACKED shipgate_ban_err_pkt;
+
+/* Error packet in reply to a block login */
+typedef struct shipgate_blogin_err {
+    shipgate_error_pkt base;
+    uint32_t guildcard;
+    uint32_t blocknum;
+} PACKED shipgate_blogin_err_pkt;
+
+/* Error packet in reply to a add/remove friend */
+typedef struct shipgate_friend_err {
+    shipgate_error_pkt base;
+    uint32_t user_gc;
+    uint32_t friend_gc;
+} PACKED shipgate_friend_err_pkt;
 
 /* The request sent from the shipgate for a ship to identify itself. */
 typedef struct shipgate_login {
@@ -213,6 +227,33 @@ typedef struct shipgate_ban_req {
     char message[256];
 } PACKED shipgate_ban_req_pkt;
 
+/* Packet used to tell the shipgate that a user has logged into/off a block */
+typedef struct shipgate_block_login {
+    shipgate_hdr_t hdr;
+    uint32_t guildcard;
+    uint32_t blocknum;
+    char ch_name[32];
+} PACKED shipgate_block_login_pkt;
+
+/* Packet to tell a ship that a client's friend has logged in/out */
+typedef struct shipgate_friend_login {
+    shipgate_hdr_t hdr;
+    uint32_t dest_guildcard;
+    uint32_t dest_block;
+    uint32_t friend_guildcard;
+    uint32_t friend_ship;
+    uint32_t friend_block;
+    uint32_t reserved;
+    char friend_name[32];
+} PACKED shipgate_friend_login_pkt;
+
+/* Packet to update a user's friendlist (used for either add or remove) */
+typedef struct shipgate_friend_upd {
+    shipgate_hdr_t hdr;
+    uint32_t user_guildcard;
+    uint32_t friend_guildcard;
+} PACKED shipgate_friend_upd_pkt;
+
 #undef PACKED
 
 /* Size of the shipgate login packet. */
@@ -241,6 +282,12 @@ static const char shipgate_login_msg[] =
 #define SHDR_TYPE_GMLOGIN   0x0016      /* Login request for a Global GM */
 #define SHDR_TYPE_GCBAN     0x0017      /* Guildcard ban */
 #define SHDR_TYPE_IPBAN     0x0018      /* IP ban */
+#define SHDR_TYPE_BLKLOGIN  0x0019      /* User logs into a block */
+#define SHDR_TYPE_BLKLOGOUT 0x001A      /* User logs off a block */
+#define SHDR_TYPE_FRLOGIN   0x001B      /* A user's friend logs onto a block */
+#define SHDR_TYPE_FRLOGOUT  0x001C      /* A user's friend logs off a block */
+#define SHDR_TYPE_ADDFRIEND 0x001D      /* Add a friend to a user's list */
+#define SHDR_TYPE_DELFRIEND 0x001E      /* Remove a friend from a user's list */
 
 /* Flags that can be set in the login packet */
 #define LOGIN_FLAG_GMONLY   0x00000001  /* Only Global GMs are allowed */
@@ -269,6 +316,10 @@ static const char shipgate_login_msg[] =
 /* Error codes in response to a ban request */
 #define ERR_BAN_NOT_GM          0x00000001
 #define ERR_BAN_BAD_TYPE        0x00000002
+
+/* Error codes in response to a block login */
+#define ERR_BLOGIN_INVAL_NAME   0x00000001
+#define ERR_BLOGIN_ONLINE       0x00000002
 
 /* Attempt to connect to the shipgate. Returns < 0 on error, returns 0 on
    success. */
@@ -312,5 +363,13 @@ int shipgate_send_gmlogin(shipgate_conn_t *c, uint32_t gc, uint32_t block,
 /* Send a ban request. */
 int shipgate_send_ban(shipgate_conn_t *c, uint16_t type, uint32_t requester,
                       uint32_t target, uint32_t until, char *msg);
+
+/* Send a friendlist update */
+int shipgate_send_friend_update(shipgate_conn_t *c, int add, uint32_t user,
+                                uint32_t friend_gc);
+
+/* Send a block login/logout */
+int shipgate_send_block_login(shipgate_conn_t *c, int on, uint32_t user,
+                              uint32_t block, const char *name);
 
 #endif /* !SHIPGATE_H */

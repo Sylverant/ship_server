@@ -543,7 +543,7 @@ static int handle_dc_gsearch(shipgate_conn_t *conn, dc_guild_search_pkt *pkt,
                                      sid);
                     done = 1;
                 }
-                else if(c->guildcard) {
+                else if(c->guildcard == dest) {
                     /* Act like they don't exist for right now (they don't
                        really exist right now) */
                     rv = 0;
@@ -766,7 +766,7 @@ static int handle_creq(shipgate_conn_t *conn, shipgate_char_data_pkt *pkt) {
                     send_lobby_join(c, c->cur_lobby);
                     done = 1;
                 }
-                else if(c->guildcard) {
+                else if(c->guildcard == dest) {
                     /* Act like they don't exist for right now (they don't
                        really exist right now) */
                     done = 1;
@@ -814,7 +814,7 @@ static int handle_gmlogin(shipgate_conn_t *conn,
     TAILQ_FOREACH(i, b->clients, qentry) {
         if(i->guildcard == gc) {
             i->privilege |= pkt->priv;
-            rv = send_txt(i, "%s", __(i, "\tE\tC7Login Successful"));
+            send_txt(i, "%s", __(i, "\tE\tC7Login Successful"));
 
             goto out;
         }
@@ -936,17 +936,16 @@ static int handle_cdata(shipgate_conn_t *conn, shipgate_cdata_err_pkt *pkt) {
                 if(c->guildcard == dest && c->pl) {
                     /* We've found them, figure out what to tell them. */
                     if(flags & SHDR_FAILURE) {
-                        return send_txt(c, "%s", __(c, "\tE\tC7Couldn't save "
+                        send_txt(c, "%s", __(c, "\tE\tC7Couldn't save "
                                                     "character data"));
                     }
                     else {
-                        return send_txt(c, "%s", __(c, "\tE\tC7Saved character "
-                                                    "data"));
+                        send_txt(c, "%s", __(c, "\tE\tC7Saved character data"));
                     }
 
                     done = 1;
                 }
-                else if(c->guildcard) {
+                else if(c->guildcard == dest) {
                     /* Act like they don't exist for right now (they don't
                        really exist right now) */
                     done = 1;
@@ -997,17 +996,16 @@ static int handle_ban(shipgate_conn_t *conn, shipgate_ban_err_pkt *pkt) {
                             c->disconnected = 1;
                         }
 
-                        return send_txt(c, "%s", __(c, "\tE\tC7Error setting "
-                                                    "ban!"));
+                        send_txt(c, "%s", __(c, "\tE\tC7Error setting ban!"));
 
                     }
                     else {
-                        return send_txt(c, "%s", __(c, "\tE\tC7User banned"));
+                        send_txt(c, "%s", __(c, "\tE\tC7User banned"));
                     }
 
                     done = 1;
                 }
-                else if(c->guildcard) {
+                else if(c->guildcard == dest) {
                     /* Act like they don't exist for right now (they don't
                        really exist right now) */
                     done = 1;
@@ -1054,16 +1052,17 @@ static int handle_creq_err(shipgate_conn_t *conn, shipgate_cdata_err_pkt *pkt) {
                 if(c->guildcard == dest && c->pl) {
                     /* We've found them, figure out what to tell them. */
                     if(err == ERR_CREQ_NO_DATA) {
-                        return send_txt(c, "%s", __(c, "\tE\tC7No character "
-                                                    "data found"));
+                        send_txt(c, "%s", __(c, "\tE\tC7No character data "
+                                             "found"));
                     }
                     else {
-                        return send_txt(c, "%s", __(c, "\tE\tC7Couldn't "
-                                                    "request character data"));
+                        send_txt(c, "%s", __(c, "\tE\tC7Couldn't request "
+                                             "character data"));
                     }
+
                     done = 1;
                 }
-                else if(c->guildcard) {
+                else if(c->guildcard == dest) {
                     /* Act like they don't exist for right now (they don't
                        really exist right now) */
                     done = 1;
@@ -1110,7 +1109,7 @@ static int handle_gmlogin_err(shipgate_conn_t *conn, shipgate_gm_err_pkt *pkt) {
     TAILQ_FOREACH(i, b->clients, qentry) {
         if(i->guildcard == gc) {
             /* XXXX: Maybe send specific error messages sometime later */
-            rv = send_txt(i, "%s", __(i, "\tE\tC7Login failed"));
+            send_txt(i, "%s", __(i, "\tE\tC7Login failed"));
 
             goto out;
         }
@@ -1119,6 +1118,34 @@ static int handle_gmlogin_err(shipgate_conn_t *conn, shipgate_gm_err_pkt *pkt) {
 out:
     pthread_mutex_unlock(&b->mutex);
     return rv;
+}
+
+static int handle_blogin_err(shipgate_conn_t *c, shipgate_blogin_err_pkt *pkt) {
+    uint32_t gc = ntohl(pkt->guildcard);
+    uint32_t block = ntohl(pkt->blocknum);
+    ship_t *s = c->ship;
+    block_t *b;
+    ship_client_t *i;
+
+    /* Grab the block first */
+    if(block > s->cfg->blocks || !(b = s->blocks[block - 1])) {
+        return 0;
+    }
+
+    pthread_mutex_lock(&b->mutex);
+
+    /* Find the requested client and boot them off (regardless of the error type
+       for now) */
+    TAILQ_FOREACH(i, b->clients, qentry) {
+        if(i->guildcard == gc) {
+            i->disconnected = 1;
+            break;
+        }
+    }
+
+    pthread_mutex_unlock(&b->mutex);
+
+    return 0;
 }
 
 static int handle_login_reply(shipgate_conn_t *conn, shipgate_error_pkt *pkt) {
@@ -1135,25 +1162,25 @@ static int handle_login_reply(shipgate_conn_t *conn, shipgate_error_pkt *pkt) {
     if(flags & SHDR_FAILURE) {
         switch(err) {
             case ERR_LOGIN_BAD_PROTO:
-                debug(DBG_LOG, "%s: Unsupported shipgate protocol version!",
+                debug(DBG_LOG, "%s: Unsupported shipgate protocol version!\n",
                       s->cfg->name);
                 break;
 
             case ERR_BAD_ERROR:
-                debug(DBG_LOG, "%s: Shipgate having issues, try again later.",
+                debug(DBG_LOG, "%s: Shipgate having issues, try again later.\n",
                       s->cfg->name);
                 break;
 
             case ERR_LOGIN_BAD_KEY:
-                debug(DBG_LOG, "%s: Invalid key!", s->cfg->name);
+                debug(DBG_LOG, "%s: Invalid key!\n", s->cfg->name);
                 break;
 
             case ERR_LOGIN_BAD_MENU:
-                debug(DBG_LOG, "%s: Invalid menu code!", s->cfg->name);
+                debug(DBG_LOG, "%s: Invalid menu code!\n", s->cfg->name);
                 break;
 
             case ERR_LOGIN_INVAL_MENU:
-                debug(DBG_LOG, "%s: Select a valid menu code in the config!",
+                debug(DBG_LOG, "%s: Select a valid menu code in the config!\n",
                       s->cfg->name);
                 break;
         }
@@ -1165,6 +1192,167 @@ static int handle_login_reply(shipgate_conn_t *conn, shipgate_error_pkt *pkt) {
         /* We have a response. Set the has key flag. */
         conn->has_key = 1;
         debug(DBG_LOG, "%s: Shipgate connection established\n", s->cfg->name);
+    }
+
+    return 0;
+}
+
+static int handle_friend(shipgate_conn_t *c, shipgate_friend_login_pkt *pkt) {
+    uint16_t type = ntohs(pkt->hdr.pkt_type);
+    uint32_t ugc, ubl, fgc, fsh, fbl;
+    miniship_t *ms;
+    ship_t *s = c->ship;
+    block_t *b;
+    ship_client_t *cl;
+    int on = type == SHDR_TYPE_FRLOGIN;
+
+    ugc = ntohl(pkt->dest_guildcard);
+    ubl = ntohl(pkt->dest_block);
+    fgc = ntohl(pkt->friend_guildcard);
+    fsh = ntohl(pkt->friend_ship);
+    fbl = ntohl(pkt->friend_block);
+
+    /* Grab the block structure where the user is */
+    if(ubl > s->cfg->blocks || !(b = s->blocks[ubl - 1])) {
+        return 0;
+    }
+
+    /* Find the ship in question */
+    TAILQ_FOREACH(ms, &s->ships, qentry) {
+        if(ms->ship_id == fsh) {
+            break;
+        }
+    }
+
+    /* If we can't find the ship, give up */
+    if(!ms) {
+        return 0;
+    }
+
+    /* Find the user in question */
+    TAILQ_FOREACH(cl, b->clients, qentry) {
+        if(cl->guildcard == ugc) {
+            break;
+        }
+    }
+
+    /* If we can't find the user, give up */
+    if(!cl) {
+        return 0;
+    }
+
+    /* The rest is easy */
+    client_send_friendmsg(cl, on, pkt->friend_name, ms->name, fbl);
+    return 0;
+}
+
+static int handle_addfriend(shipgate_conn_t *c, shipgate_friend_err_pkt *pkt) {
+    int i;
+    ship_t *s = c->ship;
+    block_t *b;
+    ship_client_t *cl;
+    uint32_t dest = ntohl(pkt->user_gc);
+    int done = 0;
+    uint16_t flags = ntohs(pkt->base.hdr.flags);
+    uint32_t err = ntohl(pkt->base.error_code);
+
+    /* Make sure the packet looks sane */
+    if(!(flags & SHDR_FAILURE) && !(flags & SHDR_RESPONSE)) {
+        return 0;
+    }
+
+    for(i = 0; i < s->cfg->blocks && !done; ++i) {
+        if(s->blocks[i]) {
+            b = s->blocks[i];
+            pthread_mutex_lock(&b->mutex);
+
+            TAILQ_FOREACH(cl, b->clients, qentry) {
+                pthread_mutex_lock(&cl->mutex);
+
+                if(cl->guildcard == dest && cl->pl) {
+                    /* We've found them, figure out what to tell them. */
+                    if(err == ERR_NO_ERROR) {
+                        send_txt(cl, "%s", __(cl, "\tE\tC7Friend added"));
+                    }
+                    else {
+                        send_txt(cl, "%s", __(cl, "\tE\tC7Couldn't add "
+                                              "friend"));
+                    }
+
+                    done = 1;
+                }
+                else if(cl->guildcard == dest) {
+                    /* Act like they don't exist for right now (they don't
+                       really exist right now) */
+                    done = 1;
+                }
+
+                pthread_mutex_unlock(&cl->mutex);
+
+                if(done) {
+                    pthread_mutex_unlock(&b->mutex);
+                    break;
+                }
+            }
+
+            pthread_mutex_unlock(&b->mutex);
+        }
+    }
+
+    return 0;
+}
+
+static int handle_delfriend(shipgate_conn_t *c, shipgate_friend_err_pkt *pkt) {
+    int i;
+    ship_t *s = c->ship;
+    block_t *b;
+    ship_client_t *cl;
+    uint32_t dest = ntohl(pkt->user_gc);
+    int done = 0;
+    uint16_t flags = ntohs(pkt->base.hdr.flags);
+    uint32_t err = ntohl(pkt->base.error_code);
+
+    /* Make sure the packet looks sane */
+    if(!(flags & SHDR_FAILURE) && !(flags & SHDR_RESPONSE)) {
+        return 0;
+    }
+
+    for(i = 0; i < s->cfg->blocks && !done; ++i) {
+        if(s->blocks[i]) {
+            b = s->blocks[i];
+            pthread_mutex_lock(&b->mutex);
+
+            TAILQ_FOREACH(cl, b->clients, qentry) {
+                pthread_mutex_lock(&cl->mutex);
+
+                if(cl->guildcard == dest && cl->pl) {
+                    /* We've found them, figure out what to tell them. */
+                    if(err == ERR_NO_ERROR) {
+                        send_txt(cl, "%s", __(cl, "\tE\tC7Friend removed"));
+                    }
+                    else {
+                        send_txt(cl, "%s", __(cl, "\tE\tC7Couldn't remove "
+                                              "friend"));
+                    }
+
+                    done = 1;
+                }
+                else if(cl->guildcard == dest) {
+                    /* Act like they don't exist for right now (they don't
+                       really exist right now) */
+                    done = 1;
+                }
+
+                pthread_mutex_unlock(&cl->mutex);
+
+                if(done) {
+                    pthread_mutex_unlock(&b->mutex);
+                    break;
+                }
+            }
+
+            pthread_mutex_unlock(&b->mutex);
+        }
     }
 
     return 0;
@@ -1209,6 +1397,15 @@ static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
             case SHDR_TYPE_GCBAN:
                 return handle_ban(conn, (shipgate_ban_err_pkt *)pkt);
 
+            case SHDR_TYPE_BLKLOGIN:
+                return handle_blogin_err(conn, (shipgate_blogin_err_pkt *)pkt);
+
+            case SHDR_TYPE_ADDFRIEND:
+                return handle_addfriend(conn, (shipgate_friend_err_pkt *)pkt);
+                
+            case SHDR_TYPE_DELFRIEND:
+                return handle_delfriend(conn, (shipgate_friend_err_pkt *)pkt);
+
             default:
                 debug(DBG_WARN, "%s: Shipgate sent unknown error!",
                       conn->ship->cfg->name);
@@ -1249,6 +1446,16 @@ static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
             case SHDR_TYPE_IPBAN:
             case SHDR_TYPE_GCBAN:
                 return handle_ban(conn, (shipgate_ban_err_pkt *)pkt);
+
+            case SHDR_TYPE_FRLOGIN:
+            case SHDR_TYPE_FRLOGOUT:
+                return handle_friend(conn, (shipgate_friend_login_pkt *)pkt);
+
+            case SHDR_TYPE_ADDFRIEND:
+                return handle_addfriend(conn, (shipgate_friend_err_pkt *)pkt);
+
+            case SHDR_TYPE_DELFRIEND:
+                return handle_delfriend(conn, (shipgate_friend_err_pkt *)pkt);
         }
     }
 
@@ -1317,8 +1524,7 @@ int shipgate_process_pkt(shipgate_conn_t *c) {
             }
 
             /* Pass it on. */
-            if(handle_pkt(c, (shipgate_hdr_t *)rbp)) {
-                rv = -1;
+            if((rv = handle_pkt(c, (shipgate_hdr_t *)rbp))) {
                 break;
             }
 
@@ -1614,4 +1820,61 @@ static int send_greply(shipgate_conn_t *c, uint32_t gc1, uint32_t gc2,
 
     /* Send the packet away */
     return send_crypt(c, full_len, sendbuf);
+}
+
+/* Send a friendlist update */
+int shipgate_send_friend_update(shipgate_conn_t *c, int add, uint32_t user,
+                                uint32_t friend_gc) {
+    uint8_t *sendbuf = get_sendbuf();
+    shipgate_friend_upd_pkt *pkt = (shipgate_friend_upd_pkt *)sendbuf;
+    uint16_t type = add ? SHDR_TYPE_ADDFRIEND : SHDR_TYPE_DELFRIEND;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Scrub the buffer */
+    memset(pkt, 0, sizeof(shipgate_friend_upd_pkt));
+
+    /* Fill in the packet */
+    pkt->hdr.pkt_len = htons(sizeof(shipgate_friend_upd_pkt));
+    pkt->hdr.pkt_type = htons(type);
+    pkt->hdr.pkt_unc_len = pkt->hdr.pkt_len;
+    pkt->hdr.flags = htons(SHDR_NO_DEFLATE);
+
+    pkt->user_guildcard = htonl(user);
+    pkt->friend_guildcard = htonl(friend_gc);
+
+    /* Send the packet away */
+    return send_crypt(c, sizeof(shipgate_friend_upd_pkt), sendbuf);
+}
+
+/* Send a block login/logout */
+int shipgate_send_block_login(shipgate_conn_t *c, int on, uint32_t user,
+                              uint32_t block, const char *name) {
+    uint8_t *sendbuf = get_sendbuf();
+    shipgate_block_login_pkt *pkt = (shipgate_block_login_pkt *)sendbuf;
+    uint16_t type = on ? SHDR_TYPE_BLKLOGIN : SHDR_TYPE_BLKLOGOUT;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Scrub the buffer */
+    memset(pkt, 0, sizeof(shipgate_block_login_pkt));
+
+    /* Fill in the packet */
+    pkt->hdr.pkt_len = htons(sizeof(shipgate_block_login_pkt));
+    pkt->hdr.pkt_type = htons(type);
+    pkt->hdr.pkt_unc_len = pkt->hdr.pkt_len;
+    pkt->hdr.flags = htons(SHDR_NO_DEFLATE);
+
+    pkt->guildcard = htonl(user);
+    pkt->blocknum = htonl(block);
+    strncpy(pkt->ch_name, name, 32);
+
+    /* Send the packet away */
+    return send_crypt(c, sizeof(shipgate_block_login_pkt), sendbuf);
 }

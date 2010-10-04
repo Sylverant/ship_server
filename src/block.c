@@ -802,9 +802,9 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
 
         /* Do a few things that should only be done once per session... */
         if(!c->sent_motd) {
-            /* Send a message to anyone who has this person on his/her
-               friend list */
-            client_send_friendmsg(c, 1);
+            /* Notify the shipgate */
+            shipgate_send_block_login(&c->cur_ship->sg, 1, c->guildcard,
+                                      c->cur_block->b, c->pl->v1.name);
 
             /* Set up to send the Message of the Day if we have one and the
                client hasn't already gotten it this session.
