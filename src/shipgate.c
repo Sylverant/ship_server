@@ -1194,7 +1194,8 @@ static int handle_login_reply(shipgate_conn_t *conn, shipgate_error_pkt *pkt) {
         debug(DBG_LOG, "%s: Shipgate connection established\n", s->cfg->name);
     }
 
-    return 0;
+    /* Send the burst of client data if we have any to send */
+    return shipgate_send_clients(conn);
 }
 
 static int handle_friend(shipgate_conn_t *c, shipgate_friend_login_pkt *pkt) {
@@ -1358,6 +1359,45 @@ static int handle_delfriend(shipgate_conn_t *c, shipgate_friend_err_pkt *pkt) {
     return 0;
 }
 
+static int handle_kick(shipgate_conn_t *conn, shipgate_kick_pkt *pkt) {
+    uint32_t gc = ntohl(pkt->guildcard);
+    uint32_t block = ntohl(pkt->block);
+    ship_t *s = conn->ship;
+    block_t *b;
+    ship_client_t *i;
+
+    /* Check the block number first. */
+    if(block > s->cfg->blocks) {
+        return 0;
+    }
+
+    b = s->blocks[block - 1];
+    pthread_mutex_lock(&b->mutex);
+
+    /* Find the requested client. */
+    TAILQ_FOREACH(i, b->clients, qentry) {
+        if(i->guildcard == gc) {
+            /* Found them, send the message and disconnect the client */
+            if(strlen(pkt->reason) > 0) {
+                send_message_box(i, "%s\n\n%s\n%s",
+                                 __(i, "\tEYou have been kicked by a GM."),
+                                 __(i, "Reason:"), pkt->reason);
+            }
+            else {
+                send_message_box(i, "%s",
+                                 __(i, "\tEYou have been kicked by a GM."));
+            }
+
+            i->disconnected = 1;
+            goto out;
+        }
+    }
+
+out:
+    pthread_mutex_unlock(&b->mutex);
+    return 0;
+}
+
 static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
     uint16_t type = ntohs(pkt->pkt_type);
     uint16_t flags = ntohs(pkt->flags);
@@ -1456,6 +1496,9 @@ static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
 
             case SHDR_TYPE_DELFRIEND:
                 return handle_delfriend(conn, (shipgate_friend_err_pkt *)pkt);
+
+            case SHDR_TYPE_KICK:
+                return handle_kick(conn, (shipgate_kick_pkt *)pkt);
         }
     }
 
@@ -1877,4 +1920,140 @@ int shipgate_send_block_login(shipgate_conn_t *c, int on, uint32_t user,
 
     /* Send the packet away */
     return send_crypt(c, sizeof(shipgate_block_login_pkt), sendbuf);
+}
+
+/* Send a lobby change packet */
+int shipgate_send_lobby_chg(shipgate_conn_t *c, uint32_t user, uint32_t lobby,
+                            const char *lobby_name) {
+    uint8_t *sendbuf = get_sendbuf();
+    shipgate_lobby_change_pkt *pkt = (shipgate_lobby_change_pkt *)sendbuf;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Scrub the buffer */
+    memset(pkt, 0, sizeof(shipgate_lobby_change_pkt));
+
+    /* Fill in the packet */
+    pkt->hdr.pkt_len = htons(sizeof(shipgate_lobby_change_pkt));
+    pkt->hdr.pkt_type = htons(SHDR_TYPE_LOBBYCHG);
+    pkt->hdr.pkt_unc_len = pkt->hdr.pkt_len;
+    pkt->hdr.flags = htons(SHDR_NO_DEFLATE);
+
+    pkt->guildcard = htonl(user);
+    pkt->lobby_id = htonl(lobby);
+    strncpy(pkt->lobby_name, lobby_name, 32);
+
+    /* Send the packet away */
+    return send_crypt(c, sizeof(shipgate_lobby_change_pkt), sendbuf);
+}
+
+/* Send a full client list */
+int shipgate_send_clients(shipgate_conn_t *c) {
+    uint8_t *sendbuf = get_sendbuf();
+    shipgate_block_clients_pkt *pkt = (shipgate_block_clients_pkt *)sendbuf;
+    uint32_t count;
+    uint16_t size;
+    ship_t *s = c->ship;
+    int i;
+    block_t *b;
+    lobby_t *l;
+    ship_client_t *cl;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Loop through all the blocks looking for clients, sending one packet per
+       block */
+    for(i = 0; i < s->cfg->blocks; ++i) {
+        if(s->blocks[i]) {
+            b = s->blocks[i];
+            pthread_mutex_lock(&b->mutex);
+
+            /* Set up this pass */
+            pkt->block = htonl(b->b);
+            size = 16;
+            count = 0;
+
+            TAILQ_FOREACH(cl, b->clients, qentry) {
+                pthread_mutex_lock(&cl->mutex);
+
+                /* Only do this if we have enough info to actually have sent
+                   the block login before */
+                if(cl->pl->v1.name[0]) {
+                    l = cl->cur_lobby;
+
+                    /* Fill in what we have */
+                    pkt->entries[count].guildcard = htonl(cl->guildcard);
+                    strncpy(pkt->entries[count].ch_name, cl->pl->v1.name, 32);
+
+                    if(l) {
+                        pkt->entries[count].lobby = htonl(l->lobby_id);
+                        strncpy(pkt->entries[count].lobby_name, l->name, 32);
+                    }
+                    else {
+                        pkt->entries[count].lobby = htonl(0);
+                        memset(pkt->entries[count].lobby_name, 0, 32);
+                    }
+
+                    /* Increment the counter/size */
+                    ++count;
+                    size += 72;
+                }
+
+                pthread_mutex_unlock(&cl->mutex);
+            }
+
+            pthread_mutex_unlock(&b->mutex);
+
+            if(count) {
+                /* Fill in the header */
+                pkt->hdr.pkt_len = htons(size);
+                pkt->hdr.pkt_type = htons(SHDR_TYPE_BCLIENTS);
+                pkt->hdr.pkt_unc_len = pkt->hdr.pkt_len;
+                pkt->hdr.flags = htons(SHDR_NO_DEFLATE);
+                pkt->count = htonl(count);
+
+                /* Send the packet away */
+                send_crypt(c, size, sendbuf);
+            }
+        }
+    }
+
+    return 0;
+}
+
+/* Send a kick packet */
+int shipgate_send_kick(shipgate_conn_t *c, uint32_t requester, uint32_t user,
+                       const char *reason) {
+    uint8_t *sendbuf = get_sendbuf();
+    shipgate_kick_pkt *pkt = (shipgate_kick_pkt *)sendbuf;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Scrub the buffer */
+    memset(pkt, 0, sizeof(shipgate_kick_pkt));
+
+    /* Fill in the packet */
+    pkt->hdr.pkt_len = htons(sizeof(shipgate_kick_pkt));
+    pkt->hdr.pkt_type = htons(SHDR_TYPE_KICK);
+    pkt->hdr.pkt_unc_len = pkt->hdr.pkt_len;
+    pkt->hdr.flags = htons(SHDR_NO_DEFLATE);
+
+    pkt->requester = htonl(requester);
+    pkt->guildcard = htonl(user);
+
+    if(reason) {
+        strncpy(pkt->reason, reason, 64);
+    }
+
+    /* Send the packet away */
+    return send_crypt(c, sizeof(shipgate_kick_pkt), sendbuf);
 }

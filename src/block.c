@@ -751,6 +751,8 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
         return 0;
     }
 
+    pthread_mutex_lock(&c->mutex);
+
     /* Copy out the player data, and set up pointers. */
     if(version == 1) {
         memcpy(c->pl, &pkt->data, sizeof(v1_player_t));
@@ -782,6 +784,7 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
     if(type == LEAVE_GAME_PL_DATA_TYPE) {
         /* Remove the client from the lobby they're in, which will force the
            0x84 sent later to act like we're adding them to any lobby. */
+        pthread_mutex_unlock(&c->mutex);
         return lobby_remove_player(c);
     }
 
@@ -789,14 +792,17 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
        available default lobby. */
     if(!c->cur_lobby) {
         if(lobby_add_to_any(c)) {
+            pthread_mutex_unlock(&c->mutex);
             return -1;
         }
 
         if(send_lobby_join(c, c->cur_lobby)) {
+            pthread_mutex_unlock(&c->mutex);
             return -2;
         }
 
         if(send_lobby_add_player(c->cur_lobby, c)) {
+            pthread_mutex_unlock(&c->mutex);
             return -3;
         }
 
@@ -805,6 +811,8 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
             /* Notify the shipgate */
             shipgate_send_block_login(&c->cur_ship->sg, 1, c->guildcard,
                                       c->cur_block->b, c->pl->v1.name);
+            shipgate_send_lobby_chg(&c->cur_ship->sg, c->guildcard,
+                                    c->cur_lobby->lobby_id, c->cur_lobby->name);
 
             /* Set up to send the Message of the Day if we have one and the
                client hasn't already gotten it this session.
@@ -817,6 +825,8 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
             }
         }
     }
+
+    pthread_mutex_unlock(&c->mutex);
 
     return 0;
 }

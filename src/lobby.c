@@ -28,6 +28,7 @@
 #include "ship_packets.h"
 #include "subcmd.h"
 #include "ship.h"
+#include "shipgate.h"
 
 lobby_t *lobby_create_default(block_t *block, uint32_t lobby_id, uint8_t ev) {
     lobby_t *l = (lobby_t *)malloc(sizeof(lobby_t));
@@ -450,18 +451,24 @@ int lobby_change_lobby(ship_client_t *c, lobby_t *req) {
 
     /* If they're not in a lobby, add them to the first available default
        lobby. */
-    if(!c->cur_lobby) {
+    if(!l) {
         if(lobby_add_to_any(c)) {
             return -11;
         }
 
-        if(send_lobby_join(c, c->cur_lobby)) {
+        l = c->cur_lobby;
+
+        if(send_lobby_join(c, l)) {
             return -11;
         }
 
-        if(send_lobby_add_player(c->cur_lobby, c)) {
+        if(send_lobby_add_player(l, c)) {
             return -11;
         }
+
+        /* Send the message to the shipgate */
+        shipgate_send_lobby_chg(&c->cur_ship->sg, c->guildcard, l->lobby_id,
+                                l->name);
 
         return 0;
     }
@@ -560,6 +567,10 @@ int lobby_change_lobby(ship_client_t *c, lobby_t *req) {
     if(delete_lobby) {
         lobby_destroy_locked(l, 1);
     }
+
+    /* Send the message to the shipgate */
+    shipgate_send_lobby_chg(&c->cur_ship->sg, c->guildcard,
+                            c->cur_lobby->lobby_id, c->cur_lobby->name);
 
 out:
     /* We're done, unlock the locks. */

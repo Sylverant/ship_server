@@ -144,6 +144,19 @@ static int handle_kill(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
         }
     }
 
+    /* If the requester is a global GM, forward the request to the shipgate,
+       since it wasn't able to be done on this block (the shipgate may well
+       send the packet back to us if the person is on another block on this
+       ship). */
+    if((c->privilege & CLIENT_PRIV_GLOBAL_GM)) {
+        if(strlen(reason) > 1) {
+            shipgate_send_kick(&c->cur_ship->sg, c->guildcard, gc, reason + 1);
+        }
+        else {
+            shipgate_send_kick(&c->cur_ship->sg, c->guildcard, gc, NULL);
+        }
+    }
+
     /* The person isn't here... There's nothing to do. */
     return 0;
 }
