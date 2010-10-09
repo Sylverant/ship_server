@@ -1415,6 +1415,9 @@ static int send_pc_guild_reply(ship_client_t *c, uint32_t gc, in_addr_t ip,
         return -1;
     }
 
+    /* Adjust the port properly... */
+    ++port;
+
     /* Clear it out first */
     memset(pkt, 0, PC_GUILD_REPLY_LENGTH);
 
