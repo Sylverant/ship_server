@@ -118,6 +118,9 @@ TAILQ_HEAD(lobby_queue, lobby);
 #define LOBBY_FLAG_TEMP_UNAVAIL 0x00000008
 #define LOBBY_FLAG_LEGIT_MODE   0x00000010
 #define LOBBY_FLAG_LEGIT_CHECK  0x00000020
+#define LOBBY_FLAG_DCONLY       0x00000040
+#define LOBBY_FLAG_PCONLY       0x00000080
+#define LOBBY_FLAG_V1ONLY       0x00000100
 
 /* The required level for various difficulties. */
 const static int game_required_level[4] = { 0, 20, 40, 80 };

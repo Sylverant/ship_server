@@ -1265,7 +1265,6 @@ static int handle_friendadd(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     
     /* Any further messages will be handled by the shipgate handler */
     return 0;
-
 }
 
 /* Usage: /frienddel guildcard */
@@ -1286,6 +1285,103 @@ static int handle_frienddel(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     /* Any further messages will be handled by the shipgate handler */
     return 0;
+}
+
+/* Usage: /dconly [off] */
+static int handle_dconly(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    lobby_t *l = c->cur_lobby;
+    int i;
+
+    /* Lock the lobby mutex... we've got some work to do. */
+    pthread_mutex_lock(&l->mutex);
+
+    /* Make sure that the requester is in a game lobby, not a lobby lobby. */
+    if(!(l->type & LOBBY_TYPE_GAME)) {
+        pthread_mutex_unlock(&l->mutex);
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
+    }
+
+    /* Make sure the requester is the leader of the team. */
+    if(l->leader_id != c->client_id) {
+        pthread_mutex_unlock(&l->mutex);
+        return send_txt(c, "%s",
+                        __(c, "\tE\tC7Only the leader may use this command."));
+    }
+
+    /* See if we're turning the flag off. */
+    if(!strcmp(params, "off")) {
+        l->flags &= ~LOBBY_FLAG_DCONLY;
+        pthread_mutex_unlock(&l->mutex);
+        return send_txt(c, "%s", __(c, "\tE\tC7Dreamcast-only mode off."));
+    }
+
+    /* Check to see if all players are on a Dreamcast version */
+    for(i = 0; i < l->max_clients; ++i) {
+        if(l->clients[i]) {
+            if(l->clients[i]->version != CLIENT_VERSION_DCV1 &&
+               l->clients[i]->version != CLIENT_VERSION_DCV2) {
+                pthread_mutex_unlock(&l->mutex);
+                return send_txt(c, "%s", __(c, "\tE\tC7At least one "
+                                            "non-Dreamcast player is in the "
+                                            "game."));
+            }
+        }
+    }
+
+    /* We passed the check, set the flag and unlock the lobby. */
+    l->flags |= LOBBY_FLAG_DCONLY;
+    pthread_mutex_unlock(&l->mutex);
+
+    /* Tell the leader that the command has been activated. */
+    return send_txt(c, "%s", __(c, "\tE\tC7Dreamcast-only mode on."));
+}
+
+/* Usage: /v1only [off] */
+static int handle_v1only(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    lobby_t *l = c->cur_lobby;
+    int i;
+
+    /* Lock the lobby mutex... we've got some work to do. */
+    pthread_mutex_lock(&l->mutex);
+
+    /* Make sure that the requester is in a game lobby, not a lobby lobby. */
+    if(!(l->type & LOBBY_TYPE_GAME)) {
+        pthread_mutex_unlock(&l->mutex);
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
+    }
+
+    /* Make sure the requester is the leader of the team. */
+    if(l->leader_id != c->client_id) {
+        pthread_mutex_unlock(&l->mutex);
+        return send_txt(c, "%s",
+                        __(c, "\tE\tC7Only the leader may use this command."));
+    }
+
+    /* See if we're turning the flag off. */
+    if(!strcmp(params, "off")) {
+        l->flags &= ~LOBBY_FLAG_V1ONLY;
+        pthread_mutex_unlock(&l->mutex);
+        return send_txt(c, "%s", __(c, "\tE\tC7V1-only mode off."));
+    }
+
+    /* Check to see if all players are on V1 */
+    for(i = 0; i < l->max_clients; ++i) {
+        if(l->clients[i]) {
+            if(l->clients[i]->version != CLIENT_VERSION_DCV1) {
+                pthread_mutex_unlock(&l->mutex);
+                return send_txt(c, "%s", __(c, "\tE\tC7At least one "
+                                            "non-PSOv1 player is in the "
+                                            "game."));
+            }
+        }
+    }
+
+    /* We passed the check, set the flag and unlock the lobby. */
+    l->flags |= LOBBY_FLAG_V1ONLY;
+    pthread_mutex_unlock(&l->mutex);
+
+    /* Tell the leader that the command has been activated. */
+    return send_txt(c, "%s", __(c, "\tE\tC7V1-only mode on."));
 }
 
 static command_t cmds[] = {
@@ -1321,29 +1417,40 @@ static command_t cmds[] = {
     { "motd"     , handle_motd      },
     { "friendadd", handle_friendadd },
     { "frienddel", handle_frienddel },
+    { "dconly"   , handle_dconly    },
+    { "v1only"   , handle_v1only    },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 
 int command_parse(ship_client_t *c, dc_chat_pkt *pkt) {
     command_t *i = &cmds[0];
-    char cmd[10];
+    int plen = LE16(pkt->hdr.dc.pkt_len);
+    char cmd[10], params[plen];
     char *ch;
     int len = 0;
 
     /* Figure out what the command the user has requested is */
     ch = pkt->msg + 3;
 
-    while(*ch != ' ' && len < 9) {
+    while(*ch != ' ' && len < 9 && *ch) {
         cmd[len++] = *ch++;
     }
 
     cmd[len] = '\0';
 
+    /* Copy the params out for safety... */
+    if(!*ch) {
+        memset(params, 0, plen);
+    }
+    else {
+        strcpy(params, ch + 1);
+    }
+
     /* Look through the list for the one we want */
     while(i->hnd) {
         /* If this is it, go ahead and handle it */
         if(!strcmp(cmd, i->trigger)) {
-            return i->hnd(c, pkt, pkt->msg + 4 + len);
+            return i->hnd(c, pkt, params);
         }
 
         i++;
@@ -1377,7 +1484,7 @@ int wcommand_parse(ship_client_t *c, dc_chat_pkt *pkt) {
     /* Fill in the rest of the packet. */
     p2->hdr.dc.pkt_type = CHAT_TYPE;
     p2->hdr.dc.flags = 0;
-    p2->hdr.dc.pkt_len = 12 + (tlen - out);
+    p2->hdr.dc.pkt_len = LE16(12 + (tlen - out));
     p2->padding = 0;
     p2->guildcard = pkt->guildcard;
 

@@ -565,7 +565,22 @@ lobby_t *block_get_lobby(block_t *b, uint32_t lobby_id) {
 static int join_game(ship_client_t *c, lobby_t *l) {
     int rv = lobby_change_lobby(c, l);
 
-    if(rv == -10) {
+    if(rv == -13) {
+        /* PC only */
+        send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't join game!"),
+                      __(c, "\tC7The game is\nfor PSOPC only."));
+    }
+    else if(rv == -12) {
+        /* V1 only */
+        send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't join game!"),
+                      __(c, "\tC7The game is\nfor PSOv1 only."));
+    }
+    else if(rv == -11) {
+        /* DC only */
+        send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't join game!"),
+                      __(c, "\tC7The game is\nfor PSODC only."));
+    }
+    else if(rv == -10) {
         /* Temporarily unavailable */
         send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't join game!"),
                       __(c, "\tC7The game is\ntemporarily\nunavailable."));
@@ -1591,6 +1606,9 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
             if(l) {
                 if(item_id == 0) {
                     l->v2 = 0;
+                }
+                else if(item_id == 2) {
+                    l->flags |= LOBBY_FLAG_PCONLY;
                 }
 
                 /* Add the lobby to the list of lobbies on the block. */

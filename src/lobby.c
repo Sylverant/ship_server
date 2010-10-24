@@ -480,6 +480,23 @@ int lobby_change_lobby(ship_client_t *c, lobby_t *req) {
         pthread_mutex_lock(&req->mutex);
     }
 
+    /* See if the lobby doesn't allow this player by policy. */
+    if((req->flags & LOBBY_FLAG_PCONLY) && c->version != CLIENT_VERSION_PC) {
+        rv = -13;
+        goto out;
+    }
+
+    if((req->flags & LOBBY_FLAG_V1ONLY) && c->version != CLIENT_VERSION_DCV1) {
+        rv = -12;
+        goto out;
+    }
+
+    if((req->flags & LOBBY_FLAG_DCONLY) && c->version != CLIENT_VERSION_DCV1 &&
+       c->version != CLIENT_VERSION_DCV2) {
+        rv = -11;
+        goto out;
+    }
+
     /* Make sure the lobby is actually available at the moment. */
     if((req->flags & LOBBY_FLAG_TEMP_UNAVAIL)) {
         rv = -10;

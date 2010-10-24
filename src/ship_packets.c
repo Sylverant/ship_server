@@ -2183,6 +2183,7 @@ int send_pc_game_type_sel(ship_client_t *c) {
     ship_t *s = c->cur_ship;
     const char str1[16] = "Allow PSOv1";
     const char str2[16] = "PSOv2 Only";
+    const char str3[16] = "PSOPC Only";
     iconv_t ic;
     size_t in, out;
     ICONV_CONST char *inptr;
@@ -2201,7 +2202,7 @@ int send_pc_game_type_sel(ship_client_t *c) {
     }
 
     /* Clear the packet */
-    memset(pkt, 0, 0x88);
+    memset(pkt, 0, 0xB4);
 
     /* Fill in the first entry (which isn't shown) */
     pkt->entries[0].menu_id = LE32(0x00040000);
@@ -2236,15 +2237,26 @@ int send_pc_game_type_sel(ship_client_t *c) {
     outptr = (char *)pkt->entries[2].name;
     iconv(ic, &inptr, &in, &outptr, &out);
 
+    /* Add the "PSOPC Only" entry */
+    pkt->entries[3].menu_id = LE32(0x00000006);
+    pkt->entries[3].item_id = LE32(2);
+    pkt->entries[3].flags = 0;
+
+    in = strlen(str3) + 1;
+    out = 0x20;
+    inptr = (char *)str3;
+    outptr = (char *)pkt->entries[3].name;
+    iconv(ic, &inptr, &in, &outptr, &out);
+
     iconv_close(ic);
 
     /* Fill in some basic stuff */
     pkt->hdr.pkt_type = LOBBY_INFO_TYPE;
-    pkt->hdr.pkt_len = LE16(0x88);
-    pkt->hdr.flags = 2;
+    pkt->hdr.pkt_len = LE16(0xB4);
+    pkt->hdr.flags = 3;
 
     /* Send the packet away */
-    return crypt_send(c, 0x88, sendbuf);
+    return crypt_send(c, 0xB4, sendbuf);
 }
 
 /* Send a message to the client. */
