@@ -228,7 +228,7 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    chdir(SYLVERANT_DIRECTORY);
+    chdir(sylverant_directory);
 
     /* Set up things for clients to connect. */
     if(client_init()) {
