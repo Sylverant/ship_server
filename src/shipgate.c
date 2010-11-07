@@ -1139,7 +1139,6 @@ static int handle_blogin_err(shipgate_conn_t *c, shipgate_blogin_err_pkt *pkt) {
     TAILQ_FOREACH(i, b->clients, qentry) {
         if(i->guildcard == gc) {
             i->disconnected = 1;
-            break;
         }
     }
 
