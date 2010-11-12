@@ -33,6 +33,8 @@
 #include "utils.h"
 #include "shipgate.h"
 
+extern int handle_dc_gcsend(ship_client_t *d, subcmd_dc_gcsend_t *pkt);
+
 typedef struct command {
     char trigger[10];
     int (*hnd)(ship_client_t *c, dc_chat_pkt *pkt, char *params);
@@ -677,7 +679,6 @@ static int handle_lname(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 /* Usage: /bug */
 static int handle_bug(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     subcmd_dc_gcsend_t gcpkt;
-    extern int handle_dc_gcsend(ship_client_t *d, subcmd_dc_gcsend_t *pkt);
 
     /* Forge a guildcard send packet. */
     gcpkt.hdr.pkt_type = GAME_COMMAND2_TYPE;
@@ -1384,6 +1385,54 @@ static int handle_v1only(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return send_txt(c, "%s", __(c, "\tE\tC7V1-only mode on."));
 }
 
+/* Usage: /forgegc guildcard name */
+static int handle_forgegc(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    uint32_t gc;
+    char *name = NULL;
+    subcmd_dc_gcsend_t gcpkt;
+
+    /* Make sure the requester is a GM. */
+    if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
+    }
+
+    /* Figure out the user requested */
+    errno = 0;
+    gc = (uint32_t)strtoul(params, &name, 10);
+
+    if(errno != 0) {
+        /* Send a message saying invalid guildcard number */
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card"));
+    }
+
+    /* Make sure a name was given */
+    if(!name || name[0] != ' ' || name[1] == '\0') {
+        return send_txt(c, "%s", __(c, "\tE\tC7No name given"));
+    }
+
+    /* Forge the guildcard send */
+    gcpkt.hdr.pkt_type = GAME_COMMAND2_TYPE;
+    gcpkt.hdr.flags = c->client_id;
+    gcpkt.hdr.pkt_len = LE16(0x0088);
+    gcpkt.type = SUBCMD_GUILDCARD;
+    gcpkt.size = 0x21;
+    gcpkt.unused = 0;
+    gcpkt.tag = LE32(0x00010000);
+    gcpkt.guildcard = LE32(gc);
+    strncpy(gcpkt.name, name + 1, 16);
+    gcpkt.name[15] = 0;
+    memset(gcpkt.text, 0, 88);
+    gcpkt.unused2 = 0;
+    gcpkt.one = 1;
+    gcpkt.language = CLIENT_LANG_ENGLISH;
+    gcpkt.section = 0;
+    gcpkt.char_class = 8;
+    gcpkt.padding[0] = gcpkt.padding[1] = gcpkt.padding[2] = 0;
+
+    /* Send the packet */
+    return handle_dc_gcsend(c, &gcpkt);
+}
+
 static command_t cmds[] = {
     { "warp"     , handle_warp      },
     { "kill"     , handle_kill      },
@@ -1419,6 +1468,7 @@ static command_t cmds[] = {
     { "frienddel", handle_frienddel },
     { "dconly"   , handle_dconly    },
     { "v1only"   , handle_v1only    },
+    { "forgegc"  , handle_forgegc   },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 
