@@ -1471,6 +1471,98 @@ int send_guild_reply(ship_client_t *c, uint32_t gc, in_addr_t ip, uint16_t port,
     return -1;
 }
 
+/* Send a guild card search reply to the specified client. */
+static int send_dc_guild_reply_sg(ship_client_t *c, dc_guild_reply_pkt *pkt) {
+    uint16_t port = LE16(pkt->port);
+
+    /* Adjust the port properly... */
+    switch(c->version) {
+        case CLIENT_VERSION_DCV1:
+        case CLIENT_VERSION_DCV2:
+            break;
+
+        case CLIENT_VERSION_GC:
+            pkt->port = LE16(port + 2);
+            break;
+    }
+
+    /* Send it away */
+    return crypt_send(c, DC_GUILD_REPLY_LENGTH, (uint8_t *)pkt);
+}
+
+static int send_pc_guild_reply_sg(ship_client_t *c, dc_guild_reply_pkt *dc) {
+    uint8_t *sendbuf = get_sendbuf();
+    pc_guild_reply_pkt *pkt = (pc_guild_reply_pkt *)sendbuf;
+    iconv_t ic;
+    size_t in, out;
+    ICONV_CONST char *inptr;
+    char *outptr;
+    uint16_t port = LE16(dc->port);
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* We'll be converting stuff from ISO-8859-1 to UTF-16. */
+    ic = iconv_open("UTF-16LE", "ISO-8859-1");
+
+    if(ic == (iconv_t)-1) {
+        return -1;
+    }
+
+    /* Adjust the port properly... */
+    ++port;
+
+    /* Clear it out first */
+    memset(pkt, 0, PC_GUILD_REPLY_LENGTH);
+
+    /* Fill in the simple stuff */
+    pkt->hdr.pkt_type = GUILD_REPLY_TYPE;
+    pkt->hdr.pkt_len = LE16(PC_GUILD_REPLY_LENGTH);
+    pkt->tag = LE32(0x00010000);
+    pkt->gc_search = dc->gc_search;
+    pkt->gc_target = dc->gc_target;
+    pkt->ip = dc->ip;
+    pkt->port = LE16(port);
+    pkt->menu_id = dc->menu_id;
+    pkt->item_id = dc->item_id;
+
+    /* Fill in the location string... */
+    in = strlen(dc->location) + 1;
+    out = 0x88;
+    inptr = dc->location;
+    outptr = (char *)pkt->location;
+    iconv(ic, &inptr, &in, &outptr, &out);
+
+    /* ...and the name. */
+    in = strlen(dc->name) + 1;
+    out = 0x40;
+    inptr = dc->name;
+    outptr = (char *)pkt->name;
+    iconv(ic, &inptr, &in, &outptr, &out);
+
+    iconv_close(ic);
+
+    /* Send it away */
+    return crypt_send(c, PC_GUILD_REPLY_LENGTH, sendbuf);
+}
+
+int send_guild_reply_sg(ship_client_t *c, dc_guild_reply_pkt *pkt) {
+    /* Call the appropriate function. */
+    switch(c->version) {
+        case CLIENT_VERSION_DCV1:
+        case CLIENT_VERSION_DCV2:
+        case CLIENT_VERSION_GC:
+            return send_dc_guild_reply_sg(c, pkt);
+
+        case CLIENT_VERSION_PC:
+            return send_pc_guild_reply_sg(c, pkt);
+    }
+
+    return -1;
+}
+
 static int send_dc_message(ship_client_t *c, uint16_t type, const char *fmt,
                            va_list args) {
     uint8_t *sendbuf = get_sendbuf();

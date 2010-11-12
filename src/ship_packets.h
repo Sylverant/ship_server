@@ -154,6 +154,9 @@ int send_choice_search(ship_client_t *c);
 /* Send a reply to a choice search to the client. */
 int send_choice_reply(ship_client_t *c, dc_choice_set_t *search);
 
+/* Send a premade guild card search reply to the specified client. */
+int send_guild_reply_sg(ship_client_t *c, dc_guild_reply_pkt *pkt);
+
 /* Send a simple mail packet, doing any needed transformations. */
 int send_simple_mail(int version, ship_client_t *c, dc_pkt_hdr_t *pkt);
 
