@@ -1692,7 +1692,7 @@ int shipgate_fw_dc(shipgate_conn_t *c, void *dcp) {
     }
 
     /* Copy the packet, unchanged */
-    memmove(&pkt->pkt, dc, dc_len);
+    memmove(pkt->pkt, dc, dc_len);
 
     /* Round up the packet size, if needed. */
     if(full_len & 0x07)
@@ -1722,7 +1722,7 @@ int shipgate_fw_pc(shipgate_conn_t *c, void *pcp) {
     }
 
     /* Copy the packet, unchanged */
-    memmove(&pkt->pkt, pc, pc_len);
+    memmove(pkt->pkt, pc, pc_len);
 
     /* Round up the packet size, if needed. */
     if(full_len & 0x07)
