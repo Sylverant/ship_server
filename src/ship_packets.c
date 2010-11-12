@@ -1471,7 +1471,7 @@ int send_guild_reply(ship_client_t *c, uint32_t gc, in_addr_t ip, uint16_t port,
     return -1;
 }
 
-/* Send a guild card search reply to the specified client. */
+/* Send a premade guild card search reply to the specified client. */
 static int send_dc_guild_reply_sg(ship_client_t *c, dc_guild_reply_pkt *pkt) {
     uint16_t port = LE16(pkt->port);
 

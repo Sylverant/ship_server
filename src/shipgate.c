@@ -1711,7 +1711,7 @@ int shipgate_fw_dc(shipgate_conn_t *c, void *dcp) {
 /* Forward a PC packet to the shipgate. */
 int shipgate_fw_pc(shipgate_conn_t *c, void *pcp) {
     uint8_t *sendbuf = get_sendbuf();
-    pc_pkt_hdr_t *pc = (pc_pkt_hdr_t *)pcp;
+    dc_pkt_hdr_t *pc = (dc_pkt_hdr_t *)pcp;
     shipgate_fw_pkt *pkt = (shipgate_fw_pkt *)sendbuf;
     int pc_len = LE16(pc->pkt_len);
     int full_len = sizeof(shipgate_fw_pkt) + pc_len;
