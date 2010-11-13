@@ -1765,12 +1765,6 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
         dc->flags = flags;
     }
 
-    debug(DBG_LOG, "%s(%d): Received type 0x%02X\n", c->cur_ship->cfg->name,
-          c->cur_block->b, type);
-
-    if(c->guildcard && c->pl->v1.name[0])
-        debug(DBG_LOG, "\tFrom %s (%d)\n", c->pl->v1.name, c->guildcard);
-
     switch(type) {
         case LOGIN_93_TYPE:
             return dc_process_login(c, (dc_login_93_pkt *)pkt);

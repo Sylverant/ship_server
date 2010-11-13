@@ -897,8 +897,6 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
         len = LE16(pc->pkt_len);
     }
 
-    debug(DBG_LOG, "%s: Received type 0x%02X\n", c->cur_ship->cfg->name, type);
-
     switch(type) {
         case PING_TYPE:
             /* Ignore these. */
