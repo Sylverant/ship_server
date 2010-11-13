@@ -20,6 +20,8 @@
 #include <sys/time.h>
 #include <iconv.h>
 #include <string.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
 
 #include <sylverant/debug.h>
 
@@ -205,6 +207,88 @@ int pc_bug_report(ship_client_t *c, pc_simple_mail_pkt *pkt) {
     fclose(fp);
 
     return send_txt(c, "%s", __(c, "\tE\tC7Thank you for your report"));
+}
+
+/* Begin logging the specified client's packets */
+int pkt_log_start(ship_client_t *i) {
+    struct timeval rawtime;
+    struct tm cooked;
+    char str[128];
+    FILE *fp;
+    time_t now;
+
+    pthread_mutex_lock(&i->mutex);
+
+    if(i->logfile) {
+        pthread_mutex_unlock(&i->mutex);
+        return -1;
+    }
+
+    /* Get the timestamp */
+    gettimeofday(&rawtime, NULL);
+
+    /* Get UTC */
+    gmtime_r(&rawtime.tv_sec, &cooked);
+
+    /* Figure out the name of the file we'll be writing to */
+    if(i->guildcard) {
+        sprintf(str, "logs/%u.%02u.%02u.%02u.%02u.%02u.%03u-%d",
+                cooked.tm_year + 1900, cooked.tm_mon + 1, cooked.tm_mday,
+                cooked.tm_hour, cooked.tm_min, cooked.tm_sec,
+                (unsigned int)(rawtime.tv_usec / 1000), i->guildcard);
+    }
+    else {
+        sprintf(str, "logs/%u.%02u.%02u.%02u.%02u.%02u.%03u-",
+                cooked.tm_year + 1900, cooked.tm_mon + 1, cooked.tm_mday,
+                cooked.tm_hour, cooked.tm_min, cooked.tm_sec,
+                (unsigned int)(rawtime.tv_usec / 1000));
+        inet_ntop(AF_INET, &i->addr, str + strlen(str), 128 - strlen(str));
+    }
+
+    fp = fopen(str, "wt");
+
+    if(!fp) {
+        pthread_mutex_unlock(&i->mutex);
+        return -2;
+    }
+
+    /* Write a nice header to the log */
+    now = time(NULL);
+    ctime_r(&now, str);
+    str[strlen(str) - 1] = 0;
+
+    fprintf(fp, "[%s] Packet log started\n", str);
+    i->logfile = fp;
+
+    /* We're done, so clean up */
+    pthread_mutex_unlock(&i->mutex);
+    return 0;
+}
+
+/* Stop logging the specified client's packets */
+int pkt_log_stop(ship_client_t *i) {
+    time_t now;
+    char str[64];
+
+    pthread_mutex_lock(&i->mutex);
+
+    if(!i->logfile) {
+        pthread_mutex_unlock(&i->mutex);
+        return -1;
+    }
+
+    /* Write a nice footer to the log */
+    now = time(NULL);
+    ctime_r(&now, str);
+    str[strlen(str) - 1] = 0;
+
+    fprintf(i->logfile, "[%s] Packet log ended\n", str);
+    fclose(i->logfile);
+    i->logfile = NULL;
+
+    /* We're done, so clean up */
+    pthread_mutex_unlock(&i->mutex);
+    return 0;
 }
 
 /* Initialize mini18n support. */

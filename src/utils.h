@@ -30,6 +30,9 @@ void fprint_packet(FILE *fp, unsigned char *pkt, int len, int rec);
 int dc_bug_report(ship_client_t *c, dc_simple_mail_pkt *pkt);
 int pc_bug_report(ship_client_t *c, pc_simple_mail_pkt *pkt);
 
+int pkt_log_start(ship_client_t *i);
+int pkt_log_stop(ship_client_t *i);
+
 /* Actually implemented in list.c, not utils.c. */
 int send_player_list(ship_client_t *c, char *params);
 
