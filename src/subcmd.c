@@ -682,7 +682,8 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
             rv = handle_used_tech(c, (subcmd_used_tech_t *)pkt);
             break;
 
-        case SUBCMD_TAKE_DAMAGE:
+        case SUBCMD_TAKE_DAMAGE1:
+        case SUBCMD_TAKE_DAMAGE2:
             rv = handle_take_damage(c, (subcmd_take_damage_t *)pkt);
             break;
 

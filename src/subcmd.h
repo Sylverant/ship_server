@@ -186,7 +186,8 @@ typedef struct subcmd_used_tech {
 #define SUBCMD_TAKE_ITEM    0x2B
 #define SUBCMD_LEVELUP      0x30
 #define SUBCMD_USED_TECH    0x48
-#define SUBCMD_TAKE_DAMAGE  0x4C
+#define SUBCMD_TAKE_DAMAGE1 0x4B
+#define SUBCMD_TAKE_DAMAGE2 0x4C
 #define SUBCMD_DEL_MAP_ITEM 0x59    /* Sent by leader when item picked up */
 #define SUBCMD_BUY          0x5E
 #define SUBCMD_ITEMDROP     0x5F
