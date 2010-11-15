@@ -158,6 +158,19 @@ typedef struct subcmd_take_damage {
     uint32_t unk2[2];
 } PACKED subcmd_take_damage_t;
 
+/* Packet used after a client uses a tech. */
+typedef struct subcmd_used_tech {
+    dc_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint8_t client_id;
+    uint8_t unused;
+    uint8_t tech;
+    uint8_t unused2;
+    uint8_t level;
+    uint8_t unused3;
+} PACKED subcmd_used_tech_t;
+
 #undef PACKED
 
 /* Subcommand types we care about (0x62/0x6D). */
@@ -172,6 +185,7 @@ typedef struct subcmd_take_damage {
 #define SUBCMD_DELETE_ITEM  0x29    /* Selling, deposit in bank, etc */
 #define SUBCMD_TAKE_ITEM    0x2B
 #define SUBCMD_LEVELUP      0x30
+#define SUBCMD_USED_TECH    0x48
 #define SUBCMD_TAKE_DAMAGE  0x4C
 #define SUBCMD_DEL_MAP_ITEM 0x59    /* Sent by leader when item picked up */
 #define SUBCMD_BUY          0x5E

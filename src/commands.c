@@ -1416,6 +1416,31 @@ static int handle_invuln(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return send_txt(c, "%s", __(c, "\tE\tC7Invulnerability on."));
 }
 
+/* Usage: /inftp [off] */
+static int handle_inftp(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    pthread_mutex_lock(&c->mutex);
+
+    /* Make sure the requester is a GM. */
+    if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
+        pthread_mutex_unlock(&c->mutex);
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
+    }
+
+    /* See if we're turning the flag off. */
+    if(!strcmp(params, "off")) {
+        c->flags &= ~CLIENT_FLAG_INFINITE_TP;
+        pthread_mutex_unlock(&c->mutex);
+
+        return send_txt(c, "%s", __(c, "\tE\tC6Infinite TP off."));
+    }
+
+    /* Set the flag since we're turning it on. */
+    c->flags |= CLIENT_FLAG_INFINITE_TP;
+
+    pthread_mutex_unlock(&c->mutex);
+    return send_txt(c, "%s", __(c, "\tE\tC7Infinite TP on."));
+}
+
 static command_t cmds[] = {
     { "warp"     , handle_warp      },
     { "kill"     , handle_kill      },
@@ -1453,6 +1478,7 @@ static command_t cmds[] = {
     { "v1only"   , handle_v1only    },
     { "forgegc"  , handle_forgegc   },
     { "invuln"   , handle_invuln    },
+    { "inftp"    , handle_inftp     },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

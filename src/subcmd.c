@@ -539,6 +539,28 @@ static int handle_take_damage(ship_client_t *c, subcmd_take_damage_t *pkt) {
     return 0;
 }
 
+static int handle_used_tech(ship_client_t *c, subcmd_used_tech_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+
+    /* We can't get these in default lobbies without someone messing with
+       something that they shouldn't be... Disconnect anyone that tries. */
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        return -1;
+    }
+
+    /* If we're in legit mode, then don't do anything... */
+    if((l->flags & LOBBY_FLAG_LEGIT_MODE)) {
+        return 0;
+    }
+
+    if((c->flags & CLIENT_FLAG_INFINITE_TP)) {
+        /* This aught to do it... */
+        send_lobby_mod_stat(l, c, SUBCMD_STAT_TPUP, 255);
+    }
+
+    return 0;
+}
+
 /* Handle a 0x62/0x6D packet. */
 int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
     lobby_t *l = c->cur_lobby;
@@ -654,6 +676,10 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
 
         case SUBCMD_LEVELUP:
             rv = handle_levelup(c, (subcmd_levelup_t *)pkt);
+            break;
+
+        case SUBCMD_USED_TECH:
+            rv = handle_used_tech(c, (subcmd_used_tech_t *)pkt);
             break;
 
         case SUBCMD_TAKE_DAMAGE:
