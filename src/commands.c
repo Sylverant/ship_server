@@ -1441,6 +1441,63 @@ static int handle_inftp(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return send_txt(c, "%s", __(c, "\tE\tC7Infinite TP on."));
 }
 
+/* Usage: /smite clientid hp tp */
+static int handle_smite(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    lobby_t *l = c->cur_lobby;
+    int count, id, hp, tp;
+    ship_client_t *cl;
+
+    /* Make sure the requester is a GM. */
+    if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
+    }
+
+    /* Make sure that the requester is in a game lobby, not a lobby lobby. */
+    if(!(l->type & LOBBY_TYPE_GAME)) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
+    }
+
+    /* Copy over the item data. */
+    count = sscanf(params, "%d %d %d", &id, &hp, &tp);
+
+    if(count == EOF || count < 3 || id >= l->max_clients || id < 0 || hp < 0 ||
+       tp < 0 || hp > 2040 || tp > 2040) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Parameter"));
+    }
+
+    pthread_mutex_lock(&l->mutex);
+
+    /* Make sure there is such a client. */
+    if(!(cl = l->clients[id])) {
+        pthread_mutex_unlock(&l->mutex);
+        return send_txt(c, "%s", __(c, "\tE\tC7No such client"));
+    }
+
+    /* Smite the client */
+    count = 0;
+
+    if(hp) {
+        send_lobby_mod_stat(l, cl, SUBCMD_STAT_HPDOWN, hp);
+        ++count;
+    }
+
+    if(tp) {
+        send_lobby_mod_stat(l, cl, SUBCMD_STAT_TPDOWN, tp);
+        ++count;
+    }
+
+    /* Finish up */
+    pthread_mutex_unlock(&l->mutex);
+
+    if(count) {
+        send_txt(cl, "%s", __(c, "\tE\tC7You have been smitten."));
+        return send_txt(c, "%s", __(c, "\tE\tC7Client smitten."));
+    }
+    else {
+        return send_txt(c, "%s", __(c, "\tE\tC7Nothing to do."));
+    }
+}
+
 static command_t cmds[] = {
     { "warp"     , handle_warp      },
     { "kill"     , handle_kill      },
@@ -1479,6 +1536,7 @@ static command_t cmds[] = {
     { "forgegc"  , handle_forgegc   },
     { "invuln"   , handle_invuln    },
     { "inftp"    , handle_inftp     },
+    { "smite"    , handle_smite     },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 
