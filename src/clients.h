@@ -53,9 +53,9 @@ struct ship_client {
     int disconnected;
 
     int hdr_size;
-    int hdr_read;
     in_addr_t addr;
     uint32_t guildcard;
+    uint32_t flags;
 
     ship_t *cur_ship;
     block_t *cur_block;
@@ -69,7 +69,6 @@ struct ship_client {
 
     time_t last_sent;
     time_t join_time;
-    int got_05;
     int language_code;
 
     uint32_t next_item[4];
@@ -143,6 +142,10 @@ extern pthread_key_t sendbuf_key;
 #define CLIENT_LANG_KOREAN          7
 
 #define CLIENT_LANG_COUNT           8
+
+#define CLIENT_FLAG_HDR_READ        0x00000001
+#define CLIENT_FLAG_GOT_05          0x00000002
+#define CLIENT_FLAG_INVULNERABLE    0x00000004
 
 /* The list of language codes for the quest directories. */
 static const char language_codes[][3] __attribute__((unused)) = {

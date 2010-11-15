@@ -259,10 +259,10 @@ int client_process_pkt(ship_client_t *c) {
     while(sz >= hsz && rv == 0) {
         /* Decrypt the packet header so we know what exactly we're looking
            for, in terms of packet length. */
-        if(!c->hdr_read) {
+        if(!(c->flags & CLIENT_FLAG_HDR_READ)) {
             memcpy(&c->pkt, rbp, hsz);
             CRYPT_CryptData(&c->ckey, &c->pkt, hsz, 0);
-            c->hdr_read = 1;
+            c->flags |= CLIENT_FLAG_HDR_READ;
         }
 
         /* Read the packet size to see how much we're expecting. */
@@ -313,7 +313,7 @@ int client_process_pkt(ship_client_t *c) {
             rbp += pkt_sz;
             sz -= pkt_sz;
 
-            c->hdr_read = 0;
+            c->flags &= ~CLIENT_FLAG_HDR_READ;
         }
         else {
             /* Nope, we're missing part, break out of the loop, and buffer

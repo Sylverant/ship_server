@@ -5143,3 +5143,84 @@ int send_c_rank_update(ship_client_t *c, lobby_t *l) {
 
     return 0;
 }
+
+/* Send a statistics mod packet to a client. */
+static int send_dc_mod_stat(ship_client_t *d, ship_client_t *s, int stat,
+                            int amt) {
+    uint8_t *sendbuf = get_sendbuf();
+    subcmd_pkt_t *pkt = (subcmd_pkt_t *)sendbuf;
+    int len = 4;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Fill in the main part of the packet */
+    while(amt > 0) {
+        sendbuf[len++] = SUBCMD_CHANGE_STAT;
+        sendbuf[len++] = 2;
+        sendbuf[len++] = s->client_id;
+        sendbuf[len++] = 0;
+        sendbuf[len++] = 0;
+        sendbuf[len++] = 0;
+        sendbuf[len++] = stat;
+        sendbuf[len++] = (amt > 0xFF) ? 0xFF : amt;
+        amt -= 0xFF;
+    }
+
+    /* Fill in the header */
+    if(d->version == CLIENT_VERSION_DCV1 || d->version == CLIENT_VERSION_DCV2 ||
+       d->version == CLIENT_VERSION_GC) {
+        pkt->hdr.dc.pkt_type = GAME_COMMAND0_TYPE;
+        pkt->hdr.dc.flags = 0;
+        pkt->hdr.dc.pkt_len = LE16(len);
+    }
+    else {
+        pkt->hdr.pc.pkt_type = GAME_COMMAND0_TYPE;
+        pkt->hdr.dc.flags = 0;
+        pkt->hdr.pc.pkt_len = LE16(len);
+    }
+
+    /* Send the packet away */
+    return crypt_send(d, len, sendbuf);
+}
+
+int send_lobby_mod_stat(lobby_t *l, ship_client_t *c, int stat, int amt) {
+    int i;
+
+    /* Don't send these to default lobbies, ever */
+    if(l->type & LOBBY_TYPE_DEFAULT) {
+        return 0;
+    }
+
+    /* Make sure the request is sane */
+    if(stat < SUBCMD_STAT_HPDOWN || stat > SUBCMD_STAT_TPUP || amt < 1 ||
+       amt > 2040) {
+        return 0;
+    }
+
+    pthread_mutex_lock(&l->mutex);
+
+    for(i = 0; i < l->max_clients; ++i) {
+        if(l->clients[i]) {
+            pthread_mutex_lock(&l->clients[i]->mutex);
+
+            /* Call the appropriate function. */
+            switch(l->clients[i]->version) {
+                case CLIENT_VERSION_DCV1:
+                case CLIENT_VERSION_DCV2:
+                case CLIENT_VERSION_PC:
+                case CLIENT_VERSION_GC:
+                    send_dc_mod_stat(l->clients[i], c, stat, amt);
+                    break;
+            }
+
+            pthread_mutex_unlock(&l->clients[i]->mutex);
+        }
+    }
+
+    pthread_mutex_unlock(&l->mutex);
+
+    return 0;
+}

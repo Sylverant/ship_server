@@ -146,6 +146,18 @@ typedef struct subcmd_take_item {
     uint32_t unk;
 } PACKED subcmd_take_item_t;
 
+/* Packet used when a client takes damage. */
+typedef struct subcmd_take_damage {
+    dc_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint8_t client_id;
+    uint8_t unused;
+    uint16_t unk1;
+    uint16_t hp_rem;
+    uint32_t unk2[2];
+} PACKED subcmd_take_damage_t;
+
 #undef PACKED
 
 /* Subcommand types we care about (0x62/0x6D). */
@@ -160,10 +172,12 @@ typedef struct subcmd_take_item {
 #define SUBCMD_DELETE_ITEM  0x29    /* Selling, deposit in bank, etc */
 #define SUBCMD_TAKE_ITEM    0x2B
 #define SUBCMD_LEVELUP      0x30
+#define SUBCMD_TAKE_DAMAGE  0x4C
 #define SUBCMD_DEL_MAP_ITEM 0x59    /* Sent by leader when item picked up */
 #define SUBCMD_BUY          0x5E
 #define SUBCMD_ITEMDROP     0x5F
 #define SUBCMD_BURST_DONE   0x72
+#define SUBCMD_CHANGE_STAT  0x9A
 
 /* The commands OK to send during bursting (0x62/0x6D). These are named for the
    order in which they're sent, hence why the names are out of order... */
@@ -180,6 +194,13 @@ typedef struct subcmd_take_item {
 #define SUBCMD_UNK_3B       0x3B
 #define SUBCMD_UNK_3F       0x3F
 #define SUBCMD_UNK_7C       0x7C
+
+/* Stats to use with Subcommand 0x9A (0x60) */
+#define SUBCMD_STAT_HPDOWN  0
+#define SUBCMD_STAT_TPDOWN  1
+#define SUBCMD_STAT_MESDOWN 2
+#define SUBCMD_STAT_HPUP    3
+#define SUBCMD_STAT_TPUP    4
 
 /* Handle a 0x62/0x6D packet. */
 int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt);

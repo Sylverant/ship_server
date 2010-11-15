@@ -1391,6 +1391,31 @@ static int handle_forgegc(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return handle_dc_gcsend(c, &gcpkt);
 }
 
+/* Usage: /invuln [off] */
+static int handle_invuln(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    pthread_mutex_lock(&c->mutex);
+
+    /* Make sure the requester is a GM. */
+    if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
+        pthread_mutex_unlock(&c->mutex);
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
+    }
+
+    /* See if we're turning the flag off. */
+    if(!strcmp(params, "off")) {
+        c->flags &= ~CLIENT_FLAG_INVULNERABLE;
+        pthread_mutex_unlock(&c->mutex);
+
+        return send_txt(c, "%s", __(c, "\tE\tC7Invulnerability off."));
+    }
+
+    /* Set the flag since we're turning it on. */
+    c->flags |= CLIENT_FLAG_INVULNERABLE;
+
+    pthread_mutex_unlock(&c->mutex);
+    return send_txt(c, "%s", __(c, "\tE\tC7Invulnerability on."));
+}
+
 static command_t cmds[] = {
     { "warp"     , handle_warp      },
     { "kill"     , handle_kill      },
@@ -1427,6 +1452,7 @@ static command_t cmds[] = {
     { "dconly"   , handle_dconly    },
     { "v1only"   , handle_v1only    },
     { "forgegc"  , handle_forgegc   },
+    { "invuln"   , handle_invuln    },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

@@ -1793,11 +1793,11 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
 
         case TYPE_05:
             /* If we've already gotten one of these, disconnect the client. */
-            if(c->got_05) {
+            if(c->flags & CLIENT_FLAG_GOT_05) {
                 c->disconnected = 1;
             }
 
-            c->got_05 = 1;
+            c->flags |= CLIENT_FLAG_GOT_05;
             return 0;
 
         case CHAT_TYPE:

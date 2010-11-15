@@ -173,4 +173,7 @@ int send_c_rank_update(ship_client_t *c, lobby_t *l);
    the user to pick to make a V1 compatible game or not. */
 int send_pc_game_type_sel(ship_client_t *c);
 
+/* Send a statistics mod packet to the lobby. */
+int send_lobby_mod_stat(lobby_t *l, ship_client_t *c, int stat, int amt);
+
 #endif /* !SHIP_PACKETS_H */
