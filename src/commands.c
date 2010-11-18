@@ -1431,7 +1431,7 @@ static int handle_inftp(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
         c->flags &= ~CLIENT_FLAG_INFINITE_TP;
         pthread_mutex_unlock(&c->mutex);
 
-        return send_txt(c, "%s", __(c, "\tE\tC6Infinite TP off."));
+        return send_txt(c, "%s", __(c, "\tE\tC7Infinite TP off."));
     }
 
     /* Set the flag since we're turning it on. */

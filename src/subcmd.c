@@ -526,17 +526,15 @@ static int handle_take_damage(ship_client_t *c, subcmd_take_damage_t *pkt) {
         return -1;
     }
 
-    /* If we're in legit mode, then don't do anything... */
-    if((l->flags & LOBBY_FLAG_LEGIT_MODE)) {
-        return 0;
+    /* If we're in legit mode or the flag isn't set, then don't do anything. */
+    if((l->flags & LOBBY_FLAG_LEGIT_MODE) ||
+       !(c->flags & CLIENT_FLAG_INVULNERABLE)) {
+        return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt);
     }
 
-    if((c->flags & CLIENT_FLAG_INVULNERABLE)) {
-        /* This aught to do it... */
-        send_lobby_mod_stat(l, c, SUBCMD_STAT_HPUP, 2000);
-    }
-
-    return 0;
+    /* This aught to do it... */
+    lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt);
+    return send_lobby_mod_stat(l, c, SUBCMD_STAT_HPUP, 2000);
 }
 
 static int handle_used_tech(ship_client_t *c, subcmd_used_tech_t *pkt) {
@@ -548,17 +546,15 @@ static int handle_used_tech(ship_client_t *c, subcmd_used_tech_t *pkt) {
         return -1;
     }
 
-    /* If we're in legit mode, then don't do anything... */
-    if((l->flags & LOBBY_FLAG_LEGIT_MODE)) {
-        return 0;
+    /* If we're in legit mode or the flag isn't set, then don't do anything. */
+    if((l->flags & LOBBY_FLAG_LEGIT_MODE) ||
+       !(c->flags & CLIENT_FLAG_INFINITE_TP)) {
+        return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt);
     }
 
-    if((c->flags & CLIENT_FLAG_INFINITE_TP)) {
-        /* This aught to do it... */
-        send_lobby_mod_stat(l, c, SUBCMD_STAT_TPUP, 255);
-    }
-
-    return 0;
+    /* This aught to do it... */
+    lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt);
+    return send_lobby_mod_stat(l, c, SUBCMD_STAT_TPUP, 255);
 }
 
 /* Handle a 0x62/0x6D packet. */
