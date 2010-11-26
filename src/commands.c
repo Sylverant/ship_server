@@ -1538,6 +1538,12 @@ static int handle_makeitem(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     p2.item2 = LE32(c->next_item[3]);
     p2.two = LE32(0x00000002);
 
+    /* Clear the set item */
+    c->next_item[0] = 0;
+    c->next_item[1] = 0;
+    c->next_item[2] = 0;
+    c->next_item[3] = 0;
+
     /* Increment the next item ID. */
     itid++;
 
