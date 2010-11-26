@@ -171,6 +171,86 @@ typedef struct subcmd_used_tech {
     uint8_t unused3;
 } PACKED subcmd_used_tech_t;
 
+/* Packet used when a client drops an item from their inventory */
+typedef struct subcmd_drop_item {
+    dc_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint8_t client_id;
+    uint8_t unused;
+    uint16_t unk;
+    uint16_t area;
+    uint32_t item_id;
+    float x;
+    float y;
+    float z;
+} PACKED subcmd_drop_item_t;
+
+/* Packet used to destroy an item on the map */
+typedef struct subcmd_destroy_item {
+    dc_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint8_t client_id;
+    uint8_t unused;
+    uint32_t item_id;
+    uint32_t amount;
+} PACKED subcmd_destroy_item_t;
+
+/* Packet used when dropping part of a stack of items */
+typedef struct subcmd_drop_stack {
+    dc_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint8_t client_id;
+    uint8_t unused;
+    uint16_t area;
+    uint16_t unk;
+    float x;
+    float z;
+    uint32_t item[3];
+    uint32_t item_id;
+    uint32_t item2;
+    uint32_t two;
+} PACKED subcmd_drop_stack_t;
+
+/* Packet used to update other people when a player warps to another area */
+typedef struct subcmd_set_area {
+    dc_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint8_t client_id;
+    uint8_t unused;
+    uint8_t area;
+    uint8_t unused2[3];
+} PACKED subcmd_set_area_t;
+
+/* Packets used to set a user's position */
+typedef struct subcmd_set_pos {
+    dc_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint8_t client_id;
+    uint8_t unused;
+    uint32_t unk;
+    float w;
+    float x;
+    float y;
+    float z;
+} PACKED subcmd_set_pos_t;
+
+/* Packet used for moving around */
+typedef struct subcmd_move {
+    dc_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint8_t client_id;
+    uint8_t unused;
+    float x;
+    float z;
+    uint32_t unused2;   /* Not present in 0x42 */
+} PACKED subcmd_move_t;
+
 #undef PACKED
 
 /* Subcommand types we care about (0x62/0x6D). */
@@ -179,18 +259,26 @@ typedef struct subcmd_used_tech {
 #define SUBCMD_ITEMREQ      0x60
 
 /* Subcommand types we might care about (0x60). */
+#define SUBCMD_SET_AREA     0x1F
 #define SUBCMD_EQUIP        0x25
 #define SUBCMD_REMOVE_EQUIP 0x26
 #define SUBCMD_USE_ITEM     0x27
 #define SUBCMD_DELETE_ITEM  0x29    /* Selling, deposit in bank, etc */
+#define SUBCMD_DROP_ITEM    0x2A
 #define SUBCMD_TAKE_ITEM    0x2B
 #define SUBCMD_LEVELUP      0x30
+#define SUBCMD_SET_POS_3E   0x3E
+#define SUBCMD_SET_POS_3F   0x3F
+#define SUBCMD_MOVE_SLOW    0x40
+#define SUBCMD_MOVE_FAST    0x42
 #define SUBCMD_USED_TECH    0x48
 #define SUBCMD_TAKE_DAMAGE1 0x4B
 #define SUBCMD_TAKE_DAMAGE2 0x4C
 #define SUBCMD_DEL_MAP_ITEM 0x59    /* Sent by leader when item picked up */
+#define SUBCMD_DROP_STACK   0x5D
 #define SUBCMD_BUY          0x5E
 #define SUBCMD_ITEMDROP     0x5F
+#define SUBCMD_DESTROY_ITEM 0x63
 #define SUBCMD_BURST_DONE   0x72
 #define SUBCMD_CHANGE_STAT  0x9A
 
@@ -205,9 +293,7 @@ typedef struct subcmd_used_tech {
 #define SUBCMD_BURST6       0x71
 
 /* The commands OK to send during bursting (0x60) */
-#define SUBCMD_UNK_1F       0x1F
 #define SUBCMD_UNK_3B       0x3B
-#define SUBCMD_UNK_3F       0x3F
 #define SUBCMD_UNK_7C       0x7C
 
 /* Stats to use with Subcommand 0x9A (0x60) */

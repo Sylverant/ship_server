@@ -70,6 +70,12 @@ struct ship_client {
     time_t last_sent;
     time_t join_time;
     int language_code;
+    int cur_area;
+
+    float x;
+    float y;
+    float z;
+    float w;
 
     uint32_t next_item[4];
 

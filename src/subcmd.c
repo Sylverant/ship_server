@@ -238,7 +238,6 @@ static int handle_pc_gcsend(ship_client_t *d, subcmd_pc_gcsend_t *pkt) {
 
             return send_pkt_dc(d, (dc_pkt_hdr_t *)&gc);
         }
-
     }
 
     return 0;
@@ -557,6 +556,41 @@ static int handle_used_tech(ship_client_t *c, subcmd_used_tech_t *pkt) {
     return send_lobby_mod_stat(l, c, SUBCMD_STAT_TPUP, 255);
 }
 
+static int handle_set_area(ship_client_t *c, subcmd_set_area_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+
+    /* Make sure the area is valid */
+    if(pkt->area > 17) {
+        return -1;
+    }
+
+    /* Save the new area and move along */
+    c->cur_area = pkt->area;
+    return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt);
+}
+
+static int handle_set_pos(ship_client_t *c, subcmd_set_pos_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+
+    /* Save the new position and move along */
+    c->w = pkt->w;
+    c->x = pkt->x;
+    c->y = pkt->y;
+    c->z = pkt->z;
+
+    return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt);
+}
+
+static int handle_move(ship_client_t *c, subcmd_move_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+
+    /* Save the new position and move along */
+    c->x = pkt->x;
+    c->z = pkt->z;
+
+    return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt);
+}
+
 /* Handle a 0x62/0x6D packet. */
 int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
     lobby_t *l = c->cur_lobby;
@@ -649,12 +683,18 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
     /* If there's a burst going on in the lobby, delay most packets */
     if(l->flags & LOBBY_FLAG_BURSTING) {
         switch(type) {
-            case SUBCMD_UNK_1F:
             case SUBCMD_UNK_3B:
-            case SUBCMD_UNK_3F:
             case SUBCMD_UNK_7C:
             case SUBCMD_BURST_DONE:
                 rv = lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt);
+                break;
+
+            case SUBCMD_SET_AREA:
+                rv = handle_set_area(c, (subcmd_set_area_t *)pkt);
+                break;
+
+            case SUBCMD_SET_POS_3F:
+                rv = handle_set_pos(c, (subcmd_set_pos_t *)pkt);
                 break;
 
             default:
@@ -685,6 +725,20 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
 
         case SUBCMD_ITEMDROP:
             rv = handle_itemdrop(c, (subcmd_itemgen_t *)pkt);
+            break;
+
+        case SUBCMD_SET_AREA:
+            rv = handle_set_area(c, (subcmd_set_area_t *)pkt);
+            break;
+
+        case SUBCMD_SET_POS_3E:
+        case SUBCMD_SET_POS_3F:
+            rv = handle_set_pos(c, (subcmd_set_pos_t *)pkt);
+            break;
+
+        case SUBCMD_MOVE_SLOW:
+        case SUBCMD_MOVE_FAST:
+            rv = handle_move(c, (subcmd_move_t *)pkt);
             break;
 
         default:
