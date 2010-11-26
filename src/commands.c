@@ -1498,6 +1498,53 @@ static int handle_smite(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     }
 }
 
+/* Usage: /makeitem */
+static int handle_makeitem(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    lobby_t *l = c->cur_lobby;
+    subcmd_drop_stack_t p2;
+    static uint32_t itid = 0xF0000001;  /* ID of the next item generated */
+
+    /* Make sure the requester is a GM. */
+    if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
+    }
+
+    /* Make sure that the requester is in a game lobby, not a lobby lobby. */
+    if(!(l->type & LOBBY_TYPE_GAME)) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
+    }
+
+    /* Make sure there's something set with /item */
+    if(!c->next_item[0]) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Need to set an item first."));
+    }
+
+    /* Generate the packet to drop the item */
+    p2.hdr.pkt_type = GAME_COMMAND0_TYPE;
+    p2.hdr.pkt_len = sizeof(subcmd_drop_stack_t);
+    p2.hdr.flags = 0;
+    p2.type = SUBCMD_DROP_STACK;
+    p2.size = 0x0A;
+    p2.client_id = c->client_id;
+    p2.unused = 0;
+    p2.area = LE16(c->cur_area);
+    p2.unk = LE16(0);
+    p2.x = c->x;
+    p2.z = c->z;
+    p2.item[0] = LE32(c->next_item[0]);
+    p2.item[1] = LE32(c->next_item[1]);
+    p2.item[2] = LE32(c->next_item[2]);
+    p2.item_id = LE32(itid);
+    p2.item2 = LE32(c->next_item[3]);
+    p2.two = LE32(0x00000002);
+
+    /* Increment the next item ID. */
+    itid++;
+
+    /* Send the packet to everyone in the lobby */
+    return lobby_send_pkt_dc(c->cur_lobby, NULL, (dc_pkt_hdr_t *)&p2);
+}
+
 static command_t cmds[] = {
     { "warp"     , handle_warp      },
     { "kill"     , handle_kill      },
@@ -1537,6 +1584,7 @@ static command_t cmds[] = {
     { "invuln"   , handle_invuln    },
     { "inftp"    , handle_inftp     },
     { "smite"    , handle_smite     },
+    { "makeitem" , handle_makeitem  },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 
