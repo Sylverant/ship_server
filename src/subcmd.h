@@ -251,6 +251,19 @@ typedef struct subcmd_move {
     uint32_t unused2;   /* Not present in 0x42 */
 } PACKED subcmd_move_t;
 
+/* Packet used to teleport to a specified position */
+typedef struct subcmd_teleport {
+    dc_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint8_t client_id;
+    uint8_t unused;
+    float x;
+    float y;
+    float z;
+    float w;
+} PACKED subcmd_teleport_t;
+
 #undef PACKED
 
 /* Subcommand types we care about (0x62/0x6D). */
@@ -259,6 +272,7 @@ typedef struct subcmd_move {
 #define SUBCMD_ITEMREQ      0x60
 
 /* Subcommand types we might care about (0x60). */
+#define SUBCMD_TELEPORT     0x17
 #define SUBCMD_SET_AREA     0x1F
 #define SUBCMD_EQUIP        0x25
 #define SUBCMD_REMOVE_EQUIP 0x26
@@ -280,6 +294,7 @@ typedef struct subcmd_move {
 #define SUBCMD_ITEMDROP     0x5F
 #define SUBCMD_DESTROY_ITEM 0x63
 #define SUBCMD_BURST_DONE   0x72
+#define SUBCMD_WARP         0x94
 #define SUBCMD_CHANGE_STAT  0x9A
 
 /* The commands OK to send during bursting (0x62/0x6D). These are named for the

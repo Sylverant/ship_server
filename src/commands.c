@@ -1548,7 +1548,67 @@ static int handle_makeitem(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     itid++;
 
     /* Send the packet to everyone in the lobby */
-    return lobby_send_pkt_dc(c->cur_lobby, NULL, (dc_pkt_hdr_t *)&p2);
+    return lobby_send_pkt_dc(l, NULL, (dc_pkt_hdr_t *)&p2);
+}
+
+/* Usage: /teleport client */
+static int handle_teleport(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    int client;
+    lobby_t *l = c->cur_lobby;
+    ship_client_t *c2;
+    subcmd_teleport_t p2;
+
+    /* Make sure the requester is a GM. */
+    if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
+    }
+
+    /* Make sure that the requester is in a game lobby, not a lobby lobby. */
+    if(!(l->type & LOBBY_TYPE_GAME)) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
+    }
+
+    /* Figure out the user requested */
+    errno = 0;
+    client = strtoul(params, NULL, 10);
+
+    if(errno) {
+        /* Send a message saying invalid client ID */
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Client ID"));
+    }
+
+    if(client > l->max_clients) {
+        /* Client ID too large, give up */
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Client ID"));
+    }
+
+    if(!(c2 = l->clients[client])) {
+        /* Client doesn't exist */
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Client ID"));
+    }
+
+    /* See if we need to warp first */
+    if(c2->cur_area != c->cur_area) {
+        /* Send the person to the other user's area */
+        return send_warp(c, (uint8_t)c2->cur_area);
+    }
+    else {
+        /* Now, set up the teleport packet */
+        p2.hdr.pkt_type = GAME_COMMAND0_TYPE;
+        p2.hdr.pkt_len = sizeof(subcmd_teleport_t);
+        p2.hdr.flags = 0;
+        p2.type = SUBCMD_TELEPORT;
+        p2.size = 5;
+        p2.client_id = c->client_id;
+        p2.unused = 0;
+        p2.x = c2->x;
+        p2.y = c2->y;
+        p2.z = c2->z;
+        p2.w = c2->w;
+
+        /* Send the packet to everyone in the lobby */
+        return lobby_send_pkt_dc(l, NULL, (dc_pkt_hdr_t *)&p2);
+    }
 }
 
 static command_t cmds[] = {
@@ -1591,6 +1651,7 @@ static command_t cmds[] = {
     { "inftp"    , handle_inftp     },
     { "smite"    , handle_smite     },
     { "makeitem" , handle_makeitem  },
+    { "teleport" , handle_teleport  },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

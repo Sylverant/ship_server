@@ -2019,7 +2019,7 @@ static int send_pc_game_list(ship_client_t *c, block_t *b) {
             (l->v2 ? 0x40 : 0x00);
 
         /* Copy the name */
-        in = 0x10;
+        in = strlen(l->name);
         out = 0x20;
         inptr = l->name;
         outptr = (char *)pkt->entries[entries].name;
@@ -3994,7 +3994,7 @@ static int send_dc_warp(ship_client_t *c, uint8_t area) {
     pkt->pkt_len = LE16(0x000C);
 
     /* Fill in the stuff that will make us warp. */
-    sendbuf[4] = 0x94;
+    sendbuf[4] = SUBCMD_WARP;
     sendbuf[5] = 0x02;
     sendbuf[6] = c->client_id;
     sendbuf[7] = 0x00;
@@ -4021,7 +4021,7 @@ static int send_pc_warp(ship_client_t *c, uint8_t area) {
     pkt->pkt_len = LE16(0x000C);
 
     /* Fill in the stuff that will make us warp. */
-    sendbuf[4] = 0x94;
+    sendbuf[4] = SUBCMD_WARP;
     sendbuf[5] = 0x02;
     sendbuf[6] = c->client_id;
     sendbuf[7] = 0x00;
