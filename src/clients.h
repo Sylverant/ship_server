@@ -99,7 +99,6 @@ struct ship_client {
     time_t last_message;
     time_t last_sent;
     time_t join_time;
-    time_t sent_motd;
 };
 
 #define CLIENT_PRIV_LOCAL_GM    0x00000001
@@ -153,6 +152,7 @@ extern pthread_key_t sendbuf_key;
 #define CLIENT_FLAG_INFINITE_TP     0x00000008
 #define CLIENT_FLAG_DISCONNECTED    0x00000010
 #define CLIENT_FLAG_TYPE_SHIP       0x00000020
+#define CLIENT_FLAG_SENT_MOTD       0x00000040
 
 /* The list of language codes for the quest directories. */
 static const char language_codes[][3] __attribute__((unused)) = {

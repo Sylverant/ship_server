@@ -822,7 +822,7 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
         }
 
         /* Do a few things that should only be done once per session... */
-        if(!c->sent_motd) {
+        if(!(c->flags & CLIENT_FLAG_SENT_MOTD)) {
             /* Notify the shipgate */
             shipgate_send_block_login(&c->cur_ship->sg, 1, c->guildcard,
                                       c->cur_block->b, c->pl->v1.name);
@@ -836,7 +836,7 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
                 send_simple(c, PING_TYPE, 0);
             }
             else {
-                c->sent_motd = 1;
+                c->flags |= CLIENT_FLAG_SENT_MOTD;
             }
         }
     }
@@ -1783,10 +1783,10 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return dc_process_change_lobby(c, (dc_select_pkt *)pkt);
 
         case PING_TYPE:
-            if(!c->sent_motd && c->cur_ship->motd &&
+            if(!(c->flags & CLIENT_FLAG_SENT_MOTD) && c->cur_ship->motd &&
                c->version != CLIENT_VERSION_GC) {
                 send_message_box(c, "%s", c->cur_ship->motd);
-                c->sent_motd = 1;
+                c->flags |= CLIENT_FLAG_SENT_MOTD;
             }
 
             return 0;
