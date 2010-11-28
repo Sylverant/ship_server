@@ -47,60 +47,58 @@ typedef struct lobby lobby_t;
 struct ship_client {
     TAILQ_ENTRY(ship_client) qentry;
 
-    int type;
+    pthread_mutex_t mutex;
+    pkt_header_t pkt;
+
+    CRYPT_SETUP ckey;
+    CRYPT_SETUP skey;
+
     int version;
     int sock;
-    int disconnected;
-
     int hdr_size;
-    in_addr_t addr;
-    uint32_t guildcard;
-    uint32_t flags;
-
-    ship_t *cur_ship;
-    block_t *cur_block;
-    lobby_t *cur_lobby;
-    player_t *pl;
-
     int client_id;
-    uint32_t arrow;
-    uint32_t privilege;
-    time_t last_message;
 
-    time_t last_sent;
-    time_t join_time;
     int language_code;
     int cur_area;
+    int recvbuf_cur;
+    int recvbuf_size;
+
+    int sendbuf_cur;
+    int sendbuf_size;
+    int sendbuf_start;
 
     float x;
     float y;
     float z;
     float w;
 
+    in_addr_t addr;
+    uint32_t guildcard;
+    uint32_t flags;
+    uint32_t arrow;
+
     uint32_t next_item[4];
 
-    pthread_mutex_t mutex;
+    uint32_t privilege;
 
-    CRYPT_SETUP ckey;
-    CRYPT_SETUP skey;
+    ship_t *cur_ship;
+    block_t *cur_block;
+    lobby_t *cur_lobby;
+    player_t *pl;
 
     unsigned char *recvbuf;
-    int recvbuf_cur;
-    int recvbuf_size;
-    pkt_header_t pkt;
-
     unsigned char *sendbuf;
-    int sendbuf_cur;
-    int sendbuf_size;
-    int sendbuf_start;
+    char *autoreply;
+    FILE *logfile;
 
     char *infoboard;                    /* Points into the player struct. */
     uint8_t *c_rank;                    /* Points into the player struct. */
     lobby_t *create_lobby;
     uint32_t *blacklist;                /* Points into the player struct. */
 
-    char *autoreply;
-    FILE *logfile;
+    time_t last_message;
+    time_t last_sent;
+    time_t join_time;
     time_t sent_motd;
 };
 
@@ -153,6 +151,8 @@ extern pthread_key_t sendbuf_key;
 #define CLIENT_FLAG_GOT_05          0x00000002
 #define CLIENT_FLAG_INVULNERABLE    0x00000004
 #define CLIENT_FLAG_INFINITE_TP     0x00000008
+#define CLIENT_FLAG_DISCONNECTED    0x00000010
+#define CLIENT_FLAG_TYPE_SHIP       0x00000020
 
 /* The list of language codes for the quest directories. */
 static const char language_codes[][3] __attribute__((unused)) = {

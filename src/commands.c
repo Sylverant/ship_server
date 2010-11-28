@@ -141,7 +141,7 @@ static int handle_kill(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
                                  __(i, "\tEYou have been kicked by a GM."));
             }
 
-            i->disconnected = 1;
+            i->flags |= CLIENT_FLAG_DISCONNECTED;
             return 0;
         }
     }
@@ -781,7 +781,7 @@ static int handle_gban_d(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
                                  __(i, "Ban Length:"), __(i, "1 day"));
             }
 
-            i->disconnected = 1;
+            i->flags |= CLIENT_FLAG_DISCONNECTED;
             return 0;
         }
     }
@@ -834,7 +834,7 @@ static int handle_gban_w(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
                                  __(i, "Ban Length:"), __(i, "1 week"));
             }
 
-            i->disconnected = 1;
+            i->flags |= CLIENT_FLAG_DISCONNECTED;
             return 0;
         }
     }
@@ -887,7 +887,7 @@ static int handle_gban_m(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
                                  __(i, "Ban Length:"), __(i, "30 days"));
             }
 
-            i->disconnected = 1;
+            i->flags |= CLIENT_FLAG_DISCONNECTED;
             return 0;
         }
     }
@@ -941,7 +941,7 @@ static int handle_gban_p(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
                                  __(i, "Ban Length:"), __(i, "Forever"));
             }
 
-            i->disconnected = 1;
+            i->flags |= CLIENT_FLAG_DISCONNECTED;
 
             /* The ban setter will get a message telling them the ban has been
                set (or an error happened). */
@@ -996,7 +996,7 @@ static int handle_legit(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     for(i = 0; i < l->max_clients; ++i) {
         if(l->clients[i]) {
             if(send_simple(l->clients[i], CHAR_DATA_REQUEST_TYPE, 0)) {
-                l->clients[i]->disconnected = 1;
+                l->clients[i]->flags |= CLIENT_FLAG_DISCONNECTED;
             }
         }
     }

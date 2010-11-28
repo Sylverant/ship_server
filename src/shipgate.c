@@ -979,7 +979,7 @@ static int handle_ban(shipgate_conn_t *conn, shipgate_ban_err_pkt *pkt) {
                     if(flags & SHDR_FAILURE) {
                         /* If the not gm flag is set, disconnect the user. */
                         if(ntohl(pkt->base.error_code) == ERR_BAN_NOT_GM) {
-                            c->disconnected = 1;
+                            c->flags |= CLIENT_FLAG_DISCONNECTED;
                         }
 
                         send_txt(c, "%s", __(c, "\tE\tC7Error setting ban!"));
@@ -1124,7 +1124,7 @@ static int handle_blogin_err(shipgate_conn_t *c, shipgate_blogin_err_pkt *pkt) {
        for now) */
     TAILQ_FOREACH(i, b->clients, qentry) {
         if(i->guildcard == gc) {
-            i->disconnected = 1;
+            i->flags |= CLIENT_FLAG_DISCONNECTED;
         }
     }
 
@@ -1373,7 +1373,7 @@ static int handle_kick(shipgate_conn_t *conn, shipgate_kick_pkt *pkt) {
                                  __(i, "\tEYou have been kicked by a GM."));
             }
 
-            i->disconnected = 1;
+            i->flags |= CLIENT_FLAG_DISCONNECTED;
             goto out;
         }
     }

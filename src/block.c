@@ -84,13 +84,13 @@ static void *block_thd(void *d) {
                           it->guildcard);
                 }
 
-                it->disconnected = 1;
+                it->flags |= CLIENT_FLAG_DISCONNECTED;
                 continue;
             }
             /* Otherwise, if we haven't heard from them in a minute, ping it. */
             else if(now > it->last_message + 60 && now > it->last_sent + 10) {
                 if(send_simple(it, PING_TYPE, 0)) {
-                    it->disconnected = 1;
+                    it->flags |= CLIENT_FLAG_DISCONNECTED;
                     continue;
                 }
 
@@ -187,7 +187,7 @@ static void *block_thd(void *d) {
                 /* Check if this connection was trying to send us something. */
                 if(FD_ISSET(it->sock, &readfds)) {
                     if(client_process_pkt(it)) {
-                        it->disconnected = 1;
+                        it->flags |= CLIENT_FLAG_DISCONNECTED;
                         pthread_mutex_unlock(&it->mutex);
                         continue;
                     }
@@ -203,7 +203,7 @@ static void *block_thd(void *d) {
                            bail. */
                         if(sent == -1) {
                             if(errno != EAGAIN) {
-                                it->disconnected = 1;
+                                it->flags |= CLIENT_FLAG_DISCONNECTED;
                                 pthread_mutex_unlock(&it->mutex);
                                 continue;
                             }
@@ -234,7 +234,7 @@ static void *block_thd(void *d) {
         while(it) {
             tmp = TAILQ_NEXT(it, qentry);
 
-            if(it->disconnected) {
+            if(it->flags & CLIENT_FLAG_DISCONNECTED) {
                 if(it->pl) {
                     debug(DBG_LOG, "Disconnecting %s(%d)\n", it->pl->v1.name,
                           it->guildcard);
@@ -1794,7 +1794,7 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
         case TYPE_05:
             /* If we've already gotten one of these, disconnect the client. */
             if(c->flags & CLIENT_FLAG_GOT_05) {
-                c->disconnected = 1;
+                c->flags |= CLIENT_FLAG_DISCONNECTED;
             }
 
             c->flags |= CLIENT_FLAG_GOT_05;

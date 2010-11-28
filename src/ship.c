@@ -98,13 +98,13 @@ static void *ship_thd(void *d) {
             /* If we haven't heard from a client in 2 minutes, its dead.
                Disconnect it. */
             if(now > it->last_message + 120) {
-                it->disconnected = 1;
+                it->flags |= CLIENT_FLAG_DISCONNECTED;
                 continue;
             }
             /* Otherwise, if we haven't heard from them in a minute, ping it. */
             else if(now > it->last_message + 60 && now > it->last_sent + 10) {
                 if(send_simple(it, PING_TYPE, 0)) {
-                    it->disconnected = 1;
+                    it->flags |= CLIENT_FLAG_DISCONNECTED;
                     continue;
                 }
 
@@ -183,7 +183,7 @@ static void *ship_thd(void *d) {
                                         "down"),
                                      __(tmp, "Please try another ship."),
                                      __(tmp, "Disconnecting."));
-                    tmp->disconnected = 1;
+                    it->flags |= CLIENT_FLAG_DISCONNECTED;
                 }
             }
 
@@ -210,7 +210,7 @@ static void *ship_thd(void *d) {
                                         "down"),
                                      __(tmp, "Please try another ship."),
                                      __(tmp, "Disconnecting."));
-                    tmp->disconnected = 1;
+                    it->flags |= CLIENT_FLAG_DISCONNECTED;
                 }
             }
 
@@ -237,7 +237,7 @@ static void *ship_thd(void *d) {
                                         "down"),
                                      __(tmp, "Please try another ship."),
                                      __(tmp, "Disconnecting."));
-                    tmp->disconnected = 1;
+                    it->flags |= CLIENT_FLAG_DISCONNECTED;
                 }
             }
 
@@ -275,7 +275,7 @@ static void *ship_thd(void *d) {
                 /* Check if this connection was trying to send us something. */
                 if(FD_ISSET(it->sock, &readfds)) {
                     if(client_process_pkt(it)) {
-                        it->disconnected = 1;
+                        it->flags |= CLIENT_FLAG_DISCONNECTED;
                         continue;
                     }
                 }
@@ -290,7 +290,7 @@ static void *ship_thd(void *d) {
                            bail. */
                         if(sent == -1) {
                             if(errno != EAGAIN) {
-                                it->disconnected = 1;
+                                it->flags |= CLIENT_FLAG_DISCONNECTED;
                                 continue;
                             }
                         }
@@ -318,7 +318,7 @@ static void *ship_thd(void *d) {
         while(it) {
             tmp = TAILQ_NEXT(it, qentry);
 
-            if(it->disconnected) {
+            if(it->flags & CLIENT_FLAG_DISCONNECTED) {
                 client_destroy_connection(it, s->clients);
             }
 

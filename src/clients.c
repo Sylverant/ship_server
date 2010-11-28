@@ -95,13 +95,16 @@ ship_client_t *client_create_connection(int sock, int version, int type,
 
     /* Store basic parameters in the client structure. */
     rv->sock = sock;
-    rv->type = type;
     rv->version = version;
     rv->cur_ship = ship;
     rv->cur_block = block;
     rv->addr = addr;
     rv->arrow = 1;
     rv->last_message = time(NULL);
+
+    if(type == CLIENT_TYPE_SHIP) {
+        rv->flags |= CLIENT_FLAG_TYPE_SHIP;
+    }
 
     switch(version) {
         case CLIENT_VERSION_DCV1:
@@ -174,7 +177,7 @@ void client_destroy_connection(ship_client_t *c, struct client_queue *clients) {
     TAILQ_REMOVE(clients, c, qentry);
 
     /* If the user was on a block, notify the shipgate */
-    if(c->type == CLIENT_TYPE_BLOCK && c->pl->v1.name[0]) {
+    if(!(c->flags & CLIENT_FLAG_TYPE_SHIP) && c->pl->v1.name[0]) {
         shipgate_send_block_login(&c->cur_ship->sg, 0, c->guildcard,
                                   c->cur_block->b, c->pl->v1.name);
     }
@@ -300,14 +303,11 @@ int client_process_pkt(ship_client_t *c) {
             }
 
             /* Pass it onto the correct handler. */
-            switch(c->type) {
-                case CLIENT_TYPE_SHIP:
-                    rv = ship_process_pkt(c, rbp);
-                    break;
-
-                case CLIENT_TYPE_BLOCK:
-                    rv = block_process_pkt(c, rbp);
-                    break;
+            if(c->flags & CLIENT_FLAG_TYPE_SHIP) {
+                rv = ship_process_pkt(c, rbp);
+            }
+            else {
+                rv = block_process_pkt(c, rbp);
             }
 
             rbp += pkt_sz;
