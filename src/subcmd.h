@@ -114,7 +114,7 @@ typedef struct subcmd_itemgen {
     float y;
     uint32_t unk1;
     uint32_t item[3];
-    uint32_t unk2;
+    uint32_t item_id;
     uint32_t item2[2];
 } PACKED subcmd_itemgen_t;
 
@@ -186,7 +186,8 @@ typedef struct subcmd_drop_item {
     float z;
 } PACKED subcmd_drop_item_t;
 
-/* Packet used to destroy an item on the map */
+/* Packet used to destroy an item on the map or to remove an item from a
+   client's inventory */
 typedef struct subcmd_destroy_item {
     dc_pkt_hdr_t hdr;
     uint8_t type;

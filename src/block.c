@@ -564,6 +564,8 @@ lobby_t *block_get_lobby(block_t *b, uint32_t lobby_id) {
 
 static int join_game(ship_client_t *c, lobby_t *l) {
     int rv = lobby_change_lobby(c, l);
+    int i;
+    uint32_t id;
 
     if(rv == -13) {
         /* PC only */
@@ -631,6 +633,15 @@ static int join_game(ship_client_t *c, lobby_t *l) {
         send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't join game!"),
                       __(c, "\tC7This game is\nfull."));
     }
+
+    /* Fix up the inventory for their new lobby */
+    id = 0x00010000 | (c->client_id << 21) | (l->highest_item[c->client_id]);
+
+    for(i = 0; i < c->item_count; ++i, ++id) {
+        c->items[i].item_id = LE32(id);
+    }
+
+    l->highest_item[c->client_id] = (uint16_t)id;
 
     return rv;
 }
@@ -723,6 +734,7 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
     uint8_t version = pkt->hdr.dc.flags;
     lobby_t *l = c->cur_lobby;
     uint32_t v;
+    int i;
 
     /* Character data requests in game are treated differently, because they
        should be for the legit checker... */
@@ -794,6 +806,16 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
         c->blacklist = c->pl->v3.blacklist;
     }
 
+    /* Copy out the inventory data */
+    memcpy(c->items, c->pl->v1.inv.items, sizeof(item_t) * 30);
+    c->item_count = (int)c->pl->v1.inv.item_count;
+
+    /* Renumber the inventory data so we know what's going on later */
+    for(i = 0; i < c->item_count; ++i) {
+        v = 0x00210000 | i;
+        c->items[i].item_id = LE32(v);
+    }
+
     /* If this packet is coming after the client has left a game, then don't
        do anything else here, they'll take care of it by sending an 0x84. */
     if(type == LEAVE_GAME_PL_DATA_TYPE) {
@@ -838,6 +860,10 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
             else {
                 c->flags |= CLIENT_FLAG_SENT_MOTD;
             }
+        }
+        else {
+            shipgate_send_lobby_chg(&c->cur_ship->sg, c->guildcard,
+                                    c->cur_lobby->lobby_id, c->cur_lobby->name);
         }
     }
 

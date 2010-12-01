@@ -66,6 +66,7 @@ struct ship_client {
     int sendbuf_cur;
     int sendbuf_size;
     int sendbuf_start;
+    int item_count;
 
     float x;
     float y;
@@ -80,6 +81,8 @@ struct ship_client {
     uint32_t next_item[4];
 
     uint32_t privilege;
+
+    item_t items[30];
 
     ship_t *cur_ship;
     block_t *cur_block;
@@ -153,6 +156,7 @@ extern pthread_key_t sendbuf_key;
 #define CLIENT_FLAG_DISCONNECTED    0x00000010
 #define CLIENT_FLAG_TYPE_SHIP       0x00000020
 #define CLIENT_FLAG_SENT_MOTD       0x00000040
+#define CLIENT_FLAG_SHOW_DCPC_ON_GC 0x00000080
 
 /* The list of language codes for the quest directories. */
 static const char language_codes[][3] __attribute__((unused)) = {

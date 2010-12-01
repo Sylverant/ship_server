@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <iconv.h>
 #include <string.h>
+#include <pthread.h>
 
 #include <sylverant/debug.h>
 
@@ -25,6 +26,7 @@
 #include "clients.h"
 #include "ship_packets.h"
 #include "utils.h"
+#include "items.h"
 
 /* Handle a Guild card send packet. */
 int handle_dc_gcsend(ship_client_t *d, subcmd_dc_gcsend_t *pkt) {
@@ -365,7 +367,7 @@ static int handle_itemreq(ship_client_t *c, subcmd_itemreq_t *req) {
     gen.item2[1] = LE32(0x00000002);
 
     /* Who knows if this is right? It works though, so we'll go with it. */
-    gen.unk2 = LE32((r | 0x06010100));
+    gen.item_id = LE32((r | 0x06010100));
 
     /* Send the packet to every client in the lobby. */
     for(i = 0; i < l->max_clients; ++i) {
@@ -411,6 +413,7 @@ static int handle_take_item(ship_client_t *c, subcmd_take_item_t *pkt) {
     lobby_t *l = c->cur_lobby;
     sylverant_iitem_t item;
     uint32_t v;
+    int i;
 
     /* We can't get these in default lobbies without someone messing with
        something that they shouldn't be... Disconnect anyone that tries. */
@@ -445,7 +448,7 @@ static int handle_take_item(ship_client_t *c, subcmd_take_item_t *pkt) {
         }
 
         /* Fill in the item structure so we can check it. */
-        memcpy(&item.data_l[0], &pkt->data_l[0], 5 * sizeof(uint32_t));
+        memcpy(&item.data_l[0], &pkt->data_l[0], sizeof(uint32_t) * 5);
 
         if(!sylverant_limits_check_item(c->cur_ship->limits, &item, v)) {
             /* The item failed the check, so kick the user. */
@@ -459,7 +462,29 @@ static int handle_take_item(ship_client_t *c, subcmd_take_item_t *pkt) {
     }
 
     /* If we get here, either the game is not in legit mode, or the item is
-       actually legit, so just forward the packet on. */
+       actually legit, so make a note of the ID, add it to the inventory and
+       forward the packet on. */
+    l->highest_item[c->client_id] = (uint16_t)LE32(pkt->item_id);
+#if 0
+    v = LE32(pkt->data_l[0]);
+
+    /* See if its a stackable item, since we have to treat them differently. */
+    if(item_is_stackable(v)) {
+        /* Its stackable, so see if we have any in the inventory already */
+        for(i = 0; i < c->item_count; ++i) {
+            /* Found it, add what we're adding in */
+            if(c->items[i].data_l[0] == pkt->data_l[0]) {
+                c->items[i].data_l[1] += pkt->data_l[1];
+                goto send_pkt;
+            }
+        }
+    }
+
+    memcpy(&c->items[c->item_count++].data_l[0], &pkt->data_l[0],
+           sizeof(uint32_t) * 5);
+
+send_pkt:
+#endif
     return lobby_send_pkt_dc(c->cur_lobby, c, (dc_pkt_hdr_t *)pkt);
 }
 
@@ -587,6 +612,38 @@ static int handle_move(ship_client_t *c, subcmd_move_t *pkt) {
     /* Save the new position and move along */
     c->x = pkt->x;
     c->z = pkt->z;
+
+    return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt);
+}
+
+static int handle_delete_inv(ship_client_t *c, subcmd_destroy_item_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+    int num;
+
+    /* Verify that the client specified is the one that actually sent the packet
+       in the first place, otherwise disconnect them. */
+    if(c->client_id != pkt->client_id) {
+        return -1;
+    }
+
+#if 0
+    /* Ignore meseta */
+    if(pkt->item_id != 0xFFFFFFFF) {
+        pthread_mutex_lock(&c->mutex);
+
+        /* Remove the item from the user's inventory */
+        num = item_remove_from_inv(c->items, c->item_count, pkt->item_id,
+                                   LE32(pkt->amount));
+        if(num < 0) {
+            debug(DBG_WARN, "Couldn't remove item from inventory!\n");
+        }
+        else {
+            c->item_count -= num;
+        }
+
+        pthread_mutex_unlock(&c->mutex);
+    }
+#endif
 
     return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt);
 }
@@ -739,6 +796,10 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
         case SUBCMD_MOVE_SLOW:
         case SUBCMD_MOVE_FAST:
             rv = handle_move(c, (subcmd_move_t *)pkt);
+            break;
+
+        case SUBCMD_DELETE_ITEM:
+            rv = handle_delete_inv(c, (subcmd_destroy_item_t *)pkt);
             break;
 
         default:

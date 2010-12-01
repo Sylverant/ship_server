@@ -2074,8 +2074,15 @@ static int send_gc_game_list(ship_client_t *c, block_t *b) {
     strcpy(pkt->entries[0].name, b->ship->cfg->name);
 
     TAILQ_FOREACH(l, &b->lobbies, qentry) {
-        /* Ignore default lobbies and DC/PC games */
-        if(l->type & LOBBY_TYPE_DEFAULT || !l->episode) {
+        /* Ignore default lobbies */
+        if(l->type & LOBBY_TYPE_DEFAULT) {
+            continue;
+        }
+
+        /* Ignore DC/PC games if the user hasn't set the flag to show them or
+           the lobby doesn't have the right flag set */
+        if(!l->episode && (!(c->flags & CLIENT_FLAG_SHOW_DCPC_ON_GC) ||
+                           !(l->flags & LOBBY_FLAG_GC_ALLOWED))) {
             continue;
         }
 
@@ -2090,7 +2097,7 @@ static int send_gc_game_list(ship_client_t *c, block_t *b) {
         pkt->entries[entries].item_id = LE32(l->lobby_id);
         pkt->entries[entries].difficulty = 0x22 + l->difficulty;
         pkt->entries[entries].players = l->num_clients;
-        pkt->entries[entries].flags = ((l->episode == 1) ? 0x40 : 0x80) |
+        pkt->entries[entries].flags = ((l->episode <= 1) ? 0x40 : 0x80) |
             (l->challenge ? 0x20 : 0x00) | (l->battle ? 0x10 : 0x00) |
             (l->passwd[0] ? 0x02 : 0x00);
 

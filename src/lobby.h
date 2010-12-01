@@ -94,6 +94,7 @@ struct lobby {
     char name[17];
     char passwd[17];
     uint32_t maps[0x20];
+    uint16_t highest_item[4];
 
     ship_client_t *clients[LOBBY_MAX_CLIENTS];
 
@@ -121,6 +122,7 @@ TAILQ_HEAD(lobby_queue, lobby);
 #define LOBBY_FLAG_DCONLY       0x00000040
 #define LOBBY_FLAG_PCONLY       0x00000080
 #define LOBBY_FLAG_V1ONLY       0x00000100
+#define LOBBY_FLAG_GC_ALLOWED   0x00000200
 
 /* The required level for various difficulties. */
 const static int game_required_level[4] = { 0, 20, 40, 80 };

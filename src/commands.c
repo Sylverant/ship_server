@@ -32,6 +32,7 @@
 #include "subcmd.h"
 #include "utils.h"
 #include "shipgate.h"
+#include "items.h"
 
 extern int handle_dc_gcsend(ship_client_t *d, subcmd_dc_gcsend_t *pkt);
 
@@ -1611,6 +1612,86 @@ static int handle_teleport(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     }
 }
 
+static int handle_dumpinv(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    int i;
+
+    /* Make sure the requester is a GM. */
+    if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
+    }
+
+    printf("Inventory dump for %s (%d)\n", c->pl->v1.name, c->guildcard);
+
+    for(i = 0; i < c->item_count; ++i) {
+        printf("%d (%08x): %08x %08x %08x %08x: %s\n", i, 
+               LE32(c->items[i].item_id), LE32(c->items[i].data_l[0]),
+               LE32(c->items[i].data_l[1]), LE32(c->items[i].data_l[2]),
+               LE32(c->items[i].data2_l), item_get_name(&c->items[i]));
+    }
+
+    return 0;
+}
+
+/* Usage: /showdcpc [off] */
+static int handle_showdcpc(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    /* Check if the client is on PSOGC */
+    if(c->version != CLIENT_VERSION_GC) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid on Gamecube."));
+    }
+
+    /* See if we're turning the flag off. */
+    if(!strcmp(params, "off")) {
+        c->flags &= ~CLIENT_FLAG_SHOW_DCPC_ON_GC;
+        return send_txt(c, "%s", __(c, "\tE\tC7DC/PC games hidden."));
+    }
+
+    /* Set the flag, and tell the client that its been set. */
+    c->flags |= CLIENT_FLAG_SHOW_DCPC_ON_GC;
+    return send_txt(c, "%s", __(c, "\tE\tC7DC/PC games visible."));
+}
+
+/* Usage: /allowgc [off] */
+static int handle_allowgc(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    lobby_t *l = c->cur_lobby;
+
+    /* Lock the lobby mutex... we've got some work to do. */
+    pthread_mutex_lock(&l->mutex);
+
+    /* Make sure that the requester is in a game lobby, not a lobby lobby. */
+    if(!(l->type & LOBBY_TYPE_GAME)) {
+        pthread_mutex_unlock(&l->mutex);
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
+    }
+
+    /* Make sure the requester is the leader of the team. */
+    if(l->leader_id != c->client_id) {
+        pthread_mutex_unlock(&l->mutex);
+        return send_txt(c, "%s",
+                        __(c, "\tE\tC7Only the leader may use this command."));
+    }
+
+    /* See if we're turning the flag off. */
+    if(!strcmp(params, "off")) {
+        l->flags &= ~LOBBY_FLAG_GC_ALLOWED;
+        pthread_mutex_unlock(&l->mutex);
+        return send_txt(c, "%s", __(c, "\tE\tC7Gamecube disallowed."));
+    }
+
+    /* Make sure there's no conflicting flags */
+    if((l->flags & LOBBY_FLAG_DCONLY) || (l->flags & LOBBY_FLAG_PCONLY) ||
+       (l->flags & LOBBY_FLAG_V1ONLY)) {
+        pthread_mutex_unlock(&l->mutex);
+        return send_txt(c, "%s", __(c, "\tE\tC7Game flag conflict."));
+    }
+
+    /* We passed the check, set the flag and unlock the lobby. */
+    l->flags |= LOBBY_FLAG_GC_ALLOWED;
+    pthread_mutex_unlock(&l->mutex);
+
+    /* Tell the leader that the command has been activated. */
+    return send_txt(c, "%s", __(c, "\tE\tC7Gamecube allowed."));
+}
+
 static command_t cmds[] = {
     { "warp"     , handle_warp      },
     { "kill"     , handle_kill      },
@@ -1652,6 +1733,9 @@ static command_t cmds[] = {
     { "smite"    , handle_smite     },
     { "makeitem" , handle_makeitem  },
     { "teleport" , handle_teleport  },
+    { "dumpinv"  , handle_dumpinv   },
+    { "showdcpc" , handle_showdcpc  },
+    { "allowgc"  , handle_allowgc   },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 
