@@ -620,17 +620,21 @@ static int handle_delete_inv(ship_client_t *c, subcmd_destroy_item_t *pkt) {
     lobby_t *l = c->cur_lobby;
     int num;
 
-    /* Verify that the client specified is the one that actually sent the packet
-       in the first place, otherwise disconnect them. */
-    if(c->client_id != pkt->client_id) {
+    /* We can't get these in default lobbies without someone messing with
+       something that they shouldn't be... Disconnect anyone that tries. */
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        return -1;
+    }
+
+    /* Sanity check... Make sure the size of the subcommand and the client id
+       match with what we expect. Disconnect the client if not. */
+    if(pkt->size != 0x03 || pkt->client_id != c->client_id) {
         return -1;
     }
 
 #if 0
     /* Ignore meseta */
     if(pkt->item_id != 0xFFFFFFFF) {
-        pthread_mutex_lock(&c->mutex);
-
         /* Remove the item from the user's inventory */
         num = item_remove_from_inv(c->items, c->item_count, pkt->item_id,
                                    LE32(pkt->amount));
@@ -640,8 +644,79 @@ static int handle_delete_inv(ship_client_t *c, subcmd_destroy_item_t *pkt) {
         else {
             c->item_count -= num;
         }
+    }
+#endif
 
-        pthread_mutex_unlock(&c->mutex);
+    return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt);
+}
+
+static int handle_buy(ship_client_t *c, subcmd_buy_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+    uint32_t ic;
+    int i;
+
+    /* We can't get these in default lobbies without someone messing with
+       something that they shouldn't be... Disconnect anyone that tries. */
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        return -1;
+    }
+
+    /* Sanity check... Make sure the size of the subcommand and the client id
+       match with what we expect. Disconnect the client if not. */
+    if(pkt->size != 0x06 || pkt->client_id != c->client_id) {
+        return -1;
+    }
+
+    /* Make a note of the item ID, and add to the inventory */
+    l->highest_item[c->client_id] = (uint16_t)LE32(pkt->item_id);
+#if 0
+    ic = LE32(pkt->item[0]);
+
+    /* See if its a stackable item, since we have to treat them differently. */
+    if(item_is_stackable(ic)) {
+        /* Its stackable, so see if we have any in the inventory already */
+        for(i = 0; i < c->item_count; ++i) {
+            /* Found it, add what we're adding in */
+            if(c->items[i].data_l[0] == pkt->item[0]) {
+                c->items[i].data_l[1] += pkt->item[1];
+                goto send_pkt;
+            }
+        }
+    }
+
+    memcpy(&c->items[c->item_count].data_l[0], &pkt->item[0],
+           sizeof(uint32_t) * 4);
+    c->items[c->item_count++].data2_l = 0;
+
+send_pkt:
+#endif
+    return lobby_send_pkt_dc(c->cur_lobby, c, (dc_pkt_hdr_t *)pkt);
+}
+
+static int handle_use_item(ship_client_t *c, subcmd_use_item_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+    int num;
+
+    /* We can't get these in default lobbies without someone messing with
+       something that they shouldn't be... Disconnect anyone that tries. */
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        return -1;
+    }
+
+    /* Sanity check... Make sure the size of the subcommand and the client id
+       match with what we expect. Disconnect the client if not. */
+    if(pkt->size != 0x02 || pkt->client_id != c->client_id) {
+        return -1;
+    }
+
+#if 0
+    /* Remove the item from the user's inventory */
+    num = item_remove_from_inv(c->items, c->item_count, pkt->item_id, 1);
+    if(num < 0) {
+        debug(DBG_WARN, "Couldn't remove item from inventory!\n");
+    }
+    else {
+        c->item_count -= num;
     }
 #endif
 
@@ -800,6 +875,14 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
 
         case SUBCMD_DELETE_ITEM:
             rv = handle_delete_inv(c, (subcmd_destroy_item_t *)pkt);
+            break;
+
+        case SUBCMD_BUY:
+            rv = handle_buy(c, (subcmd_buy_t *)pkt);
+            break;
+
+        case SUBCMD_USE_ITEM:
+            rv = handle_use_item(c, (subcmd_use_item_t *)pkt);
             break;
 
         default:

@@ -265,6 +265,28 @@ typedef struct subcmd_teleport {
     float w;
 } PACKED subcmd_teleport_t;
 
+/* Packet used when buying an item from the shop */
+typedef struct subcmd_buy {
+    dc_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint8_t client_id;
+    uint8_t unused;
+    uint32_t item[3];
+    uint32_t item_id;
+    uint32_t meseta;
+} PACKED subcmd_buy_t;
+
+/* Packet used when an item has been used */
+typedef struct subcmd_use_item {
+    dc_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint8_t client_id;
+    uint8_t unused;
+    uint32_t item_id;
+} PACKED subcmd_use_item_t;
+
 #undef PACKED
 
 /* Subcommand types we care about (0x62/0x6D). */
