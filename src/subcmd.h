@@ -287,6 +287,20 @@ typedef struct subcmd_use_item {
     uint32_t item_id;
 } PACKED subcmd_use_item_t;
 
+/* Packet used for word select */
+typedef struct subcmd_word_select {
+    dc_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint8_t client_id;
+    uint8_t client_id_gc;
+    uint8_t num_words;
+    uint8_t unused1;
+    uint8_t one;
+    uint8_t unused2;
+    uint16_t words[12];
+} PACKED subcmd_word_select_t;
+
 #undef PACKED
 
 /* Subcommand types we care about (0x62/0x6D). */
@@ -317,6 +331,7 @@ typedef struct subcmd_use_item {
 #define SUBCMD_ITEMDROP     0x5F
 #define SUBCMD_DESTROY_ITEM 0x63
 #define SUBCMD_BURST_DONE   0x72
+#define SUBCMD_WORD_SELECT  0x74
 #define SUBCMD_WARP         0x94
 #define SUBCMD_CHANGE_STAT  0x9A
 
