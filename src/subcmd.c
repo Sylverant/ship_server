@@ -725,17 +725,34 @@ static int handle_use_item(ship_client_t *c, subcmd_use_item_t *pkt) {
 
 static int handle_word_select(ship_client_t *c, subcmd_word_select_t *pkt) {
     lobby_t *l = c->cur_lobby;
+    int i;
+    uint8_t client_id;
 
-    /* Put the client ID in both of the bytes following the size, since PSOGC
-       screws this up somehow. */
+    /* PSOGC puts the client ID in the wrong place. */
     if(c->version == CLIENT_VERSION_GC) {
-        pkt->client_id = pkt->client_id_gc;
+        client_id = pkt->client_id_gc;
     }
     else {
-        pkt->client_id_gc = pkt->client_id;
+        client_id = pkt->client_id;
     }
 
-    return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt);
+    /* Send the packet to every connected client. */
+    for(i = 0; i < l->max_clients; ++i) {
+        if(l->clients[i] && l->clients[i] != c) {
+            if(l->clients[i]->version == CLIENT_VERSION_GC) {
+                pkt->client_id_gc = client_id;
+                pkt->client_id = 0;
+            }
+            else {
+                pkt->client_id = client_id;
+                pkt->client_id_gc = 0;
+            }
+
+            send_pkt_dc(l->clients[i], (dc_pkt_hdr_t *)pkt);
+        }
+    }
+
+    return 0;
 }
 
 /* Handle a 0x62/0x6D packet. */
