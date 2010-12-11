@@ -85,12 +85,17 @@ static void *block_thd(void *d) {
                 }
 
                 it->flags |= CLIENT_FLAG_DISCONNECTED;
+
+                /* Make sure that we disconnect the client ASAP! */
+                timeout.tv_sec = 0;
+
                 continue;
             }
             /* Otherwise, if we haven't heard from them in a minute, ping it. */
             else if(now > it->last_message + 60 && now > it->last_sent + 10) {
                 if(send_simple(it, PING_TYPE, 0)) {
                     it->flags |= CLIENT_FLAG_DISCONNECTED;
+                    timeout.tv_sec = 0;
                     continue;
                 }
 
@@ -105,7 +110,7 @@ static void *block_thd(void *d) {
             }
 
             nfds = nfds > it->sock ? nfds : it->sock;
-            timeout.tv_sec = 30;
+            timeout.tv_sec = timeout.tv_sec > 30 ? timeout.tv_sec : 30;
         }
 
         /* Add the listening sockets to the read fd_set. */
