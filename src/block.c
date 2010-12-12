@@ -110,7 +110,7 @@ static void *block_thd(void *d) {
             }
 
             nfds = nfds > it->sock ? nfds : it->sock;
-            timeout.tv_sec = timeout.tv_sec > 30 ? timeout.tv_sec : 30;
+            timeout.tv_sec = timeout.tv_sec < 30 ? timeout.tv_sec : 30;
         }
 
         /* Add the listening sockets to the read fd_set. */
