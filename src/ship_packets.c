@@ -2415,17 +2415,13 @@ static int send_dc_message_box(ship_client_t *c, const char *fmt,
         return -1;
     }
 
-    /* Verify we got the sendbuf. */
-    if(!sendbuf) {
-        return -1;
-    }
-
     /* Convert the message to the appropriate encoding. */
     out = 65500;
     inptr = tm;
     outptr = (char *)pkt->msg;
     iconv(ic, &inptr, &in, &outptr, &out);
     len = 65500 - out;
+    iconv_close(ic);
 
     /* Add any padding needed */
     while(len & 0x03) {
