@@ -218,6 +218,7 @@ static int get_ip_info() {
 
 int main(int argc, char *argv[]) {
     int i;
+    void *tmp;
 
     /* Parse the command line and read our configuration. */
     parse_command_line(argc, argv);
@@ -249,18 +250,21 @@ int main(int argc, char *argv[]) {
         pthread_join(ships[0]->thd, NULL);
     }
 
-    /* Wait for the ships to exit. */
-    for(i = 0; i < cfg->ship_count; ++i) {
-        if(ships[i]) {
-            ship_server_stop(ships[i]);
-        }
+    /* Clean up... */
+    if((tmp = pthread_getspecific(sendbuf_key))) {
+        free(tmp);
+        pthread_setspecific(sendbuf_key, NULL);
     }
 
-    /* Clean up... */
+    if((tmp = pthread_getspecific(recvbuf_key))) {
+        free(tmp);
+        pthread_setspecific(recvbuf_key, NULL);
+    }
+
     cleanup_i18n();
     client_shutdown();
+    sylverant_free_ship_config(cfg);
     free(ships);
-    free(cfg);
 
     return 0;
 }

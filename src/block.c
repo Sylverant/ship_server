@@ -59,6 +59,7 @@ static void *block_thd(void *d) {
     int sock;
     ssize_t sent;
     time_t now;
+    void *sb;
 
     debug(DBG_LOG, "%s(%d): Up and running\n", s->cfg->name, b->b);
 
@@ -260,7 +261,7 @@ static void *block_thd(void *d) {
         pthread_mutex_unlock(&b->mutex);
     }
 
-    return NULL;
+    pthread_exit(NULL);
 }
 
 block_t *block_server_start(ship_t *s, int b, uint16_t port) {
@@ -431,6 +432,7 @@ block_t *block_server_start(ship_t *s, int b, uint16_t port) {
     if(pthread_create(&rv->thd, NULL, &block_thd, rv)) {
         debug(DBG_ERROR, "%s(%d): Cannot start block thread!\n",
               s->cfg->name, b);
+        pthread_mutex_destroy(&rv->mutex);
         close(rv->pipes[0]);
         close(rv->pipes[1]);
         close(gcsock);
@@ -482,6 +484,7 @@ void block_server_stop(block_t *b) {
     }
 
     /* Free the block structure. */
+    pthread_mutex_destroy(&b->mutex);
     close(b->pipes[0]);
     close(b->pipes[1]);
     close(b->dcsock);

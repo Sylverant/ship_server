@@ -363,6 +363,9 @@ int shipgate_connect(ship_t *s, shipgate_conn_t *rv);
 /* Reconnect to the shipgate if we are disconnected for some reason. */
 int shipgate_reconnect(shipgate_conn_t *conn);
 
+/* Clean up a shipgate connection. */
+void shipgate_cleanup(shipgate_conn_t *c);
+
 /* Read data from the shipgate. */
 int shipgate_process_pkt(shipgate_conn_t *c);
 

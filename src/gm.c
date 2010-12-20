@@ -124,6 +124,7 @@ int gm_list_read(const char *fn, ship_t *s) {
 
         if(!buf)    {
             XML_ParserFree(p);
+            fclose(fp);
             free(s->gm_list);
             s->gm_list = oldlist;
             s->gm_count = oldcount;
@@ -135,6 +136,7 @@ int gm_list_read(const char *fn, ship_t *s) {
 
         if(bytes < 0)   {
             XML_ParserFree(p);
+            fclose(fp);
             free(s->gm_list);
             s->gm_list = oldlist;
             s->gm_count = oldcount;
@@ -144,6 +146,7 @@ int gm_list_read(const char *fn, ship_t *s) {
         /* Parse the bit we read in. */
         if(!XML_ParseBuffer(p, bytes, !bytes))  {
             XML_ParserFree(p);
+            fclose(fp);
             free(s->gm_list);
             s->gm_list = oldlist;
             s->gm_count = oldcount;
@@ -156,6 +159,7 @@ int gm_list_read(const char *fn, ship_t *s) {
     }
 
     XML_ParserFree(p);
+    fclose(fp);
 
     /* If we had an old list, clear it. */
     if(oldlist) {

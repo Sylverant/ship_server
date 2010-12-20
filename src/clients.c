@@ -34,7 +34,7 @@
 #include "ship_packets.h"
 
 /* The key for accessing our thread-specific receive buffer. */
-static pthread_key_t recvbuf_key;
+pthread_key_t recvbuf_key;
 
 /* The key for accessing our thread-specific send buffer. */
 pthread_key_t sendbuf_key;

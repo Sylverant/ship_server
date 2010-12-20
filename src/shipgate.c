@@ -341,6 +341,16 @@ int shipgate_send_creq(shipgate_conn_t *c, uint32_t gc, uint32_t slot) {
     return send_crypt(c, sizeof(shipgate_char_req_pkt), sendbuf);
 }
 
+/* Clean up a shipgate connection. */
+void shipgate_cleanup(shipgate_conn_t *c) {
+    if(c->sock > 0) {
+        close(c->sock);
+    }
+
+    free(c->recvbuf);
+    free(c->sendbuf);
+}
+
 static int handle_dc_greply(shipgate_conn_t *conn, dc_guild_reply_pkt *pkt) {
     int i;
     ship_t *s = conn->ship;

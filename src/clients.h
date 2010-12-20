@@ -124,6 +124,9 @@ typedef struct ship_client ship_client_t;
 
 TAILQ_HEAD(client_queue, ship_client);
 
+/* The key for accessing our thread-specific receive buffer. */
+extern pthread_key_t recvbuf_key;
+
 /* The key used for the thread-specific send buffer. */
 extern pthread_key_t sendbuf_key;
 
