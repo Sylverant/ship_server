@@ -178,10 +178,10 @@ int shipgate_connect(ship_t *s, shipgate_conn_t *rv) {
     }
 
     /* Connect the socket to the shipgate. */
+    memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = cfg->shipgate_ip;
     addr.sin_port = htons(cfg->shipgate_port);
-    memset(addr.sin_zero, 0, 8);
 
     if(connect(sock, (struct sockaddr *)&addr, sizeof(struct sockaddr_in))) {
         perror("connect");
@@ -276,10 +276,10 @@ int shipgate_reconnect(shipgate_conn_t *conn) {
     }
 
     /* Connect the socket to the shipgate. */
+    memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = cfg->shipgate_ip;
     addr.sin_port = htons(cfg->shipgate_port);
-    memset(addr.sin_zero, 0, 8);
 
     if(connect(sock, (struct sockaddr *)&addr, sizeof(struct sockaddr_in))) {
         perror("connect");

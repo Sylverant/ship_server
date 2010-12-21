@@ -282,10 +282,10 @@ block_t *block_server_start(ship_t *s, int b, uint16_t port) {
     }
 
     /* Bind the socket. */
+    memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = INADDR_ANY;
     addr.sin_port = htons(port);
-    memset(addr.sin_zero, 0, 8);
 
     if(bind(dcsock, (struct sockaddr *)&addr, sizeof(struct sockaddr_in)) < 0) {
         perror("bind");
@@ -309,10 +309,10 @@ block_t *block_server_start(ship_t *s, int b, uint16_t port) {
     }
 
     /* Bind the socket. */
+    memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = INADDR_ANY;
     addr.sin_port = htons(port + 1);
-    memset(addr.sin_zero, 0, 8);
 
     if(bind(pcsock, (struct sockaddr *)&addr, sizeof(struct sockaddr_in)) < 0) {
         perror("bind");
@@ -339,10 +339,10 @@ block_t *block_server_start(ship_t *s, int b, uint16_t port) {
     }
 
     /* Bind the socket. */
+    memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = INADDR_ANY;
     addr.sin_port = htons(port + 2);
-    memset(addr.sin_zero, 0, 8);
 
     if(bind(gcsock, (struct sockaddr *)&addr, sizeof(struct sockaddr_in)) < 0) {
         perror("bind");

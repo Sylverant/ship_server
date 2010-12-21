@@ -417,10 +417,10 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     }
 
     /* Bind the socket */
+    memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = INADDR_ANY;
     addr.sin_port = htons(s->base_port);
-    memset(addr.sin_zero, 0, 8);
 
     if(bind(dcsock, (struct sockaddr *)&addr, sizeof(struct sockaddr_in)) < 0) {
         perror("bind");
@@ -444,10 +444,10 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     }
     
     /* Bind the socket */
+    memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = INADDR_ANY;
     addr.sin_port = htons(s->base_port + 1);
-    memset(addr.sin_zero, 0, 8);
     
     if(bind(pcsock, (struct sockaddr *)&addr, sizeof(struct sockaddr_in)) < 0) {
         perror("bind");
@@ -474,10 +474,10 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     }
 
     /* Bind the socket */
+    memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = INADDR_ANY;
     addr.sin_port = htons(s->base_port + 2);
-    memset(addr.sin_zero, 0, 8);
     
     if(bind(gcsock, (struct sockaddr *)&addr, sizeof(struct sockaddr_in)) < 0) {
         perror("bind");
