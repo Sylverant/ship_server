@@ -27,7 +27,9 @@ ship_server_SOURCES = src/block.c src/block.h src/clients.c src/clients.h \
                       src/ship.h src/ship_packets.c src/ship_packets.h \
                       src/ship_server.c src/shipgate.c src/shipgate.h \
                       src/utils.c src/utils.h src/subcmd.c src/subcmd.h \
-                      src/list.c src/items.c src/items.h
+                      src/list.c src/items.c src/items.h src/word_select.c \
+                      src/word_select.h src/word_select-dc.h \
+                      src/word_select-pc.h src/word_select-gc.h
 
 datarootdir = @datarootdir@
 SUBDIRS = l10n

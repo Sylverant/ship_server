@@ -27,6 +27,7 @@
 #include "ship_packets.h"
 #include "utils.h"
 #include "items.h"
+#include "word_select.h"
 
 /* Handle a Guild card send packet. */
 int handle_dc_gcsend(ship_client_t *d, subcmd_dc_gcsend_t *pkt) {
@@ -724,32 +725,16 @@ static int handle_use_item(ship_client_t *c, subcmd_use_item_t *pkt) {
 }
 
 static int handle_word_select(ship_client_t *c, subcmd_word_select_t *pkt) {
-    lobby_t *l = c->cur_lobby;
-    int i;
-    uint8_t client_id;
+    switch(c->version) {
+        case CLIENT_VERSION_DCV1:
+        case CLIENT_VERSION_DCV2:
+            return word_select_send_dc(c, pkt);
 
-    /* PSOGC puts the client ID in the wrong place. */
-    if(c->version == CLIENT_VERSION_GC) {
-        client_id = pkt->client_id_gc;
-    }
-    else {
-        client_id = pkt->client_id;
-    }
+        case CLIENT_VERSION_PC:
+            return word_select_send_pc(c, pkt);
 
-    /* Send the packet to every connected client. */
-    for(i = 0; i < l->max_clients; ++i) {
-        if(l->clients[i] && l->clients[i] != c) {
-            if(l->clients[i]->version == CLIENT_VERSION_GC) {
-                pkt->client_id_gc = client_id;
-                pkt->client_id = 0;
-            }
-            else {
-                pkt->client_id = client_id;
-                pkt->client_id_gc = 0;
-            }
-
-            send_pkt_dc(l->clients[i], (dc_pkt_hdr_t *)pkt);
-        }
+        case CLIENT_VERSION_GC:
+            return word_select_send_gc(c, pkt);
     }
 
     return 0;

@@ -1692,6 +1692,56 @@ static int handle_allowgc(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return send_txt(c, "%s", __(c, "\tE\tC7Gamecube allowed."));
 }
 
+/* Usage /ws item1,item2,item3,item4 */
+static int handle_ws(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    uint32_t ws[4] = { 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF };
+    int count;
+    uint8_t tmp[0x24];
+    subcmd_pkt_t *p = (subcmd_pkt_t *)tmp;
+
+    /* Make sure the requester is a GM. */
+    if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
+    }
+
+    /* Copy over the item data. */
+    count = sscanf(params, "%x,%x,%x,%x", ws + 0, ws + 1, ws + 2, ws + 3);
+
+    if(count == EOF || count == 0) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid WS code"));
+    }
+
+    /* Fill in the packet */
+    memset(p, 0, 0x24);
+    memset(&tmp[0x0C], 0xFF, 0x10);
+    p->hdr.dc.pkt_type = GAME_COMMAND0_TYPE;
+    p->hdr.dc.pkt_len = LE16(0x24);
+    p->type = SUBCMD_WORD_SELECT;
+    p->size = 0x08;
+
+    if(c->version != CLIENT_VERSION_GC) {
+        tmp[6] = c->client_id;
+    }
+    else {
+        tmp[7] = c->client_id;
+    }
+
+    tmp[8] = count;
+    tmp[10] = 1;
+    tmp[12] = (uint8_t)(ws[0]);
+    tmp[13] = (uint8_t)(ws[0] >> 8);
+    tmp[14] = (uint8_t)(ws[1]);
+    tmp[15] = (uint8_t)(ws[1] >> 8);
+    tmp[16] = (uint8_t)(ws[2]);
+    tmp[17] = (uint8_t)(ws[2] >> 8);
+    tmp[18] = (uint8_t)(ws[3]);
+    tmp[19] = (uint8_t)(ws[3] >> 8);
+
+    /* Send the packet to everyone, including the person sending the request. */
+    send_pkt_dc(c, (dc_pkt_hdr_t *)p);
+    return subcmd_handle_bcast(c, p);
+}
+
 static command_t cmds[] = {
     { "warp"     , handle_warp      },
     { "kill"     , handle_kill      },
@@ -1736,6 +1786,7 @@ static command_t cmds[] = {
     { "dumpinv"  , handle_dumpinv   },
     { "showdcpc" , handle_showdcpc  },
     { "allowgc"  , handle_allowgc   },
+    { "ws"       , handle_ws        },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

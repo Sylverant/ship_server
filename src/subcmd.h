@@ -296,7 +296,7 @@ typedef struct subcmd_word_select {
     uint8_t client_id_gc;
     uint8_t num_words;
     uint8_t unused1;
-    uint8_t one;
+    uint8_t ws_type;
     uint8_t unused2;
     uint16_t words[12];
 } PACKED subcmd_word_select_t;

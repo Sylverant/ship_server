@@ -59,7 +59,6 @@ static void *block_thd(void *d) {
     int sock;
     ssize_t sent;
     time_t now;
-    void *sb;
 
     debug(DBG_LOG, "%s(%d): Up and running\n", s->cfg->name, b->b);
 
