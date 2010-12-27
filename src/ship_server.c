@@ -156,6 +156,7 @@ static void load_config() {
         else {
             debug(DBG_LOG, "Menu: Main\n");
         }
+        debug(DBG_LOG, "Flags: 0x%08X\n", cfg->ships[i].shipgate_flags);
     }
 }
 
