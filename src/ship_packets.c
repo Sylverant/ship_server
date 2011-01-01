@@ -70,6 +70,11 @@ cs_opt_t cs_options[] = {
 
 #define CS_OPTIONS_COUNT 23
 
+/* The list of type codes for the quest directories. */
+static const char type_codes[][3] = {
+    "v1", "v2", "pc", "gc"
+};
+
 extern sylverant_shipcfg_t *cfg;
 extern ship_t **ships;
 
@@ -3545,32 +3550,124 @@ static int send_gc_quest(ship_client_t *c, sylverant_quest_t *q) {
     return 0;
 }
 
+static int send_qst_quest(ship_client_t *c, sylverant_quest_t *q, int v1) {
+    char filename[256];
+    FILE *fp;
+    long len;
+    size_t read;
+    uint8_t *sendbuf = get_sendbuf();
+
+    /* Figure out what file we're going to send. */
+    if(!v1) {
+        sprintf(filename, "quests/%s%s.qst", q->prefix, type_codes[c->version]);
+    }
+    else {
+        switch(c->version) {
+            case CLIENT_VERSION_DCV1:
+            case CLIENT_VERSION_DCV2:
+                sprintf(filename, "quests/%sv1.qst", q->prefix);
+                break;
+
+            case CLIENT_VERSION_PC:
+                sprintf(filename, "quests/%spcv1.qst", q->prefix);
+                break;
+
+            case CLIENT_VERSION_GC:
+                sprintf(filename, "quests/%sgcv1.qst", q->prefix);
+                break;
+        }
+    }
+
+    fp = fopen(filename, "rb");
+
+    if(!fp) {
+        perror("fopen");
+        printf("filename: %s\n", filename);
+        return -1;
+    }
+
+    /* Figure out how long the file is. */
+    fseek(fp, 0, SEEK_END);
+    len = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+
+    /* Copy the file (in chunks if necessary) to the sendbuf to actually send
+       away. */
+    while(len) {
+        read = fread(sendbuf, 1, 65536, fp);
+
+        /* If we can't read from the file, bail. */
+        if(!read) {
+            fclose(fp);
+            return -2;
+        }
+
+        /* Make sure we read up to a header-size boundary. */
+        if((read & (c->hdr_size - 1)) && !feof(fp)) {
+            long amt = (read & (c->hdr_size - 1));
+
+            fseek(fp, -amt, SEEK_CUR);
+            read -= amt;
+        }
+
+        /* Send this chunk away. */
+        if(crypt_send(c, read, sendbuf)) {
+            fclose(fp);
+            return -3;
+        }
+
+        len -= read;
+    }
+
+    /* We're finished. */
+    fclose(fp);
+    return 0;
+}
+
 int send_quest(lobby_t *l, sylverant_quest_t *q) {
     int i;
+    int v1 = 0;
 
-    for(i = 0; i < l->max_clients; ++i) {
-        if(l->clients[i] != NULL) {
-            /* Call the appropriate function. */
-            switch(l->clients[i]->version) {
-                case CLIENT_VERSION_DCV1:
-                case CLIENT_VERSION_DCV2:
-                    if(l->v2) {
-                        send_dcv2_quest(l->clients[i], q);
-                    }
-                    else {
-                        send_dcv1_quest(l->clients[i], q);
-                    }
-                    break;
+    /* What type of quest file are we sending? */
+    if(q->format == SYLVERANT_QUEST_BINDAT) {
+        for(i = 0; i < l->max_clients; ++i) {
+            if(l->clients[i] != NULL) {
+                /* Call the appropriate function. */
+                switch(l->clients[i]->version) {
+                    case CLIENT_VERSION_DCV1:
+                    case CLIENT_VERSION_DCV2:
+                        if(l->v2) {
+                            send_dcv2_quest(l->clients[i], q);
+                        }
+                        else {
+                            send_dcv1_quest(l->clients[i], q);
+                        }
+                        break;
 
-                case CLIENT_VERSION_PC:
-                    send_pc_quest(l->clients[i], q);
-                    break;
+                    case CLIENT_VERSION_PC:
+                        send_pc_quest(l->clients[i], q);
+                        break;
 
-                case CLIENT_VERSION_GC:
-                    send_gc_quest(l->clients[i], q);
-                    break;
+                    case CLIENT_VERSION_GC:
+                        send_gc_quest(l->clients[i], q);
+                        break;
+                }
             }
         }
+    }
+    else if(q->format == SYLVERANT_QUEST_QST) {
+        if(!l->v2 && l->version != CLIENT_VERSION_GC) {
+            v1 = 1;
+        }
+
+        for(i = 0; i < l->max_clients; ++i) {
+            if(l->clients[i] != NULL) {
+                send_qst_quest(l->clients[i], q, v1);
+            }
+        }
+    }
+    else {
+        return -1;
     }
 
     return 0;
