@@ -404,7 +404,7 @@ static int handle_bstat(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     /* Fill in the string. */
     return send_txt(c, "\tE\tC7BLOCK%02d:\n%d %s\n%d %s", b->b,
-                    players, __(c, "Players"), games, __(c, "Games"));
+                    players, __(c, "Player(s)"), games, __(c, "Team(s)"));
 }
 
 /* Usage /bcast message */

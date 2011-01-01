@@ -877,7 +877,7 @@ static int dc_process_info_req(ship_client_t *c, dc_select_pkt *pkt) {
                 if(i->ship_id == item_id) {
                     char string[256];
                     sprintf(string, "%s\n\n%d %s\n%d %s", i->name, i->clients,
-                            __(c, "Players"), i->games, __(c, "Games"));
+                            __(c, "Player(s)"), i->games, __(c, "Team(s)"));
                     return send_info_reply(c, string);
                 }
             }

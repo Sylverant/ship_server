@@ -542,7 +542,7 @@ int block_info_reply(ship_client_t *c, uint32_t block) {
 
     /* Fill in the string. */
     sprintf(string, "BLOCK%02d\n\n%d %s\n%d %s", b->b, players,
-            __(c, "Players"), games, __(c, "Games"));
+            __(c, "Player(s)"), games, __(c, "Team(s)"));
 
     /* Send the information away. */
     return send_info_reply(c, string);
@@ -1724,7 +1724,7 @@ static int dc_process_info_req(ship_client_t *c, dc_select_pkt *pkt) {
                 if(i->ship_id == item_id) {
                     char string[256];
                     sprintf(string, "%s\n\n%d %s\n%d %s", i->name, i->clients,
-                            __(c, "Players"), i->games, __(c, "Games"));
+                            __(c, "Player(s)"), i->games, __(c, "Teams(s)"));
                     return send_info_reply(c, string);
                 }
             }
