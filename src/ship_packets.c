@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -2697,6 +2697,11 @@ static int send_dc_quest_list(ship_client_t *c, int cat,
             continue;
         }
 
+        if(l->quests[i].event != -1 &&
+           l->quests[i].event != c->cur_lobby->event) {
+            continue;
+        }
+
         /* Clear the entry */
         memset(pkt->entries + entries, 0, 0x98);
 
@@ -2769,6 +2774,11 @@ static int send_pc_quest_list(ship_client_t *c, int cat,
 
     for(i = 0; i < l->quest_count && i < max; ++i) {
         if(!(l->quests[i].versions & ver)) {
+            continue;
+        }
+
+        if(l->quests[i].event != -1 &&
+           l->quests[i].event != c->cur_lobby->event) {
             continue;
         }
 
@@ -2852,6 +2862,11 @@ static int send_gc_quest_list(ship_client_t *c, int cat,
     for(i = 0; i < l->quest_count && i < max; ++i) {
         if(!(l->quests[i].versions & SYLVERANT_QUEST_GC) ||
            l->quests[i].episode != c->cur_lobby->episode) {
+            continue;
+        }
+
+        if(l->quests[i].event != -1 &&
+           l->quests[i].event != c->cur_lobby->event) {
             continue;
         }
 
