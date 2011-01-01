@@ -2377,7 +2377,7 @@ static int send_dc_message_box(ship_client_t *c, const char *fmt,
 
     /* Don't send these to GC players, its very likely they'll crash if they're
        on a US GC (apparently). */
-    if(c->version == CLIENT_VERSION_GC) {
+    if(c->version == CLIENT_VERSION_GC && !(c->flags & CLIENT_FLAG_TYPE_SHIP)) {
         debug(DBG_LOG, "Silently (to the user) dropping message box for GC\n");
         return 0;
     }

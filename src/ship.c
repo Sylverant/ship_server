@@ -732,7 +732,7 @@ static int gc_process_login(ship_client_t *c, gc_login_9e_pkt *pkt) {
         return -1;
     }
 
-    if(send_block_list(c, c->cur_ship)) {
+    if(send_message_box(c, "%s", c->cur_ship->motd)) {
         return -2;
     }
 
@@ -927,6 +927,9 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
 
         case LOGIN_9E_TYPE:
             return gc_process_login(c, (gc_login_9e_pkt *)pkt);
+
+        case GC_MSG_BOX_CLOSED_TYPE:
+            return send_block_list(c, c->cur_ship);
 
         default:
             debug(DBG_LOG, "Unknown packet!\n");
