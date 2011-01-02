@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -1210,18 +1210,24 @@ static int handle_motd(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 /* Usage: /friendadd guildcard */
 static int handle_friendadd(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     uint32_t gc;
+    char *nick;
 
     /* Figure out the user requested */
     errno = 0;
-    gc = (uint32_t)strtoul(params, NULL, 10);
+    gc = (uint32_t)strtoul(params, &nick, 10);
 
     if(errno != 0) {
         /* Send a message saying invalid guildcard number */
         return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card"));
     }
 
+    /* Make sure the nickname is valid. */
+    if(!nick || nick[0] != ' ' || nick[1] == '\0') {
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Nickname"));
+    }
+
     /* Send a request to the shipgate to do the rest */
-    shipgate_send_friend_update(&c->cur_ship->sg, 1, c->guildcard, gc);
+    shipgate_send_friend_add(&c->cur_ship->sg, c->guildcard, gc, nick + 1);
     
     /* Any further messages will be handled by the shipgate handler */
     return 0;
@@ -1241,7 +1247,7 @@ static int handle_frienddel(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     }
 
     /* Send a request to the shipgate to do the rest */
-    shipgate_send_friend_update(&c->cur_ship->sg, 0, c->guildcard, gc);
+    shipgate_send_friend_del(&c->cur_ship->sg, c->guildcard, gc);
 
     /* Any further messages will be handled by the shipgate handler */
     return 0;

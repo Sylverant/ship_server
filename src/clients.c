@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -473,7 +473,9 @@ int client_has_blacklisted(ship_client_t *c, uint32_t gc) {
 
 /* Send a message to a client telling them that a friend has logged on/off */
 void client_send_friendmsg(ship_client_t *c, int on, const char *fname,
-                           const char *ship, uint32_t block) {
-    send_txt(c, "%s %s\n%s BLOCK%02d", fname,
-             on ? __(c, "online") : __(c, "offline"), ship, (int)block);
+                           const char *ship, uint32_t block, const char *nick) {
+    send_txt(c, "%s%s %s\n%s %s\n%s BLOCK%02d",
+             on ? __(c, "\tE\tC2") : __(c, "\tE\tC4"), nick,
+             on ? __(c, "online") : __(c, "offline"), __(c, "Character: "),
+             fname, ship, (int)block);
 }

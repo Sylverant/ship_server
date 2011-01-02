@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -1238,7 +1238,8 @@ static int handle_friend(shipgate_conn_t *c, shipgate_friend_login_pkt *pkt) {
     }
 
     /* The rest is easy */
-    client_send_friendmsg(cl, on, pkt->friend_name, ms->name, fbl);
+    client_send_friendmsg(cl, on, pkt->friend_name, ms->name, fbl,
+                          pkt->friend_nick);
     return 0;
 }
 
@@ -1861,11 +1862,10 @@ static int send_greply(shipgate_conn_t *c, uint32_t gc1, uint32_t gc2,
 }
 
 /* Send a friendlist update */
-int shipgate_send_friend_update(shipgate_conn_t *c, int add, uint32_t user,
-                                uint32_t friend_gc) {
+int shipgate_send_friend_del(shipgate_conn_t *c, uint32_t user,
+                             uint32_t friend_gc) {
     uint8_t *sendbuf = get_sendbuf();
     shipgate_friend_upd_pkt *pkt = (shipgate_friend_upd_pkt *)sendbuf;
-    uint16_t type = add ? SHDR_TYPE_ADDFRIEND : SHDR_TYPE_DELFRIEND;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -1877,7 +1877,7 @@ int shipgate_send_friend_update(shipgate_conn_t *c, int add, uint32_t user,
 
     /* Fill in the packet */
     pkt->hdr.pkt_len = htons(sizeof(shipgate_friend_upd_pkt));
-    pkt->hdr.pkt_type = htons(type);
+    pkt->hdr.pkt_type = htons(SHDR_TYPE_DELFRIEND);
     pkt->hdr.pkt_unc_len = pkt->hdr.pkt_len;
     pkt->hdr.flags = htons(SHDR_NO_DEFLATE);
 
@@ -1886,6 +1886,34 @@ int shipgate_send_friend_update(shipgate_conn_t *c, int add, uint32_t user,
 
     /* Send the packet away */
     return send_crypt(c, sizeof(shipgate_friend_upd_pkt), sendbuf);
+}
+
+int shipgate_send_friend_add(shipgate_conn_t *c, uint32_t user,
+                             uint32_t friend_gc, const char *nick) {
+    uint8_t *sendbuf = get_sendbuf();
+    shipgate_friend_add_pkt *pkt = (shipgate_friend_add_pkt *)sendbuf;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Scrub the buffer */
+    memset(pkt, 0, sizeof(shipgate_friend_add_pkt));
+
+    /* Fill in the packet */
+    pkt->hdr.pkt_len = htons(sizeof(shipgate_friend_add_pkt));
+    pkt->hdr.pkt_type = htons(SHDR_TYPE_ADDFRIEND);
+    pkt->hdr.pkt_unc_len = pkt->hdr.pkt_len;
+    pkt->hdr.flags = htons(SHDR_NO_DEFLATE);
+
+    pkt->user_guildcard = htonl(user);
+    pkt->friend_guildcard = htonl(friend_gc);
+    strncpy(pkt->friend_nick, nick, 32);
+    pkt->friend_nick[31] = 0;
+
+    /* Send the packet away */
+    return send_crypt(c, sizeof(shipgate_friend_add_pkt), sendbuf);
 }
 
 /* Send a block login/logout */

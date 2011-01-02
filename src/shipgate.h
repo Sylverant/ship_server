@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -36,7 +36,7 @@ typedef struct ship ship_t;
 
 #define PACKED __attribute__((packed))
 
-#define SHIPGATE_PROTO_VER  3
+#define SHIPGATE_PROTO_VER  4
 
 /* The header that is prepended to any packets sent to the shipgate. */
 typedef struct shipgate_hdr {
@@ -245,14 +245,23 @@ typedef struct shipgate_friend_login {
     uint32_t friend_block;
     uint32_t reserved;
     char friend_name[32];
+    char friend_nick[32];
 } PACKED shipgate_friend_login_pkt;
 
-/* Packet to update a user's friendlist (used for either add or remove) */
+/* Packet to delete someone from a user's friendlist */
 typedef struct shipgate_friend_upd {
     shipgate_hdr_t hdr;
     uint32_t user_guildcard;
     uint32_t friend_guildcard;
 } PACKED shipgate_friend_upd_pkt;
+
+/* Packet to add a user to a friendlist */
+typedef struct shipgate_friend_add {
+    shipgate_hdr_t hdr;
+    uint32_t user_guildcard;
+    uint32_t friend_guildcard;
+    char friend_nick[32];
+} PACKED shipgate_friend_add_pkt;
 
 /* Packet to update a user's lobby in the shipgate's info */
 typedef struct shipgate_lobby_change {
@@ -403,8 +412,10 @@ int shipgate_send_ban(shipgate_conn_t *c, uint16_t type, uint32_t requester,
                       uint32_t target, uint32_t until, char *msg);
 
 /* Send a friendlist update */
-int shipgate_send_friend_update(shipgate_conn_t *c, int add, uint32_t user,
-                                uint32_t friend_gc);
+int shipgate_send_friend_del(shipgate_conn_t *c, uint32_t user,
+                             uint32_t friend_gc);
+int shipgate_send_friend_add(shipgate_conn_t *c, uint32_t user,
+                             uint32_t friend_gc, const char *nick);
 
 /* Send a block login/logout */
 int shipgate_send_block_login(shipgate_conn_t *c, int on, uint32_t user,
