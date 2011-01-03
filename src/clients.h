@@ -81,6 +81,7 @@ struct ship_client {
     uint32_t next_item[4];
 
     uint32_t privilege;
+    uint32_t last_info_req;
 
     item_t items[30];
 

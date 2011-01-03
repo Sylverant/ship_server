@@ -118,9 +118,10 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
     l->section = section;
     l->event = event;
     l->min_level = game_required_level[difficulty];
-    l->max_level = 9001;                /* Its OVER 9000! */
+    l->max_level = 200;
     l->rand_seed = genrand_int32();
     l->max_chal = 0xFF;
+    l->create_time = time(NULL);
 
     /* Copy the game name and password. */
     strncpy(l->name, name, 16);
@@ -669,6 +670,9 @@ int lobby_info_reply(ship_client_t *c, uint32_t lobby) {
     lobby_t *l = block_get_lobby(c->cur_block, lobby);
     int i;
     player_t *pl;
+    time_t t;
+    int h, m, s;
+    int legit, questing;
 
     if(!l) {
         return send_info_reply(c, __(c, "\tEThis game is no\nlonger active."));
@@ -677,19 +681,83 @@ int lobby_info_reply(ship_client_t *c, uint32_t lobby) {
     /* Lock the lobby */
     pthread_mutex_lock(&l->mutex);
 
-    /* Build up the information string */
-    for(i = 0; i < l->max_clients; ++i) {
-        /* Ignore blank clients */
-        if(!l->clients[i]) {
-            continue;
+    /* Check if we should be on page 2 of the info or on the first page. */
+    if(c->last_info_req == lobby) {
+        /* Calculate any statistics we want for this */
+        t = time(NULL) - l->create_time;
+        h = t / 3600;
+        m = (t % 3600) / 60;
+        s = t % 60;
+        legit = l->flags & LOBBY_FLAG_LEGIT_MODE;
+        questing = l->flags & LOBBY_FLAG_QUESTING;
+
+        sprintf(msg, "%s:%d:%02d:%02d\n"    /* Game time */
+                "%s: %s\n"                  /* Legit/normal mode */
+                "%s\n"                      /* Questing/Free adventure */
+                "%s: %d-%d\n"               /* Levels allowed */
+                "%s:",                      /* Versions allowed */
+                __(c, "\tETime"), h, m, s,
+                __(c, "Mode"), legit ? __(c, "Legit") : __(c, "Normal"),
+                questing ? __(c, "Questing") : __(c, "Free Adventure"),
+                __(c, "Level"), l->min_level, l->max_level,
+                __(c, "Versions"));
+
+        /* Figure out what versions are allowed. */
+        if(l->version == CLIENT_VERSION_GC) {
+            /* Easy one here, GC games can only have GC chars */
+            sprintf(msg, "%s GC", msg);
+        }
+        else {
+            /* Slightly more interesting here... */
+            if(l->v2) {
+                if(!(l->flags & LOBBY_FLAG_PCONLY)) {
+                    sprintf(msg, "%s DCv2", msg);
+                }
+                if(!(l->flags & LOBBY_FLAG_DCONLY)) {
+                    sprintf(msg, "%s PC", msg);
+                }
+            }
+            else {
+                if(!(l->flags & LOBBY_FLAG_PCONLY)) {
+                    sprintf(msg, "%s DCv1", msg);
+
+                    if(!(l->flags & LOBBY_FLAG_V1ONLY)) {
+                        sprintf(msg, "%s DCv2", msg);
+                    }
+                }
+                if(!(l->flags & LOBBY_FLAG_DCONLY) &&
+                   !(l->flags & LOBBY_FLAG_V1ONLY)) {
+                    sprintf(msg, "%s PC", msg);
+                }
+            }
+
+            if((l->flags & LOBBY_FLAG_GC_ALLOWED) &&
+               !(l->flags & LOBBY_FLAG_DCONLY) &&
+               !(l->flags & LOBBY_FLAG_PCONLY) &&
+               !(l->flags & LOBBY_FLAG_V1ONLY)) {
+                sprintf(msg, "%s GC", msg);
+            }
         }
 
-        /* Grab the player data and fill in the string */
-        pl = l->clients[i]->pl;
+        c->last_info_req = 0;
+    }
+    else {
+        c->last_info_req = lobby;
 
-        sprintf(msg, "%s%s L%d\n  %s    %s\n", msg, pl->v1.name,
-                pl->v1.level + 1, classes[pl->v1.ch_class],
-                mini_language_codes[pl->v1.inv.language]);
+        /* Build up the information string */
+        for(i = 0; i < l->max_clients; ++i) {
+            /* Ignore blank clients */
+            if(!l->clients[i]) {
+                continue;
+            }
+
+            /* Grab the player data and fill in the string */
+            pl = l->clients[i]->pl;
+
+            sprintf(msg, "%s%s L%d\n  %s    %s\n", msg, pl->v1.name,
+                    pl->v1.level + 1, classes[pl->v1.ch_class],
+                    mini_language_codes[pl->v1.inv.language]);
+        }
     }
 
     /* Unlock the lobby */

@@ -18,6 +18,7 @@
 #ifndef LOBBY_H
 #define LOBBY_H
 
+#include <time.h>
 #include <pthread.h>
 #include <inttypes.h>
 #include <sys/queue.h>
@@ -99,6 +100,7 @@ struct lobby {
     ship_client_t *clients[LOBBY_MAX_CLIENTS];
 
     struct lobby_pkt_queue pkt_queue;
+    time_t create_time;
 };
 
 #ifndef LOBBY_DEFINED
@@ -125,7 +127,7 @@ TAILQ_HEAD(lobby_queue, lobby);
 #define LOBBY_FLAG_GC_ALLOWED   0x00000200
 
 /* The required level for various difficulties. */
-const static int game_required_level[4] = { 0, 20, 40, 80 };
+const static int game_required_level[4] = { 1, 20, 40, 80 };
 
 lobby_t *lobby_create_default(block_t *block, uint32_t lobby_id, uint8_t ev);
 lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,

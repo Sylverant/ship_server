@@ -604,6 +604,9 @@ static int handle_set_pos(ship_client_t *c, subcmd_set_pos_t *pkt) {
     c->y = pkt->y;
     c->z = pkt->z;
 
+    /* Clear this, in case we're at the lobby counter */
+    c->last_info_req = 0;
+
     return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt);
 }
 
