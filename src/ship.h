@@ -30,6 +30,12 @@
 #include "block.h"
 #include "shipgate.h"
 
+#define CLIENTS_H_COUNTS_ONLY
+#include "clients.h"
+#undef CLIENTS_H_COUNTS_ONLY
+
+#include "quests.h"
+
 /* Forward declarations. */
 struct client_queue;
 struct ship_client;
@@ -80,6 +86,9 @@ struct ship {
     uint16_t num_games;
 
     sylverant_quest_list_t quests;
+    sylverant_quest_list_t qlist[CLIENT_VERSION_COUNT][CLIENT_LANG_COUNT];
+    quest_map_t qmap;
+
     shipgate_conn_t sg;
     pthread_mutex_t qmutex;
     sylverant_limits_t *limits;

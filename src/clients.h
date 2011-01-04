@@ -15,6 +15,15 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#ifndef CLIENTS_H_COUNTS
+#define CLIENTS_H_COUNTS
+
+#define CLIENT_VERSION_COUNT    4
+#define CLIENT_LANG_COUNT       8
+
+#endif /* !CLIENTS_H_COUNTS */
+
+#ifndef CLIENTS_H_COUNTS_ONLY
 #ifndef CLIENTS_H
 #define CLIENTS_H
 
@@ -151,8 +160,6 @@ extern pthread_key_t sendbuf_key;
 #define CLIENT_LANG_CHINESE_TRAD    6
 #define CLIENT_LANG_KOREAN          7
 
-#define CLIENT_LANG_COUNT           8
-
 #define CLIENT_FLAG_HDR_READ        0x00000001
 #define CLIENT_FLAG_GOT_05          0x00000002
 #define CLIENT_FLAG_INVULNERABLE    0x00000004
@@ -165,6 +172,11 @@ extern pthread_key_t sendbuf_key;
 /* The list of language codes for the quest directories. */
 static const char language_codes[][3] __attribute__((unused)) = {
     "jp", "en", "de", "fr", "sp", "cs", "ct", "kr"
+};
+
+/* The list of version codes for the quest directories. */
+static const char version_codes[][3] __attribute__((unused)) = {
+    "v1", "v2", "pc", "gc"
 };
 
 /* Initialize the clients system, allocating any thread specific keys */
@@ -202,3 +214,4 @@ void client_send_friendmsg(ship_client_t *c, int on, const char *fname,
                            const char *ship, uint32_t block, const char *nick);
 
 #endif /* !CLIENTS_H */
+#endif /* !CLIENTS_H_COUNTS_ONLY */

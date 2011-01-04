@@ -1,7 +1,7 @@
 #
 #   This file is part of Sylverant PSO Server.
 #
-#   Copyright (C) 2009, 2010 Lawrence Sebald
+#   Copyright (C) 2009, 2010, 2011 Lawrence Sebald
 #
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU Affero General Public License version 3
@@ -29,7 +29,8 @@ ship_server_SOURCES = src/block.c src/block.h src/clients.c src/clients.h \
                       src/utils.c src/utils.h src/subcmd.c src/subcmd.h \
                       src/list.c src/items.c src/items.h src/word_select.c \
                       src/word_select.h src/word_select-dc.h \
-                      src/word_select-pc.h src/word_select-gc.h
+                      src/word_select-pc.h src/word_select-gc.h \
+                      src/quests.c src/quests.h
 
 datarootdir = @datarootdir@
 SUBDIRS = l10n

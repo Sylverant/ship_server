@@ -44,6 +44,7 @@ in_addr_t netmask;
 /* The actual ship structures. */
 ship_t **ships;
 char *config_file = NULL;
+static const char *custom_dir = NULL;
 
 /* Print information about this program to stdout. */
 static void print_program_info() {
@@ -97,6 +98,10 @@ static void parse_command_line(int argc, char *argv[]) {
         else if(!strcmp(argv[i], "-C")) {
             /* Save the config file's name. */
             config_file = argv[++i];
+        }
+        else if(!strcmp(argv[i], "-D")) {
+            /* Save the custom dir */
+            custom_dir = argv[++i];
         }
         else if(!strcmp(argv[i], "--help")) {
             print_help(argv[0]);
@@ -230,7 +235,12 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    chdir(sylverant_directory);
+    if(!custom_dir) {
+        chdir(sylverant_directory);
+    }
+    else {
+        chdir(custom_dir);
+    }
 
     /* Set up things for clients to connect. */
     if(client_init()) {

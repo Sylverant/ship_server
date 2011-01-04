@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -405,6 +405,8 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     ship_t *rv;
     struct sockaddr_in addr;
     int dcsock, pcsock, gcsock;
+    int i, j;
+    char fn[512];
 
     debug(DBG_LOG, "Starting server for ship %s...\n", s->name);
 
@@ -509,6 +511,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
 
     /* Clear it out */
     memset(rv, 0, sizeof(ship_t));
+    TAILQ_INIT(&rv->qmap);
 
     /* Make the pipe */
     if(pipe(rv->pipes) == -1) {
@@ -550,7 +553,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     }
 
     /* Attempt to read the quest list in. */
-    if(s->quests_file[0]) {
+    if(s->quests_file && s->quests_file[0]) {
         if(sylverant_quests_read(s->quests_file, &rv->quests)) {
             debug(DBG_ERROR, "%s: Couldn't read quests file!\n", s->name);
             free(rv->clients);
@@ -562,6 +565,26 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
             close(pcsock);
             close(dcsock);
             return NULL;
+        }
+    }
+
+    if(s->quests_dir && s->quests_dir[0]) {
+        for(i = 0; i < CLIENT_VERSION_COUNT; ++i) {
+            for(j = 0; j < CLIENT_LANG_COUNT; ++j) {
+                sprintf(fn, "%s/%s-%s/quests.xml", s->quests_dir,
+                        version_codes[i], language_codes[j]);
+                if(!sylverant_quests_read(fn, &rv->qlist[i][j])) {
+                    if(!quest_map(&rv->qmap, &rv->qlist[i][j], i, j)) { 
+                        debug(DBG_LOG, "Read quests for %s-%s\n",
+                              version_codes[i], language_codes[j]);
+                    }
+                    else {
+                        debug(DBG_LOG, "Unable to map quests for %s-%s\n",
+                              version_codes[i], language_codes[j]);
+                        sylverant_quests_destroy(&rv->qlist[i][j]);
+                    }
+                }
+            }
         }
     }
 
@@ -930,6 +953,11 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
 
         case GC_MSG_BOX_CLOSED_TYPE:
             return send_block_list(c, c->cur_ship);
+
+        case GAME_COMMAND0_TYPE:
+            /* Ignore these, since taking screenshots on PSOPC generates them
+               for some reason. */
+            return 0;
 
         default:
             debug(DBG_LOG, "Unknown packet!\n");

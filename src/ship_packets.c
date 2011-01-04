@@ -34,6 +34,7 @@
 #include "ship_packets.h"
 #include "utils.h"
 #include "subcmd.h"
+#include "quests.h"
 
 /* Options for choice search. */
 typedef struct cs_opt {
@@ -2533,7 +2534,7 @@ static int send_dc_quest_categories(ship_client_t *c,
         pkt->entries[entries].item_id = LE32(i);
 
         /* Convert the name and the description to the appropriate encoding
-           XXXX: Handle Japanese*/
+           XXXX: Handle Japanese */
         in = 32;
         out = 32;
         inptr = l->cats[i].name;
@@ -2648,6 +2649,206 @@ int send_quest_categories(ship_client_t *c, sylverant_quest_list_t *l) {
 
         case CLIENT_VERSION_PC:
             return send_pc_quest_categories(c, l);
+    }
+
+    return -1;
+}
+
+/* Send the list of quest categories to the client. */
+static int send_dc_quest_categories_new(ship_client_t *c) {
+    uint8_t *sendbuf = get_sendbuf();
+    dc_quest_list_pkt *pkt = (dc_quest_list_pkt *)sendbuf;
+    int i, len = 0x04, entries = 0;
+    uint32_t type = SYLVERANT_QUEST_NORMAL;
+    iconv_t ic, ic2;
+    size_t in, out;
+    ICONV_CONST char *inptr;
+    char *outptr;
+    sylverant_quest_list_t *qlist;
+    lobby_t *l = c->cur_lobby;
+
+    if(l->version == CLIENT_VERSION_GC) {
+        qlist = &c->cur_ship->qlist[CLIENT_VERSION_GC][c->language_code];
+    }
+    else if(!l->v2) {
+        qlist = &c->cur_ship->qlist[CLIENT_VERSION_DCV1][c->language_code];
+    }
+    else {
+        qlist = &c->cur_ship->qlist[CLIENT_VERSION_DCV2][c->language_code];
+    }
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Quest stuff is stored internally as UTF-8, set up for converting to the
+       right encoding */
+    ic = iconv_open("ISO-8859-1", "UTF-8");
+
+    if(ic == (iconv_t)-1) {
+        perror("iconv_open");
+        return -1;
+    }
+
+    ic2 = iconv_open("SHIFT_JIS", "UTF-8");
+
+    if(ic2 == (iconv_t)-1) {
+        perror("iconv_open");
+        iconv_close(ic);
+        return -1;
+    }
+
+    if(c->cur_lobby->battle) {
+        type = SYLVERANT_QUEST_BATTLE;
+    }
+    else if(c->cur_lobby->challenge) {
+        type = SYLVERANT_QUEST_CHALLENGE;
+    }
+
+    /* Clear out the header */
+    memset(pkt, 0, 0x04);
+
+    /* Fill in the header */
+    pkt->hdr.pkt_type = QUEST_LIST_TYPE;
+
+    for(i = 0; i < qlist->cat_count; ++i) {
+        /* Skip quests not of the right type. */
+        if(qlist->cats[i].type != type) {
+            continue;
+        }
+
+        /* Clear the entry */
+        memset(pkt->entries + entries, 0, 0x98);
+
+        /* Copy the category's information over to the packet */
+        pkt->entries[entries].menu_id = LE32(0x00000003);
+        pkt->entries[entries].item_id = LE32(i);
+
+        /* Convert the name and the description to the appropriate encoding
+           XXXX: Handle Japanese */
+        in = 32;
+        out = 32;
+        inptr = qlist->cats[i].name;
+        outptr = (char *)pkt->entries[entries].name;
+        iconv(ic, &inptr, &in, &outptr, &out);
+
+        in = 112;
+        out = 112;
+        inptr = qlist->cats[i].desc;
+        outptr = (char *)pkt->entries[entries].desc;
+        iconv(ic, &inptr, &in, &outptr, &out);
+
+        ++entries;
+        len += 0x98;
+    }
+
+    iconv_close(ic2);
+    iconv_close(ic);
+
+    /* Fill in the rest of the header */
+    pkt->hdr.flags = entries;
+    pkt->hdr.pkt_len = LE16(len);
+
+    /* Send it away */
+    return crypt_send(c, len, sendbuf);
+}
+
+static int send_pc_quest_categories_new(ship_client_t *c) {
+    uint8_t *sendbuf = get_sendbuf();
+    pc_quest_list_pkt *pkt = (pc_quest_list_pkt *)sendbuf;
+    int i, len = 0x04, entries = 0;
+    iconv_t ic;
+    size_t in, out;
+    ICONV_CONST char *inptr;
+    char *outptr;
+    uint32_t type = SYLVERANT_QUEST_NORMAL;
+    sylverant_quest_list_t *qlist;
+    lobby_t *l = c->cur_lobby;
+
+    if(!l->v2) {
+        qlist = &c->cur_ship->qlist[CLIENT_VERSION_DCV1][c->language_code];
+    }
+    else {
+        qlist = &c->cur_ship->qlist[CLIENT_VERSION_PC][c->language_code];
+    }
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Quest names are stored internally as UTF-8, convert to UTF-16. */
+    ic = iconv_open("UTF-16LE", "UTF-8");
+
+    if(ic == (iconv_t)-1) {
+        perror("iconv_open");
+        return -1;
+    }
+
+    if(c->cur_lobby->battle) {
+        type = SYLVERANT_QUEST_BATTLE;
+    }
+    else if(c->cur_lobby->challenge) {
+        type = SYLVERANT_QUEST_CHALLENGE;
+    }
+
+    /* Clear out the header */
+    memset(pkt, 0, 0x04);
+
+    /* Fill in the header */
+    pkt->hdr.pkt_type = QUEST_LIST_TYPE;
+
+    for(i = 0; i < qlist->cat_count; ++i) {
+        /* Skip quests not of the right type. */
+        if(qlist->cats[i].type != type) {
+            continue;
+        }
+
+        /* Clear the entry */
+        memset(pkt->entries + i, 0, 0x128);
+
+        /* Copy the category's information over to the packet */
+        pkt->entries[entries].menu_id = LE32(0x00000003);
+        pkt->entries[entries].item_id = LE32(i);
+
+        /* Convert the name and the description to UTF-16. */
+        in = 32;
+        out = 64;
+        inptr = qlist->cats[i].name;
+        outptr = (char *)pkt->entries[entries].name;
+        iconv(ic, &inptr, &in, &outptr, &out);
+
+        in = 112;
+        out = 224;
+        inptr = qlist->cats[i].desc;
+        outptr = (char *)pkt->entries[entries].desc;
+        iconv(ic, &inptr, &in, &outptr, &out);
+
+        ++entries;
+        len += 0x128;
+    }
+
+    iconv_close(ic);
+
+    /* Fill in the rest of the header */
+    pkt->hdr.flags = entries;
+    pkt->hdr.pkt_len = LE16(len);
+
+    /* Send it away */
+    return crypt_send(c, len, sendbuf);
+}
+
+int send_quest_categories_new(ship_client_t *c) {
+    /* Call the appropriate function. */
+    switch(c->version) {
+        case CLIENT_VERSION_DCV1:
+        case CLIENT_VERSION_DCV2:
+        case CLIENT_VERSION_GC:
+            return send_dc_quest_categories_new(c);
+
+        case CLIENT_VERSION_PC:
+            return send_pc_quest_categories_new(c);
     }
 
     return -1;
@@ -2938,6 +3139,396 @@ int send_quest_list(ship_client_t *c, int cat, sylverant_quest_category_t *l) {
     return -1;
 }
 
+/* Send the list of quests in a category to the client. */
+static int send_dc_quest_list_new(ship_client_t *c, int cn) {
+    uint8_t *sendbuf = get_sendbuf();
+    dc_quest_list_pkt *pkt = (dc_quest_list_pkt *)sendbuf;
+    int i, len = 0x04, entries = 0, max = INT_MAX, j;
+    iconv_t ic, ic2;
+    size_t in, out;
+    ICONV_CONST char *inptr;
+    char *outptr;
+    sylverant_quest_list_t *qlist;
+    lobby_t *l = c->cur_lobby;
+    sylverant_quest_category_t *cat;
+    sylverant_quest_t *quest;
+    quest_map_elem_t *elem;
+    ship_client_t *tmp;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+    
+    if(!l->v2) {
+        qlist = &c->cur_ship->qlist[CLIENT_VERSION_DCV1][c->language_code];
+    }
+    else {
+        qlist = &c->cur_ship->qlist[CLIENT_VERSION_DCV2][c->language_code];
+    }
+
+    /* Check the category for sanity */
+    if(qlist->cat_count <= cn) {
+        return -1;
+    }
+
+    cat = &qlist->cats[cn];
+
+    /* Quest stuff is stored internally as UTF-8, set up for converting to the
+       right encoding */
+    ic = iconv_open("ISO-8859-1", "UTF-8");
+
+    if(ic == (iconv_t)-1) {
+        perror("iconv_open");
+        return -1;
+    }
+
+    ic2 = iconv_open("SHIFT_JIS", "UTF-8");
+
+    if(ic2 == (iconv_t)-1) {
+        perror("iconv_open");
+        iconv_close(ic);
+        return -1;
+    }
+
+    /* Clear out the header */
+    memset(pkt, 0, 0x04);
+
+    /* If this is for challenge mode, figure out our limit. */
+    if(c->cur_lobby->challenge) {
+        max = c->cur_lobby->max_chal;
+    }
+
+    /* Fill in the header */
+    pkt->hdr.pkt_type = QUEST_LIST_TYPE;
+
+    for(i = 0; i < cat->quest_count && i < max; ++i) {
+        quest = &cat->quests[i];
+        elem = (quest_map_elem_t *)quest->user_data;
+
+        /* Skip quests that aren't for the current event */
+        if(quest->event != -1 && quest->event != c->cur_lobby->event) {
+            continue;
+        }
+
+        /* Look through to make sure that all clients in the lobby can play the
+           quest */
+        for(j = 0; j < l->max_clients; ++j) {
+            if(!(tmp = l->clients[j])) {
+                continue;
+            }
+
+            if(!elem->qptr[tmp->version][tmp->language_code]) {
+                break;
+            }
+        }
+
+        /* Skip quests where we can't play them due to restrictions by users'
+           versions or language codes */
+        if(j != l->max_clients) {
+            continue;
+        }
+
+        /* Clear the entry */
+        memset(pkt->entries + entries, 0, 0x98);
+
+        /* Copy the category's information over to the packet */
+        pkt->entries[entries].menu_id = LE32(((0x00000004) | (cn << 8)));
+        pkt->entries[entries].item_id = LE32(quest->qid);
+
+        /* Convert the name and the description to the appropriate encoding
+           XXXX: Handle Japanese */
+        in = 32;
+        out = 32;
+        inptr = quest->name;
+        outptr = (char *)pkt->entries[entries].name;
+        iconv(ic, &inptr, &in, &outptr, &out);
+
+        in = 112;
+        out = 112;
+        inptr = quest->desc;
+        outptr = (char *)pkt->entries[entries].desc;
+        iconv(ic, &inptr, &in, &outptr, &out);
+
+        ++entries;
+        len += 0x98;
+    }
+
+    iconv_close(ic2);
+    iconv_close(ic);
+
+    /* Fill in the rest of the header */
+    pkt->hdr.flags = entries;
+    pkt->hdr.pkt_len = LE16(len);
+
+    /* Send it away */
+    return crypt_send(c, len, sendbuf);
+}
+
+static int send_pc_quest_list_new(ship_client_t *c, int cn) {
+    uint8_t *sendbuf = get_sendbuf();
+    pc_quest_list_pkt *pkt = (pc_quest_list_pkt *)sendbuf;
+    int i, len = 0x04, entries = 0, max = INT_MAX, j;
+    iconv_t ic;
+    size_t in, out;
+    ICONV_CONST char *inptr;
+    char *outptr;
+    sylverant_quest_list_t *qlist;
+    lobby_t *l = c->cur_lobby;
+    sylverant_quest_category_t *cat;
+    sylverant_quest_t *quest;
+    quest_map_elem_t *elem;
+    ship_client_t *tmp;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    if(!l->v2) {
+        qlist = &c->cur_ship->qlist[CLIENT_VERSION_DCV1][c->language_code];
+    }
+    else {
+        qlist = &c->cur_ship->qlist[CLIENT_VERSION_PC][c->language_code];
+    }
+
+    /* Check the category for sanity */
+    if(qlist->cat_count <= cn) {
+        return -1;
+    }
+    
+    cat = &qlist->cats[cn];
+
+    /* Quest names are stored internally as UTF-8, convert to UTF-16. */
+    ic = iconv_open("UTF-16LE", "UTF-8");
+
+    if(ic == (iconv_t)-1) {
+        perror("iconv_open");
+        return -1;
+    }
+
+    /* Clear out the header */
+    memset(pkt, 0, 0x04);
+
+    /* If this is for challenge mode, figure out our limit. */
+    if(c->cur_lobby->challenge) {
+        max = c->cur_lobby->max_chal;
+    }
+
+    /* Fill in the header */
+    pkt->hdr.pkt_type = QUEST_LIST_TYPE;
+
+    for(i = 0; i < cat->quest_count && i < max; ++i) {
+        quest = &cat->quests[i];
+        elem = (quest_map_elem_t *)quest->user_data;
+
+        /* Skip quests that aren't for the current event */
+        if(quest->event != -1 && quest->event != c->cur_lobby->event) {
+            continue;
+        }
+
+        /* Look through to make sure that all clients in the lobby can play the
+           quest */
+        for(j = 0; j < l->max_clients; ++j) {
+            if(!(tmp = l->clients[j])) {
+                continue;
+            }
+
+            if(!elem->qptr[tmp->version][tmp->language_code]) {
+                break;
+            }
+        }
+
+        /* Skip quests where we can't play them due to restrictions by users'
+           versions or language codes */
+        if(j != l->max_clients) {
+            continue;
+        }
+
+        /* Clear the entry */
+        memset(pkt->entries + entries, 0, 0x98);
+
+        /* Copy the category's information over to the packet */
+        pkt->entries[entries].menu_id = LE32(((0x00000004) | (cn << 8)));
+        pkt->entries[entries].item_id = LE32(quest->qid);
+
+        /* Convert the name and the description to UTF-16. */
+        in = 32;
+        out = 64;
+        inptr = quest->name;
+        outptr = (char *)pkt->entries[entries].name;
+        iconv(ic, &inptr, &in, &outptr, &out);
+
+        in = 112;
+        out = 224;
+        inptr = quest->desc;
+        outptr = (char *)pkt->entries[entries].desc;
+        iconv(ic, &inptr, &in, &outptr, &out);
+
+        ++entries;
+        len += 0x128;
+    }
+
+    iconv_close(ic);
+
+    /* Fill in the rest of the header */
+    pkt->hdr.flags = entries;
+    pkt->hdr.pkt_len = LE16(len);
+
+    /* Send it away */
+    return crypt_send(c, len, sendbuf);
+}
+
+static int send_gc_quest_list_new(ship_client_t *c, int cn) {
+    uint8_t *sendbuf = get_sendbuf();
+    dc_quest_list_pkt *pkt = (dc_quest_list_pkt *)sendbuf;
+    int i, len = 0x04, entries = 0, max = INT_MAX, j;
+    iconv_t ic, ic2;
+    size_t in, out;
+    ICONV_CONST char *inptr;
+    char *outptr;
+    sylverant_quest_list_t *qlist;
+    lobby_t *l = c->cur_lobby;
+    sylverant_quest_category_t *cat;
+    sylverant_quest_t *quest;
+    quest_map_elem_t *elem;
+    ship_client_t *tmp;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    if(l->version == CLIENT_VERSION_GC) {
+        qlist = &c->cur_ship->qlist[CLIENT_VERSION_GC][c->language_code];
+    }
+    else if(!l->v2) {
+        qlist = &c->cur_ship->qlist[CLIENT_VERSION_DCV1][c->language_code];
+    }
+    else {
+        qlist = &c->cur_ship->qlist[CLIENT_VERSION_DCV2][c->language_code];
+    }
+
+    /* Check the category for sanity */
+    if(qlist->cat_count <= cn) {
+        return -1;
+    }
+
+    cat = &qlist->cats[cn];
+
+    /* Quest stuff is stored internally as UTF-8, set up for converting to the
+       right encoding */
+    ic = iconv_open("ISO-8859-1", "UTF-8");
+
+    if(ic == (iconv_t)-1) {
+        perror("iconv_open");
+        return -1;
+    }
+
+    ic2 = iconv_open("SHIFT_JIS", "UTF-8");
+
+    if(ic2 == (iconv_t)-1) {
+        perror("iconv_open");
+        iconv_close(ic);
+        return -1;
+    }
+
+    /* Clear out the header */
+    memset(pkt, 0, 0x04);
+
+    /* If this is for challenge mode, figure out our limit. */
+    if(c->cur_lobby->challenge) {
+        max = c->cur_lobby->max_chal;
+    }
+
+    /* Fill in the header */
+    pkt->hdr.pkt_type = QUEST_LIST_TYPE;
+
+    for(i = 0; i < cat->quest_count && i < max; ++i) {
+        quest = &cat->quests[i];
+        elem = (quest_map_elem_t *)quest->user_data;
+
+        /* Skip quests that aren't for the current event */
+        if(quest->event != -1 && quest->event != c->cur_lobby->event) {
+            continue;
+        }
+
+        /* Look through to make sure that all clients in the lobby can play the
+           quest */
+        for(j = 0; j < l->max_clients; ++j) {
+            if(!(tmp = l->clients[j])) {
+                continue;
+            }
+
+            if(!elem->qptr[tmp->version][tmp->language_code]) {
+                break;
+            }
+        }
+
+        /* Skip quests where we can't play them due to restrictions by users'
+           versions or language codes */
+        if(j != l->max_clients) {
+            continue;
+        }
+
+        /* Make sure the episode matches up */
+        if(quest->episode != c->cur_lobby->episode) {
+            continue;
+        }
+
+        /* Clear the entry */
+        memset(pkt->entries + entries, 0, 0x98);
+
+        /* Copy the category's information over to the packet */
+        pkt->entries[entries].menu_id = LE32(((0x00000004) | (cn << 8)));
+        pkt->entries[entries].item_id = LE32(quest->qid);
+
+        /* Convert the name and the description to the appropriate encoding
+           XXXX: Handle Japanese */
+        in = 32;
+        out = 32;
+        inptr = quest->name;
+        outptr = (char *)pkt->entries[entries].name;
+        iconv(ic, &inptr, &in, &outptr, &out);
+
+        in = 112;
+        out = 112;
+        inptr = quest->desc;
+        outptr = (char *)pkt->entries[entries].desc;
+        iconv(ic, &inptr, &in, &outptr, &out);
+
+        ++entries;
+        len += 0x98;
+    }
+
+    iconv_close(ic2);
+    iconv_close(ic);
+
+    /* Fill in the rest of the header */
+    pkt->hdr.flags = entries;
+    pkt->hdr.pkt_len = LE16(len);
+
+    /* Send it away */
+    return crypt_send(c, len, sendbuf);
+}
+
+int send_quest_list_new(ship_client_t *c, int cat) {
+    /* Call the appropriate function. */
+    switch(c->version) {
+        case CLIENT_VERSION_DCV1:
+        case CLIENT_VERSION_DCV2:
+            return send_dc_quest_list_new(c, cat);
+
+        case CLIENT_VERSION_PC:
+            return send_pc_quest_list_new(c, cat);
+
+        case CLIENT_VERSION_GC:
+            return send_gc_quest_list_new(c, cat);
+    }
+
+    return -1;
+}
+
 /* Send information about a quest to the lobby. */
 static int send_dc_quest_info(ship_client_t *c, sylverant_quest_t *q) {
     uint8_t *sendbuf = get_sendbuf();
@@ -3006,6 +3597,40 @@ int send_quest_info(lobby_t *l, sylverant_quest_t *q) {
         c = l->clients[i];
 
         if(c) {
+            /* Call the appropriate function. */
+            switch(c->version) {
+                case CLIENT_VERSION_DCV1:
+                case CLIENT_VERSION_DCV2:
+                case CLIENT_VERSION_PC:
+                case CLIENT_VERSION_GC:
+                    send_dc_quest_info(c, q);
+                    break;
+            }
+        }
+    }
+
+    return 0;
+}
+
+int send_quest_info_new(lobby_t *l, uint32_t qid) {
+    ship_client_t *c;
+    int i;
+    quest_map_elem_t *elem;
+    sylverant_quest_t *q;
+
+    /* Grab the mapped entry */
+    c = l->clients[l->leader_id];
+    elem = quest_lookup(&c->cur_ship->qmap, qid);
+
+    /* Make sure we get the quest we're looking for */
+    if(!elem) {
+        return -1;
+    }
+
+    for(i = 0; i < l->max_clients; ++i) {
+        if((c = l->clients[i])) {
+            q = elem->qptr[c->version][c->language_code];
+
             /* Call the appropriate function. */
             switch(c->version) {
                 case CLIENT_VERSION_DCV1:
@@ -3582,7 +4207,6 @@ static int send_qst_quest(ship_client_t *c, sylverant_quest_t *q, int v1) {
 
     if(!fp) {
         perror("fopen");
-        printf("filename: %s\n", filename);
         return -1;
     }
 
@@ -3668,6 +4292,770 @@ int send_quest(lobby_t *l, sylverant_quest_t *q) {
     }
     else {
         return -1;
+    }
+
+    return 0;
+}
+
+/* Send a quest to everyone in a lobby. */
+static int send_dcv1_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1) {
+    uint8_t *sendbuf = get_sendbuf();
+    dc_quest_file_pkt *file = (dc_quest_file_pkt *)sendbuf;
+    dc_quest_chunk_pkt *chunk = (dc_quest_chunk_pkt *)sendbuf;
+    FILE *bin, *dat;
+    uint32_t binlen, datlen;
+    int bindone = 0, datdone = 0, chunknum = 0;
+    char fn_base[256], filename[256];
+    size_t amt;
+    ship_t *s = c->cur_ship;
+    sylverant_quest_t *q = qm->qptr[c->version][c->language_code];
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf || !q) {
+        return -1;
+    }
+
+    /* Each quest has two files: a .dat file and a .bin file, send a file packet
+       for each of them. */
+    sprintf(fn_base, "%s/%s-%s/%s", s->cfg->quests_dir,
+            version_codes[c->version], language_codes[c->language_code],
+            q->prefix);
+
+    sprintf(filename, "%s.bin", fn_base);
+    bin = fopen(filename, "rb");
+
+    if(!bin) {
+        return -1;
+    }
+
+    sprintf(filename, "%s.dat", fn_base);
+    dat = fopen(filename, "rb");
+
+    if(!dat) {
+        fclose(bin);
+        return -1;
+    }
+
+    /* Figure out how long each of the files are */
+    fseek(bin, 0, SEEK_END);
+    binlen = (uint32_t)ftell(bin);
+    fseek(bin, 0, SEEK_SET);
+
+    fseek(dat, 0, SEEK_END);
+    datlen = (uint32_t)ftell(dat);
+    fseek(dat, 0, SEEK_SET);
+
+    /* Send the file info packets */
+    /* Start with the .dat file. */
+    memset(file, 0, sizeof(dc_quest_file_pkt));
+
+    sprintf(file->name, "PSO/%s", q->name);
+
+    file->hdr.pkt_type = QUEST_FILE_TYPE;
+    file->hdr.flags = 0x02; /* ??? */
+    file->hdr.pkt_len = LE16(DC_QUEST_FILE_LENGTH);
+    sprintf(file->filename, "%s.dat", q->prefix);
+    file->length = LE32(datlen);
+
+    if(crypt_send(c, DC_QUEST_FILE_LENGTH, sendbuf)) {
+        fclose(bin);
+        fclose(dat);
+        return -2;
+    }
+
+    /* Now the .bin file. */
+    memset(file, 0, sizeof(dc_quest_file_pkt));
+
+    sprintf(file->name, "PSO/%s", q->name);
+
+    file->hdr.pkt_type = QUEST_FILE_TYPE;
+    file->hdr.flags = 0x02; /* ??? */
+    file->hdr.pkt_len = LE16(DC_QUEST_FILE_LENGTH);
+    sprintf(file->filename, "%s.bin", q->prefix);
+    file->length = LE32(binlen);
+
+    if(crypt_send(c, DC_QUEST_FILE_LENGTH, sendbuf)) {
+        fclose(bin);
+        fclose(dat);
+        return -2;
+    }
+
+    /* Now send the chunks of the file, interleaved. */
+    while(!bindone || !datdone) {
+        /* Start with the dat file if we've got any more to send from it */
+        if(!datdone) {
+            /* Clear the packet */
+            memset(chunk, 0, sizeof(dc_quest_chunk_pkt));
+
+            /* Fill in the header */
+            chunk->hdr.dc.pkt_type = QUEST_CHUNK_TYPE;
+            chunk->hdr.dc.flags = (uint8_t)chunknum;
+            chunk->hdr.dc.pkt_len = LE16(DC_QUEST_CHUNK_LENGTH);
+
+            /* Fill in the rest */
+            sprintf(chunk->filename, "%s.dat", q->prefix);
+            amt = fread(chunk->data, 1, 0x400, dat);
+            chunk->length = LE32(((uint32_t)amt));
+
+            /* Send it away */
+            if(crypt_send(c, DC_QUEST_CHUNK_LENGTH, sendbuf)) {
+                fclose(bin);
+                fclose(dat);
+                return -3;
+            }
+
+            /* Are we done with this file? */
+            if(amt != 0x400) {
+                datdone = 1;
+            }
+        }
+
+        /* Then the bin file if we've got any more to send from it */
+        if(!bindone) {
+            /* Clear the packet */
+            memset(chunk, 0, sizeof(dc_quest_chunk_pkt));
+
+            /* Fill in the header */
+            chunk->hdr.dc.pkt_type = QUEST_CHUNK_TYPE;
+            chunk->hdr.dc.flags = (uint8_t)chunknum;
+            chunk->hdr.dc.pkt_len = LE16(DC_QUEST_CHUNK_LENGTH);
+
+            /* Fill in the rest */
+            sprintf(chunk->filename, "%s.bin", q->prefix);
+            amt = fread(chunk->data, 1, 0x400, bin);
+            chunk->length = LE32(((uint32_t)amt));
+
+            /* Send it away */
+            if(crypt_send(c, DC_QUEST_CHUNK_LENGTH, sendbuf)) {
+                fclose(bin);
+                fclose(dat);
+                return -3;
+            }
+
+            /* Are we done with this file? */
+            if(amt != 0x400) {
+                bindone = 1;
+            }
+        }
+
+        ++chunknum;
+    }
+
+    /* We're done with the files, close them */
+    fclose(bin);
+    fclose(dat);
+
+    return 0;
+}
+
+static int send_dcv2_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1) {
+    uint8_t *sendbuf = get_sendbuf();
+    dc_quest_file_pkt *file = (dc_quest_file_pkt *)sendbuf;
+    dc_quest_chunk_pkt *chunk = (dc_quest_chunk_pkt *)sendbuf;
+    FILE *bin, *dat;
+    uint32_t binlen, datlen;
+    int bindone = 0, datdone = 0, chunknum = 0;
+    char fn_base[256], filename[256];
+    size_t amt;
+    ship_t *s = c->cur_ship;
+    sylverant_quest_t *q = qm->qptr[c->version][c->language_code];
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf || !q) {
+        return -1;
+    }
+
+    /* Each quest has two files: a .dat file and a .bin file, send a file packet
+       for each of them. */
+    if(!v1 || (q->versions & SYLVERANT_QUEST_V1)) {
+        sprintf(fn_base, "%s/%s-%s/%s", s->cfg->quests_dir,
+                version_codes[c->version], language_codes[c->language_code],
+                q->prefix);
+    }
+    else {
+        sprintf(fn_base, "%s/%s-%s/%s", s->cfg->quests_dir,
+                version_codes[CLIENT_VERSION_DCV1],
+                language_codes[c->language_code], q->prefix);
+    }
+
+    sprintf(filename, "%s.bin", fn_base);
+    bin = fopen(filename, "rb");
+
+    if(!bin) {
+        return -1;
+    }
+
+    sprintf(filename, "%s.dat", fn_base);
+    dat = fopen(filename, "rb");
+
+    if(!dat) {
+        fclose(bin);
+        return -1;
+    }
+
+    /* Figure out how long each of the files are */
+    fseek(bin, 0, SEEK_END);
+    binlen = (uint32_t)ftell(bin);
+    fseek(bin, 0, SEEK_SET);
+
+    fseek(dat, 0, SEEK_END);
+    datlen = (uint32_t)ftell(dat);
+    fseek(dat, 0, SEEK_SET);
+
+    /* Send the file info packets */
+    /* Start with the .dat file. */
+    memset(file, 0, sizeof(dc_quest_file_pkt));
+
+    sprintf(file->name, "PSO/%s", q->name);
+
+    file->hdr.pkt_type = QUEST_FILE_TYPE;
+    file->hdr.flags = 0x02; /* ??? */
+    file->hdr.pkt_len = LE16(DC_QUEST_FILE_LENGTH);
+    sprintf(file->filename, "%s.dat", q->prefix);
+    file->length = LE32(datlen);
+
+    if(crypt_send(c, DC_QUEST_FILE_LENGTH, sendbuf)) {
+        fclose(bin);
+        fclose(dat);
+        return -2;
+    }
+
+    /* Now the .bin file. */
+    memset(file, 0, sizeof(dc_quest_file_pkt));
+
+    sprintf(file->name, "PSO/%s", q->name);
+
+    file->hdr.pkt_type = QUEST_FILE_TYPE;
+    file->hdr.flags = 0x02; /* ??? */
+    file->hdr.pkt_len = LE16(DC_QUEST_FILE_LENGTH);
+    sprintf(file->filename, "%s.bin", q->prefix);
+    file->length = LE32(binlen);
+
+    if(crypt_send(c, DC_QUEST_FILE_LENGTH, sendbuf)) {
+        fclose(bin);
+        fclose(dat);
+        return -2;
+    }
+
+    /* Now send the chunks of the file, interleaved. */
+    while(!bindone || !datdone) {
+        /* Start with the dat file if we've got any more to send from it */
+        if(!datdone) {
+            /* Clear the packet */
+            memset(chunk, 0, sizeof(dc_quest_chunk_pkt));
+
+            /* Fill in the header */
+            chunk->hdr.dc.pkt_type = QUEST_CHUNK_TYPE;
+            chunk->hdr.dc.flags = (uint8_t)chunknum;
+            chunk->hdr.dc.pkt_len = LE16(DC_QUEST_CHUNK_LENGTH);
+
+            /* Fill in the rest */
+            sprintf(chunk->filename, "%s.dat", q->prefix);
+            amt = fread(chunk->data, 1, 0x400, dat);
+            chunk->length = LE32(((uint32_t)amt));
+
+            /* Send it away */
+            if(crypt_send(c, DC_QUEST_CHUNK_LENGTH, sendbuf)) {
+                fclose(bin);
+                fclose(dat);
+                return -3;
+            }
+
+            /* Are we done with this file? */
+            if(amt != 0x400) {
+                datdone = 1;
+            }
+        }
+
+        /* Then the bin file if we've got any more to send from it */
+        if(!bindone) {
+            /* Clear the packet */
+            memset(chunk, 0, sizeof(dc_quest_chunk_pkt));
+
+            /* Fill in the header */
+            chunk->hdr.dc.pkt_type = QUEST_CHUNK_TYPE;
+            chunk->hdr.dc.flags = (uint8_t)chunknum;
+            chunk->hdr.dc.pkt_len = LE16(DC_QUEST_CHUNK_LENGTH);
+
+            /* Fill in the rest */
+            sprintf(chunk->filename, "%s.bin", q->prefix);
+            amt = fread(chunk->data, 1, 0x400, bin);
+            chunk->length = LE32(((uint32_t)amt));
+
+            /* Send it away */
+            if(crypt_send(c, DC_QUEST_CHUNK_LENGTH, sendbuf)) {
+                fclose(bin);
+                fclose(dat);
+                return -3;
+            }
+
+            /* Are we done with this file? */
+            if(amt != 0x400) {
+                bindone = 1;
+            }
+        }
+
+        ++chunknum;
+    }
+
+    /* We're done with the files, close them */
+    fclose(bin);
+    fclose(dat);
+
+    return 0;
+}
+
+static int send_pc_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1) {
+    uint8_t *sendbuf = get_sendbuf();
+    pc_quest_file_pkt *file = (pc_quest_file_pkt *)sendbuf;
+    dc_quest_chunk_pkt *chunk = (dc_quest_chunk_pkt *)sendbuf;
+    FILE *bin, *dat;
+    uint32_t binlen, datlen;
+    int bindone = 0, datdone = 0, chunknum = 0;
+    char fn_base[256], filename[256];
+    size_t amt;
+    ship_t *s = c->cur_ship;
+    sylverant_quest_t *q = qm->qptr[c->version][c->language_code];
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf || !q) {
+        return -1;
+    }
+
+    /* Each quest has two files: a .dat file and a .bin file, send a file packet
+       for each of them. */
+    if(!v1 || (q->versions & SYLVERANT_QUEST_V1)) {
+        sprintf(fn_base, "%s/%s-%s/%s", s->cfg->quests_dir,
+                version_codes[c->version], language_codes[c->language_code],
+                q->prefix);
+    }
+    else {
+        sprintf(fn_base, "%s/%s-%s/%sv1", s->cfg->quests_dir,
+                version_codes[c->version], language_codes[c->language_code],
+                q->prefix);
+    }
+
+    sprintf(filename, "%s.bin", fn_base);
+    bin = fopen(filename, "rb");
+
+    if(!bin) {
+        return -1;
+    }
+
+    sprintf(filename, "%s.dat", fn_base);
+    dat = fopen(filename, "rb");
+
+    if(!dat) {
+        fclose(bin);
+        return -1;
+    }
+
+    /* Figure out how long each of the files are */
+    fseek(bin, 0, SEEK_END);
+    binlen = (uint32_t)ftell(bin);
+    fseek(bin, 0, SEEK_SET);
+
+    fseek(dat, 0, SEEK_END);
+    datlen = (uint32_t)ftell(dat);
+    fseek(dat, 0, SEEK_SET);
+
+    /* Send the file info packets */
+    /* Start with the .dat file. */
+    memset(file, 0, sizeof(pc_quest_file_pkt));
+
+    sprintf(file->name, "PSO/%s", q->name);
+
+    file->hdr.pkt_type = QUEST_FILE_TYPE;
+    file->hdr.flags = 0x00;
+    file->hdr.pkt_len = LE16(DC_QUEST_FILE_LENGTH);
+    sprintf(file->filename, "%s.dat", q->prefix);
+    file->length = LE32(datlen);
+    file->flags = 0x0002;
+
+    if(crypt_send(c, DC_QUEST_FILE_LENGTH, sendbuf)) {
+        fclose(bin);
+        fclose(dat);
+        return -2;
+    }
+
+    /* Now the .bin file. */
+    memset(file, 0, sizeof(pc_quest_file_pkt));
+
+    sprintf(file->name, "PSO/%s", q->name);
+
+    file->hdr.pkt_type = QUEST_FILE_TYPE;
+    file->hdr.flags = 0x00;
+    file->hdr.pkt_len = LE16(DC_QUEST_FILE_LENGTH);
+    sprintf(file->filename, "%s.bin", q->prefix);
+    file->length = LE32(binlen);
+    file->flags = 0x0002;
+
+    if(crypt_send(c, DC_QUEST_FILE_LENGTH, sendbuf)) {
+        fclose(bin);
+        fclose(dat);
+        return -2;
+    }
+
+    /* Now send the chunks of the file, interleaved. */
+    while(!bindone || !datdone) {
+        /* Start with the dat file if we've got any more to send from it */
+        if(!datdone) {
+            /* Clear the packet */
+            memset(chunk, 0, sizeof(dc_quest_chunk_pkt));
+
+            /* Fill in the header */
+            chunk->hdr.pc.pkt_type = QUEST_CHUNK_TYPE;
+            chunk->hdr.pc.flags = (uint8_t)chunknum;
+            chunk->hdr.pc.pkt_len = LE16(DC_QUEST_CHUNK_LENGTH);
+
+            /* Fill in the rest */
+            sprintf(chunk->filename, "%s.dat", q->prefix);
+            amt = fread(chunk->data, 1, 0x400, dat);
+            chunk->length = LE32(((uint32_t)amt));
+
+            /* Send it away */
+            if(crypt_send(c, DC_QUEST_CHUNK_LENGTH, sendbuf)) {
+                fclose(bin);
+                fclose(dat);
+                return -3;
+            }
+
+            /* Are we done with this file? */
+            if(amt != 0x400) {
+                datdone = 1;
+            }
+        }
+
+        /* Then the bin file if we've got any more to send from it */
+        if(!bindone) {
+            /* Clear the packet */
+            memset(chunk, 0, sizeof(dc_quest_chunk_pkt));
+
+            /* Fill in the header */
+            chunk->hdr.pc.pkt_type = QUEST_CHUNK_TYPE;
+            chunk->hdr.pc.flags = (uint8_t)chunknum;
+            chunk->hdr.pc.pkt_len = LE16(DC_QUEST_CHUNK_LENGTH);
+
+            /* Fill in the rest */
+            sprintf(chunk->filename, "%s.bin", q->prefix);
+            amt = fread(chunk->data, 1, 0x400, bin);
+            chunk->length = LE32(((uint32_t)amt));
+
+            /* Send it away */
+            if(crypt_send(c, DC_QUEST_CHUNK_LENGTH, sendbuf)) {
+                fclose(bin);
+                fclose(dat);
+                return -3;
+            }
+
+            /* Are we done with this file? */
+            if(amt != 0x400) {
+                bindone = 1;
+            }
+        }
+
+        ++chunknum;
+    }
+
+    /* We're done with the files, close them */
+    fclose(bin);
+    fclose(dat);
+
+    return 0;
+}
+
+static int send_gc_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1) {
+    uint8_t *sendbuf = get_sendbuf();
+    gc_quest_file_pkt *file = (gc_quest_file_pkt *)sendbuf;
+    dc_quest_chunk_pkt *chunk = (dc_quest_chunk_pkt *)sendbuf;
+    FILE *bin, *dat;
+    uint32_t binlen, datlen;
+    int bindone = 0, datdone = 0, chunknum = 0;
+    char fn_base[256], filename[256];
+    size_t amt;
+    ship_t *s = c->cur_ship;
+    sylverant_quest_t *q = qm->qptr[c->version][c->language_code];
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf || !q) {
+        return -1;
+    }
+
+    /* Each quest has two files: a .dat file and a .bin file, send a file packet
+       for each of them. */
+    if(!v1 || (q->versions & SYLVERANT_QUEST_V1)) {
+        sprintf(fn_base, "%s/%s-%s/%s", s->cfg->quests_dir,
+                version_codes[c->version], language_codes[c->language_code],
+                q->prefix);
+    }
+    else {
+        sprintf(fn_base, "%s/%s-%s/%sv1", s->cfg->quests_dir,
+                version_codes[c->version], language_codes[c->language_code],
+                q->prefix);
+    }
+
+    sprintf(filename, "%s.bin", fn_base);
+    bin = fopen(filename, "rb");
+
+    if(!bin) {
+        return -1;
+    }
+
+    sprintf(filename, "%s.dat", fn_base);
+    dat = fopen(filename, "rb");
+
+    if(!dat) {
+        fclose(bin);
+        return -1;
+    }
+
+    /* Figure out how long each of the files are */
+    fseek(bin, 0, SEEK_END);
+    binlen = (uint32_t)ftell(bin);
+    fseek(bin, 0, SEEK_SET);
+
+    fseek(dat, 0, SEEK_END);
+    datlen = (uint32_t)ftell(dat);
+    fseek(dat, 0, SEEK_SET);
+
+    /* Send the file info packets */
+    /* Start with the .dat file. */
+    memset(file, 0, sizeof(gc_quest_file_pkt));
+
+    sprintf(file->name, "PSO/%s", q->name);
+
+    file->hdr.pkt_type = QUEST_FILE_TYPE;
+    file->hdr.flags = 0x00;
+    file->hdr.pkt_len = LE16(DC_QUEST_FILE_LENGTH);
+    sprintf(file->filename, "%s.dat", q->prefix);
+    file->length = LE32(datlen);
+    file->flags = 0x0002;
+
+    if(crypt_send(c, DC_QUEST_FILE_LENGTH, sendbuf)) {
+        fclose(bin);
+        fclose(dat);
+        return -2;
+    }
+
+    /* Now the .bin file. */
+    memset(file, 0, sizeof(gc_quest_file_pkt));
+
+    sprintf(file->name, "PSO/%s", q->name);
+
+    file->hdr.pkt_type = QUEST_FILE_TYPE;
+    file->hdr.flags = 0x00;
+    file->hdr.pkt_len = LE16(DC_QUEST_FILE_LENGTH);
+    sprintf(file->filename, "%s.bin", q->prefix);
+    file->length = LE32(binlen);
+    file->flags = 0x0002;
+
+    if(crypt_send(c, DC_QUEST_FILE_LENGTH, sendbuf)) {
+        fclose(bin);
+        fclose(dat);
+        return -2;
+    }
+
+    /* Now send the chunks of the file, interleaved. */
+    while(!bindone || !datdone) {
+        /* Start with the dat file if we've got any more to send from it */
+        if(!datdone) {
+            /* Clear the packet */
+            memset(chunk, 0, sizeof(dc_quest_chunk_pkt));
+
+            /* Fill in the header */
+            chunk->hdr.dc.pkt_type = QUEST_CHUNK_TYPE;
+            chunk->hdr.dc.flags = (uint8_t)chunknum;
+            chunk->hdr.dc.pkt_len = LE16(DC_QUEST_CHUNK_LENGTH);
+
+            /* Fill in the rest */
+            sprintf(chunk->filename, "%s.dat", q->prefix);
+            amt = fread(chunk->data, 1, 0x400, dat);
+            chunk->length = LE32(((uint32_t)amt));
+
+            /* Send it away */
+            if(crypt_send(c, DC_QUEST_CHUNK_LENGTH, sendbuf)) {
+                fclose(bin);
+                fclose(dat);
+                return -3;
+            }
+
+            /* Are we done with this file? */
+            if(amt != 0x400) {
+                datdone = 1;
+            }
+        }
+
+        /* Then the bin file if we've got any more to send from it */
+        if(!bindone) {
+            /* Clear the packet */
+            memset(chunk, 0, sizeof(dc_quest_chunk_pkt));
+
+            /* Fill in the header */
+            chunk->hdr.dc.pkt_type = QUEST_CHUNK_TYPE;
+            chunk->hdr.dc.flags = (uint8_t)chunknum;
+            chunk->hdr.dc.pkt_len = LE16(DC_QUEST_CHUNK_LENGTH);
+
+            /* Fill in the rest */
+            sprintf(chunk->filename, "%s.bin", q->prefix);
+            amt = fread(chunk->data, 1, 0x400, bin);
+            chunk->length = LE32(((uint32_t)amt));
+
+            /* Send it away */
+            if(crypt_send(c, DC_QUEST_CHUNK_LENGTH, sendbuf)) {
+                fclose(bin);
+                fclose(dat);
+                return -3;
+            }
+
+            /* Are we done with this file? */
+            if(amt != 0x400) {
+                bindone = 1;
+            }
+        }
+
+        ++chunknum;
+    }
+
+    /* We're done with the files, close them */
+    fclose(bin);
+    fclose(dat);
+
+    return 0;
+}
+
+static int send_qst_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1) {
+    char filename[256];
+    FILE *fp;
+    long len;
+    size_t read;
+    uint8_t *sendbuf = get_sendbuf();
+    ship_t *s = c->cur_ship;
+    sylverant_quest_t *q = qm->qptr[c->version][c->language_code];
+
+    /* Make sure we got the sendbuf and the quest */
+    if(!sendbuf || !q) {
+        return -1;
+    }
+
+    /* Figure out what file we're going to send. */
+    if(!v1 || (q->versions & SYLVERANT_QUEST_V1)) {
+        sprintf(filename, "%s/%s-%s/%s.qst", s->cfg->quests_dir,
+                version_codes[c->version], language_codes[c->language_code],
+                q->prefix);
+    }
+    else {
+        switch(c->version) {
+            case CLIENT_VERSION_DCV1:
+            case CLIENT_VERSION_DCV2:
+                sprintf(filename, "%s/%s-%s/%s.qst", s->cfg->quests_dir,
+                        version_codes[CLIENT_VERSION_DCV1],
+                        language_codes[c->language_code], q->prefix);
+                break;
+
+            case CLIENT_VERSION_PC:
+            case CLIENT_VERSION_GC:
+                sprintf(filename, "%s/%s-%s/%sv1.qst", s->cfg->quests_dir,
+                        version_codes[c->version],
+                        language_codes[c->language_code], q->prefix);
+                break;
+        }
+    }
+
+    fp = fopen(filename, "rb");
+
+    if(!fp) {
+        perror("fopen");
+        return -1;
+    }
+
+    /* Figure out how long the file is. */
+    fseek(fp, 0, SEEK_END);
+    len = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+
+    /* Copy the file (in chunks if necessary) to the sendbuf to actually send
+       away. */
+    while(len) {
+        read = fread(sendbuf, 1, 65536, fp);
+
+        /* If we can't read from the file, bail. */
+        if(!read) {
+            fclose(fp);
+            return -2;
+        }
+
+        /* Make sure we read up to a header-size boundary. */
+        if((read & (c->hdr_size - 1)) && !feof(fp)) {
+            long amt = (read & (c->hdr_size - 1));
+
+            fseek(fp, -amt, SEEK_CUR);
+            read -= amt;
+        }
+
+        /* Send this chunk away. */
+        if(crypt_send(c, read, sendbuf)) {
+            fclose(fp);
+            return -3;
+        }
+
+        len -= read;
+    }
+
+    /* We're finished. */
+    fclose(fp);
+    return 0;
+}
+
+int send_quest_new(lobby_t *l, uint32_t qid) {
+    int i;
+    int v1 = 0;
+    ship_t *s = l->clients[l->leader_id]->cur_ship;
+    quest_map_elem_t *elem = quest_lookup(&s->qmap, qid);
+    sylverant_quest_t *q;
+    ship_client_t *c;
+
+    /* Make sure we get the quest */
+    if(!elem) {
+        return -1;
+    }
+
+    /* See if we're looking for a v1-compat quest */
+    if(!l->v2 && l->version != CLIENT_VERSION_GC) {
+        v1 = 1;
+    }
+
+    /* What type of quest file are we sending? */
+    for(i = 0; i < l->max_clients; ++i) {
+        if((c = l->clients[i])) {
+            q = elem->qptr[c->version][c->language_code];
+
+            if(q->format == SYLVERANT_QUEST_BINDAT) {
+                /* Call the appropriate function. */
+                switch(l->clients[i]->version) {
+                    case CLIENT_VERSION_DCV1:
+                        send_dcv1_quest_new(c, elem, v1);
+                        break;
+
+                    case CLIENT_VERSION_DCV2:
+                        send_dcv2_quest_new(c, elem, v1);
+                        break;
+
+                    case CLIENT_VERSION_PC:
+                        send_pc_quest_new(c, elem, v1);
+                        break;
+
+                    case CLIENT_VERSION_GC:
+                        send_gc_quest_new(c, elem, v1);
+                        break;
+                }
+            }
+            else if(q->format == SYLVERANT_QUEST_QST) {
+                send_qst_quest_new(c, elem, v1);
+            }
+            else {
+                return -1;
+            }
+        }
     }
 
     return 0;
