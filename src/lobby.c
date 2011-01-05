@@ -305,8 +305,28 @@ static int lobby_add_client_locked(ship_client_t *c, lobby_t *l) {
         clev = (uint8_t)i + 1;
     }
 
-    /* Find a place to put the client. */
-    for(i = 1; i < l->max_clients; ++i) {
+    /* First client goes in slot 1, not 0 on DC/PC. Why Sega did this, who
+       knows? */
+    if(!l->num_clients && l->version < CLIENT_VERSION_GC) {
+        l->clients[1] = c;
+        c->cur_lobby = l;
+        c->client_id = 1;
+        c->arrow = 0;
+        c->join_time = time(NULL);
+        ++l->num_clients;
+
+        /* Obviously if this is the only person in the lobby, the challenge
+           level is that which they've unlocked.  */
+        if(l->challenge) {
+            l->max_chal = clev;
+        }
+
+        return 0;
+    }
+
+    /* Find a place to put the client. New clients go in the smallest numbered
+       empty slot. */
+    for(i = 0; i < l->max_clients; ++i) {
         if(l->clients[i] == NULL) {
             l->clients[i] = c;
             c->cur_lobby = l;
@@ -323,24 +343,6 @@ static int lobby_add_client_locked(ship_client_t *c, lobby_t *l) {
 
             return 0;
         }
-    }
-
-    /* Grr... stupid stupid... Why is green first? */
-    if(l->clients[0] == NULL) {
-        l->clients[0] = c;
-        c->cur_lobby = l;
-        c->client_id = 0;
-        c->arrow = 0;
-        c->join_time = time(NULL);
-        ++l->num_clients;
-
-        /* If this player is at a lower challenge level than the rest of the
-           lobby, fix the maximum challenge level down to their level. */
-        if(l->challenge && l->max_chal > clev) {
-            l->max_chal = clev;
-        }
-
-        return 0;
     }
 
     /* If we get here, something went terribly wrong... */
