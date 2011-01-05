@@ -93,7 +93,7 @@ int word_select_send_dc(ship_client_t *c, subcmd_word_select_t *pkt) {
 
     /* Send the packet to everyone we can */
     for(i = 0; i < l->max_clients; ++i) {
-        if(l->clients[i]) {
+        if(l->clients[i] && l->clients[i] != c) {
             switch(l->clients[i]->version) {
                 case CLIENT_VERSION_DCV1:
                 case CLIENT_VERSION_DCV2:
@@ -194,7 +194,7 @@ int word_select_send_pc(ship_client_t *c, subcmd_word_select_t *pkt) {
 
     /* Send the packet to everyone we can */
     for(i = 0; i < l->max_clients; ++i) {
-        if(l->clients[i]) {
+        if(l->clients[i] && l->clients[i] != c) {
             switch(l->clients[i]->version) {
                 case CLIENT_VERSION_DCV1:
                 case CLIENT_VERSION_DCV2:
@@ -295,7 +295,7 @@ int word_select_send_gc(ship_client_t *c, subcmd_word_select_t *pkt) {
 
     /* Send the packet to everyone we can */
     for(i = 0; i < l->max_clients; ++i) {
-        if(l->clients[i]) {
+        if(l->clients[i] && l->clients[i] != c) {
             switch(l->clients[i]->version) {
                 case CLIENT_VERSION_DCV1:
                 case CLIENT_VERSION_DCV2:
