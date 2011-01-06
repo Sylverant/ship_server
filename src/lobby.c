@@ -307,7 +307,8 @@ static int lobby_add_client_locked(ship_client_t *c, lobby_t *l) {
 
     /* First client goes in slot 1, not 0 on DC/PC. Why Sega did this, who
        knows? */
-    if(!l->num_clients && l->version < CLIENT_VERSION_GC) {
+    if(!l->num_clients && l->version < CLIENT_VERSION_GC &&
+       l->type == LOBBY_TYPE_GAME) {
         l->clients[1] = c;
         c->cur_lobby = l;
         c->client_id = 1;
