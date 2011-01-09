@@ -1748,6 +1748,64 @@ static int handle_ws(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return subcmd_handle_bcast(c, p);
 }
 
+/* Usage: /ll */
+static int handle_ll(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    char str[512];
+    lobby_t *l = c->cur_lobby;
+    int i;
+    ship_client_t *c2;
+
+    strcpy(str, "\tE");
+
+    if((c->privilege & CLIENT_PRIV_LOCAL_GM)) {
+        for(i = 0; i < l->max_clients; i += 2) {
+            if((c2 = l->clients[i])) {
+                snprintf(str, 511, "%s%d: %s (%d)   ", str, i, c2->pl->v1.name,
+                         c2->guildcard);
+            }
+            else {
+                snprintf(str, 511, "%s%d: None   ", str, i);
+            }
+
+            if((i + 1) < l->max_clients) {
+                if((c2 = l->clients[i + 1])) {
+                    snprintf(str, 511, "%s%d: %s (%d)\n", str, i + 1,
+                             c2->pl->v1.name, c2->guildcard);
+                }
+                else {
+                    snprintf(str, 511, "%s%d: None\n", str, i + 1);
+                }
+            }
+        }
+    }
+    else {
+        for(i = 0; i < l->max_clients; i += 2) {
+            if((c2 = l->clients[i])) {
+                snprintf(str, 511, "%s%d: %s   ", str, i, c2->pl->v1.name);
+            }
+            else {
+                snprintf(str, 511, "%s%d: None   ", str, i);
+            }
+            
+            if((i + 1) < l->max_clients) {
+                if((c2 = l->clients[i + 1])) {
+                    snprintf(str, 511, "%s%d: %s\n", str, i + 1,
+                             c2->pl->v1.name);
+                }
+                else {
+                    snprintf(str, 511, "%s%d: None\n", str, i + 1);
+                }
+            }
+        }
+    }
+
+    /* Make sure the string is terminated properly. */
+    str[511] = '\0';
+
+    /* Send the packet away */
+    return send_message_box(c, "%s", str);
+}
+
 static command_t cmds[] = {
     { "warp"     , handle_warp      },
     { "kill"     , handle_kill      },
@@ -1793,6 +1851,7 @@ static command_t cmds[] = {
     { "showdcpc" , handle_showdcpc  },
     { "allowgc"  , handle_allowgc   },
     { "ws"       , handle_ws        },
+    { "ll"       , handle_ll        },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 
