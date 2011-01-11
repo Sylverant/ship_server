@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -656,6 +656,16 @@ static int join_game(ship_client_t *c, lobby_t *l) {
 /* Process a login packet, sending security data, a lobby list, and a character
    data request. */
 static int dc_process_login(ship_client_t *c, dc_login_93_pkt *pkt) {
+    ship_t *s = c->cur_ship;
+
+    /* Make sure v1 is allowed on this ship. */
+    if((s->cfg->shipgate_flags & SHIPGATE_FLAG_NOV1)) {
+        send_message_box(c, "%s", __(c, "\tEPSO Version 1 is not supported on\n"
+                                     "this ship.\n\nDisconnecting."));
+        c->flags |= CLIENT_FLAG_DISCONNECTED;
+        return 0;
+    }
+
     /* Save what we care about in here. */
     c->guildcard = pkt->guildcard;
     c->language_code = pkt->language_code;
@@ -682,6 +692,26 @@ static int dc_process_login(ship_client_t *c, dc_login_93_pkt *pkt) {
 /* Process a v2 login packet, sending security data, a lobby list, and a
    character data request. */
 static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
+    ship_t *s = c->cur_ship;
+
+    /* Make sure the client's version is allowed on this ship. */
+    if(c->version != CLIENT_VERSION_PC) {
+        if((s->cfg->shipgate_flags & SHIPGATE_FLAG_NOV2)) {
+            send_message_box(c, "%s", __(c, "\tEPSO Version 2 is not supported "
+                                         "on\nthis ship.\n\nDisconnecting."));
+            c->flags |= CLIENT_FLAG_DISCONNECTED;
+            return 0;
+        }
+    }
+    else {
+        if((s->cfg->shipgate_flags & SHIPGATE_FLAG_NOPC)) {
+            send_message_box(c, "%s", __(c, "\tEPSO for PC is not supported "
+                                         "on\nthis ship.\n\nDisconnecting."));
+            c->flags |= CLIENT_FLAG_DISCONNECTED;
+            return 0;
+        }
+    }
+
     /* Save what we care about in here. */
     c->guildcard = LE32(pkt->guildcard);
     c->language_code = pkt->language_code;
@@ -711,6 +741,16 @@ static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
 /* Process a GC login packet, sending security data, a lobby list, and a
    character data request. */
 static int gc_process_login(ship_client_t *c, gc_login_9e_pkt *pkt) {
+    ship_t *s = c->cur_ship;
+
+    /* Make sure PSOGC is allowed on this ship. */
+    if((s->cfg->shipgate_flags & SHIPGATE_FLAG_NOEP12)) {
+        send_message_box(c, "%s", __(c, "\tEPSO Episode 1 & 2 is not supported "
+                                     "on\nthis ship.\n\nDisconnecting."));
+        c->flags |= CLIENT_FLAG_DISCONNECTED;
+        return 0;
+    }
+
     /* Save what we care about in here. */
     c->guildcard = LE32(pkt->guildcard);
     c->language_code = pkt->language_code;

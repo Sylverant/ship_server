@@ -5292,6 +5292,10 @@ static int send_dc_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
                 continue;
             }
 
+            if((i->flags & (LOGIN_FLAG_NOV1 << c->version))) {
+                continue;
+            }
+
             /* Clear the new entry */
             memset(&pkt->entries[entries], 0, 0x1C);
 
@@ -5389,6 +5393,10 @@ static int send_pc_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
         if(i->ship_id && i->menu_code == menu_code) {
             if((i->flags & LOGIN_FLAG_GMONLY) &&
                !(c->privilege & CLIENT_PRIV_GLOBAL_GM)) {
+                continue;
+            }
+
+            if((i->flags & (LOGIN_FLAG_NOV1 << c->version))) {
                 continue;
             }
 

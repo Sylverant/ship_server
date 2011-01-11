@@ -336,6 +336,10 @@ static const char shipgate_login_msg[] =
 /* Flags that can be set in the login packet */
 #define LOGIN_FLAG_GMONLY   0x00000001  /* Only Global GMs are allowed */
 #define LOGIN_FLAG_PROXY    0x00000002  /* Is a proxy -- exclude many pkts */
+#define LOGIN_FLAG_NOV1     0x00000010  /* Do not allow DCv1 clients */
+#define LOGIN_FLAG_NOV2     0x00000020  /* Do not allow DCv2 clients */
+#define LOGIN_FLAG_NOPC     0x00000040  /* Do not allow PSOPC clients */
+#define LOGIN_FLAG_NOEP12   0x00000080  /* Do not allow PSO Ep1&2 clients */
 
 /* General error codes */
 #define ERR_NO_ERROR            0x00000000

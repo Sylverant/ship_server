@@ -720,6 +720,16 @@ void ship_server_shutdown(ship_t *s, time_t when) {
 }
 
 static int dc_process_login(ship_client_t *c, dc_login_93_pkt *pkt) {
+    ship_t *s = c->cur_ship;
+
+    /* Make sure v1 is allowed on this ship. */
+    if((s->cfg->shipgate_flags & SHIPGATE_FLAG_NOV1)) {
+        send_message_box(c, "%s", __(c, "\tEPSO Version 1 is not supported on\n"
+                                     "this ship.\n\nDisconnecting."));
+        c->flags |= CLIENT_FLAG_DISCONNECTED;
+        return 0;
+    }
+
     c->language_code = pkt->language_code;
 
     if(send_dc_security(c, pkt->guildcard, NULL, 0)) {
@@ -735,6 +745,26 @@ static int dc_process_login(ship_client_t *c, dc_login_93_pkt *pkt) {
 
 /* Just in case I ever use the rest of the stuff... */
 static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
+    ship_t *s = c->cur_ship;
+
+    /* Make sure the client's version is allowed on this ship. */
+    if(c->version != CLIENT_VERSION_PC) {
+        if((s->cfg->shipgate_flags & SHIPGATE_FLAG_NOV2)) {
+            send_message_box(c, "%s", __(c, "\tEPSO Version 2 is not supported "
+                                         "on\nthis ship.\n\nDisconnecting."));
+            c->flags |= CLIENT_FLAG_DISCONNECTED;
+            return 0;
+        }
+    }
+    else {
+        if((s->cfg->shipgate_flags & SHIPGATE_FLAG_NOPC)) {
+            send_message_box(c, "%s", __(c, "\tEPSO for PC is not supported "
+                                         "on\nthis ship.\n\nDisconnecting."));
+            c->flags |= CLIENT_FLAG_DISCONNECTED;
+            return 0;
+        }
+    }
+
     c->language_code = pkt->language_code;
 
     if(send_dc_security(c, pkt->guildcard, NULL, 0)) {
@@ -749,6 +779,16 @@ static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
 }
 
 static int gc_process_login(ship_client_t *c, gc_login_9e_pkt *pkt) {
+    ship_t *s = c->cur_ship;
+
+    /* Make sure PSOGC is allowed on this ship. */
+    if((s->cfg->shipgate_flags & SHIPGATE_FLAG_NOEP12)) {
+        send_message_box(c, "%s", __(c, "\tEPSO Episode 1 & 2 is not supported "
+                                     "on\nthis ship.\n\nDisconnecting."));
+        c->flags |= CLIENT_FLAG_DISCONNECTED;
+        return 0;
+    }
+
     c->language_code = pkt->language_code;
 
     if(send_dc_security(c, pkt->guildcard, NULL, 0)) {
