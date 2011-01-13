@@ -810,6 +810,7 @@ static int handle_gmlogin(shipgate_conn_t *conn,
     TAILQ_FOREACH(i, b->clients, qentry) {
         if(i->guildcard == gc) {
             i->privilege |= pkt->priv;
+            i->flags |= CLIENT_FLAG_LOGGED_IN;
             send_txt(i, "%s", __(i, "\tE\tC7Login Successful"));
 
             goto out;

@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -49,7 +49,7 @@ static const char *custom_dir = NULL;
 /* Print information about this program to stdout. */
 static void print_program_info() {
     printf("Sylverant Ship Server version %s\n", VERSION);
-    printf("Copyright (C) 2009, 2010 Lawrence Sebald\n\n");
+    printf("Copyright (C) 2009, 2010, 2011 Lawrence Sebald\n\n");
     printf("This program is free software: you can redistribute it and/or\n"
            "modify it under the terms of the GNU General Public License\n"
            "version 3 as published by the Free Software Foundation.\n\n"
@@ -154,6 +154,7 @@ static void load_config() {
         debug(DBG_LOG, "Base Port: %d\n", (int)cfg->ships[i].base_port);
         debug(DBG_LOG, "Blocks: %d\n", cfg->ships[i].blocks);
         debug(DBG_LOG, "Event: %d\n", cfg->ships[i].event);
+
         if(cfg->ships[i].menu_code) {
             debug(DBG_LOG, "Menu: %c%c\n", (char)cfg->ships[i].menu_code,
                   (char)(cfg->ships[i].menu_code >> 8));
@@ -161,6 +162,7 @@ static void load_config() {
         else {
             debug(DBG_LOG, "Menu: Main\n");
         }
+
         debug(DBG_LOG, "Flags: 0x%08X\n", cfg->ships[i].shipgate_flags);
     }
 }
