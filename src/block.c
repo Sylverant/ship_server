@@ -1500,12 +1500,10 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
             }
 
             /* Read the password if the client provided one. */
+            memset(tmp, 0, 32);
+
             if(len > 0x0C) {
                 memcpy(tmp, ((uint8_t *)pkt) + 0x0C, len - 0x0C);
-            }
-            else {
-                tmp[0] = '\0';
-                tmp[1] = '\0';
             }
 
             if(c->version == CLIENT_VERSION_PC) {
@@ -1545,7 +1543,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
             }
 
             /* Check the provided password (if any). */
-            if(strcmp(passwd, l->passwd)) {
+            if(l->passwd[0] && strcmp(passwd, l->passwd)) {
                 send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't join game!"),
                               __(c, "\tC7Wrong Password."));
                 return 0;
