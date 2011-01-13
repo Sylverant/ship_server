@@ -493,6 +493,10 @@ static int handle_itemdrop(ship_client_t *c, subcmd_itemgen_t *pkt) {
     lobby_t *l = c->cur_lobby;
     sylverant_iitem_t item;
     uint32_t v;
+    int i;
+    ship_client_t *c2;
+    const char *name;
+    subcmd_destroy_item_t dp;
 
     /* We can't get these in default lobbies without someone messing with
        something that they shouldn't be... Disconnect anyone that tries. */
@@ -531,8 +535,49 @@ static int handle_itemdrop(ship_client_t *c, subcmd_itemgen_t *pkt) {
         memcpy(&item.data_l[0], &pkt->item[0], 5 * sizeof(uint32_t));
 
         if(!sylverant_limits_check_item(c->cur_ship->limits, &item, v)) {
-            /* The item failed the check, so silently ignore the packet, and
-               nobody will see it drop. */
+            /* The item failed the check, deal with it. */
+            debug(DBG_LOG, "Potentially non-legit item dropped in legit mode:\n"
+                  "%08x %08x %08x %08x\n", LE32(pkt->item[0]), 
+                  LE32(pkt->item[1]), LE32(pkt->item[2]), LE32(pkt->item2[0]));
+
+            /* Grab the item name, if we can find it. */
+            name = item_get_name((item_t *)&item);
+
+            /* Fill in the destroy item packet. */
+            memset(&dp, 0, sizeof(subcmd_destroy_item_t));
+            dp.hdr.pkt_type = GAME_COMMAND0_TYPE;
+            dp.hdr.pkt_len = LE16(0x0010);
+            dp.type = SUBCMD_DESTROY_ITEM;
+            dp.size = 0x03;
+            dp.item_id = pkt->item_id;
+
+            /* Send out a warning message, followed by the drop, followed by a
+               packet deleting the drop from the game (to prevent any desync) */
+            for(i = 0; i < l->max_clients; ++i) {
+                if((c2 = l->clients[i])) {
+                    if(name) {
+                        send_txt(c2, "%s: %s",
+                                 __(c2, "\tE\tC7Potentially hacked drop\n"
+                                    "detected"), name);
+                    }
+                    else {
+                        send_txt(c2, "%s",
+                                 __(c2, "\tE\tC7Potentially hacked drop\n"
+                                    "detected"));
+                    }
+
+                    /* Send out the drop item packet. This doesn't go to the
+                       person who originated the drop (the team leader). */
+                    if(c != c2) {
+                        send_pkt_dc(c2, (dc_pkt_hdr_t *)pkt);
+                    }
+
+                    /* Send out the destroy drop packet. */
+                    send_pkt_dc(c2, (dc_pkt_hdr_t *)&dp);
+                }
+            }
+
+            /* We're done */
             return 0;
         }
     }

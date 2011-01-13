@@ -172,7 +172,7 @@ extern pthread_key_t sendbuf_key;
 
 /* The list of language codes for the quest directories. */
 static const char language_codes[][3] __attribute__((unused)) = {
-    "jp", "en", "de", "fr", "sp", "cs", "ct", "kr"
+    "jp", "en", "de", "fr", "es", "cs", "ct", "kr"
 };
 
 /* The list of version codes for the quest directories. */
