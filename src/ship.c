@@ -795,8 +795,15 @@ static int gc_process_login(ship_client_t *c, gc_login_9e_pkt *pkt) {
         return -1;
     }
 
-    if(send_message_box(c, "%s", c->cur_ship->motd)) {
-        return -2;
+    if(!c->cur_ship->motd) {
+        if(send_block_list(c, c->cur_ship)) {
+            return -2;
+        }
+    }
+    else {
+        if(send_message_box(c, "%s", c->cur_ship->motd)) {
+            return -2;
+        }
     }
 
     return 0;
