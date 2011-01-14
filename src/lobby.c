@@ -342,6 +342,10 @@ static int lobby_add_client_locked(ship_client_t *c, lobby_t *l) {
                 l->max_chal = clev;
             }
 
+            if(l->version == CLIENT_VERSION_GC && l->num_clients == 1) {
+                l->leader_id = c->client_id;
+            }
+
             return 0;
         }
     }
