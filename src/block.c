@@ -574,7 +574,12 @@ static int join_game(ship_client_t *c, lobby_t *l) {
     int i;
     uint32_t id;
 
-    if(rv == -13) {
+    if(rv == -14) {
+        /* Single player mode */
+        send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't join game!"),
+                      __(c, "\tC7The game is\nin single player\nmode."));
+    }
+    else if(rv == -13) {
         /* PC only */
         send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't join game!"),
                       __(c, "\tC7The game is\nfor PSOPC only."));

@@ -329,7 +329,8 @@ typedef struct subcmd_word_select {
 #define SUBCMD_DROP_STACK   0x5D
 #define SUBCMD_BUY          0x5E
 #define SUBCMD_ITEMDROP     0x5F
-#define SUBCMD_DESTROY_ITEM 0x63
+#define SUBCMD_DESTROY_ITEM 0x63    /* Sent when game inventory is full */
+#define SUBCMD_SPAWN_NPC    0x69
 #define SUBCMD_BURST_DONE   0x72
 #define SUBCMD_WORD_SELECT  0x74
 #define SUBCMD_WARP         0x94

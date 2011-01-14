@@ -484,6 +484,12 @@ int lobby_change_lobby(ship_client_t *c, lobby_t *req) {
         pthread_mutex_lock(&req->mutex);
     }
 
+    /* Make sure this isn't a single-player lobby. */
+    if((req->flags & LOBBY_FLAG_SINGLEPLAYER)) {
+        rv = -14;
+        goto out;
+    }
+
     /* See if the lobby doesn't allow this player by policy. */
     if((req->flags & LOBBY_FLAG_PCONLY) && c->version != CLIENT_VERSION_PC) {
         rv = -13;

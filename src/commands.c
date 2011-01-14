@@ -1806,6 +1806,98 @@ static int handle_ll(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return send_message_box(c, "%s", str);
 }
 
+/* Usage /npc number,client_id,follow_id */
+static int handle_npc(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    int count, npcnum, client_id, follow;
+    uint8_t tmp[0x10];
+    subcmd_pkt_t *p = (subcmd_pkt_t *)tmp;
+    lobby_t *l = c->cur_lobby;
+
+    pthread_mutex_lock(&l->mutex);
+
+    if(l->type != LOBBY_TYPE_GAME) {
+        pthread_mutex_unlock(&l->mutex);
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
+    }
+
+    /* For now, limit only to lobbies with a single person in them... */
+    if(l->num_clients != 1) {
+        pthread_mutex_unlock(&l->mutex);
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game with\n"
+                                    "one player."));
+    }
+
+    /* Also, make sure its not a battle or challenge lobby. */
+    if(l->battle || l->challenge) {
+        pthread_mutex_unlock(&l->mutex);
+        return send_txt(c, "%s", __(c, "\tE\tC7Not valid in battle or\n"
+                                    "challenge modes."));
+    }
+
+    /* Figure out what we're supposed to do. */
+    count = sscanf(params, "%d,%d,%d", &npcnum, &client_id, &follow);
+
+    if(count == EOF || count == 0) {
+        pthread_mutex_unlock(&l->mutex);
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid NPC data"));
+    }
+
+    /* Fill in sane defaults. */
+    if(count == 1) {
+        /* Find an open slot... */
+        for(client_id = l->max_clients - 1; client_id >= 0; --client_id) {
+            if(!l->clients[client_id]) {
+                break;
+            }
+        }
+
+        follow = c->client_id;
+    }
+    else if(count == 2) {
+        follow = c->client_id;
+    }
+
+    /* Check the validity of arguments */
+    if(npcnum < 0 || npcnum > 63) {
+        pthread_mutex_unlock(&l->mutex);
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid NPC number"));
+    }
+
+    if(client_id < 0 || client_id >= l->max_clients || l->clients[client_id]) {
+        pthread_mutex_unlock(&l->mutex);
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid client ID given,\n"
+                                    "or no open client slots."));
+    }
+
+    if(follow < 0 || follow >= l->max_clients || !l->clients[follow]) {
+        pthread_mutex_unlock(&l->mutex);
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid follow client given"));
+    }
+
+    /* This command, for now anyway, locks us down to one player mode. */
+    l->flags |= LOBBY_FLAG_SINGLEPLAYER;
+
+    /* We're done with the lobby data now... */
+    pthread_mutex_unlock(&l->mutex);
+
+    /* Fill in the packet */
+    memset(p, 0, 0x10);
+    p->hdr.dc.pkt_type = GAME_COMMAND0_TYPE;
+    p->hdr.dc.pkt_len = LE16(0x0010);
+    p->type = SUBCMD_SPAWN_NPC;
+    p->size = 0x03;
+
+    tmp[6] = 0x01;
+    tmp[7] = 0x01;
+    tmp[8] = follow;
+    tmp[10] = client_id;
+    tmp[14] = npcnum;
+
+    /* Send the packet to everyone, including the person sending the request. */
+    send_pkt_dc(c, (dc_pkt_hdr_t *)p);
+    return subcmd_handle_bcast(c, p);
+}
+
 static command_t cmds[] = {
     { "warp"     , handle_warp      },
     { "kill"     , handle_kill      },
@@ -1852,6 +1944,7 @@ static command_t cmds[] = {
     { "allowgc"  , handle_allowgc   },
     { "ws"       , handle_ws        },
     { "ll"       , handle_ll        },
+    { "npc"      , handle_npc       },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 
