@@ -636,7 +636,10 @@ static int handle_set_area(ship_client_t *c, subcmd_set_area_t *pkt) {
     }
 
     /* Save the new area and move along */
-    c->cur_area = pkt->area;
+    if(c->client_id == pkt->client_id) {
+        c->cur_area = pkt->area;
+    }
+
     return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt);
 }
 
@@ -644,10 +647,12 @@ static int handle_set_pos(ship_client_t *c, subcmd_set_pos_t *pkt) {
     lobby_t *l = c->cur_lobby;
 
     /* Save the new position and move along */
-    c->w = pkt->w;
-    c->x = pkt->x;
-    c->y = pkt->y;
-    c->z = pkt->z;
+    if(c->client_id == pkt->client_id) {
+        c->w = pkt->w;
+        c->x = pkt->x;
+        c->y = pkt->y;
+        c->z = pkt->z;
+    }
 
     /* Clear this, in case we're at the lobby counter */
     c->last_info_req = 0;
@@ -659,8 +664,10 @@ static int handle_move(ship_client_t *c, subcmd_move_t *pkt) {
     lobby_t *l = c->cur_lobby;
 
     /* Save the new position and move along */
-    c->x = pkt->x;
-    c->z = pkt->z;
+    if(c->client_id == pkt->client_id) {
+        c->x = pkt->x;
+        c->z = pkt->z;
+    }
 
     return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt);
 }
@@ -677,7 +684,12 @@ static int handle_delete_inv(ship_client_t *c, subcmd_destroy_item_t *pkt) {
 
     /* Sanity check... Make sure the size of the subcommand and the client id
        match with what we expect. Disconnect the client if not. */
-    if(pkt->size != 0x03 || pkt->client_id != c->client_id) {
+    if(pkt->size != 0x03) {
+        return -1;
+    }
+
+    if(!(l->flags & LOBBY_FLAG_SINGLEPLAYER) &&
+       pkt->client_id != c->client_id) {
         return -1;
     }
 
@@ -754,7 +766,12 @@ static int handle_use_item(ship_client_t *c, subcmd_use_item_t *pkt) {
 
     /* Sanity check... Make sure the size of the subcommand and the client id
        match with what we expect. Disconnect the client if not. */
-    if(pkt->size != 0x02 || pkt->client_id != c->client_id) {
+    if(pkt->size != 0x02) {
+        return -1;
+    }
+
+    if(!(l->flags & LOBBY_FLAG_SINGLEPLAYER) &&
+       pkt->client_id != c->client_id) {
         return -1;
     }
 

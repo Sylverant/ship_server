@@ -1834,6 +1834,26 @@ static int handle_npc(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
                                     "challenge modes."));
     }
 
+    /* Make sure we're not in legit mode. */
+    if((l->flags & LOBBY_FLAG_LEGIT_MODE)) {
+        pthread_mutex_unlock(&l->mutex);
+        return send_txt(c, "%s", __(c, "\tE\tC7Not valid in legit\n"
+                                    "mode."));
+    }
+
+    /* Make sure we're not in a quest. */
+    if((l->flags & LOBBY_FLAG_QUESTING)) {
+        pthread_mutex_unlock(&l->mutex);
+        return send_txt(c, "%s", __(c, "\tE\tC7Not valid in quests."));
+    }
+
+    /* Make sure we're on Pioneer 2. */
+    if(c->cur_area != 0) {
+        pthread_mutex_unlock(&l->mutex);
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid on\n"
+                                    "Pioneer 2."));
+    }
+
     /* Figure out what we're supposed to do. */
     count = sscanf(params, "%d,%d,%d", &npcnum, &client_id, &follow);
 
