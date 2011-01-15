@@ -60,6 +60,7 @@ static void print_program_info() {
            "You should have received a copy of the GNU Affero General Public\n"
            "License along with this program.  If not, see"
            "<http://www.gnu.org/licenses/>.\n");
+}
 
 /* Print help to the user to stdout. */
 static void print_help(const char *bin) {
