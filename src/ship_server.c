@@ -51,16 +51,15 @@ static void print_program_info() {
     printf("Sylverant Ship Server version %s\n", VERSION);
     printf("Copyright (C) 2009, 2010, 2011 Lawrence Sebald\n\n");
     printf("This program is free software: you can redistribute it and/or\n"
-           "modify it under the terms of the GNU General Public License\n"
-           "version 3 as published by the Free Software Foundation.\n\n"
+           "modify it under the terms of the GNU Affero General Public\n"
+           "License version 3 as published by the Free Software Foundation.\n\n"
            "This program is distributed in the hope that it will be useful,\n"
            "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
            "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
            "GNU General Public License for more details.\n\n"
-           "You should have received a copy of the GNU General Public License\n"
-           "along with this program.  If not, see "
+           "You should have received a copy of the GNU Affero General Public\n"
+           "License along with this program.  If not, see"
            "<http://www.gnu.org/licenses/>.\n");
-}
 
 /* Print help to the user to stdout. */
 static void print_help(const char *bin) {
