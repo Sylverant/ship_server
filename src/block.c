@@ -120,6 +120,8 @@ static void *block_thd(void *d) {
         nfds = nfds > b->pcsock ? nfds : b->pcsock;
         FD_SET(b->gcsock, &readfds);
         nfds = nfds > b->gcsock ? nfds : b->gcsock;
+        FD_SET(b->ep3sock, &readfds);
+        nfds = nfds > b->ep3sock ? nfds : b->ep3sock;
 
         FD_SET(b->pipes[1], &readfds);
         nfds = nfds > b->pipes[1] ? nfds : b->pipes[1];
@@ -179,6 +181,24 @@ static void *block_thd(void *d) {
                       s->cfg->name, b->b, inet_ntoa(addr.sin_addr));
 
                 if(!client_create_connection(sock, CLIENT_VERSION_GC,
+                                             CLIENT_TYPE_BLOCK, b->clients, s,
+                                             b, addr.sin_addr.s_addr)) {
+                    close(sock);
+                }
+            }
+
+            if(FD_ISSET(b->ep3sock, &readfds)) {
+                len = sizeof(struct sockaddr_in);
+                if((sock = accept(b->ep3sock, (struct sockaddr *)&addr,
+                                  &len)) < 0) {
+                    perror("accept");
+                }
+
+                debug(DBG_LOG, "%s(%d): Accepted Episode 3 block connection "
+                      "from %s\n", s->cfg->name, b->b,
+                      inet_ntoa(addr.sin_addr));
+
+                if(!client_create_connection(sock, CLIENT_VERSION_EP3,
                                              CLIENT_TYPE_BLOCK, b->clients, s,
                                              b, addr.sin_addr.s_addr)) {
                     close(sock);
@@ -265,7 +285,7 @@ static void *block_thd(void *d) {
 
 block_t *block_server_start(ship_t *s, int b, uint16_t port) {
     block_t *rv;
-    int dcsock, pcsock, gcsock, i;
+    int dcsock, pcsock, gcsock, ep3sock, i;
     struct sockaddr_in addr;
     lobby_t *l, *l2;
     pthread_mutexattr_t attr;
@@ -358,13 +378,48 @@ block_t *block_server_start(ship_t *s, int b, uint16_t port) {
         close(pcsock);
         close(gcsock);
         return NULL;
-    }   
+    }
+
+    ep3sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+    
+    if(ep3sock < 0) {
+        perror("socket");
+        close(pcsock);
+        close(dcsock);
+        return NULL;
+    }
+    
+    /* Bind the socket. */
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_port = htons(port + 3);
+    
+    if(bind(ep3sock, (struct sockaddr *)&addr, sizeof(struct sockaddr_in)) < 0) {
+        perror("bind");
+        close(dcsock);
+        close(pcsock);
+        close(gcsock);
+        close(ep3sock);
+        return NULL;
+    }
+    
+    /* Listen on the socket for connections. */
+    if(listen(ep3sock, 10) < 0) {
+        perror("listen");
+        close(dcsock);
+        close(pcsock);
+        close(gcsock);
+        close(ep3sock);
+        return NULL;
+    }
 
     /* Make space for the block structure. */
     rv = (block_t *)malloc(sizeof(block_t));
 
     if(!rv) {
         debug(DBG_ERROR, "%s(%d): Cannot allocate memory!\n", s->cfg->name, b);
+        close(ep3sock);
         close(gcsock);
         close(pcsock);
         close(dcsock);
@@ -377,6 +432,7 @@ block_t *block_server_start(ship_t *s, int b, uint16_t port) {
     if(pipe(rv->pipes) == -1) {
         debug(DBG_ERROR, "%s(%d): Cannot create pipe!\n", s->cfg->name, b);
         free(rv);
+        close(ep3sock);
         close(gcsock);
         close(pcsock);
         close(dcsock);
@@ -392,6 +448,7 @@ block_t *block_server_start(ship_t *s, int b, uint16_t port) {
         close(rv->pipes[0]);
         close(rv->pipes[1]);
         free(rv);
+        close(ep3sock);
         close(gcsock);
         close(pcsock);
         close(dcsock);
@@ -405,15 +462,17 @@ block_t *block_server_start(ship_t *s, int b, uint16_t port) {
     rv->dc_port = port;
     rv->pc_port = port + 1;
     rv->gc_port = port + 2;
+    rv->ep3_port = port + 3;
     rv->dcsock = dcsock;
     rv->pcsock = pcsock;
     rv->gcsock = gcsock;
+    rv->ep3sock = ep3sock;
     rv->run = 1;
 
     TAILQ_INIT(&rv->lobbies);
 
-    /* Create the first 15 lobbies (the default ones) */
-    for(i = 1; i <= 15; ++i) {
+    /* Create the first 20 lobbies (the default ones) */
+    for(i = 1; i <= 20; ++i) {
         /* Grab a new lobby. XXXX: Check the return value. */
         l = lobby_create_default(rv, i, s->cfg->event);
 
@@ -434,6 +493,7 @@ block_t *block_server_start(ship_t *s, int b, uint16_t port) {
         pthread_mutex_destroy(&rv->mutex);
         close(rv->pipes[0]);
         close(rv->pipes[1]);
+        close(ep3sock);
         close(gcsock);
         close(pcsock);
         close(dcsock);
@@ -489,6 +549,7 @@ void block_server_stop(block_t *b) {
     close(b->dcsock);
     close(b->pcsock);
     close(b->gcsock);
+    close(b->ep3sock);
     free(b->clients);
     free(b);
 }
@@ -810,7 +871,12 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
                 v = ITEM_VERSION_GC;
                 break;
 
+            case CLIENT_VERSION_EP3:
+                pthread_mutex_unlock(&l->mutex);
+                return 0;
+
             default:
+                pthread_mutex_unlock(&l->mutex);
                 return -1;
         }
 
@@ -852,6 +918,13 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
         c->blacklist = c->pl->pc.blacklist;
     }
     else if(version == 3) {
+        memcpy(c->pl, &pkt->data, sizeof(v3_player_t));
+        c->infoboard = c->pl->v3.infoboard;
+        c->c_rank = c->pl->v3.c_rank.all;
+        c->blacklist = c->pl->v3.blacklist;
+    }
+    else if(version == 4) {
+        /* XXXX: Not right, but work with it for now. */
         memcpy(c->pl, &pkt->data, sizeof(v3_player_t));
         c->infoboard = c->pl->v3.infoboard;
         c->c_rank = c->pl->v3.c_rank.all;
@@ -906,7 +979,8 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
             /* Set up to send the Message of the Day if we have one and the
                client hasn't already gotten it this session.
                XXXX: Disabled for Gamecube, for now (due to bugginess). */
-            if(c->cur_ship->motd && c->version != CLIENT_VERSION_GC) {
+            if(c->cur_ship->motd && c->version != CLIENT_VERSION_GC &&
+               c->version != CLIENT_VERSION_EP3) {
                 send_simple(c, PING_TYPE, 0);
             }
             else {
@@ -1480,6 +1554,10 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
                     port = s->blocks[item_id - 1]->gc_port;
                     break;
 
+                case CLIENT_VERSION_EP3:
+                    port = s->blocks[item_id - 1]->ep3_port;
+                    break;
+
                 default:
                     return -1;
             }
@@ -1653,6 +1731,10 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
 
                 case CLIENT_VERSION_GC:
                     off = 2;
+                    break;
+
+                case CLIENT_VERSION_EP3:
+                    off = 3;
                     break;
             }
 
@@ -1848,7 +1930,7 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
     int rv;
 
     if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
-       c->version == CLIENT_VERSION_GC) {
+       c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3) {
         type = dc->pkt_type;
         len = LE16(dc->pkt_len);
         flags = dc->flags;
@@ -1881,7 +1963,8 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
 
         case PING_TYPE:
             if(!(c->flags & CLIENT_FLAG_SENT_MOTD) && c->cur_ship->motd &&
-               c->version != CLIENT_VERSION_GC) {
+               c->version != CLIENT_VERSION_GC &&
+               c->version != CLIENT_VERSION_EP3) {
                 send_message_box(c, "%s", c->cur_ship->motd);
                 c->flags |= CLIENT_FLAG_SENT_MOTD;
             }
@@ -2048,6 +2131,7 @@ int block_process_pkt(ship_client_t *c, uint8_t *pkt) {
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_PC:
         case CLIENT_VERSION_GC:
+        case CLIENT_VERSION_EP3:
             return dc_process_pkt(c, pkt);
     }
 

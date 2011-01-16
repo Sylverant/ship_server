@@ -65,7 +65,7 @@ static void *ship_thd(void *d) {
     /* Fire up the threads for each block. */
     for(i = 1; i <= s->cfg->blocks; ++i) {
         s->blocks[i - 1] = block_server_start(s, i, s->cfg->base_port +
-                                              (i * 3));
+                                              (i * 4));
     }
 
     /* While we're still supposed to run... do it. */
@@ -131,6 +131,8 @@ static void *ship_thd(void *d) {
         nfds = nfds > s->pcsock ? nfds : s->pcsock;
         FD_SET(s->gcsock, &readfds);
         nfds = nfds > s->gcsock ? nfds : s->gcsock;
+        FD_SET(s->ep3sock, &readfds);
+        nfds = nfds > s->ep3sock ? nfds : s->ep3sock;
 
         FD_SET(s->pipes[1], &readfds);
         nfds = nfds > s->pipes[1] ? nfds : s->pipes[1];
@@ -227,6 +229,33 @@ static void *ship_thd(void *d) {
                       s->cfg->name, inet_ntoa(addr.sin_addr));
 
                 if(!(tmp = client_create_connection(sock, CLIENT_VERSION_GC,
+                                                    CLIENT_TYPE_SHIP,
+                                                    s->clients, s, NULL,
+                                                    addr.sin_addr.s_addr))) {
+                    close(sock);
+                }
+
+                if(s->shutdown_time) {
+                    send_message_box(tmp, "%s\n\n%s\n%s",
+                                     __(tmp, "\tEShip is going down for shut"
+                                        "down"),
+                                     __(tmp, "Please try another ship."),
+                                     __(tmp, "Disconnecting."));
+                    it->flags |= CLIENT_FLAG_DISCONNECTED;
+                }
+            }
+
+            if(FD_ISSET(s->ep3sock, &readfds)) {
+                len = sizeof(struct sockaddr_in);
+                if((sock = accept(s->ep3sock, (struct sockaddr *)&addr,
+                                  &len)) < 0) {
+                    perror("accept");
+                }
+
+                debug(DBG_LOG, "%s: Accepted Episode 3 ship connection from "
+                      "%s\n", s->cfg->name, inet_ntoa(addr.sin_addr));
+
+                if(!(tmp = client_create_connection(sock, CLIENT_VERSION_EP3,
                                                     CLIENT_TYPE_SHIP,
                                                     s->clients, s, NULL,
                                                     addr.sin_addr.s_addr))) {
@@ -354,6 +383,7 @@ static void *ship_thd(void *d) {
     sylverant_quests_destroy(&s->quests);
     close(s->pipes[0]);
     close(s->pipes[1]);
+    close(s->ep3sock);
     close(s->gcsock);
     close(s->pcsock);
     close(s->dcsock);
@@ -404,7 +434,7 @@ static void ship_read_motd(ship_t *s, const char *fn) {
 ship_t *ship_server_start(sylverant_ship_t *s) {
     ship_t *rv;
     struct sockaddr_in addr;
-    int dcsock, pcsock, gcsock;
+    int dcsock, pcsock, gcsock, ep3sock;
     int i, j;
     char fn[512];
 
@@ -498,11 +528,47 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
         return NULL;
     }
 
+    ep3sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+    if(ep3sock < 0) {
+        perror("socket");
+        close(pcsock);
+        close(dcsock);
+        close(gcsock);
+        return NULL;
+    }
+
+    /* Bind the socket */
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_port = htons(s->base_port + 3);
+
+    if(bind(ep3sock, (struct sockaddr *)&addr, sizeof(struct sockaddr_in)) < 0) {
+        perror("bind");
+        close(dcsock);
+        close(pcsock);
+        close(gcsock);
+        close(ep3sock);
+        return NULL;
+    }
+
+    /* Listen on the socket for connections. */
+    if(listen(ep3sock, 10) < 0) {
+        perror("listen");
+        close(dcsock);
+        close(pcsock);
+        close(gcsock);
+        close(ep3sock);
+        return NULL;
+    }
+
     /* Make space for the ship structure. */
     rv = (ship_t *)malloc(sizeof(ship_t));
 
     if(!rv) {
         debug(DBG_ERROR, "%s: Cannot allocate memory!\n", s->name);
+        close(ep3sock);
         close(gcsock);
         close(pcsock);
         close(dcsock);
@@ -517,6 +583,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     if(pipe(rv->pipes) == -1) {
         debug(DBG_ERROR, "%s: Cannot create pipe!\n", s->name);
         free(rv);
+        close(ep3sock);
         close(gcsock);
         close(pcsock);
         close(dcsock);
@@ -531,6 +598,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
         close(rv->pipes[0]);
         close(rv->pipes[1]);
         free(rv);
+        close(ep3sock);
         close(gcsock);
         close(pcsock);
         close(dcsock);
@@ -546,6 +614,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
         close(rv->pipes[0]);
         close(rv->pipes[1]);
         free(rv);
+        close(ep3sock);
         close(gcsock);
         close(pcsock);
         close(dcsock);
@@ -561,6 +630,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
             close(rv->pipes[0]);
             close(rv->pipes[1]);
             free(rv);
+            close(ep3sock);
             close(gcsock);
             close(pcsock);
             close(dcsock);
@@ -598,6 +668,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
             close(rv->pipes[0]);
             close(rv->pipes[1]);
             free(rv);
+            close(ep3sock);
             close(gcsock);
             close(pcsock);
             close(dcsock);
@@ -616,6 +687,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
             close(rv->pipes[0]);
             close(rv->pipes[1]);
             free(rv);
+            close(ep3sock);
             close(gcsock);
             close(pcsock);
             close(dcsock);
@@ -631,6 +703,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     rv->dcsock = dcsock;
     rv->pcsock = pcsock;
     rv->gcsock = gcsock;
+    rv->ep3sock = ep3sock;
     rv->run = 1;
 
     /* Connect to the shipgate. */
@@ -645,6 +718,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
         close(rv->pipes[0]);
         close(rv->pipes[1]);
         free(rv);
+        close(ep3sock);
         close(pcsock);
         close(dcsock);
         close(gcsock);
@@ -664,6 +738,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
         close(rv->pipes[0]);
         close(rv->pipes[1]);
         free(rv);
+        close(ep3sock);
         close(pcsock);
         close(dcsock);
         close(gcsock);
@@ -689,6 +764,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
         close(rv->pipes[0]);
         close(rv->pipes[1]);
         free(rv);
+        close(ep3sock);
         close(pcsock);
         close(dcsock);
         close(gcsock);
@@ -845,8 +921,11 @@ static int dc_process_block_sel(ship_client_t *c, dc_select_pkt *pkt) {
     else if(c->version == CLIENT_VERSION_PC) {
         return send_redirect(c, addr, s->blocks[block - 1]->pc_port);
     }
-    else {
+    else if(c->version == CLIENT_VERSION_GC) {
         return send_redirect(c, addr, s->blocks[block - 1]->gc_port);
+    }
+    else {
+        return send_redirect(c, addr, s->blocks[block - 1]->ep3_port);
     }
 }
 
@@ -885,6 +964,10 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
 
                 case CLIENT_VERSION_GC:
                     off = 2;
+                    break;
+
+                case CLIENT_VERSION_EP3:
+                    off = 3;
                     break;
             }
 
@@ -969,7 +1052,8 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
 
     if(c->version == CLIENT_VERSION_DCV1 ||
        c->version == CLIENT_VERSION_DCV2 ||
-       c->version == CLIENT_VERSION_GC) {
+       c->version == CLIENT_VERSION_GC ||
+       c->version == CLIENT_VERSION_EP3) {
         type = dc->pkt_type;
         len = LE16(dc->pkt_len);
     }
@@ -1019,6 +1103,7 @@ int ship_process_pkt(ship_client_t *c, uint8_t *pkt) {
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_PC:
         case CLIENT_VERSION_GC:
+        case CLIENT_VERSION_EP3:
             return dc_process_pkt(c, pkt);
     }
 

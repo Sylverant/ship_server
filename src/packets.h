@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -298,7 +298,7 @@ typedef struct dc_lobby_list {
         uint32_t menu_id;
         uint32_t item_id;
         uint32_t padding;
-    } entries[16];
+    } entries[0];
 } PACKED dc_lobby_list_pkt;
 
 #ifdef PLAYER_H
@@ -818,6 +818,23 @@ typedef struct autoreply_set {
     char msg[];
 } PACKED autoreply_set_pkt;
 
+/* The packet used to send the Episode 3 rank */
+typedef struct ep3_rank_update {
+    dc_pkt_hdr_t hdr;
+    uint32_t rank;
+    char rank_txt[12];
+    uint32_t meseta;
+    uint32_t max_meseta;
+    uint32_t jukebox;
+} ep3_rank_update_pkt;
+
+/* The packet used to send the Episode 3 card list */
+typedef struct ep3_card_update {
+    dc_pkt_hdr_t hdr;
+    uint32_t size;
+    uint8_t data[];
+} PACKED ep3_card_update_pkt;
+
 #undef PACKED
 
 /* Parameters for the various packets. */
@@ -881,6 +898,8 @@ typedef struct autoreply_set {
 #define QUEST_LOAD_DONE_TYPE            0x00AC
 #define TEXT_MSG_TYPE                   0x00B0
 #define TIMESTAMP_TYPE                  0x00B1
+#define EP3_RANK_UPDATE_TYPE            0x00B7
+#define EP3_CARD_UPDATE_TYPE            0x00B8
 #define CHOICE_OPTION_TYPE              0x00C0
 #define GAME_CREATE_TYPE                0x00C1
 #define CHOICE_SETTING_TYPE             0x00C2
@@ -907,6 +926,7 @@ typedef struct autoreply_set {
 #define DC_REDIRECT_LENGTH              0x000C
 #define DC_TIMESTAMP_LENGTH             0x0020
 #define DC_LOBBY_LIST_LENGTH            0x00C4
+#define EP3_LOBBY_LIST_LENGTH           0x0100
 #define DC_CHAR_DATA_LENGTH             0x0420
 #define DC_LOBBY_LEAVE_LENGTH           0x0008
 #define PC_GUILD_REPLY_LENGTH           0x0128

@@ -133,6 +133,7 @@ ship_client_t *client_create_connection(int sock, int version, int type,
             break;
 
         case CLIENT_VERSION_GC:
+        case CLIENT_VERSION_EP3:
             /* Generate the encryption keys for the client and server. */
             client_seed_dc = genrand_int32();
             server_seed_dc = genrand_int32();
@@ -273,6 +274,7 @@ int client_process_pkt(ship_client_t *c) {
             case CLIENT_VERSION_DCV1:
             case CLIENT_VERSION_DCV2:
             case CLIENT_VERSION_GC:
+            case CLIENT_VERSION_EP3:
                 pkt_sz = LE16(c->pkt.dc.pkt_len);
                 break;
 

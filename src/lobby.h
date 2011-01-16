@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -126,6 +126,7 @@ TAILQ_HEAD(lobby_queue, lobby);
 #define LOBBY_FLAG_V1ONLY       0x00000100
 #define LOBBY_FLAG_GC_ALLOWED   0x00000200
 #define LOBBY_FLAG_SINGLEPLAYER 0x00000400
+#define LOBBY_FLAG_EP3          0x00000800
 
 /* The required level for various difficulties. */
 const static int game_required_level[4] = { 1, 20, 40, 80 };

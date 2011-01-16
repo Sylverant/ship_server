@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -78,6 +78,7 @@ struct ship {
     int dcsock;
     int pcsock;
     int gcsock;
+    int ep3sock;
 
     time_t shutdown_time;
     int pipes[2];

@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -61,7 +61,13 @@ lobby_t *lobby_create_default(block_t *block, uint32_t lobby_id, uint8_t ev) {
     }
 
     /* Fill in the name of the lobby. */
-    sprintf(l->name, "BLOCK%02d-%02d", block->b, lobby_id);
+    if(lobby_id <= 15) {
+        sprintf(l->name, "BLOCK%02d-%02d", block->b, lobby_id);
+    }
+    else {
+        l->flags |= LOBBY_FLAG_EP3;
+        sprintf(l->name, "BLOCK%02d-C%d", block->b, lobby_id - 15);
+    }
 
     /* Initialize the (unused) packet queue */
     STAILQ_INIT(&l->pkt_queue);
@@ -84,7 +90,7 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
                            uint8_t v2, int version, uint8_t section,
                            uint8_t event, uint8_t episode) {
     lobby_t *l = (lobby_t *)malloc(sizeof(lobby_t));
-    uint32_t id = 0x11;
+    uint32_t id = 0x20;
     int i;
 
     /* If we don't have a lobby, bail. */
