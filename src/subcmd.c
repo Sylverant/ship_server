@@ -38,6 +38,7 @@ int handle_dc_gcsend(ship_client_t *d, subcmd_dc_gcsend_t *pkt) {
             return send_pkt_dc(d, (dc_pkt_hdr_t *)pkt);
 
         case CLIENT_VERSION_GC:
+        case CLIENT_VERSION_EP3:
         {
             subcmd_gc_gcsend_t gc;
 
@@ -188,6 +189,7 @@ static int handle_pc_gcsend(ship_client_t *d, subcmd_pc_gcsend_t *pkt) {
         }
 
         case CLIENT_VERSION_GC:
+        case CLIENT_VERSION_EP3:
         {
             subcmd_gc_gcsend_t gc;
             iconv_t ic;
@@ -250,6 +252,7 @@ static int handle_gc_gcsend(ship_client_t *d, subcmd_gc_gcsend_t *pkt) {
     /* This differs based on the destination client's version. */
     switch(d->version) {
         case CLIENT_VERSION_GC:
+        case CLIENT_VERSION_EP3:
             return send_pkt_dc(d, (dc_pkt_hdr_t *)pkt);
 
         case CLIENT_VERSION_DCV1:
@@ -870,6 +873,7 @@ int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
                     break;
 
                 case CLIENT_VERSION_GC:
+                case CLIENT_VERSION_EP3:
                     rv = handle_gc_gcsend(dest, (subcmd_gc_gcsend_t *)pkt);
                     break;
 
