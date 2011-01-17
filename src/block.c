@@ -1141,6 +1141,11 @@ static int dc_process_mail(ship_client_t *c, dc_simple_mail_pkt *pkt) {
     uint32_t gc = LE32(pkt->gc_dest);
     int done = 0, rv = -1;
 
+    /* Don't send mail for a STFUed client. */
+    if((c->flags & CLIENT_FLAG_STFU)) {
+        return 0;
+    }
+
     /* First check if this is to the bug report "character". */
     if(gc == BUG_REPORT_GC) {
         dc_bug_report(c, pkt);
@@ -1220,6 +1225,11 @@ static int pc_process_mail(ship_client_t *c, pc_simple_mail_pkt *pkt) {
     ship_client_t *it;
     uint32_t gc = LE32(pkt->gc_dest);
     int done = 0, rv = -1;
+
+    /* Don't send mail for a STFUed client. */
+    if((c->flags & CLIENT_FLAG_STFU)) {
+        return 0;
+    }
 
     /* First check if this is to the bug report "character". */
     if(gc == BUG_REPORT_GC) {

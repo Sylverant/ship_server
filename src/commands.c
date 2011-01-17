@@ -1918,6 +1918,72 @@ static int handle_npc(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return subcmd_handle_bcast(c, p);
 }
 
+/* Usage: /stfu guildcard */
+static int handle_stfu(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    uint32_t gc;
+    block_t *b = c->cur_block;
+    ship_client_t *i;
+
+    /* Make sure the requester is a GM. */
+    if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
+    }
+
+    /* Figure out the user requested */
+    errno = 0;
+    gc = (uint32_t)strtoul(params, NULL, 10);
+
+    if(errno != 0) {
+        /* Send a message saying invalid guildcard number */
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card"));
+    }
+
+    /* Look for the requested user and STFU them (only on this block). */
+    TAILQ_FOREACH(i, b->clients, qentry) {
+        /* Disconnect them if we find them */
+        if(i->guildcard == gc) {
+            i->flags |= CLIENT_FLAG_STFU;
+            return send_txt(c, "%s", __(c, "\tE\tC7Client STFUed"));
+        }
+    }
+
+    /* The person isn't here... There's nothing left to do. */
+    return send_txt(c, "%s", __(c, "\tE\tC7Guildcard not found"));
+}
+
+/* Usage: /unstfu guildcard */
+static int handle_unstfu(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    uint32_t gc;
+    block_t *b = c->cur_block;
+    ship_client_t *i;
+
+    /* Make sure the requester is a GM. */
+    if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
+    }
+
+    /* Figure out the user requested */
+    errno = 0;
+    gc = (uint32_t)strtoul(params, NULL, 10);
+
+    if(errno != 0) {
+        /* Send a message saying invalid guildcard number */
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card"));
+    }
+
+    /* Look for the requested user and un-STFU them (only on this block). */
+    TAILQ_FOREACH(i, b->clients, qentry) {
+        /* Disconnect them if we find them */
+        if(i->guildcard == gc) {
+            i->flags &= ~CLIENT_FLAG_STFU;
+            return send_txt(c, "%s", __(c, "\tE\tC7Client un-STFUed"));
+        }
+    }
+
+    /* The person isn't here... There's nothing left to do. */
+    return send_txt(c, "%s", __(c, "\tE\tC7Guildcard not found"));
+}
+
 static command_t cmds[] = {
     { "warp"     , handle_warp      },
     { "kill"     , handle_kill      },
@@ -1965,6 +2031,8 @@ static command_t cmds[] = {
     { "ws"       , handle_ws        },
     { "ll"       , handle_ll        },
     { "npc"      , handle_npc       },
+    { "stfu"     , handle_stfu      },
+    { "unstfu"   , handle_unstfu    },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

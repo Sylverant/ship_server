@@ -1214,6 +1214,10 @@ static int send_dc_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
 int send_lobby_chat(lobby_t *l, ship_client_t *sender, char msg[]) {
     int i;
 
+    if((sender->flags & CLIENT_FLAG_STFU)) {
+        return send_dc_lobby_chat(l, sender, sender, msg);
+    }
+
     for(i = 0; i < l->max_clients; ++i) {
         if(l->clients[i] != NULL) {
             pthread_mutex_lock(&l->clients[i]->mutex);
@@ -1341,6 +1345,10 @@ static int send_dc_lobby_wchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
 int send_lobby_wchat(lobby_t *l, ship_client_t *sender, uint16_t *msg,
                      size_t len) {
     int i;
+
+    if((sender->flags & CLIENT_FLAG_STFU)) {
+        return send_dc_lobby_wchat(l, sender, sender, msg, len);
+    }    
 
     for(i = 0; i < l->max_clients; ++i) {
         if(l->clients[i] != NULL) {

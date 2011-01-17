@@ -309,6 +309,7 @@ typedef struct subcmd_word_select {
 #define SUBCMD_ITEMREQ      0x60
 
 /* Subcommand types we might care about (0x60). */
+#define SUBCMD_SYMBOL_CHAT  0x07
 #define SUBCMD_TELEPORT     0x17
 #define SUBCMD_SET_AREA     0x1F
 #define SUBCMD_EQUIP        0x25

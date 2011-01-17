@@ -170,6 +170,7 @@ extern pthread_key_t sendbuf_key;
 #define CLIENT_FLAG_SENT_MOTD       0x00000040
 #define CLIENT_FLAG_SHOW_DCPC_ON_GC 0x00000080
 #define CLIENT_FLAG_LOGGED_IN       0x00000100
+#define CLIENT_FLAG_STFU            0x00000200
 
 /* The list of language codes for the quest directories. */
 static const char language_codes[][3] __attribute__((unused)) = {

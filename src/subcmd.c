@@ -790,6 +790,11 @@ static int handle_use_item(ship_client_t *c, subcmd_use_item_t *pkt) {
 }
 
 static int handle_word_select(ship_client_t *c, subcmd_word_select_t *pkt) {
+    /* Don't send chats for a STFUed client. */
+    if((c->flags & CLIENT_FLAG_STFU)) {
+        return 0;
+    }
+
     switch(c->version) {
         case CLIENT_VERSION_DCV1:
         case CLIENT_VERSION_DCV2:
@@ -804,6 +809,17 @@ static int handle_word_select(ship_client_t *c, subcmd_word_select_t *pkt) {
     }
 
     return 0;
+}
+
+static int handle_symbol_chat(ship_client_t *c, subcmd_pkt_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+
+    /* Don't send chats for a STFUed client. */
+    if((c->flags & CLIENT_FLAG_STFU)) {
+        return 0;
+    }
+
+    return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt);
 }
 
 /* Handle a 0x62/0x6D packet. */
@@ -970,6 +986,10 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
 
         case SUBCMD_WORD_SELECT:
             rv = handle_word_select(c, (subcmd_word_select_t *)pkt);
+            break;
+
+        case SUBCMD_SYMBOL_CHAT:
+            rv = handle_symbol_chat(c, pkt);
             break;
 
         default:
