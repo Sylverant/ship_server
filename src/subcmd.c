@@ -799,6 +799,7 @@ static int handle_word_select(ship_client_t *c, subcmd_word_select_t *pkt) {
             return word_select_send_pc(c, pkt);
 
         case CLIENT_VERSION_GC:
+        case CLIENT_VERSION_EP3:
             return word_select_send_gc(c, pkt);
     }
 

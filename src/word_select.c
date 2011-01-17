@@ -109,6 +109,7 @@ int word_select_send_dc(ship_client_t *c, subcmd_word_select_t *pkt) {
                     break;
 
                 case CLIENT_VERSION_GC:
+                case CLIENT_VERSION_EP3:
                     if(!gcuntrans) {
                         send_pkt_dc(l->clients[i], (dc_pkt_hdr_t *)&gc);
                     }
@@ -210,6 +211,7 @@ int word_select_send_pc(ship_client_t *c, subcmd_word_select_t *pkt) {
                     break;
 
                 case CLIENT_VERSION_GC:
+                case CLIENT_VERSION_EP3:
                     if(!gcuntrans) {
                         send_pkt_dc(l->clients[i], (dc_pkt_hdr_t *)&gc);
                     }
@@ -315,6 +317,7 @@ int word_select_send_gc(ship_client_t *c, subcmd_word_select_t *pkt) {
                     break;
 
                 case CLIENT_VERSION_GC:
+                case CLIENT_VERSION_EP3:
                     send_pkt_dc(l->clients[i], (dc_pkt_hdr_t *)pkt);
                     break;
             }
