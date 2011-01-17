@@ -31,12 +31,12 @@
 mini18n_t langs[CLIENT_LANG_COUNT];
 #endif
 
-void print_packet(unsigned char *pkt, int len) {
+void print_packet(const unsigned char *pkt, int len) {
     fprint_packet(stdout, pkt, len, -1);
 }
 
-void fprint_packet(FILE *fp, unsigned char *pkt, int len, int rec) {
-    unsigned char *pos = pkt, *row = pkt;
+void fprint_packet(FILE *fp, const unsigned char *pkt, int len, int rec) {
+    const unsigned char *pos = pkt, *row = pkt;
     int line = 0, type = 0;
     time_t now;
     char tstr[26];

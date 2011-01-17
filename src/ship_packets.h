@@ -188,4 +188,7 @@ int send_pc_game_type_sel(ship_client_t *c);
 /* Send a statistics mod packet to the lobby. */
 int send_lobby_mod_stat(lobby_t *l, ship_client_t *c, int stat, int amt);
 
+/* Send an Episode 3 Jukebox music change packet to the lobby. */
+int send_lobby_ep3_jukebox(lobby_t *l, uint16_t music); 
+
 #endif /* !SHIP_PACKETS_H */

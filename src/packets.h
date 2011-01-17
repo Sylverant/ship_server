@@ -835,6 +835,15 @@ typedef struct ep3_card_update {
     uint8_t data[];
 } PACKED ep3_card_update_pkt;
 
+/* The packet used to change the music on the Episode 3 jukebox */
+typedef struct ep3_jukebox {
+    dc_pkt_hdr_t hdr;
+    uint32_t unk1;
+    uint32_t unk2;
+    uint16_t unk3;
+    uint16_t music;
+} PACKED ep3_jukebox_pkt;
+
 #undef PACKED
 
 /* Parameters for the various packets. */
@@ -900,6 +909,7 @@ typedef struct ep3_card_update {
 #define TIMESTAMP_TYPE                  0x00B1
 #define EP3_RANK_UPDATE_TYPE            0x00B7
 #define EP3_CARD_UPDATE_TYPE            0x00B8
+#define EP3_COMMAND_TYPE                0x00BA
 #define CHOICE_OPTION_TYPE              0x00C0
 #define GAME_CREATE_TYPE                0x00C1
 #define CHOICE_SETTING_TYPE             0x00C2
@@ -982,6 +992,10 @@ typedef struct ep3_card_update {
 /* Gamecube - Responses to Packet 0x9C. */
 #define LOGIN_9CGC_BAD_PWD                  0
 #define LOGIN_9CGC_OK                       1
+
+/* Episode 3 - Types of 0xBA commands. */
+#define EP3_COMMAND_JUKEBOX_REQUEST         2
+#define EP3_COMMAND_JUKEBOX_SET             3
 
 #endif /* !PACKETS_H_HAVE_PACKETS */ 
 #endif /* !PACKETS_H_HEADERS_ONLY */

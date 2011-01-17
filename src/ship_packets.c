@@ -6804,3 +6804,37 @@ int send_lobby_mod_stat(lobby_t *l, ship_client_t *c, int stat, int amt) {
 
     return 0;
 }
+
+/* Send an Episode 3 Jukebox music change packet to the lobby. */
+int send_lobby_ep3_jukebox(lobby_t *l, uint16_t music) {
+    ep3_jukebox_pkt pkt;
+    int i;
+
+    /* Fill in the packet first... */
+    pkt.hdr.pkt_type = EP3_COMMAND_TYPE;
+    pkt.hdr.flags = EP3_COMMAND_JUKEBOX_SET;
+    pkt.hdr.pkt_len = LE16(0x0010);
+    pkt.unk1 = LE32(0x0000012C);
+    pkt.unk2 = LE32(0x000008E8);
+    pkt.unk3 = LE16(0x0000);
+    pkt.music = LE16(music);
+
+    pthread_mutex_lock(&l->mutex);
+
+    for(i = 0; i < l->max_clients; ++i) {
+        if(l->clients[i]) {
+            pthread_mutex_lock(&l->clients[i]->mutex);
+
+            /* Send to the client if they're on Episode 3. */
+            if(l->clients[i]->version == CLIENT_VERSION_EP3) {
+                send_pkt_dc(l->clients[i], (dc_pkt_hdr_t *)&pkt);
+            }
+
+            pthread_mutex_unlock(&l->clients[i]->mutex);
+        }
+    }
+
+    pthread_mutex_unlock(&l->mutex);
+
+    return 0;
+}

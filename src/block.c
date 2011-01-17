@@ -1920,6 +1920,29 @@ static int process_infoboard(ship_client_t *c, gc_write_info_pkt *pkt) {
     return 0;
 }
 
+/* Process a 0xBA packet. */
+static int process_ep3_command(ship_client_t *c, const uint8_t *pkt) {
+    dc_pkt_hdr_t *hdr = (dc_pkt_hdr_t *)pkt;
+    uint16_t len = LE16(hdr->pkt_len);
+    uint16_t tmp;
+
+    switch(hdr->flags) {
+        case EP3_COMMAND_JUKEBOX_REQUEST:
+            /* Make sure the size looks ok... */
+            if(len != 0x10) {
+                return -1;
+            }
+
+            tmp = pkt[0x0E] | (pkt[0x0F] << 8);
+            return send_lobby_ep3_jukebox(c->cur_lobby, tmp);
+
+        default:
+            debug(DBG_LOG, "Unknown Episode 3 Command: %02x", hdr->flags);
+            print_packet(pkt, len);
+            return -1;
+    }
+}
+
 /* Process block commands for a Dreamcast client. */
 static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
     uint8_t type;
@@ -2120,6 +2143,9 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
         case GAME_COMMAND_C9_TYPE:
         case GAME_COMMAND_CB_TYPE:
             return subcmd_handle_ep3_bcast(c, (subcmd_pkt_t *)pkt);
+
+        case EP3_COMMAND_TYPE:
+            return process_ep3_command(c, pkt);
 
         default:
             debug(DBG_LOG, "Unknown packet!\n");
