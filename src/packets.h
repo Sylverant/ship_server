@@ -909,6 +909,8 @@ typedef struct ep3_card_update {
 #define BLACKLIST_TYPE                  0x00C6
 #define AUTOREPLY_SET_TYPE              0x00C7
 #define AUTOREPLY_CLEAR_TYPE            0x00C8
+#define GAME_COMMAND_C9_TYPE            0x00C9
+#define GAME_COMMAND_CB_TYPE            0x00CB
 #define TRADE_0_TYPE                    0x00D0
 #define TRADE_1_TYPE                    0x00D1
 #define TRADE_2_TYPE                    0x00D2

@@ -363,4 +363,7 @@ int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt);
 /* Handle a 0x60 packet. */
 int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt);
 
+/* Handle an 0xC9/0xCB packet from Episode 3. */
+int subcmd_handle_ep3_bcast(ship_client_t *c, subcmd_pkt_t *pkt);
+
 #endif /* !SUBCMD_H */

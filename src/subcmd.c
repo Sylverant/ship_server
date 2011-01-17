@@ -988,3 +988,17 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
     pthread_mutex_unlock(&l->mutex);
     return rv;
 }
+
+/* Handle a 0xC9/0xCB packet. */
+int subcmd_handle_ep3_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+    int rv;
+
+    pthread_mutex_lock(&l->mutex);
+
+    /* We don't do anything special with these just yet... */
+    rv = lobby_send_pkt_ep3(l, c, (dc_pkt_hdr_t *)pkt);
+
+    pthread_mutex_unlock(&l->mutex);
+    return rv;
+}

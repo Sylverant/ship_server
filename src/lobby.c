@@ -679,6 +679,21 @@ int lobby_send_pkt_dc(lobby_t *l, ship_client_t *c, void *h) {
     return 0;
 }
 
+int lobby_send_pkt_ep3(lobby_t *l, ship_client_t *c, void *h) {
+    dc_pkt_hdr_t *hdr = (dc_pkt_hdr_t *)h;
+    int i;
+
+    /* Send the packet to every connected Episode 3 client. */
+    for(i = 0; i < l->max_clients; ++i) {
+        if(l->clients[i] && l->clients[i] != c &&
+           l->version == CLIENT_VERSION_EP3) {
+            send_pkt_dc(l->clients[i], hdr);
+        }
+    }
+
+    return 0;
+}
+
 static const char mini_language_codes[][3] = {
     "J", "E", "G", "F", "S", "CS", "CT", "K"
 };

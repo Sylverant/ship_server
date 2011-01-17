@@ -2117,6 +2117,10 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
         case AUTOREPLY_CLEAR_TYPE:
             return client_clear_autoreply(c);
 
+        case GAME_COMMAND_C9_TYPE:
+        case GAME_COMMAND_CB_TYPE:
+            return subcmd_handle_ep3_bcast(c, (subcmd_pkt_t *)pkt);
+
         default:
             debug(DBG_LOG, "Unknown packet!\n");
             print_packet((unsigned char *)pkt, len);
