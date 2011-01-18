@@ -301,6 +301,44 @@ typedef struct subcmd_word_select {
     uint16_t words[12];
 } PACKED subcmd_word_select_t;
 
+/* Packet used for grave data in C-Mode (Dreamcast) */
+typedef struct subcmd_dc_grave {
+    dc_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint8_t unk1;                       /* 0 on DC, has something on PC? */
+    uint8_t unused1;
+    uint8_t client_id;
+    uint8_t unused2;
+    uint16_t unk2;
+    uint32_t unk3[13];                  /* Always blank for me? */
+    uint16_t unk4;                      /* Always seems to be 0x0100? */
+    uint16_t deaths;
+    uint32_t coords_time[5];            /* Maybe that's what this is? */
+    char team[20];                      /* Probably shorter */
+    char message[24];                   /* Only seems to use 22 chars */
+    uint32_t unk5[10];
+} PACKED subcmd_dc_grave_t;
+
+/* Packet used for grave data in C-Mode (PC) */
+typedef struct subcmd_pc_grave {
+    dc_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint8_t unk1;
+    uint8_t unused1;
+    uint8_t client_id;
+    uint8_t unused2;
+    uint16_t unk2;
+    uint32_t unk3[16];
+    uint16_t unk4;                      /* Always seems to be 0x0100? */
+    uint16_t deaths;
+    uint32_t coords_time[5];            /* Maybe that's what these are? */
+    uint16_t team[20];
+    uint16_t message[24];
+    uint32_t unk5[10];
+} PACKED subcmd_pc_grave_t;
+
 #undef PACKED
 
 /* Subcommand types we care about (0x62/0x6D). */
@@ -334,6 +372,7 @@ typedef struct subcmd_word_select {
 #define SUBCMD_SPAWN_NPC    0x69
 #define SUBCMD_BURST_DONE   0x72
 #define SUBCMD_WORD_SELECT  0x74
+#define SUBCMD_CMODE_GRAVE  0x7C
 #define SUBCMD_WARP         0x94
 #define SUBCMD_CHANGE_STAT  0x9A
 

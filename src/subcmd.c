@@ -825,6 +825,134 @@ static int handle_symbol_chat(ship_client_t *c, subcmd_pkt_t *pkt) {
     return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt);
 }
 
+static int handle_cmode_grave(ship_client_t *c, subcmd_pkt_t *pkt) {
+    int i;
+    lobby_t *l = c->cur_lobby;
+    subcmd_pc_grave_t pc = { { 0 } };
+    subcmd_dc_grave_t dc = { { 0 } };
+    iconv_t ic, ic2;
+    size_t in, out;
+    ICONV_CONST char *inptr;
+    char *outptr;
+
+    /* Deal with converting the different versions... */
+    switch(c->version) {
+        case CLIENT_VERSION_DCV2:
+            memcpy(&dc, pkt, sizeof(subcmd_dc_grave_t));
+
+            /* Make a copy to send to PC players... */
+            if(dc.team[1] == 'J') {
+                ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+            }
+            else {
+                ic = iconv_open("UTF-16LE", "ISO-8859-1");
+            }
+
+            if(dc.message[1] == 'J') {
+                ic2 = iconv_open("UTF-16LE", "SHIFT_JIS");
+            }
+            else {
+                ic2 = iconv_open("UTF-16LE", "ISO-8859-1");
+            }
+
+            memcpy(&pc, &dc, 64);
+            pc.unk4 = dc.unk4;
+            pc.deaths = dc.deaths;
+            pc.coords_time[0] = dc.coords_time[0];
+            pc.coords_time[1] = dc.coords_time[1];
+            pc.coords_time[2] = dc.coords_time[2];
+            pc.coords_time[3] = dc.coords_time[3];
+            pc.coords_time[4] = dc.coords_time[4];
+
+            /* Convert the team name */
+            in = 20;
+            out = 40;
+            inptr = dc.team;
+            outptr = (char *)pc.team;
+            iconv(ic, &inptr, &in, &outptr, &out);
+
+            /* Convert the message */
+            in = 24;
+            out = 48;
+            inptr = dc.message;
+            outptr = (char *)pc.message;
+            iconv(ic2, &inptr, &in, &outptr, &out);
+
+            memcpy(pc.unk5, dc.unk5, 40);
+
+            iconv_close(ic);
+            iconv_close(ic2);
+            break;
+
+        case CLIENT_VERSION_PC:
+            memcpy(&pc, pkt, sizeof(subcmd_pc_grave_t));
+
+            /* Make a copy to send to DC players... */
+            if(pc.team[1] == (uint16_t)'J') {
+                ic = iconv_open("SHIFT_JIS", "UTF-16LE");
+            }
+            else {
+                ic = iconv_open("ISO-8859-1", "UTF-16LE");
+            }
+
+            if(pc.message[1] == (uint16_t)'J') {
+                ic2 = iconv_open("SHIFT_JIS", "UTF-16LE");
+            }
+            else {
+                ic2 = iconv_open("ISO-8859-1", "UTF-16LE");
+            }
+
+            memcpy(&dc, &pc, 64);
+            dc.unk4 = pc.unk4;
+            dc.deaths = pc.deaths;
+            dc.coords_time[0] = pc.coords_time[0];
+            dc.coords_time[1] = pc.coords_time[1];
+            dc.coords_time[2] = pc.coords_time[2];
+            dc.coords_time[3] = pc.coords_time[3];
+            dc.coords_time[4] = pc.coords_time[4];
+
+            /* Convert the team name */
+            in = 40;
+            out = 20;
+            inptr = (char *)pc.team;
+            outptr = dc.team;
+            iconv(ic, &inptr, &in, &outptr, &out);
+
+            /* Convert the message */
+            in = 48;
+            out = 24;
+            inptr = (char *)pc.message;
+            outptr = dc.message;
+            iconv(ic2, &inptr, &in, &outptr, &out);
+
+            memcpy(dc.unk5, pc.unk5, 40);
+
+            iconv_close(ic);
+            iconv_close(ic2);
+            break;
+
+        default:
+            return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt);
+    }
+
+    /* Send the packet to everyone in the lobby */
+    for(i = 0; i < l->max_clients; ++i) {
+        if(l->clients[i] && l->clients[i] != c) {
+            switch(l->clients[i]->version) {
+                case CLIENT_VERSION_DCV2:
+                    send_pkt_dc(l->clients[i], (dc_pkt_hdr_t *)&dc);
+                    break;
+
+                case CLIENT_VERSION_PC:
+                    send_pkt_dc(l->clients[i], (dc_pkt_hdr_t *)&pc);
+                    break;
+            }
+        }
+    }
+
+    return 0;
+}
+
 /* Handle a 0x62/0x6D packet. */
 int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
     lobby_t *l = c->cur_lobby;
@@ -994,6 +1122,10 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
 
         case SUBCMD_SYMBOL_CHAT:
             rv = handle_symbol_chat(c, pkt);
+            break;
+
+        case SUBCMD_CMODE_GRAVE:
+            rv = handle_cmode_grave(c, pkt);
             break;
 
         default:
