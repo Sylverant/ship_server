@@ -34,6 +34,23 @@
 #include "shipgate.h"
 #include "items.h"
 
+/* Some macros for commonly used privilege checks. */
+#define LOCAL_GM(c) \
+    ((c->privilege & CLIENT_PRIV_LOCAL_GM) && \
+     (c->flags & CLIENT_FLAG_LOGGED_IN))
+
+#define GLOBAL_GM(c) \
+    ((c->privilege & CLIENT_PRIV_GLOBAL_GM) && \
+     (c->flags & CLIENT_FLAG_LOGGED_IN))
+
+#define LOCAL_ROOT(c) \
+    ((c->privilege & CLIENT_PRIV_LOCAL_ROOT) && \
+     (c->flags & CLIENT_FLAG_LOGGED_IN))
+
+#define GLOBAL_ROOT(c) \
+    ((c->privilege & CLIENT_PRIV_GLOBAL_ROOT) && \
+     (c->flags & CLIENT_FLAG_LOGGED_IN))
+
 extern int handle_dc_gcsend(ship_client_t *d, subcmd_dc_gcsend_t *pkt);
 
 typedef struct command {
@@ -47,7 +64,7 @@ static int handle_warp(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     lobby_t *l = c->cur_lobby;
 
     /* Make sure the requester is a GM. */
-    if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
+    if(!LOCAL_GM(c)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
@@ -80,7 +97,7 @@ static int handle_warpall(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     lobby_t *l = c->cur_lobby;
 
     /* Make sure the requester is a GM. */
-    if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
+    if(!LOCAL_GM(c)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
@@ -115,7 +132,7 @@ static int handle_kill(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     char *reason;
 
     /* Make sure the requester is a GM. */
-    if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
+    if(!LOCAL_GM(c)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
@@ -151,7 +168,7 @@ static int handle_kill(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
        since it wasn't able to be done on this block (the shipgate may well
        send the packet back to us if the person is on another block on this
        ship). */
-    if((c->privilege & CLIENT_PRIV_GLOBAL_GM)) {
+    if(GLOBAL_GM(c)) {
         if(strlen(reason) > 1) {
             shipgate_send_kick(&c->cur_ship->sg, c->guildcard, gc, reason + 1);
         }
@@ -253,7 +270,7 @@ static int handle_refresh(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     sylverant_quest_list_t quests;
 
     /* Make sure the requester is a GM. */
-    if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
+    if(!LOCAL_GM(c)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
@@ -415,7 +432,7 @@ static int handle_bcast(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     ship_client_t *i2;
 
     /* Make sure the requester is a GM. */
-    if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
+    if(!LOCAL_GM(c)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
@@ -499,7 +516,7 @@ static int handle_item(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     int count;
 
     /* Make sure the requester is a GM. */
-    if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
+    if(!LOCAL_GM(c)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
@@ -525,7 +542,7 @@ static int handle_item4(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     int count;
 
     /* Make sure the requester is a GM. */
-    if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
+    if(!LOCAL_GM(c)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
@@ -550,7 +567,7 @@ static int handle_event(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     int event, gevent, i, j;
 
     /* Make sure the requester is a GM. */
-    if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
+    if(!LOCAL_GM(c)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
@@ -715,7 +732,7 @@ static int handle_clinfo(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     char ip[INET_ADDRSTRLEN];
 
     /* Make sure the requester is a GM. */
-    if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
+    if(!LOCAL_GM(c)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
@@ -746,7 +763,7 @@ static int handle_gban_d(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     char *reason;
 
     /* Make sure the requester is a global GM. */
-    if(!(c->privilege & CLIENT_PRIV_GLOBAL_GM)) {
+    if(!GLOBAL_GM(c)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
@@ -799,7 +816,7 @@ static int handle_gban_w(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     char *reason;
 
     /* Make sure the requester is a global GM. */
-    if(!(c->privilege & CLIENT_PRIV_GLOBAL_GM)) {
+    if(!GLOBAL_GM(c)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
@@ -852,7 +869,7 @@ static int handle_gban_m(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     char *reason;
 
     /* Make sure the requester is a global GM. */
-    if(!(c->privilege & CLIENT_PRIV_GLOBAL_GM)) {
+    if(!GLOBAL_GM(c)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
@@ -905,7 +922,7 @@ static int handle_gban_p(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     char *reason;
 
     /* Make sure the requester is a global GM. */
-    if(!(c->privilege & CLIENT_PRIV_GLOBAL_GM)) {
+    if(!GLOBAL_GM(c)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
@@ -957,7 +974,7 @@ static int handle_gban_p(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 /* Usage: /list parameters (there's too much to put here) */
 static int handle_list(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     /* Make sure the requester is a local GM. */
-    if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
+    if(!LOCAL_GM(c)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
@@ -1069,7 +1086,7 @@ static int handle_shutdown(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     block_t *b;
 
     /* Make sure the requester is a local root. */
-    if(!(c->privilege & CLIENT_PRIV_LOCAL_ROOT)) {
+    if(!LOCAL_ROOT(c)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
@@ -1124,7 +1141,7 @@ static int handle_log(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     int rv;
 
     /* Make sure the requester is a local root. */
-    if(!(c->privilege & CLIENT_PRIV_LOCAL_ROOT)) {
+    if(!LOCAL_ROOT(c)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
@@ -1169,7 +1186,7 @@ static int handle_endlog(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     int rv;
 
     /* Make sure the requester is a local root. */
-    if(!(c->privilege & CLIENT_PRIV_LOCAL_ROOT)) {
+    if(!LOCAL_ROOT(c)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
@@ -1357,7 +1374,7 @@ static int handle_forgegc(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     subcmd_dc_gcsend_t gcpkt;
 
     /* Make sure the requester is a GM. */
-    if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
+    if(!LOCAL_GM(c)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
@@ -1403,7 +1420,7 @@ static int handle_invuln(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     pthread_mutex_lock(&c->mutex);
 
     /* Make sure the requester is a GM. */
-    if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
+    if(!LOCAL_GM(c)) {
         pthread_mutex_unlock(&c->mutex);
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
@@ -1428,7 +1445,7 @@ static int handle_inftp(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     pthread_mutex_lock(&c->mutex);
 
     /* Make sure the requester is a GM. */
-    if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
+    if(!LOCAL_GM(c)) {
         pthread_mutex_unlock(&c->mutex);
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
@@ -1455,7 +1472,7 @@ static int handle_smite(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     ship_client_t *cl;
 
     /* Make sure the requester is a GM. */
-    if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
+    if(!LOCAL_GM(c)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
@@ -1512,7 +1529,7 @@ static int handle_makeitem(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     static uint32_t itid = 0xF0000001;  /* ID of the next item generated */
 
     /* Make sure the requester is a GM. */
-    if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
+    if(!LOCAL_GM(c)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
@@ -1566,7 +1583,7 @@ static int handle_teleport(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     subcmd_teleport_t p2;
 
     /* Make sure the requester is a GM. */
-    if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
+    if(!LOCAL_GM(c)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
@@ -1622,7 +1639,7 @@ static int handle_dumpinv(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     int i;
 
     /* Make sure the requester is a GM. */
-    if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
+    if(!LOCAL_GM(c)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
@@ -1706,7 +1723,7 @@ static int handle_ws(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     subcmd_pkt_t *p = (subcmd_pkt_t *)tmp;
 
     /* Make sure the requester is a GM. */
-    if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
+    if(!LOCAL_GM(c)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
@@ -1757,7 +1774,7 @@ static int handle_ll(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     strcpy(str, "\tE");
 
-    if((c->privilege & CLIENT_PRIV_LOCAL_GM)) {
+    if(LOCAL_GM(c)) {
         for(i = 0; i < l->max_clients; i += 2) {
             if((c2 = l->clients[i])) {
                 snprintf(str, 511, "%s%d: %s (%d)   ", str, i, c2->pl->v1.name,
@@ -1925,7 +1942,7 @@ static int handle_stfu(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     ship_client_t *i;
 
     /* Make sure the requester is a GM. */
-    if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
+    if(!LOCAL_GM(c)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
@@ -1940,8 +1957,7 @@ static int handle_stfu(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     /* Look for the requested user and STFU them (only on this block). */
     TAILQ_FOREACH(i, b->clients, qentry) {
-        /* Disconnect them if we find them */
-        if(i->guildcard == gc) {
+        if(i->guildcard == gc && i->privilege < c->privilege) {
             i->flags |= CLIENT_FLAG_STFU;
             return send_txt(c, "%s", __(c, "\tE\tC7Client STFUed"));
         }
@@ -1958,7 +1974,7 @@ static int handle_unstfu(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     ship_client_t *i;
 
     /* Make sure the requester is a GM. */
-    if(!(c->privilege & CLIENT_PRIV_LOCAL_GM)) {
+    if(!LOCAL_GM(c)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
@@ -1973,7 +1989,6 @@ static int handle_unstfu(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     /* Look for the requested user and un-STFU them (only on this block). */
     TAILQ_FOREACH(i, b->clients, qentry) {
-        /* Disconnect them if we find them */
         if(i->guildcard == gc) {
             i->flags &= ~CLIENT_FLAG_STFU;
             return send_txt(c, "%s", __(c, "\tE\tC7Client un-STFUed"));
