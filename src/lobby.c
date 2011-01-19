@@ -164,6 +164,61 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
     return l;
 }
 
+lobby_t *lobby_create_ep3_game(block_t *block, char *name, char *passwd,
+                               uint8_t view_battle, uint8_t section) {
+    lobby_t *l = (lobby_t *)malloc(sizeof(lobby_t));
+    uint32_t id = 0x20;
+    int i;
+
+    /* If we don't have a lobby, bail. */
+    if(!l) {
+        perror("malloc");
+        return NULL;
+    }
+
+    /* Clear it. */
+    memset(l, 0, sizeof(lobby_t));
+
+    /* Select an unused ID. */
+    do {
+        ++id;
+    } while(block_get_lobby(block, id));
+
+    /* Set up the specified parameters. */
+    l->lobby_id = id;
+    l->type = LOBBY_TYPE_EP3_GAME;
+    l->max_clients = 4;
+    l->block = block;
+
+    l->leader_id = 0;
+    l->battle = view_battle;
+    l->episode = 3;
+    l->version = CLIENT_VERSION_EP3;
+    l->section = section;
+    l->min_level = 1;
+    l->max_level = 200;
+    l->rand_seed = genrand_int32();
+    l->create_time = time(NULL);
+
+    /* Copy the game name and password. */
+    strncpy(l->name, name, 16);
+    strncpy(l->passwd, passwd, 16);
+    l->name[16] = 0;
+    l->passwd[16] = 0;
+
+    /* Initialize the packet queue */
+    STAILQ_INIT(&l->pkt_queue);
+
+    /* Initialize the lobby mutex. */
+    pthread_mutex_init(&l->mutex, NULL);
+
+    /* Add it to the list of lobbies, and increment the game count. */
+    TAILQ_INSERT_TAIL(&block->lobbies, l, qentry);
+    ship_inc_games(block->ship);
+
+    return l;
+}
+
 static void lobby_empty_pkt_queue(lobby_t *l) {
     lobby_pkt_t *i;
 

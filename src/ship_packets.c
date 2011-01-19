@@ -1909,6 +1909,63 @@ static int send_gc_game_join(ship_client_t *c, lobby_t *l) {
     return crypt_send(c, GC_GAME_JOIN_LENGTH, sendbuf);
 }
 
+static int send_ep3_game_join(ship_client_t *c, lobby_t *l) {
+    uint8_t *sendbuf = get_sendbuf();
+    ep3_game_join_pkt *pkt = (ep3_game_join_pkt *)sendbuf;
+    int clients = 0, i;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Clear it out first. */
+    memset(pkt, 0, EP3_GAME_JOIN_LENGTH);
+
+    /* Fill in the basics. */
+    pkt->hdr.pkt_type = GAME_JOIN_TYPE;
+    pkt->hdr.pkt_len = LE16(EP3_GAME_JOIN_LENGTH);
+    pkt->client_id = c->client_id;
+    pkt->leader_id = l->leader_id;
+    pkt->one = 1;
+    pkt->difficulty = 0;
+    pkt->battle = l->battle;
+    pkt->event = l->event;
+    pkt->section = l->section;
+    pkt->challenge = 0;
+    pkt->rand_seed = LE32(l->rand_seed);
+    pkt->episode = 1;
+    pkt->one2 = 0;
+
+    /* Fill in the variations array? */
+    //memcpy(pkt->maps, l->maps, 0x20 * 4);
+
+    for(i = 0; i < 4; ++i) {
+        if(l->clients[i]) {
+            /* Copy the player's data into the packet. */
+            pkt->players[i].tag = LE32(0x00010000);
+            pkt->players[i].guildcard = LE32(l->clients[i]->guildcard);
+            pkt->players[i].ip_addr = l->clients[i]->addr;
+            pkt->players[i].client_id = LE32(i);
+            
+            /* No need to iconv the names, they'll be good as is */
+            memcpy(pkt->players[i].name, l->clients[i]->pl->v1.name, 16);
+
+            /* Copy the player data to that part of the packet. */
+            memcpy(&pkt->player_data[i], &l->clients[i]->pl->v1,
+                   sizeof(v1_player_t));
+
+            ++clients;
+        }
+    }
+
+    /* Copy the client count over. */
+    pkt->hdr.flags = (uint8_t)clients;
+
+    /* Send it away */
+    return crypt_send(c, EP3_GAME_JOIN_LENGTH, sendbuf);
+}
+
 int send_game_join(ship_client_t *c, lobby_t *l) {
     /* Call the appropriate function. */
     switch(c->version) {
@@ -1920,8 +1977,10 @@ int send_game_join(ship_client_t *c, lobby_t *l) {
             return send_pc_game_join(c, l);
 
         case CLIENT_VERSION_GC:
-        case CLIENT_VERSION_EP3: /* XXXX? */
             return send_gc_game_join(c, l);
+
+        case CLIENT_VERSION_EP3:
+            return send_ep3_game_join(c, l);
     }
 
     return -1;

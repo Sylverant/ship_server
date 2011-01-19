@@ -513,6 +513,25 @@ typedef struct gc_game_join {
     uint16_t padding;
 } PACKED gc_game_join_pkt;
 
+typedef struct ep3_game_join {
+    dc_pkt_hdr_t hdr;
+    uint32_t maps[0x20];
+    dc_player_hdr_t players[4];
+    uint8_t client_id;
+    uint8_t leader_id;
+    uint8_t one;                        /* Always 1. */
+    uint8_t difficulty;
+    uint8_t battle;
+    uint8_t event;
+    uint8_t section;
+    uint8_t challenge;
+    uint32_t rand_seed;
+    uint8_t episode;
+    uint8_t one2;                       /* Always 1. */
+    uint16_t padding;
+    v1_player_t player_data[4];
+} PACKED ep3_game_join_pkt;
+
 #endif
 
 /* The packet sent to clients to give them the game select list */
@@ -844,6 +863,25 @@ typedef struct ep3_jukebox {
     uint16_t music;
 } PACKED ep3_jukebox_pkt;
 
+/* The packet used to communiate various requests and such to the server from
+   Episode 3 */
+typedef struct ep3_server_data {
+    dc_pkt_hdr_t hdr;
+    uint8_t unk[4];
+    uint8_t data[];
+} PACKED ep3_server_data_pkt;
+
+/* The packet used by Episode 3 clients to create a game */
+typedef struct ep3_game_create {
+    dc_pkt_hdr_t hdr;
+    uint32_t unused[2];
+    char name[16];
+    char password[16];
+    uint8_t unused2[2];
+    uint8_t view_battle;
+    uint8_t episode;
+} PACKED ep3_game_create_pkt;
+
 #undef PACKED
 
 /* Parameters for the various packets. */
@@ -920,6 +958,7 @@ typedef struct ep3_jukebox {
 #define AUTOREPLY_SET_TYPE              0x00C7
 #define AUTOREPLY_CLEAR_TYPE            0x00C8
 #define GAME_COMMAND_C9_TYPE            0x00C9
+#define EP3_SERVER_DATA_TYPE            0x00CA
 #define GAME_COMMAND_CB_TYPE            0x00CB
 #define TRADE_0_TYPE                    0x00D0
 #define TRADE_1_TYPE                    0x00D1
@@ -933,6 +972,8 @@ typedef struct ep3_jukebox {
 #define GC_INFOBOARD_WRITE_TYPE         0x00D9
 #define LOBBY_EVENT_TYPE                0x00DA
 #define GC_VERIFY_LICENSE_TYPE          0x00DB
+#define EP3_MENU_CHANGE_TYPE            0x00DC
+#define EP3_GAME_CREATE_TYPE            0x00EC
  
 #define DC_WELCOME_LENGTH               0x004C
 #define DC_REDIRECT_LENGTH              0x000C
@@ -945,6 +986,7 @@ typedef struct ep3_jukebox {
 #define DC_GUILD_REPLY_LENGTH           0x00C4
 #define DC_GAME_JOIN_LENGTH             0x0114
 #define GC_GAME_JOIN_LENGTH             0x0114
+#define EP3_GAME_JOIN_LENGTH            0x1184
 #define DC_QUEST_INFO_LENGTH            0x0128
 #define PC_QUEST_INFO_LENGTH            0x024C
 #define DC_QUEST_FILE_LENGTH            0x003C

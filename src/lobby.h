@@ -113,6 +113,7 @@ TAILQ_HEAD(lobby_queue, lobby);
 /* Possible values for the type parameter. */
 #define LOBBY_TYPE_DEFAULT      0x00000001
 #define LOBBY_TYPE_GAME         0x00000002
+#define LOBBY_TYPE_EP3_GAME     0x00000003
 
 /* Possible values for the flags parameter. */
 #define LOBBY_FLAG_BURSTING     0x00000001
@@ -136,6 +137,8 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
                            uint8_t difficulty, uint8_t battle, uint8_t chal,
                            uint8_t v2, int version, uint8_t section,
                            uint8_t event, uint8_t episode);
+lobby_t *lobby_create_ep3_game(block_t *block, char *name, char *passwd,
+                               uint8_t view_battle, uint8_t section);
 void lobby_destroy(lobby_t *l);
 void lobby_destroy_noremove(lobby_t *l);
 

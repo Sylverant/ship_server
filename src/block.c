@@ -1445,6 +1445,31 @@ static int gc_process_game_create(ship_client_t *c, gc_game_create_pkt *pkt) {
     return 0;
 }
 
+static int ep3_process_game_create(ship_client_t *c, ep3_game_create_pkt *pkt) {
+    lobby_t *l;
+
+    /* Create the lobby structure. */
+    l = lobby_create_ep3_game(c->cur_block, pkt->name, pkt->password,
+                              pkt->view_battle, c->pl->v1.section);
+
+    /* If we don't have a game, something went wrong... tell the user. */
+    if(!l) {
+        return send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't create game!"),
+                             __(c, "\tC7Try again later."));
+    }
+
+    /* We've got a new game, but nobody's in it yet... Lets put the requester
+       in the game. */
+    if(join_game(c, l)) {
+        /* Something broke, destroy the created lobby before anyone tries to
+         join it. */
+        lobby_destroy(l);
+    }
+
+    /* All is good in the world. */
+    return 0;
+}
+
 /* Process a client's done bursting signal. */
 static int dc_process_done_burst(ship_client_t *c) {
     lobby_t *l = c->cur_lobby;
@@ -1947,7 +1972,7 @@ static int process_ep3_command(ship_client_t *c, const uint8_t *pkt) {
             return send_lobby_ep3_jukebox(c->cur_lobby, tmp);
 
         default:
-            debug(DBG_LOG, "Unknown Episode 3 Command: %02x", hdr->flags);
+            debug(DBG_LOG, "Unknown Episode 3 Command: %02x\n", hdr->flags);
             print_packet(pkt, len);
             return -1;
     }
@@ -2156,6 +2181,21 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
 
         case EP3_COMMAND_TYPE:
             return process_ep3_command(c, pkt);
+
+        case EP3_SERVER_DATA_TYPE:
+            debug(DBG_LOG, "Ep3 Server Data from %s (%d)\n", c->pl->v1.name,
+                  c->guildcard);
+            print_packet((unsigned char *)pkt, len);
+            return 0;
+
+        case EP3_MENU_CHANGE_TYPE:
+            if(dc->flags != 0) {
+                return send_simple(c, EP3_MENU_CHANGE_TYPE, 0);
+            }
+            return 0;
+
+        case EP3_GAME_CREATE_TYPE:
+            return ep3_process_game_create(c, (ep3_game_create_pkt *)pkt);
 
         default:
             debug(DBG_LOG, "Unknown packet!\n");
