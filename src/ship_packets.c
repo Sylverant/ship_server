@@ -882,7 +882,7 @@ int send_lobby_join(ship_client_t *c, lobby_t *l) {
                 return -1;
             }
 
-            if(!(l->type & LOBBY_TYPE_GAME) && send_lobby_c_rank(c, l)) {
+            if(l->type == LOBBY_TYPE_DEFAULT && send_lobby_c_rank(c, l)) {
                 return -1;
             }
 
@@ -893,7 +893,7 @@ int send_lobby_join(ship_client_t *c, lobby_t *l) {
                 return -1;
             }
 
-            if(!(l->type & LOBBY_TYPE_GAME) && send_lobby_c_rank(c, l)) {
+            if(l->type == LOBBY_TYPE_DEFAULT && send_lobby_c_rank(c, l)) {
                 return -1;
             }
 
@@ -943,16 +943,16 @@ static int send_dc_lobby_add_player(lobby_t *l, ship_client_t *c,
     memset(pkt, 0, sizeof(dc_lobby_join_pkt));
 
     /* Fill in the basics. */
-    pkt->hdr.pkt_type = (l->type & LOBBY_TYPE_DEFAULT) ? 
+    pkt->hdr.pkt_type = (l->type == LOBBY_TYPE_DEFAULT) ? 
         LOBBY_ADD_PLAYER_TYPE : GAME_ADD_PLAYER_TYPE;
     pkt->hdr.flags = 1;
     pkt->hdr.pkt_len = LE16(0x044C);
     pkt->client_id = c->client_id;
     pkt->leader_id = l->leader_id;
     pkt->one = 1;
-    pkt->lobby_num = (l->type & LOBBY_TYPE_DEFAULT) ? l->lobby_id - 1 : 0xFF;
+    pkt->lobby_num = (l->type == LOBBY_TYPE_DEFAULT) ? l->lobby_id - 1 : 0xFF;
 
-    if(l->type & LOBBY_TYPE_DEFAULT) {
+    if(l->type == LOBBY_TYPE_DEFAULT) {
         pkt->block_num = LE16(l->block->b);
     }
     else {
@@ -1000,16 +1000,16 @@ static int send_pc_lobby_add_player(lobby_t *l, ship_client_t *c,
     memset(pkt, 0, sizeof(pc_lobby_join_pkt));
 
     /* Fill in the basics. */
-    pkt->hdr.pkt_type = (l->type & LOBBY_TYPE_DEFAULT) ? 
+    pkt->hdr.pkt_type = (l->type == LOBBY_TYPE_DEFAULT) ? 
         LOBBY_ADD_PLAYER_TYPE : GAME_ADD_PLAYER_TYPE;
     pkt->hdr.flags = 1;
     pkt->hdr.pkt_len = LE16(0x045C);
     pkt->client_id = c->client_id;
     pkt->leader_id = l->leader_id;
     pkt->one = 1;
-    pkt->lobby_num = (l->type & LOBBY_TYPE_DEFAULT) ? l->lobby_id - 1 : 0xFF;
+    pkt->lobby_num = (l->type == LOBBY_TYPE_DEFAULT) ? l->lobby_id - 1 : 0xFF;
 
-    if(l->type & LOBBY_TYPE_DEFAULT) {
+    if(l->type == LOBBY_TYPE_DEFAULT) {
         pkt->block_num = LE16(l->block->b);
     }
     else {
@@ -1041,7 +1041,7 @@ int send_lobby_add_player(lobby_t *l, ship_client_t *c) {
     int i;
 
     /* Send the C-Rank of this new character. */
-    if(!(l->type & LOBBY_TYPE_GAME)) {
+    if(l->type == LOBBY_TYPE_DEFAULT) {
         send_c_rank_update(c, l);
     }
 
@@ -1083,13 +1083,13 @@ static int send_dc_lobby_leave(lobby_t *l, ship_client_t *c, int client_id) {
     /* Fill in the header */
     if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
        c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3) {
-        pkt->hdr.dc.pkt_type = (l->type & LOBBY_TYPE_DEFAULT) ?
+        pkt->hdr.dc.pkt_type = (l->type == LOBBY_TYPE_DEFAULT) ?
             LOBBY_LEAVE_TYPE : GAME_LEAVE_TYPE;
         pkt->hdr.dc.flags = client_id;
         pkt->hdr.dc.pkt_len = LE16(DC_LOBBY_LEAVE_LENGTH);
     }
     else {
-        pkt->hdr.pc.pkt_type = (l->type & LOBBY_TYPE_DEFAULT) ?
+        pkt->hdr.pc.pkt_type = (l->type == LOBBY_TYPE_DEFAULT) ?
             LOBBY_LEAVE_TYPE : GAME_LEAVE_TYPE;
         pkt->hdr.pc.flags = client_id;
         pkt->hdr.pc.pkt_len = LE16(DC_LOBBY_LEAVE_LENGTH);
@@ -2012,7 +2012,7 @@ static int send_dc_game_list(ship_client_t *c, block_t *b) {
 
     TAILQ_FOREACH(l, &b->lobbies, qentry) {
         /* Ignore default lobbies and Gamecube games */
-        if(l->type & LOBBY_TYPE_DEFAULT || l->episode) {
+        if(l->type != LOBBY_TYPE_GAME || l->episode) {
             continue;
         }
 
@@ -2101,7 +2101,7 @@ static int send_pc_game_list(ship_client_t *c, block_t *b) {
 
     TAILQ_FOREACH(l, &b->lobbies, qentry) {
         /* Ignore default lobbies and Gamecube games */
-        if(l->type & LOBBY_TYPE_DEFAULT || l->episode) {
+        if(l->type != LOBBY_TYPE_GAME || l->episode) {
             continue;
         }
 
@@ -2178,7 +2178,7 @@ static int send_gc_game_list(ship_client_t *c, block_t *b) {
 
     TAILQ_FOREACH(l, &b->lobbies, qentry) {
         /* Ignore default lobbies */
-        if(l->type & LOBBY_TYPE_DEFAULT) {
+        if(l->type != LOBBY_TYPE_GAME) {
             continue;
         }
 
@@ -2186,6 +2186,69 @@ static int send_gc_game_list(ship_client_t *c, block_t *b) {
            the lobby doesn't have the right flag set */
         if(!l->episode && (!(c->flags & CLIENT_FLAG_SHOW_DCPC_ON_GC) ||
                            !(l->flags & LOBBY_FLAG_GC_ALLOWED))) {
+            continue;
+        }
+
+        /* Lock the lobby */
+        pthread_mutex_lock(&l->mutex);
+
+        /* Clear the entry */
+        memset(pkt->entries + entries, 0, 0x1C);
+
+        /* Copy the lobby's data to the packet */
+        pkt->entries[entries].menu_id = LE32(0x00000002);
+        pkt->entries[entries].item_id = LE32(l->lobby_id);
+        pkt->entries[entries].difficulty = 0x22 + l->difficulty;
+        pkt->entries[entries].players = l->num_clients;
+        pkt->entries[entries].flags = ((l->episode <= 1) ? 0x40 : 0x80) |
+            (l->challenge ? 0x20 : 0x00) | (l->battle ? 0x10 : 0x00) |
+            (l->passwd[0] ? 0x02 : 0x00);
+
+        /* Copy the name */
+        strcpy(pkt->entries[entries].name, l->name);
+
+        /* Unlock the lobby */
+        pthread_mutex_unlock(&l->mutex);
+
+        /* Update the counters */
+        ++entries;
+        len += 0x1C;
+    }
+
+    /* Fill in the rest of the header */
+    pkt->hdr.flags = entries - 1;
+    pkt->hdr.pkt_len = LE16(len);
+
+    /* Send it away */
+    return crypt_send(c, len, sendbuf);
+}
+
+static int send_ep3_game_list(ship_client_t *c, block_t *b) {
+    uint8_t *sendbuf = get_sendbuf();
+    dc_game_list_pkt *pkt = (dc_game_list_pkt *)sendbuf;
+    int entries = 1, len = 0x20;
+    lobby_t *l;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Clear out the packet and the first entry */
+    memset(pkt, 0, 0x20);
+
+    /* Fill in the header */
+    pkt->hdr.pkt_type = GAME_LIST_TYPE;
+
+    /* Fill in the first entry */
+    pkt->entries[0].menu_id = 0xFFFFFFFF;
+    pkt->entries[0].item_id = 0xFFFFFFFF;
+    pkt->entries[0].flags = 0x04;
+    strcpy(pkt->entries[0].name, b->ship->cfg->name);
+
+    TAILQ_FOREACH(l, &b->lobbies, qentry) {
+        /* Ignore non-Episode 3 and default lobbies */
+        if(l->type != LOBBY_TYPE_EP3_GAME) {
             continue;
         }
 
@@ -2234,8 +2297,10 @@ int send_game_list(ship_client_t *c, block_t *b) {
             return send_pc_game_list(c, b);
 
         case CLIENT_VERSION_GC:
-        case CLIENT_VERSION_EP3: /* XXXX? */
             return send_gc_game_list(c, b);
+
+        case CLIENT_VERSION_EP3:
+            return send_ep3_game_list(c, b);
     }
 
     return -1;
@@ -6836,7 +6901,7 @@ int send_lobby_mod_stat(lobby_t *l, ship_client_t *c, int stat, int amt) {
     int i;
 
     /* Don't send these to default lobbies, ever */
-    if(l->type & LOBBY_TYPE_DEFAULT) {
+    if(l->type == LOBBY_TYPE_DEFAULT) {
         return 0;
     }
 

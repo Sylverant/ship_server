@@ -581,7 +581,7 @@ int block_info_reply(ship_client_t *c, uint32_t block) {
     TAILQ_FOREACH(i, &b->lobbies, qentry) {
         pthread_mutex_lock(&i->mutex);
 
-        if(i->type & LOBBY_TYPE_GAME) {
+        if(i->type != LOBBY_TYPE_DEFAULT) {
             ++games;
         }
 
@@ -851,7 +851,7 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
 
     /* Character data requests in game are treated differently, because they
        should be for the legit checker... */
-    if(type != LEAVE_GAME_PL_DATA_TYPE && l && (l->type & LOBBY_TYPE_GAME) &&
+    if(type != LEAVE_GAME_PL_DATA_TYPE && l && (l->type == LOBBY_TYPE_GAME) &&
        (l->flags & LOBBY_FLAG_LEGIT_CHECK)) {
         pthread_mutex_lock(&l->mutex);
 
@@ -1476,7 +1476,7 @@ static int dc_process_done_burst(ship_client_t *c) {
     int rv;
 
     /* Sanity check... Is the client in a game lobby? */
-    if(!l || !(l->type & LOBBY_TYPE_GAME)) {
+    if(!l || l->type == LOBBY_TYPE_DEFAULT) {
         return -1;
     }
 

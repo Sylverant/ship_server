@@ -168,7 +168,6 @@ lobby_t *lobby_create_ep3_game(block_t *block, char *name, char *passwd,
                                uint8_t view_battle, uint8_t section) {
     lobby_t *l = (lobby_t *)malloc(sizeof(lobby_t));
     uint32_t id = 0x20;
-    int i;
 
     /* If we don't have a lobby, bail. */
     if(!l) {
@@ -199,6 +198,7 @@ lobby_t *lobby_create_ep3_game(block_t *block, char *name, char *passwd,
     l->max_level = 200;
     l->rand_seed = genrand_int32();
     l->create_time = time(NULL);
+    l->flags |= LOBBY_FLAG_EP3;
 
     /* Copy the game name and password. */
     strncpy(l->name, name, 16);
@@ -238,7 +238,7 @@ static void lobby_destroy_locked(lobby_t *l, int remove) {
         TAILQ_REMOVE(&l->block->lobbies, l, qentry);
 
         /* Decrement the game count if it got incremented for this lobby */
-        if(l->type & LOBBY_TYPE_GAME) {
+        if(l->type != LOBBY_TYPE_DEFAULT) {
             ship_dec_games(l->block->ship);
         }
     }
@@ -495,7 +495,7 @@ int lobby_add_to_any(ship_client_t *c) {
 
         pthread_mutex_lock(&l->mutex);
 
-        if(l->type & LOBBY_TYPE_DEFAULT && l->num_clients < l->max_clients) {
+        if(l->type == LOBBY_TYPE_DEFAULT && l->num_clients < l->max_clients) {
             /* We've got a candidate, add away. */
             if(!lobby_add_client_locked(c, l)) {
                 added = 1;
@@ -614,7 +614,7 @@ int lobby_change_lobby(ship_client_t *c, lobby_t *req) {
     }
 
     /* Make sure that the client is legit enough to be there. */
-    if((req->type & LOBBY_TYPE_GAME) && (req->flags & LOBBY_FLAG_LEGIT_MODE) &&
+    if((req->type == LOBBY_TYPE_GAME) && (req->flags & LOBBY_FLAG_LEGIT_MODE) &&
        !lobby_check_client_legit(req, c->cur_ship, c)) {
         rv = -9;
         goto out;

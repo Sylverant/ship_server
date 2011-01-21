@@ -69,7 +69,7 @@ static int handle_warp(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     }
 
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
-    if(!(l->type & LOBBY_TYPE_GAME)) {
+    if(l->type != LOBBY_TYPE_GAME) {
         return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
     }
 
@@ -102,7 +102,7 @@ static int handle_warpall(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     }
 
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
-    if(!(l->type & LOBBY_TYPE_GAME)) {
+    if(l->type != LOBBY_TYPE_GAME) {
         return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
     }
 
@@ -187,7 +187,7 @@ static int handle_min_level(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     lobby_t *l = c->cur_lobby;
 
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
-    if(!(l->type & LOBBY_TYPE_GAME)) {
+    if(l->type == LOBBY_TYPE_DEFAULT) {
         return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
     }
 
@@ -232,7 +232,7 @@ static int handle_max_level(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     lobby_t *l = c->cur_lobby;
 
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
-    if(!(l->type & LOBBY_TYPE_GAME)) {
+    if(l->type == LOBBY_TYPE_DEFAULT) {
         return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
     }
 
@@ -325,7 +325,7 @@ static int handle_save(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     uint32_t slot;
 
     /* Make sure that the requester is in a lobby lobby, not a game lobby */
-    if(l->type & LOBBY_TYPE_GAME) {
+    if(l->type != LOBBY_TYPE_DEFAULT) {
         return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a "
                                     "non-game lobby."));
     }
@@ -359,7 +359,7 @@ static int handle_restore(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     uint32_t slot;
 
     /* Make sure that the requester is in a lobby lobby, not a game lobby */
-    if(l->type & LOBBY_TYPE_GAME) {
+    if(l->type != LOBBY_TYPE_DEFAULT) {
         return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a "
                                     "non-game lobby."));
     }
@@ -399,7 +399,7 @@ static int handle_bstat(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     TAILQ_FOREACH(i, &b->lobbies, qentry) {
         pthread_mutex_lock(&i->mutex);
 
-        if(i->type & LOBBY_TYPE_GAME) {
+        if(i->type != LOBBY_TYPE_DEFAULT) {
             ++games;
         }
 
@@ -572,7 +572,7 @@ static int handle_event(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     }
 
     /* Make sure that the requester is in a lobby lobby, not a game lobby */
-    if(l->type & LOBBY_TYPE_GAME) {
+    if(l->type != LOBBY_TYPE_DEFAULT) {
         return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a "
                                     "non-game lobby."));
     }
@@ -605,7 +605,7 @@ static int handle_event(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
             TAILQ_FOREACH(l, &b->lobbies, qentry) {
                 pthread_mutex_lock(&l->mutex);
 
-                if(l->type & LOBBY_TYPE_DEFAULT) {
+                if(l->type == LOBBY_TYPE_DEFAULT) {
                     l->event = event;
                     l->gevent = gevent;
 
@@ -639,7 +639,7 @@ static int handle_passwd(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     lobby_t *l = c->cur_lobby;
 
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
-    if(!(l->type & LOBBY_TYPE_GAME)) {
+    if(l->type == LOBBY_TYPE_DEFAULT) {
         return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
     }
 
@@ -669,7 +669,7 @@ static int handle_lname(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     lobby_t *l = c->cur_lobby;
 
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
-    if(!(l->type & LOBBY_TYPE_GAME)) {
+    if(l->type == LOBBY_TYPE_DEFAULT) {
         return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
     }
 
@@ -991,7 +991,7 @@ static int handle_legit(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     pthread_mutex_lock(&l->mutex);
 
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
-    if(!(l->type & LOBBY_TYPE_GAME)) {
+    if(l->type != LOBBY_TYPE_GAME) {
         pthread_mutex_unlock(&l->mutex);
         return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
     }
@@ -1035,7 +1035,7 @@ static int handle_normal(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     pthread_mutex_lock(&l->mutex);
 
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
-    if(!(l->type & LOBBY_TYPE_GAME)) {
+    if(l->type != LOBBY_TYPE_GAME) {
         pthread_mutex_unlock(&l->mutex);
         return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
     }
@@ -1279,7 +1279,7 @@ static int handle_dconly(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     pthread_mutex_lock(&l->mutex);
 
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
-    if(!(l->type & LOBBY_TYPE_GAME)) {
+    if(l->type != LOBBY_TYPE_GAME) {
         pthread_mutex_unlock(&l->mutex);
         return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
     }
@@ -1328,7 +1328,7 @@ static int handle_v1only(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     pthread_mutex_lock(&l->mutex);
 
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
-    if(!(l->type & LOBBY_TYPE_GAME)) {
+    if(l->type != LOBBY_TYPE_GAME) {
         pthread_mutex_unlock(&l->mutex);
         return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
     }
@@ -1477,7 +1477,7 @@ static int handle_smite(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     }
 
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
-    if(!(l->type & LOBBY_TYPE_GAME)) {
+    if(l->type != LOBBY_TYPE_GAME) {
         return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
     }
 
@@ -1534,7 +1534,7 @@ static int handle_makeitem(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     }
 
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
-    if(!(l->type & LOBBY_TYPE_GAME)) {
+    if(l->type != LOBBY_TYPE_GAME) {
         return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
     }
 
@@ -1588,7 +1588,7 @@ static int handle_teleport(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     }
 
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
-    if(!(l->type & LOBBY_TYPE_GAME)) {
+    if(l->type != LOBBY_TYPE_GAME) {
         return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
     }
 
@@ -1681,7 +1681,7 @@ static int handle_allowgc(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     pthread_mutex_lock(&l->mutex);
 
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
-    if(!(l->type & LOBBY_TYPE_GAME)) {
+    if(l->type != LOBBY_TYPE_GAME) {
         pthread_mutex_unlock(&l->mutex);
         return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
     }
