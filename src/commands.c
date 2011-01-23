@@ -268,6 +268,10 @@ static int handle_max_level(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 static int handle_refresh(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     ship_t *s = c->cur_ship;
     sylverant_quest_list_t quests;
+    sylverant_quest_list_t qlist[CLIENT_VERSION_COUNT][CLIENT_LANG_COUNT];
+    quest_map_t qmap;
+    int i, j;
+    char fn[512];
 
     /* Make sure the requester is a GM. */
     if(!LOCAL_GM(c)) {
@@ -275,7 +279,7 @@ static int handle_refresh(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     }
 
     if(!strcmp(params, "quests")) {
-        if(s->cfg->quests_file[0]) {
+        if(s->cfg->quests_file && s->cfg->quests_file[0]) {
             if(sylverant_quests_read(s->cfg->quests_file, &quests)) {
                 debug(DBG_ERROR, "%s: Couldn't read quests file!\n",
                       s->cfg->name);
@@ -290,6 +294,46 @@ static int handle_refresh(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
             sylverant_quests_destroy(&s->quests);
             s->quests = quests;
 
+            /* Unlock the lock, we're done. */
+            pthread_mutex_unlock(&s->qmutex);
+            return send_txt(c, "%s", __(c, "\tE\tC7Updated quest list"));
+        }
+        else if(s->cfg->quests_dir && s->cfg->quests_dir[0]) {
+            /* Read in the new quests first */
+            TAILQ_INIT(&qmap);
+
+            for(i = 0; i < CLIENT_VERSION_COUNT; ++i) {
+                for(j = 0; j < CLIENT_LANG_COUNT; ++j) {
+                    sprintf(fn, "%s/%s-%s/quests.xml", s->cfg->quests_dir,
+                            version_codes[i], language_codes[j]);
+                    if(!sylverant_quests_read(fn, &qlist[i][j])) {
+                        if(!quest_map(&qmap, &qlist[i][j], i, j)) { 
+                            debug(DBG_LOG, "Read quests for %s-%s\n",
+                                  version_codes[i], language_codes[j]);
+                        }
+                        else {
+                            debug(DBG_LOG, "Unable to map quests for %s-%s\n",
+                                  version_codes[i], language_codes[j]);
+                            sylverant_quests_destroy(&qlist[i][j]);
+                        }
+                    }
+                }
+            }
+
+            /* Lock the mutex to prevent anyone from trying anything funny. */
+            pthread_mutex_lock(&s->qmutex);
+            
+            /* Out with the old, and in with the new. */
+            for(i = 0; i < CLIENT_VERSION_COUNT; ++i) {
+                for(j = 0; j < CLIENT_LANG_COUNT; ++j) {
+                    sylverant_quests_destroy(&s->qlist[i][j]);
+                    s->qlist[i][j] = qlist[i][j];
+                }
+            }
+
+            quest_cleanup(&s->qmap);
+            s->qmap = qmap;
+            
             /* Unlock the lock, we're done. */
             pthread_mutex_unlock(&s->qmutex);
             return send_txt(c, "%s", __(c, "\tE\tC7Updated quest list"));

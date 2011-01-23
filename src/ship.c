@@ -50,6 +50,18 @@ static void clean_shiplist(ship_t *s) {
     free(s->menu_codes);
 }
 
+static void clean_quests(ship_t *s) {
+    int i, j;
+
+    for(i = 0; i < CLIENT_VERSION_COUNT; ++i) {
+        for(j = 0; j < CLIENT_LANG_COUNT; ++j) {
+            sylverant_quests_destroy(&s->qlist[i][j]);
+        }
+    }
+
+    quest_cleanup(&s->qmap);
+}
+
 static void *ship_thd(void *d) {
     int i, nfds;
     ship_t *s = (ship_t *)d;
@@ -381,6 +393,7 @@ static void *ship_thd(void *d) {
     free(s->motd);
     free(s->gm_list);
     sylverant_quests_destroy(&s->quests);
+    clean_quests(s);
     close(s->pipes[0]);
     close(s->pipes[1]);
     close(s->ep3sock);
@@ -663,6 +676,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
         if(gm_list_read(s->gm_file, rv)) {
             debug(DBG_ERROR, "%s: Couldn't read GM file!\n", s->name);
             sylverant_quests_destroy(&rv->quests);
+            clean_quests(rv);
             free(rv->clients);
             free(rv->blocks);
             close(rv->pipes[0]);
@@ -682,6 +696,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
             debug(DBG_ERROR, "%s: Couldn't read limits file!\n", s->name);
             free(rv->gm_list);
             sylverant_quests_destroy(&rv->quests);
+            clean_quests(rv);
             free(rv->clients);
             free(rv->blocks);
             close(rv->pipes[0]);
@@ -713,6 +728,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
         sylverant_free_limits(rv->limits);
         free(rv->gm_list);
         sylverant_quests_destroy(&rv->quests);
+        clean_quests(rv);
         free(rv->clients);
         free(rv->blocks);
         close(rv->pipes[0]);
@@ -733,6 +749,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
         sylverant_free_limits(rv->limits);
         free(rv->gm_list);
         sylverant_quests_destroy(&rv->quests);
+        clean_quests(rv);
         free(rv->clients);
         free(rv->blocks);
         close(rv->pipes[0]);
@@ -759,6 +776,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
         free(rv->motd);
         free(rv->gm_list);
         sylverant_quests_destroy(&rv->quests);
+        clean_quests(rv);
         free(rv->clients);
         free(rv->blocks);
         close(rv->pipes[0]);
