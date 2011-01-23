@@ -1678,7 +1678,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
         {
             int rv;
 
-            pthread_mutex_lock(&c->cur_ship->qmutex);
+            pthread_rwlock_rdlock(&c->cur_ship->qlock);
 
             /* Are we using the new-style quest layout? */
             if(!TAILQ_EMPTY(&c->cur_ship->qmap)) {
@@ -1696,7 +1696,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
                 }
             }
 
-            pthread_mutex_unlock(&c->cur_ship->qmutex);
+            pthread_rwlock_unlock(&c->cur_ship->qlock);
             return rv;
         }
 
@@ -1712,7 +1712,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
                                      __(c, "\tE\tC4Please wait a moment."));
             }
 
-            pthread_mutex_lock(&c->cur_ship->qmutex);
+            pthread_rwlock_rdlock(&c->cur_ship->qlock);
 
             /* Are we using the new-style quest layout? */
             if(!TAILQ_EMPTY(&c->cur_ship->qmap)) {
@@ -1737,7 +1737,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
                 }
             }
 
-            pthread_mutex_unlock(&c->cur_ship->qmutex);
+            pthread_rwlock_unlock(&c->cur_ship->qlock);
             return rv;
         }
 
@@ -1867,7 +1867,7 @@ static int dc_process_info_req(ship_client_t *c, dc_select_pkt *pkt) {
             int rv;
             sylverant_quest_t *quest;
 
-            pthread_mutex_lock(&c->cur_ship->qmutex);
+            pthread_rwlock_rdlock(&c->cur_ship->qlock);
 
             /* Are we using the new-style quest layout? */
             if(!TAILQ_EMPTY(&c->cur_ship->qmap)) {
@@ -1890,7 +1890,7 @@ static int dc_process_info_req(ship_client_t *c, dc_select_pkt *pkt) {
                 }
             }
 
-            pthread_mutex_unlock(&c->cur_ship->qmutex);
+            pthread_rwlock_unlock(&c->cur_ship->qlock);
             return rv;
         }
 
@@ -2092,7 +2092,7 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return dc_process_info_req(c, (dc_select_pkt *)pkt);
 
         case QUEST_LIST_TYPE:
-            pthread_mutex_lock(&c->cur_ship->qmutex);
+            pthread_rwlock_rdlock(&c->cur_ship->qlock);
             pthread_mutex_lock(&c->cur_lobby->mutex);
             c->cur_lobby->flags |= LOBBY_FLAG_QUESTSEL;
 
@@ -2105,7 +2105,7 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             }
 
             pthread_mutex_unlock(&c->cur_lobby->mutex);
-            pthread_mutex_unlock(&c->cur_ship->qmutex);
+            pthread_rwlock_unlock(&c->cur_ship->qlock);
             return rv;
 
         case QUEST_END_LIST_TYPE:

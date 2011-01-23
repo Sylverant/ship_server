@@ -288,14 +288,14 @@ static int handle_refresh(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
             }
 
             /* Lock the mutex to prevent anyone from trying anything funny. */
-            pthread_mutex_lock(&s->qmutex);
+            pthread_rwlock_wrlock(&s->qlock);
 
             /* Out with the old, and in with the new. */
             sylverant_quests_destroy(&s->quests);
             s->quests = quests;
 
             /* Unlock the lock, we're done. */
-            pthread_mutex_unlock(&s->qmutex);
+            pthread_rwlock_unlock(&s->qlock);
             return send_txt(c, "%s", __(c, "\tE\tC7Updated quest list"));
         }
         else if(s->cfg->quests_dir && s->cfg->quests_dir[0]) {
@@ -321,7 +321,7 @@ static int handle_refresh(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
             }
 
             /* Lock the mutex to prevent anyone from trying anything funny. */
-            pthread_mutex_lock(&s->qmutex);
+            pthread_rwlock_wrlock(&s->qlock);
             
             /* Out with the old, and in with the new. */
             for(i = 0; i < CLIENT_VERSION_COUNT; ++i) {
@@ -335,7 +335,7 @@ static int handle_refresh(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
             s->qmap = qmap;
             
             /* Unlock the lock, we're done. */
-            pthread_mutex_unlock(&s->qmutex);
+            pthread_rwlock_unlock(&s->qlock);
             return send_txt(c, "%s", __(c, "\tE\tC7Updated quest list"));
         }
         else {

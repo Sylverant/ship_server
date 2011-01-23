@@ -91,7 +91,7 @@ struct ship {
     quest_map_t qmap;
 
     shipgate_conn_t sg;
-    pthread_mutex_t qmutex;
+    pthread_rwlock_t qlock;
     sylverant_limits_t *limits;
 
     local_gm_t *gm_list;
