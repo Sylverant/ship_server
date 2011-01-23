@@ -796,6 +796,10 @@ int lobby_info_reply(ship_client_t *c, uint32_t lobby) {
             /* Easy one here, GC games can only have GC chars */
             sprintf(msg, "%s GC", msg);
         }
+        else if(l->version == CLIENT_VERSION_EP3) {
+            /* Also easy, since Episode 3 games are completely different */
+            sprintf(msg, "%s Episode 3", msg);
+        }
         else {
             /* Slightly more interesting here... */
             if(l->v2) {

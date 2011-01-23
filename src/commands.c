@@ -344,6 +344,11 @@ static int handle_refresh(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
         }
     }
     else if(!strcmp(params, "gms")) {
+        /* Make sure the requester is a local root. */
+        if(!LOCAL_ROOT(c)) {
+            return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
+        }
+
         if(s->cfg->gm_file[0]) {
             /* Try to read the GM file. This will clean out the old list as
                well, if needed. */
