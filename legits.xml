@@ -25,6 +25,18 @@
     </item>
 
     <!-- Rejected items -->
+    <!-- SHIELD OF DELSABER -->
+    <item code="0x1A0201">
+        <versions v1="true" v2="true" />
+        <auto_reject />
+    </item>
+
+    <!-- SAFETY HEART -->
+    <item code="0x2A0201">
+        <versions v1="true" v2="true" />
+        <auto_reject />
+    </item>
+
     <!-- DAVIL'S TAIL -->
     <item code="0x003802">
         <versions v1="true" v2="true" />
@@ -549,21 +561,21 @@
     <item code="0x001900">
         <versions v1="true" v2="true" />
         <grind max="25" />
-        <percents max="50" />
+        <percents max="45" />
     </item>
 
     <!-- DELSABER'S BUSTER -->
     <item code="0x001A00">
         <versions v1="true" v2="true" />
         <grind max="9" />
-        <percents max="50" />
+        <percents max="45" />
     </item>
 
     <!-- C-BRINGER'S RIFLE -->
     <item code="0x001B00">
         <versions v1="true" v2="true" />
         <grind max="9" />
-        <percents max="50" />
+        <percents max="45" />
     </item>
 
     <!-- EGG BLASTER -->
@@ -935,14 +947,14 @@
     <item code="0x005300">
         <versions v2="true" />
         <grind max="9" />
-        <percents max="50" />
+        <percents max="45" />
     </item>
 
     <!-- HILDEBLUE'S CANE -->
     <item code="0x005400">
         <versions v2="true" />
         <grind max="9" />
-        <percents max="50" />
+        <percents max="45" />
     </item>
 
     <!-- RABBIT WAND -->
@@ -1040,7 +1052,7 @@
     <item code="0x006200">
         <versions v2="true" />
         <grind max="15" />
-        <percents max="50" />
+        <percents max="45" />
     </item>
 
     <!-- PLANTAIN HUGE FAN -->
@@ -1304,6 +1316,27 @@
     </item>
 		
     <!-- Armors -->
+    <!-- GUARD WAVE -->
+    <item code="0x290101">
+        <versions v1="true" v2="true" />
+        <dfp max="50" />
+        <evp max="20" />
+    </item>
+
+    <!-- DF FIELD -->
+    <item code="0x2A0101">
+        <versions v1="true" v2="true" />
+        <dfp max="50" />
+        <evp max="20" />
+    </item>
+
+    <!-- LUMINOUS FIELD -->
+    <item code="0x2B0101">
+        <versions v1="true" v2="true" />
+        <dfp max="50" />
+        <evp max="20" />
+    </item>
+
     <!-- CHU CHU FEVER -->
     <item code="0x2C0101">
         <versions v1="true" v2="true" />
@@ -1312,11 +1345,118 @@
         <evp max="0" />
     </item>
 
-    <!-- Shields -->
-    <!-- SAFETY HEART -->
-    <item code="0x2A0201">
+
+    <!-- LOVE HEART -->
+    <item code="0x2D0101">
         <versions v1="true" v2="true" />
-        <auto_reject />
+        <dfp max="50" />
+        <evp max="20" />
+    </item>
+
+    <!-- FLAME GARMENT -->
+    <item code="0x2E0101">
+        <versions v1="true" v2="true" />
+        <dfp max="50" />
+        <evp max="20" />
+    </item>
+
+    <!-- VIRUS ARMOR:Lafuteria -->
+    <item code="0x2F0101">
+        <versions v1="true" v2="true" />
+        <dfp max="50" />
+        <evp max="20" />
+    </item>
+
+    <!-- BRIGHTNESS CIRCLE -->
+    <item code="0x300101">
+        <versions v1="true" v2="true" />
+        <dfp max="50" />
+        <evp max="20" />
+    </item>
+
+    <!-- AURA FIELD -->
+    <item code="0x310101">
+        <versions v1="true" v2="true" />
+        <dfp max="50" />
+        <evp max="20" />
+    </item>
+
+    <!-- ELECTRO FRAME -->
+    <item code="0x320101">
+        <versions v1="true" v2="true" />
+        <dfp max="50" />
+        <evp max="20" />
+    </item>
+
+    <!-- SACRED CLOTH -->
+    <item code="0x330101">
+        <versions v1="true" v2="true" />
+        <dfp max="50" />
+        <evp max="20" />
+    </item>
+
+    <!-- SMOKING PLATE -->
+    <item code="0x340101">
+        <versions v1="true" v2="true" />
+        <dfp max="50" />
+        <evp max="20" />
+    </item>
+
+    <!-- Shields -->
+    <!-- TRIPOLIC SHIELD -->
+    <item code="0x280201">
+        <versions v1="true" v2="true" />
+        <dfp max="15" />
+        <evp max="50" />
+    </item>
+
+    <!-- STANDSTILL SHIELD -->
+    <item code="0x290201">
+        <versions v1="true" v2="true" />
+        <dfp max="15" />
+        <evp max="50" />
+    </item>
+
+    <!-- KASAMI BRACER -->
+    <item code="0x2B0201">
+        <versions v1="true" v2="true" />
+        <dfp max="15" />
+        <evp max="50" />
+    </item>
+
+    <!-- GODS SHIELD SUZAKU -->
+    <item code="0x2C0201">
+        <versions v1="true" v2="true" />
+        <dfp max="15" />
+        <evp max="50" />
+    </item>
+
+    <!-- GODS SHIELD GENBU -->
+    <item code="0x2D0201">
+        <versions v1="true" v2="true" />
+        <dfp max="15" />
+        <evp max="50" />
+    </item>
+
+    <!-- GODS SHIELD BYAKKO -->
+    <item code="0x2E0201">
+        <versions v1="true" v2="true" />
+        <dfp max="15" />
+        <evp max="50" />
+    </item>
+
+    <!-- GODS SHIELD SEIRYU -->
+    <item code="0x2F0201">
+        <versions v1="true" v2="true" />
+        <dfp max="15" />
+        <evp max="50" />
+    </item>
+
+    <!-- HUNTER'S SHELL -->
+    <item code="0x300201">
+        <versions v1="true" v2="true" />
+        <dfp max="15" />
+        <evp max="50" />
     </item>
 
     <!-- BLUE RING -->
@@ -1331,6 +1471,13 @@
         <versions v1="true" v2="true" />
         <dfp max="0" />
         <evp max="0" />
+    </item>
+
+    <!-- SECURE FEET -->
+    <item code="0x350201">
+        <versions v1="true" v2="true" />
+        <dfp max="15" />
+        <evp max="50" />
     </item>
 
     <!-- WHITE RING -->
