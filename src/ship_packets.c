@@ -1229,7 +1229,10 @@ int send_lobby_chat(lobby_t *l, ship_client_t *sender, char msg[]) {
                 case CLIENT_VERSION_PC:
                 case CLIENT_VERSION_GC:
                 case CLIENT_VERSION_EP3:
-                    send_dc_lobby_chat(l, l->clients[i], sender, msg);
+                    /* Only send if they're not being /ignore'd */
+                    if(!client_has_ignored(l->clients[i], sender->guildcard)) {
+                        send_dc_lobby_chat(l, l->clients[i], sender, msg);
+                    }
                     break;
             }
 

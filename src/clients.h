@@ -52,6 +52,8 @@ struct lobby;
 typedef struct lobby lobby_t;
 #endif
 
+#define CLIENT_IGNORE_LIST_SIZE     10
+
 /* Ship server client structure. */
 struct ship_client {
     TAILQ_ENTRY(ship_client) qentry;
@@ -88,6 +90,7 @@ struct ship_client {
     uint32_t arrow;
 
     uint32_t next_item[4];
+    uint32_t ignore_list[CLIENT_IGNORE_LIST_SIZE];
 
     uint32_t privilege;
     uint32_t last_info_req;
@@ -211,6 +214,9 @@ int client_clear_autoreply(ship_client_t *c);
 
 /* Check if a client has blacklisted someone. */
 int client_has_blacklisted(ship_client_t *c, uint32_t gc);
+
+/* Check if a client has /ignore'd someone. */
+int client_has_ignored(ship_client_t *c, uint32_t gc);
 
 /* Send a message to a client telling them that a friend has logged on/off */
 void client_send_friendmsg(ship_client_t *c, int on, const char *fname,

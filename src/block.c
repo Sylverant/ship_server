@@ -1166,9 +1166,11 @@ static int dc_process_mail(ship_client_t *c, dc_simple_mail_pkt *pkt) {
                     pthread_mutex_lock(&it->mutex);
 
                     /* Make sure the user hasn't blacklisted the sender. */
-                    if(client_has_blacklisted(it, c->guildcard)) {
+                    if(client_has_blacklisted(it, c->guildcard) ||
+                       client_has_ignored(it, c->guildcard)) {
                         done = 1;
                         pthread_mutex_unlock(&it->mutex);
+                        rv = 0;
                         break;
                     }
 
@@ -1251,9 +1253,11 @@ static int pc_process_mail(ship_client_t *c, pc_simple_mail_pkt *pkt) {
                     pthread_mutex_lock(&it->mutex);
 
                     /* Make sure the user hasn't blacklisted the sender. */
-                    if(client_has_blacklisted(it, c->guildcard)) {
+                    if(client_has_blacklisted(it, c->guildcard) ||
+                       client_has_ignored(it, c->guildcard)) {
                         done = 1;
                         pthread_mutex_unlock(&it->mutex);
+                        rv = 0;
                         break;
                     }
 

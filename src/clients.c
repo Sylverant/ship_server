@@ -473,6 +473,21 @@ int client_has_blacklisted(ship_client_t *c, uint32_t gc) {
     return 0;
 }
 
+/* Check if a client has /ignore'd someone. */
+int client_has_ignored(ship_client_t *c, uint32_t gc) {
+    int i;
+
+    /* Look through the ignore list... */
+    for(i = 0; i < CLIENT_IGNORE_LIST_SIZE; ++i) {
+        if(c->ignore_list[i] == gc) {
+            return 1;
+        }
+    }
+
+    /* We didn't find the person, so they're not being /ignore'd. */
+    return 0;
+}
+
 /* Send a message to a client telling them that a friend has logged on/off */
 void client_send_friendmsg(ship_client_t *c, int on, const char *fname,
                            const char *ship, uint32_t block, const char *nick) {

@@ -1621,7 +1621,7 @@ static int handle_makeitem(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     itid++;
 
     /* Send the packet to everyone in the lobby */
-    return lobby_send_pkt_dc(l, NULL, (dc_pkt_hdr_t *)&p2);
+    return lobby_send_pkt_dc(l, NULL, (dc_pkt_hdr_t *)&p2, 0);
 }
 
 /* Usage: /teleport client */
@@ -1680,7 +1680,7 @@ static int handle_teleport(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
         p2.w = c2->w;
 
         /* Send the packet to everyone in the lobby */
-        return lobby_send_pkt_dc(l, NULL, (dc_pkt_hdr_t *)&p2);
+        return lobby_send_pkt_dc(l, NULL, (dc_pkt_hdr_t *)&p2, 0);
     }
 }
 
@@ -2048,6 +2048,60 @@ static int handle_unstfu(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return send_txt(c, "%s", __(c, "\tE\tC7Guildcard not found"));
 }
 
+/* Usage: /ignore client_id */
+static int handle_ignore(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    lobby_t *l = c->cur_lobby;
+    int id, i;
+    ship_client_t *cl;
+
+    /* Copy over the ID. */
+    i = sscanf(params, "%d", &id);
+
+    if(i == EOF || i == 0 || id >= l->max_clients || id < 0) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Client ID"));
+    }
+
+    /* Lock the lobby so we don't mess anything up in grabbing this... */
+    pthread_mutex_lock(&l->mutex);
+
+    /* Make sure there is such a client. */
+    if(!(cl = l->clients[id])) {
+        pthread_mutex_unlock(&l->mutex);
+        return send_txt(c, "%s", __(c, "\tE\tC7No such client"));
+    }
+
+    /* Find an empty spot to put this in. */
+    for(i = 0; i < CLIENT_IGNORE_LIST_SIZE; ++i) {
+        if(!c->ignore_list[i]) {
+            c->ignore_list[i] = cl->guildcard;
+            pthread_mutex_unlock(&l->mutex);
+            return send_txt(c, "%s %s\n%s %d", __(c, "\tE\tC7Ignoring"),
+                            cl->pl->v1.name, __(c, "\tE\tC7Entry"), i);
+        }
+    }
+
+    /* If we get here, the ignore list is full, report that to the user... */
+    pthread_mutex_unlock(&l->mutex);
+    return send_txt(c, "%s", __(c, "\tE\tC7Ignore list full"));
+}
+
+/* Usage: /unignore entry_number */
+static int handle_unignore(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    int id, i;
+
+    /* Copy over the ID */
+    i = sscanf(params, "%d", &id);
+
+    if(i == EOF || i == 0 || id >= CLIENT_IGNORE_LIST_SIZE || id < 0) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Entry Number"));
+    }
+
+    /* Clear that entry of the ignore list */
+    c->ignore_list[id] = 0;
+
+    return send_txt(c, "%s", __(c, "\tE\tC7Ignore list entry cleared"));
+}
+
 static command_t cmds[] = {
     { "warp"     , handle_warp      },
     { "kill"     , handle_kill      },
@@ -2097,6 +2151,8 @@ static command_t cmds[] = {
     { "npc"      , handle_npc       },
     { "stfu"     , handle_stfu      },
     { "unstfu"   , handle_unstfu    },
+    { "ignore"   , handle_ignore    },
+    { "unignore" , handle_unignore  },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

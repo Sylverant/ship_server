@@ -410,7 +410,7 @@ static int handle_levelup(ship_client_t *c, subcmd_levelup_t *pkt) {
     c->pl->v1.ata = pkt->ata;
     c->pl->v1.level = pkt->level;
 
-    return lobby_send_pkt_dc(c->cur_lobby, c, (dc_pkt_hdr_t *)pkt);
+    return lobby_send_pkt_dc(c->cur_lobby, c, (dc_pkt_hdr_t *)pkt, 0);
 }
 
 static int handle_take_item(ship_client_t *c, subcmd_take_item_t *pkt) {
@@ -489,7 +489,7 @@ static int handle_take_item(ship_client_t *c, subcmd_take_item_t *pkt) {
 
 send_pkt:
 #endif
-    return lobby_send_pkt_dc(c->cur_lobby, c, (dc_pkt_hdr_t *)pkt);
+    return lobby_send_pkt_dc(c->cur_lobby, c, (dc_pkt_hdr_t *)pkt, 0);
 }
 
 static int handle_itemdrop(ship_client_t *c, subcmd_itemgen_t *pkt) {
@@ -587,7 +587,7 @@ static int handle_itemdrop(ship_client_t *c, subcmd_itemgen_t *pkt) {
 
     /* If we get here, either the game is not in legit mode, or the item is
        actually legit, so just forward the packet on. */
-    return lobby_send_pkt_dc(c->cur_lobby, c, (dc_pkt_hdr_t *)pkt);
+    return lobby_send_pkt_dc(c->cur_lobby, c, (dc_pkt_hdr_t *)pkt, 0);
 }
 
 static int handle_take_damage(ship_client_t *c, subcmd_take_damage_t *pkt) {
@@ -602,11 +602,11 @@ static int handle_take_damage(ship_client_t *c, subcmd_take_damage_t *pkt) {
     /* If we're in legit mode or the flag isn't set, then don't do anything. */
     if((l->flags & LOBBY_FLAG_LEGIT_MODE) ||
        !(c->flags & CLIENT_FLAG_INVULNERABLE)) {
-        return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt);
+        return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt, 0);
     }
 
     /* This aught to do it... */
-    lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt);
+    lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt, 0);
     return send_lobby_mod_stat(l, c, SUBCMD_STAT_HPUP, 2000);
 }
 
@@ -622,11 +622,11 @@ static int handle_used_tech(ship_client_t *c, subcmd_used_tech_t *pkt) {
     /* If we're in legit mode or the flag isn't set, then don't do anything. */
     if((l->flags & LOBBY_FLAG_LEGIT_MODE) ||
        !(c->flags & CLIENT_FLAG_INFINITE_TP)) {
-        return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt);
+        return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt, 0);
     }
 
     /* This aught to do it... */
-    lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt);
+    lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt, 0);
     return send_lobby_mod_stat(l, c, SUBCMD_STAT_TPUP, 255);
 }
 
@@ -643,7 +643,7 @@ static int handle_set_area(ship_client_t *c, subcmd_set_area_t *pkt) {
         c->cur_area = pkt->area;
     }
 
-    return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt);
+    return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt, 0);
 }
 
 static int handle_set_pos(ship_client_t *c, subcmd_set_pos_t *pkt) {
@@ -660,7 +660,7 @@ static int handle_set_pos(ship_client_t *c, subcmd_set_pos_t *pkt) {
     /* Clear this, in case we're at the lobby counter */
     c->last_info_req = 0;
 
-    return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt);
+    return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt, 0);
 }
 
 static int handle_move(ship_client_t *c, subcmd_move_t *pkt) {
@@ -672,7 +672,7 @@ static int handle_move(ship_client_t *c, subcmd_move_t *pkt) {
         c->z = pkt->z;
     }
 
-    return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt);
+    return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt, 0);
 }
 
 static int handle_delete_inv(ship_client_t *c, subcmd_destroy_item_t *pkt) {
@@ -711,7 +711,7 @@ static int handle_delete_inv(ship_client_t *c, subcmd_destroy_item_t *pkt) {
     }
 #endif
 
-    return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt);
+    return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt, 0);
 }
 
 static int handle_buy(ship_client_t *c, subcmd_buy_t *pkt) {
@@ -754,7 +754,7 @@ static int handle_buy(ship_client_t *c, subcmd_buy_t *pkt) {
 
 send_pkt:
 #endif
-    return lobby_send_pkt_dc(c->cur_lobby, c, (dc_pkt_hdr_t *)pkt);
+    return lobby_send_pkt_dc(c->cur_lobby, c, (dc_pkt_hdr_t *)pkt, 0);
 }
 
 static int handle_use_item(ship_client_t *c, subcmd_use_item_t *pkt) {
@@ -789,7 +789,7 @@ static int handle_use_item(ship_client_t *c, subcmd_use_item_t *pkt) {
     }
 #endif
 
-    return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt);
+    return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt, 0);
 }
 
 static int handle_word_select(ship_client_t *c, subcmd_word_select_t *pkt) {
@@ -822,7 +822,7 @@ static int handle_symbol_chat(ship_client_t *c, subcmd_pkt_t *pkt) {
         return 0;
     }
 
-    return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt);
+    return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt, 1);
 }
 
 static int handle_cmode_grave(ship_client_t *c, subcmd_pkt_t *pkt) {
@@ -932,7 +932,7 @@ static int handle_cmode_grave(ship_client_t *c, subcmd_pkt_t *pkt) {
             break;
 
         default:
-            return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt);
+            return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt, 0);
     }
 
     /* Send the packet to everyone in the lobby */
@@ -994,6 +994,12 @@ int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
 
     switch(type) {
         case SUBCMD_GUILDCARD:
+            /* Make sure the recipient is not ignoring the sender... */
+            if(client_has_ignored(dest, c->guildcard)) {
+                rv = 0;
+                break;
+            }
+
             switch(c->version) {
                 case CLIENT_VERSION_DCV1:
                 case CLIENT_VERSION_DCV2:
@@ -1049,7 +1055,7 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
             case SUBCMD_UNK_3B:
             case SUBCMD_UNK_7C:
             case SUBCMD_BURST_DONE:
-                rv = lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt);
+                rv = lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt, 0);
                 break;
 
             case SUBCMD_SET_AREA:
@@ -1138,7 +1144,7 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
 
     /* Broadcast anything we don't care to check anything about. */
     if(!sent) {
-        rv = lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt);
+        rv = lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt, 0);
     }
 
     pthread_mutex_unlock(&l->mutex);

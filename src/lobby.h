@@ -146,7 +146,7 @@ void lobby_destroy_noremove(lobby_t *l);
 int lobby_add_to_any(ship_client_t *c);
 
 /* Send a packet to all people in a lobby. */
-int lobby_send_pkt_dc(lobby_t *l, ship_client_t *c, void *hdr);
+int lobby_send_pkt_dc(lobby_t *l, ship_client_t *c, void *hdr, int igcheck);
 
 /* Send a packet to all Episode 3 clients in a lobby. */
 int lobby_send_pkt_ep3(lobby_t *l, ship_client_t *c, void *h);

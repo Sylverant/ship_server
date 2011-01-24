@@ -405,9 +405,11 @@ static int handle_dc_mail(shipgate_conn_t *conn, dc_simple_mail_pkt *pkt) {
 
                 if(c->guildcard == dest && c->pl) {
                     /* Make sure the user hasn't blacklisted the sender. */
-                    if(client_has_blacklisted(c, LE32(pkt->gc_sender))) {
+                    if(client_has_blacklisted(c, LE32(pkt->gc_sender)) ||
+                       client_has_ignored(c, LE32(pkt->gc_sender))) {
                         done = 1;
                         pthread_mutex_unlock(&c->mutex);
+                        rv = 0;
                         break;
                     }
 
@@ -468,9 +470,11 @@ static int handle_pc_mail(shipgate_conn_t *conn, pc_simple_mail_pkt *pkt) {
 
                 if(c->guildcard == dest && c->pl) {
                     /* Make sure the user hasn't blacklisted the sender. */
-                    if(client_has_blacklisted(c, LE32(pkt->gc_sender))) {
+                    if(client_has_blacklisted(c, LE32(pkt->gc_sender)) ||
+                       client_has_ignored(c, LE32(pkt->gc_sender))) {
                         done = 1;
                         pthread_mutex_unlock(&c->mutex);
+                        rv = 0;
                         break;
                     }
 
