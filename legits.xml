@@ -25,12 +25,6 @@
     </item>
 
     <!-- Rejected items -->
-    <!-- SHIELD OF DELSABER -->
-    <item code="0x1A0201">
-        <versions v1="true" v2="true" />
-        <auto_reject />
-    </item>
-
     <!-- SAFETY HEART -->
     <item code="0x2A0201">
         <versions v1="true" v2="true" />
