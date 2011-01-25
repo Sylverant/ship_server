@@ -541,14 +541,14 @@
     <item code="0x001700">
         <versions v1="true" v2="true" />
         <grind max="0" />
-        <percents max="50" />
+        <percents max="45" />
     </item>
 
     <!-- S-BEAT'S BLADE -->
     <item code="0x001800">
         <versions v1="true" v2="true" />
         <grind max="25" />
-        <percents max="50" />
+        <percents max="45" />
     </item>
 
     <!-- P-ARMS'S BLADE -->
