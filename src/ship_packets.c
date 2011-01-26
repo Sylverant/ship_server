@@ -2830,7 +2830,7 @@ static int send_dc_quest_categories_new(ship_client_t *c) {
     dc_quest_list_pkt *pkt = (dc_quest_list_pkt *)sendbuf;
     int i, len = 0x04, entries = 0;
     uint32_t type = SYLVERANT_QUEST_NORMAL;
-    iconv_t ic, ic2;
+    iconv_t ic;
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
@@ -2854,19 +2854,21 @@ static int send_dc_quest_categories_new(ship_client_t *c) {
 
     /* Quest stuff is stored internally as UTF-8, set up for converting to the
        right encoding */
-    ic = iconv_open("ISO-8859-1", "UTF-8");
+    if(c->language_code != CLIENT_LANG_JAPANESE) {
+        ic = iconv_open("ISO-8859-1", "UTF-8");
 
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
-        return -1;
+        if(ic == (iconv_t)-1) {
+            perror("iconv_open");
+            return -1;
+        }
     }
+    else {
+        ic = iconv_open("SHIFT_JIS", "UTF-8");
 
-    ic2 = iconv_open("SHIFT_JIS", "UTF-8");
-
-    if(ic2 == (iconv_t)-1) {
-        perror("iconv_open");
-        iconv_close(ic);
-        return -1;
+        if(ic == (iconv_t)-1) {
+            perror("iconv_open");
+            return -1;
+        }
     }
 
     if(c->cur_lobby->battle) {
@@ -2895,8 +2897,7 @@ static int send_dc_quest_categories_new(ship_client_t *c) {
         pkt->entries[entries].menu_id = LE32(0x00000003);
         pkt->entries[entries].item_id = LE32(i);
 
-        /* Convert the name and the description to the appropriate encoding
-           XXXX: Handle Japanese */
+        /* Convert the name and the description to the appropriate encoding */
         in = 32;
         out = 32;
         inptr = qlist->cats[i].name;
@@ -2913,7 +2914,6 @@ static int send_dc_quest_categories_new(ship_client_t *c) {
         len += 0x98;
     }
 
-    iconv_close(ic2);
     iconv_close(ic);
 
     /* Fill in the rest of the header */
@@ -3316,7 +3316,7 @@ static int send_dc_quest_list_new(ship_client_t *c, int cn) {
     uint8_t *sendbuf = get_sendbuf();
     dc_quest_list_pkt *pkt = (dc_quest_list_pkt *)sendbuf;
     int i, len = 0x04, entries = 0, max = INT_MAX, j;
-    iconv_t ic, ic2;
+    iconv_t ic;
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
@@ -3348,19 +3348,21 @@ static int send_dc_quest_list_new(ship_client_t *c, int cn) {
 
     /* Quest stuff is stored internally as UTF-8, set up for converting to the
        right encoding */
-    ic = iconv_open("ISO-8859-1", "UTF-8");
+    if(c->language_code != CLIENT_LANG_JAPANESE) {
+        ic = iconv_open("ISO-8859-1", "UTF-8");
 
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
-        return -1;
+        if(ic == (iconv_t)-1) {
+            perror("iconv_open");
+            return -1;
+        }
     }
+    else {
+        ic = iconv_open("SHIFT_JIS", "UTF-8");
 
-    ic2 = iconv_open("SHIFT_JIS", "UTF-8");
-
-    if(ic2 == (iconv_t)-1) {
-        perror("iconv_open");
-        iconv_close(ic);
-        return -1;
+        if(ic == (iconv_t)-1) {
+            perror("iconv_open");
+            return -1;
+        }
     }
 
     /* Clear out the header */
@@ -3390,7 +3392,8 @@ static int send_dc_quest_list_new(ship_client_t *c, int cn) {
                 continue;
             }
 
-            if(!elem->qptr[tmp->version][tmp->language_code]) {
+            if(!elem->qptr[tmp->version][tmp->language_code] &&
+               !elem->qptr[tmp->version][CLIENT_LANG_ENGLISH]) {
                 break;
             }
         }
@@ -3408,8 +3411,7 @@ static int send_dc_quest_list_new(ship_client_t *c, int cn) {
         pkt->entries[entries].menu_id = LE32(((0x00000004) | (cn << 8)));
         pkt->entries[entries].item_id = LE32(quest->qid);
 
-        /* Convert the name and the description to the appropriate encoding
-           XXXX: Handle Japanese */
+        /* Convert the name and the description to the appropriate encoding */
         in = 32;
         out = 32;
         inptr = quest->name;
@@ -3426,7 +3428,6 @@ static int send_dc_quest_list_new(ship_client_t *c, int cn) {
         len += 0x98;
     }
 
-    iconv_close(ic2);
     iconv_close(ic);
 
     /* Fill in the rest of the header */
@@ -3506,7 +3507,8 @@ static int send_pc_quest_list_new(ship_client_t *c, int cn) {
                 continue;
             }
 
-            if(!elem->qptr[tmp->version][tmp->language_code]) {
+            if(!elem->qptr[tmp->version][tmp->language_code] &&
+               !elem->qptr[tmp->version][CLIENT_LANG_ENGLISH]) {
                 break;
             }
         }
@@ -3555,7 +3557,7 @@ static int send_gc_quest_list_new(ship_client_t *c, int cn) {
     uint8_t *sendbuf = get_sendbuf();
     dc_quest_list_pkt *pkt = (dc_quest_list_pkt *)sendbuf;
     int i, len = 0x04, entries = 0, max = INT_MAX, j;
-    iconv_t ic, ic2;
+    iconv_t ic;
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
@@ -3590,19 +3592,21 @@ static int send_gc_quest_list_new(ship_client_t *c, int cn) {
 
     /* Quest stuff is stored internally as UTF-8, set up for converting to the
        right encoding */
-    ic = iconv_open("ISO-8859-1", "UTF-8");
+    if(c->language_code != CLIENT_LANG_JAPANESE) {
+        ic = iconv_open("ISO-8859-1", "UTF-8");
 
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
-        return -1;
+        if(ic == (iconv_t)-1) {
+            perror("iconv_open");
+            return -1;
+        }
     }
+    else {
+        ic = iconv_open("SHIFT_JIS", "UTF-8");
 
-    ic2 = iconv_open("SHIFT_JIS", "UTF-8");
-
-    if(ic2 == (iconv_t)-1) {
-        perror("iconv_open");
-        iconv_close(ic);
-        return -1;
+        if(ic == (iconv_t)-1) {
+            perror("iconv_open");
+            return -1;
+        }
     }
 
     /* Clear out the header */
@@ -3632,7 +3636,8 @@ static int send_gc_quest_list_new(ship_client_t *c, int cn) {
                 continue;
             }
 
-            if(!elem->qptr[tmp->version][tmp->language_code]) {
+            if(!elem->qptr[tmp->version][tmp->language_code] &&
+               !elem->qptr[tmp->version][CLIENT_LANG_ENGLISH]) {
                 break;
             }
         }
@@ -3655,8 +3660,7 @@ static int send_gc_quest_list_new(ship_client_t *c, int cn) {
         pkt->entries[entries].menu_id = LE32(((0x00000004) | (cn << 8)));
         pkt->entries[entries].item_id = LE32(quest->qid);
 
-        /* Convert the name and the description to the appropriate encoding
-           XXXX: Handle Japanese */
+        /* Convert the name and the description to the appropriate encoding */
         in = 32;
         out = 32;
         inptr = quest->name;
@@ -3673,7 +3677,6 @@ static int send_gc_quest_list_new(ship_client_t *c, int cn) {
         len += 0x98;
     }
 
-    iconv_close(ic2);
     iconv_close(ic);
 
     /* Fill in the rest of the header */
@@ -3719,8 +3722,12 @@ static int send_dc_quest_info(ship_client_t *c, sylverant_quest_t *q) {
 
     if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
        c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3) {
-        /* XXXX: Handle Japanese text */
-        ic = iconv_open("ISO-8859-1", "UTF-8");
+        if(c->language_code != CLIENT_LANG_JAPANESE) {
+            ic = iconv_open("ISO-8859-1", "UTF-8");
+        }
+        else {
+            ic = iconv_open("SHIFT_JIS", "UTF-8");
+        }
     }
     else {
         ic = iconv_open("UTF-16LE", "UTF-8");
@@ -3804,6 +3811,20 @@ int send_quest_info_new(lobby_t *l, uint32_t qid) {
     for(i = 0; i < l->max_clients; ++i) {
         if((c = l->clients[i])) {
             q = elem->qptr[c->version][c->language_code];
+
+            /* If we didn't find it on the normal language code, try the
+               fallback one (which is always English, for now). */
+            if(!q) {
+                q = elem->qptr[c->version][CLIENT_LANG_ENGLISH];
+
+                /* If we still didn't find it, we've got trouble elsewhere... */
+                if(!q) {
+                    debug(DBG_WARN, "Couldn't find quest to send info!\n"
+                          "ID: %d, Ver: %d, Language: %d, Fallback: %d\n", qid,
+                          c->version, c->language_code, CLIENT_LANG_ENGLISH);
+                    continue;
+                }
+            }
 
             /* Call the appropriate function. */
             switch(c->version) {
@@ -4479,7 +4500,8 @@ int send_quest(lobby_t *l, sylverant_quest_t *q) {
 }
 
 /* Send a quest to everyone in a lobby. */
-static int send_dcv1_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1) {
+static int send_dcv1_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1,
+                               int lang) {
     uint8_t *sendbuf = get_sendbuf();
     dc_quest_file_pkt *file = (dc_quest_file_pkt *)sendbuf;
     dc_quest_chunk_pkt *chunk = (dc_quest_chunk_pkt *)sendbuf;
@@ -4489,7 +4511,7 @@ static int send_dcv1_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1) {
     char fn_base[256], filename[256];
     size_t amt;
     ship_t *s = c->cur_ship;
-    sylverant_quest_t *q = qm->qptr[c->version][c->language_code];
+    sylverant_quest_t *q = qm->qptr[c->version][lang];
 
     /* Verify we got the sendbuf. */
     if(!sendbuf || !q) {
@@ -4499,8 +4521,7 @@ static int send_dcv1_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1) {
     /* Each quest has two files: a .dat file and a .bin file, send a file packet
        for each of them. */
     sprintf(fn_base, "%s/%s-%s/%s", s->cfg->quests_dir,
-            version_codes[c->version], language_codes[c->language_code],
-            q->prefix);
+            version_codes[c->version], language_codes[lang], q->prefix);
 
     sprintf(filename, "%s.bin", fn_base);
     bin = fopen(filename, "rb");
@@ -4629,7 +4650,8 @@ static int send_dcv1_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1) {
     return 0;
 }
 
-static int send_dcv2_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1) {
+static int send_dcv2_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1,
+                               int lang) {
     uint8_t *sendbuf = get_sendbuf();
     dc_quest_file_pkt *file = (dc_quest_file_pkt *)sendbuf;
     dc_quest_chunk_pkt *chunk = (dc_quest_chunk_pkt *)sendbuf;
@@ -4639,7 +4661,7 @@ static int send_dcv2_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1) {
     char fn_base[256], filename[256];
     size_t amt;
     ship_t *s = c->cur_ship;
-    sylverant_quest_t *q = qm->qptr[c->version][c->language_code];
+    sylverant_quest_t *q = qm->qptr[c->version][lang];
 
     /* Verify we got the sendbuf. */
     if(!sendbuf || !q) {
@@ -4650,13 +4672,12 @@ static int send_dcv2_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1) {
        for each of them. */
     if(!v1 || (q->versions & SYLVERANT_QUEST_V1)) {
         sprintf(fn_base, "%s/%s-%s/%s", s->cfg->quests_dir,
-                version_codes[c->version], language_codes[c->language_code],
-                q->prefix);
+                version_codes[c->version], language_codes[lang], q->prefix);
     }
     else {
         sprintf(fn_base, "%s/%s-%s/%s", s->cfg->quests_dir,
-                version_codes[CLIENT_VERSION_DCV1],
-                language_codes[c->language_code], q->prefix);
+                version_codes[CLIENT_VERSION_DCV1], language_codes[lang],
+                q->prefix);
     }
 
     sprintf(filename, "%s.bin", fn_base);
@@ -4786,7 +4807,8 @@ static int send_dcv2_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1) {
     return 0;
 }
 
-static int send_pc_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1) {
+static int send_pc_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1,
+                             int lang) {
     uint8_t *sendbuf = get_sendbuf();
     pc_quest_file_pkt *file = (pc_quest_file_pkt *)sendbuf;
     dc_quest_chunk_pkt *chunk = (dc_quest_chunk_pkt *)sendbuf;
@@ -4796,7 +4818,7 @@ static int send_pc_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1) {
     char fn_base[256], filename[256];
     size_t amt;
     ship_t *s = c->cur_ship;
-    sylverant_quest_t *q = qm->qptr[c->version][c->language_code];
+    sylverant_quest_t *q = qm->qptr[c->version][lang];
 
     /* Verify we got the sendbuf. */
     if(!sendbuf || !q) {
@@ -4807,13 +4829,11 @@ static int send_pc_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1) {
        for each of them. */
     if(!v1 || (q->versions & SYLVERANT_QUEST_V1)) {
         sprintf(fn_base, "%s/%s-%s/%s", s->cfg->quests_dir,
-                version_codes[c->version], language_codes[c->language_code],
-                q->prefix);
+                version_codes[c->version], language_codes[lang], q->prefix);
     }
     else {
         sprintf(fn_base, "%s/%s-%s/%sv1", s->cfg->quests_dir,
-                version_codes[c->version], language_codes[c->language_code],
-                q->prefix);
+                version_codes[c->version], language_codes[lang], q->prefix);
     }
 
     sprintf(filename, "%s.bin", fn_base);
@@ -4945,7 +4965,8 @@ static int send_pc_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1) {
     return 0;
 }
 
-static int send_gc_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1) {
+static int send_gc_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1,
+                             int lang) {
     uint8_t *sendbuf = get_sendbuf();
     gc_quest_file_pkt *file = (gc_quest_file_pkt *)sendbuf;
     dc_quest_chunk_pkt *chunk = (dc_quest_chunk_pkt *)sendbuf;
@@ -4955,7 +4976,7 @@ static int send_gc_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1) {
     char fn_base[256], filename[256];
     size_t amt;
     ship_t *s = c->cur_ship;
-    sylverant_quest_t *q = qm->qptr[c->version][c->language_code];
+    sylverant_quest_t *q = qm->qptr[c->version][lang];
 
     /* Verify we got the sendbuf. */
     if(!sendbuf || !q) {
@@ -4966,13 +4987,11 @@ static int send_gc_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1) {
        for each of them. */
     if(!v1 || (q->versions & SYLVERANT_QUEST_V1)) {
         sprintf(fn_base, "%s/%s-%s/%s", s->cfg->quests_dir,
-                version_codes[c->version], language_codes[c->language_code],
-                q->prefix);
+                version_codes[c->version], language_codes[lang], q->prefix);
     }
     else {
         sprintf(fn_base, "%s/%s-%s/%sv1", s->cfg->quests_dir,
-                version_codes[c->version], language_codes[c->language_code],
-                q->prefix);
+                version_codes[c->version], language_codes[lang], q->prefix);
     }
 
     sprintf(filename, "%s.bin", fn_base);
@@ -5104,14 +5123,15 @@ static int send_gc_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1) {
     return 0;
 }
 
-static int send_qst_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1) {
+static int send_qst_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1,
+                              int lang) {
     char filename[256];
     FILE *fp;
     long len;
     size_t read;
     uint8_t *sendbuf = get_sendbuf();
     ship_t *s = c->cur_ship;
-    sylverant_quest_t *q = qm->qptr[c->version][c->language_code];
+    sylverant_quest_t *q = qm->qptr[c->version][lang];
 
     /* Make sure we got the sendbuf and the quest */
     if(!sendbuf || !q) {
@@ -5121,8 +5141,7 @@ static int send_qst_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1) {
     /* Figure out what file we're going to send. */
     if(!v1 || (q->versions & SYLVERANT_QUEST_V1)) {
         sprintf(filename, "%s/%s-%s/%s.qst", s->cfg->quests_dir,
-                version_codes[c->version], language_codes[c->language_code],
-                q->prefix);
+                version_codes[c->version], language_codes[lang], q->prefix);
     }
     else {
         switch(c->version) {
@@ -5130,14 +5149,14 @@ static int send_qst_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1) {
             case CLIENT_VERSION_DCV2:
                 sprintf(filename, "%s/%s-%s/%s.qst", s->cfg->quests_dir,
                         version_codes[CLIENT_VERSION_DCV1],
-                        language_codes[c->language_code], q->prefix);
+                        language_codes[lang], q->prefix);
                 break;
 
             case CLIENT_VERSION_PC:
             case CLIENT_VERSION_GC:
                 sprintf(filename, "%s/%s-%s/%sv1.qst", s->cfg->quests_dir,
-                        version_codes[c->version],
-                        language_codes[c->language_code], q->prefix);
+                        version_codes[c->version], language_codes[lang],
+                        q->prefix);
                 break;
         }
     }
@@ -5194,6 +5213,7 @@ int send_quest_new(lobby_t *l, uint32_t qid) {
     quest_map_elem_t *elem = quest_lookup(&s->qmap, qid);
     sylverant_quest_t *q;
     ship_client_t *c;
+    int lang;
 
     /* Make sure we get the quest */
     if(!elem) {
@@ -5209,24 +5229,44 @@ int send_quest_new(lobby_t *l, uint32_t qid) {
     for(i = 0; i < l->max_clients; ++i) {
         if((c = l->clients[i])) {
             q = elem->qptr[c->version][c->language_code];
+            lang = c->language_code;
+
+            /* If we didn't find it on the normal language code, try the
+               fallback one (which is always English, for now). */
+            if(!q) {
+                q = elem->qptr[c->version][CLIENT_LANG_ENGLISH];
+                lang = CLIENT_LANG_ENGLISH;
+                
+                /* If we still didn't find it, we've got trouble elsewhere... */
+                if(!q) {
+                    debug(DBG_WARN, "Couldn't find quest to send!\n"
+                          "ID: %d, Ver: %d, Language: %d, Fallback: %d\n", qid,
+                          c->version, c->language_code, CLIENT_LANG_ENGLISH);
+
+                    /* Unfortunately, we're going to have to disconnect the user
+                       if this happens, since we really have no recourse. */
+                    c->flags |= CLIENT_FLAG_DISCONNECTED;
+                    continue;
+                }
+            }
 
             if(q->format == SYLVERANT_QUEST_BINDAT) {
                 /* Call the appropriate function. */
                 switch(l->clients[i]->version) {
                     case CLIENT_VERSION_DCV1:
-                        send_dcv1_quest_new(c, elem, v1);
+                        send_dcv1_quest_new(c, elem, v1, lang);
                         break;
 
                     case CLIENT_VERSION_DCV2:
-                        send_dcv2_quest_new(c, elem, v1);
+                        send_dcv2_quest_new(c, elem, v1, lang);
                         break;
 
                     case CLIENT_VERSION_PC:
-                        send_pc_quest_new(c, elem, v1);
+                        send_pc_quest_new(c, elem, v1, lang);
                         break;
 
                     case CLIENT_VERSION_GC:
-                        send_gc_quest_new(c, elem, v1);
+                        send_gc_quest_new(c, elem, v1, lang);
                         break;
 
                     case CLIENT_VERSION_EP3:
@@ -5234,7 +5274,7 @@ int send_quest_new(lobby_t *l, uint32_t qid) {
                 }
             }
             else if(q->format == SYLVERANT_QUEST_QST) {
-                send_qst_quest_new(c, elem, v1);
+                send_qst_quest_new(c, elem, v1, lang);
             }
             else {
                 return -1;
