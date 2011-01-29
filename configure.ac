@@ -34,6 +34,10 @@ AC_CONFIG_SRCDIR([src/block.c])
 AC_PROG_CC
 
 # Checks for libraries.
+PKG_CHECK_MODULES([libxml2], [libxml-2.0 >= 2.7])
+CFLAGS="$CFLAGS $libxml2_CFLAGS"
+LIBS="$LIBS $libxml2_LIBS"
+
 AC_CHECK_LIB([expat], [XML_ParserCreate], , AC_MSG_ERROR([libexpat is required!]))
 AC_CHECK_LIB([sylverant], [sylverant_read_config], , AC_MSG_ERROR([libsylverant is required!]))
 AC_CHECK_LIB([crypto], [RC4], , AC_MSG_ERROR([libcrypto is required!]))

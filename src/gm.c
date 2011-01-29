@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -18,75 +18,31 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <expat.h>
 #include <inttypes.h>
+
+#include <sylverant/debug.h>
+
+#include <libxml/parser.h>
+#include <libxml/tree.h>
 
 #include "gm.h"
 #include "ship.h"
 #include "clients.h"
 
-#define BUF_SIZE 8192
+#ifndef LIBXML_TREE_ENABLED
+#error You must have libxml2 with tree support built-in.
+#endif
 
-static void gm_start_hnd(void *d, const XML_Char *name,
-                         const XML_Char **attrs) {
-    int i, done = 0;
-    void *tmp;
-    ship_t *s = (ship_t *)d;
-
-    if(!strcmp(name, "gm")) {
-        /* Attempt to make space for the new GM first. */
-        tmp = realloc(s->gm_list, (s->gm_count + 1) * sizeof(local_gm_t));
-
-        if(!tmp) {
-            return;
-        }
-
-        s->gm_list = (local_gm_t *)tmp;
-
-        /* Clear it */
-        memset(&s->gm_list[s->gm_count], 0, sizeof(local_gm_t));
-        s->gm_list[s->gm_count].flags = CLIENT_PRIV_LOCAL_GM;
-
-        /* Parse out what we care about. */
-        for(i = 0; attrs[i]; i += 2) {
-            if(!strcmp(attrs[i], "serial")) {
-                strncpy(s->gm_list[s->gm_count].serial_num, attrs[i + 1], 16);
-                s->gm_list[s->gm_count].serial_num[15] = '\0';
-                done |= 1;
-            }
-            else if(!strcmp(attrs[i], "accesskey")) {
-                strncpy(s->gm_list[s->gm_count].access_key, attrs[i + 1], 16);
-                s->gm_list[s->gm_count].access_key[15] = '\0';
-                done |= 2;
-            }
-            else if(!strcmp(attrs[i], "guildcard")) {
-                s->gm_list[s->gm_count].guildcard =
-                    (uint32_t)strtoul(attrs[i + 1], NULL, 0);
-                done |= 4;
-            }
-            else if(!strcmp(attrs[i], "root") &&
-                    !strcmp(attrs[i + 1], "true")) {
-                s->gm_list[s->gm_count].flags |= CLIENT_PRIV_LOCAL_ROOT;
-            }
-        }
-
-        /* Make sure we got everything, then increment the count. */
-        if(done == 7) {
-            ++s->gm_count;
-        }
-    }
-}
-
-static void gm_end_hnd(void *d, const XML_Char *name) {
-}
+#define XC (const xmlChar *)
 
 int gm_list_read(const char *fn, ship_t *s) {
-    FILE *fp;
-    XML_Parser p;
-    int bytes;
-    void *buf;
+    xmlParserCtxtPtr cxt;
+    xmlDoc *doc;
+    xmlNode *n;
+    xmlChar *serial, *access, *guildcard, *root;
     local_gm_t *oldlist = NULL;
-    int oldcount = 0;
+    int oldcount = 0, rv = 0;
+    void *tmp;
 
     /* If we're reloading, save the old list. */
     if(s->gm_list) {
@@ -96,80 +52,132 @@ int gm_list_read(const char *fn, ship_t *s) {
         s->gm_count = 0;
     }
 
-    /* Open the GM list file for reading. */
-    fp = fopen(fn, "r");
-
-    if(!fp) {
-        s->gm_list = oldlist;
-        s->gm_count = oldcount;
-        return -1;
+    /* Create an XML Parsing context */
+    cxt = xmlNewParserCtxt();
+    if(!cxt) {
+        debug(DBG_ERROR, "Couldn't create XML parsing context for GM List\n");
+        rv = -1;
+        goto err;
     }
 
-    /* Create the XML parser object. */
-    p = XML_ParserCreate(NULL);
-
-    if(!p)  {
-        fclose(fp);
-        s->gm_list = oldlist;
-        s->gm_count = oldcount;
-        return -2;
+    /* Open the GM list XML file for reading. */
+    doc = xmlReadFile(fn, NULL, XML_PARSE_DTDVALID);
+    if(!doc) {
+        xmlParserError(cxt, "Error in parsing GM List");
+        rv = -2;
+        goto err_cxt;
     }
 
-    XML_SetElementHandler(p, &gm_start_hnd, &gm_end_hnd);
-    XML_SetUserData(p, s);
-
-    for(;;) {
-        /* Grab the buffer to read into. */
-        buf = XML_GetBuffer(p, BUF_SIZE);
-
-        if(!buf)    {
-            XML_ParserFree(p);
-            fclose(fp);
-            free(s->gm_list);
-            s->gm_list = oldlist;
-            s->gm_count = oldcount;
-            return -2;
-        }
-
-        /* Read in from the file. */
-        bytes = fread(buf, 1, BUF_SIZE, fp);
-
-        if(bytes < 0)   {
-            XML_ParserFree(p);
-            fclose(fp);
-            free(s->gm_list);
-            s->gm_list = oldlist;
-            s->gm_count = oldcount;
-            return -2;
-        }
-
-        /* Parse the bit we read in. */
-        if(!XML_ParseBuffer(p, bytes, !bytes))  {
-            XML_ParserFree(p);
-            fclose(fp);
-            free(s->gm_list);
-            s->gm_list = oldlist;
-            s->gm_count = oldcount;
-            return -3;
-        }
-
-        if(!bytes)  {
-            break;
-        }
+    /* Make sure the document validated properly. */
+    if(!cxt->valid) {
+        xmlParserValidityError(cxt, "Validity Error parsing GM List");
+        rv = -3;
+        goto err_doc;
     }
 
-    XML_ParserFree(p);
-    fclose(fp);
+    /* If we've gotten this far, we have a valid document, now go through and
+       add in entries for everything... */
+    n = xmlDocGetRootElement(doc);
 
-    /* If we had an old list, clear it. */
+    if(!n) {
+        debug(DBG_WARN, "Empty GM List document\n");
+        rv = -4;
+        goto err_doc;
+    }
+
+    /* Make sure the list looks sane. */
+    if(xmlStrcmp(n->name, XC"gms")) {
+        debug(DBG_WARN, "GM List does not appear to be of the right type\n");
+        rv = -5;
+        goto err_doc;
+    }
+
+    n = n->children;
+    while(n) {
+        if(n->type != XML_ELEMENT_NODE) {
+            /* Ignore non-elements. */
+            n = n->next;
+            continue;
+        }
+        else if(xmlStrcmp(n->name, XC"gm")) {
+            debug(DBG_WARN, "Invalid Tag %s on line %hu\n", n->name, n->line);
+        }
+        else {
+            /* We've got the right tag, see if we have all the attributes... */
+            serial = xmlGetProp(n, XC"serial");
+            access = xmlGetProp(n, XC"accesskey");
+            guildcard = xmlGetProp(n, XC"guildcard");
+            root = xmlGetProp(n, XC"root");
+
+            if(!serial || !access || !guildcard) {
+                debug(DBG_WARN, "Incomplete GM entry on line %hu\n", n->line);
+                goto next;
+            }
+        
+            /* We've got everything, make space for the new GM. */
+            tmp = realloc(s->gm_list, (s->gm_count + 1) * sizeof(local_gm_t));
+
+            if(!tmp) {
+                debug(DBG_WARN, "Couldn't make space for GM\n");
+                perror("realloc");
+                xmlFree(serial);
+                xmlFree(access);
+                xmlFree(guildcard);
+                xmlFree(root);
+                rv = -6;
+                free(s->gm_list);
+                goto err_doc;
+            }
+
+            s->gm_list = (local_gm_t *)tmp;
+
+            /* Clear it */
+            memset(&s->gm_list[s->gm_count], 0, sizeof(local_gm_t));
+            s->gm_list[s->gm_count].flags = CLIENT_PRIV_LOCAL_GM;
+
+            strncpy(s->gm_list[s->gm_count].serial_num, (char *)serial, 16);
+            strncpy(s->gm_list[s->gm_count].access_key, (char *)access, 16);
+            s->gm_list[s->gm_count].guildcard =
+                (uint32_t)strtoul((char *)guildcard, NULL, 0);
+
+            /* See if the user is a root user */
+            if(root && !xmlStrcmp(root, XC"true")) {
+                s->gm_list[s->gm_count].flags |= CLIENT_PRIV_LOCAL_ROOT;
+            }
+
+            ++s->gm_count;
+
+next:
+            /* Free the memory we allocated here... */
+            xmlFree(serial);
+            xmlFree(access);
+            xmlFree(guildcard);
+            xmlFree(root);
+        }
+
+        n = n->next;
+    }
+
+    /* If we have an old list, we're clear to free it now... */
     if(oldlist) {
         free(oldlist);
     }
 
-    return 0;
+    /* Cleanup/error handling below... */
+err_doc:
+    xmlFreeDoc(doc);
+err_cxt:
+    xmlFreeParserCtxt(cxt);
+err:
+    if(rv) {
+        s->gm_list = oldlist;
+        s->gm_count = oldcount;
+    }
+
+    return rv;
 }
 
-int is_gm(uint32_t guildcard, char serial[9], char access[9], ship_t *s) {
+int is_gm(uint32_t guildcard, char serial[], char access[], ship_t *s) {
     int i;
 
     /* Look through the list for this person. */

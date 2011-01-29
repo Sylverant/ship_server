@@ -673,6 +673,8 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
 
     /* Attempt to read the GM list in. */
     if(s->gm_file[0]) {
+        debug(DBG_LOG, "%s: Reading Local GM List...\n", s->name);
+
         if(gm_list_read(s->gm_file, rv)) {
             debug(DBG_ERROR, "%s: Couldn't read GM file!\n", s->name);
             sylverant_quests_destroy(&rv->quests);
@@ -688,6 +690,8 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
             close(dcsock);
             return NULL;
         }
+
+        debug(DBG_LOG, "%s: Read %d Local GMs\n", s->name, rv->gm_count);
     }
 
     /* Attempt to read the item limits list in. */
