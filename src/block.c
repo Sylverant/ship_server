@@ -44,9 +44,6 @@
 extern ship_t **ships;
 extern sylverant_shipcfg_t *cfg;
 
-extern in_addr_t local_addr;
-extern in_addr_t netmask;
-
 static void *block_thd(void *d) {
     block_t *b = (block_t *)d;
     ship_t *s = b->ship;
@@ -1078,7 +1075,6 @@ static int dc_process_guild_search(ship_client_t *c, dc_guild_search_pkt *pkt) {
     int i, j;
     ship_client_t *it;
     uint32_t gc = LE32(pkt->gc_target);
-    in_addr_t addr;
     int done = 0, rv = -1;
 
     /* Search any local ships first. */
@@ -1092,17 +1088,9 @@ static int dc_process_guild_search(ship_client_t *c, dc_guild_search_pkt *pkt) {
                 /* Check if this is the target and the target has player
                    data. */
                 if(it->guildcard == gc && it->pl) {
-                    /* Figure out the IP address to send. */
-                    if(netmask &&
-                       (c->addr & netmask) == (local_addr & netmask)) {
-                        addr = local_addr;
-                    }
-                    else {
-                        addr = s->cfg->ship_ip;
-                    }
-
                     pthread_mutex_lock(&it->mutex);
-                    rv = send_guild_reply(c, gc, addr, s->blocks[i]->dc_port,
+                    rv = send_guild_reply(c, gc, s->cfg->ship_ip,
+                                          s->blocks[i]->dc_port,
                                           it->cur_lobby->name,
                                           s->blocks[i]->b, s->cfg->name,
                                           it->cur_lobby->lobby_id,
@@ -1552,7 +1540,6 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
         case 0x01:
         {
             ship_t *s = c->cur_ship;
-            in_addr_t addr;
             uint16_t port;
 
             /* See if it's the "Ship Select" entry */
@@ -1569,14 +1556,6 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
             if(s->blocks[item_id - 1] == NULL  ||
                s->blocks[item_id - 1]->run == 0) {
                 return -2;
-            }
-
-            /* Figure out what address to send the client. */
-            if(netmask && (c->addr & netmask) == (local_addr & netmask)) {
-                addr = local_addr;
-            }
-            else {
-                addr = s->cfg->ship_ip;
             }
 
             switch(c->version) {
@@ -1602,7 +1581,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
             }
 
             /* Redirect the client where we want them to go. */
-            return send_redirect(c, addr, port);
+            return send_redirect(c, s->cfg->ship_ip, port);
         }
 
         /* Game Selection */
@@ -1750,7 +1729,6 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
         {
             miniship_t *i;
             ship_t *s = c->cur_ship;
-            in_addr_t addr;
             int off = 0;
 
             /* See if the user picked a Ship List item */
@@ -1781,27 +1759,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
                that the user has requested. */
             TAILQ_FOREACH(i, &s->ships, qentry) {
                 if(i->ship_id == item_id) {
-                    /* Figure out which address we need to send the client. */
-                    if(c->addr == i->ship_addr) {
-                        /* The client and the ship are connecting from the same
-                           address, this one is obvious. */
-                        addr = i->int_addr;
-                    }
-                    else if(netmask && i->ship_addr == s->cfg->ship_ip &&
-                            (c->addr & netmask) == (local_addr & netmask)) {
-                        /* The destination and the source are on the same
-                           network, and the client is on the same network as the
-                           source, thus the client must be on the same network
-                           as the destination, send the internal address. */
-                        addr = i->int_addr;
-                    }
-                    else {
-                        /* They should be on different networks if we get here,
-                           send the external IP. */
-                        addr = i->ship_addr;
-                    }
-
-                    return send_redirect(c, addr, i->ship_port + off);
+                    return send_redirect(c, i->ship_addr, i->ship_port + off);
                 }
             }
 

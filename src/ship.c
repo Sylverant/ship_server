@@ -33,10 +33,6 @@
 #include "shipgate.h"
 #include "utils.h"
 
-/* Local host configuration. */
-extern in_addr_t local_addr;
-extern in_addr_t netmask;
-
 static void clean_shiplist(ship_t *s) {
     miniship_t *i, *tmp;
 
@@ -913,7 +909,6 @@ static int gc_process_login(ship_client_t *c, gc_login_9e_pkt *pkt) {
 static int dc_process_block_sel(ship_client_t *c, dc_select_pkt *pkt) {
     int block = LE32(pkt->item_id);
     ship_t *s = c->cur_ship;
-    in_addr_t addr;
 
     /* See if the block selected is the "Ship Select" block */
     if(block == 0xFFFFFFFF) {
@@ -930,27 +925,20 @@ static int dc_process_block_sel(ship_client_t *c, dc_select_pkt *pkt) {
         return -2;
     }
 
-    /* Figure out what address to send the client. */
-    if(netmask && (c->addr & netmask) == (local_addr & netmask)) {
-        addr = local_addr;
-    }
-    else {
-        addr = s->cfg->ship_ip;
-    }
-
     /* Redirect the client where we want them to go. */
     if(c->version == CLIENT_VERSION_DCV1 ||
        c->version == CLIENT_VERSION_DCV2) {
-        return send_redirect(c, addr, s->blocks[block - 1]->dc_port);
+        return send_redirect(c, s->cfg->ship_ip, s->blocks[block - 1]->dc_port);
     }
     else if(c->version == CLIENT_VERSION_PC) {
-        return send_redirect(c, addr, s->blocks[block - 1]->pc_port);
+        return send_redirect(c, s->cfg->ship_ip, s->blocks[block - 1]->pc_port);
     }
     else if(c->version == CLIENT_VERSION_GC) {
-        return send_redirect(c, addr, s->blocks[block - 1]->gc_port);
+        return send_redirect(c, s->cfg->ship_ip, s->blocks[block - 1]->gc_port);
     }
     else {
-        return send_redirect(c, addr, s->blocks[block - 1]->ep3_port);
+        return send_redirect(c, s->cfg->ship_ip,
+                             s->blocks[block - 1]->ep3_port);
     }
 }
 
@@ -969,7 +957,6 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
         {
             miniship_t *i;
             ship_t *s = c->cur_ship;
-            in_addr_t addr;
             int off = 0;
 
             /* See if the user picked a Ship List item */
@@ -1000,28 +987,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
                that the user has requested. */
             TAILQ_FOREACH(i, &s->ships, qentry) {
                 if(i->ship_id == item_id) {
-                    /* Figure out which address we need to send the client. */
-                    if(c->addr == i->ship_addr) {
-                        /* The client and the ship are connecting from the same
-                           address, this one is obvious. */
-                        addr = i->int_addr;
-                    }
-                    else if(netmask &&
-                            i->ship_addr == s->cfg->ship_ip &&
-                            (c->addr & netmask) == (local_addr & netmask)) {
-                        /* The destination and the source are on the same
-                           network, and the client is on the same network as the
-                           source, thus the client must be on the same network
-                           as the destination, send the internal address. */
-                        addr = i->int_addr;
-                    }
-                    else {
-                        /* They should be on different networks if we get here,
-                           send the external IP. */
-                        addr = i->ship_addr;
-                    }
-
-                    return send_redirect(c, addr, i->ship_port + off);
+                    return send_redirect(c, i->ship_addr, i->ship_port + off);
                 }
             }
 

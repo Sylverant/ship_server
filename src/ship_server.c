@@ -38,9 +38,6 @@
 /* Configuration data for the server. */
 sylverant_shipcfg_t *cfg;
 
-in_addr_t local_addr;
-in_addr_t netmask;
-
 /* The actual ship structures. */
 ship_t **ships;
 char *config_file = NULL;
@@ -167,63 +164,6 @@ static void load_config() {
     }
 }
 
-/* Fetch the local address and netmask of the host. */
-static int get_ip_info() {
-    int rv;
-    struct addrinfo hints, *servinfo;
-    struct sockaddr_in *addr;
-    char hostname[256];
-    struct ifaddrs *ifaddr, *ifa;
-
-    /* Get the host name for passing to getaddrinfo */
-    gethostname(hostname, 255);
-
-    /* Clear the hints out, we'll fill in what we want below. */
-    memset(&hints, 0, sizeof(struct addrinfo));
-
-    /* We want a IPv4 address... */
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
-
-    /* Query the OS for what we want. */
-    rv = getaddrinfo(hostname, NULL, &hints, &servinfo);
-
-    if(rv) {
-        debug(DBG_ERROR, "getaddrinfo: %s\n", gai_strerror(rv));
-        return -1;
-    }
-
-    /* For now, assume we want the first one. */
-    local_addr = ((struct sockaddr_in *)servinfo->ai_addr)->sin_addr.s_addr;
-
-    freeaddrinfo(servinfo);
-
-    /* We've got the IP address, now attempt to get the netmask associated with
-       that IP. */
-    if(getifaddrs(&ifaddr)) {
-        perror("getifaddrs");
-        return -2;
-    }
-
-    /* Look through the list for the interface we want. */
-    for(ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
-        if(ifa->ifa_addr->sa_family == AF_INET) {
-            addr = (struct sockaddr_in *)ifa->ifa_addr;
-
-            if(addr->sin_addr.s_addr == local_addr) {
-                addr = (struct sockaddr_in *)ifa->ifa_netmask;
-                netmask = addr->sin_addr.s_addr;
-                break;
-            }
-        }
-    }
-
-    /* Clean up the data allocated by getifaddrs. */
-    freeifaddrs(ifaddr);
-
-    return 0;
-}
-
 int main(int argc, char *argv[]) {
     int i;
     void *tmp;
@@ -231,11 +171,6 @@ int main(int argc, char *argv[]) {
     /* Parse the command line and read our configuration. */
     parse_command_line(argc, argv);
     load_config();
-
-    if(get_ip_info()) {
-        debug(DBG_ERROR, "Could not fetch host information\n");
-        exit(1);
-    }
 
     if(!custom_dir) {
         chdir(sylverant_directory);

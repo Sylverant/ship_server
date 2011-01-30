@@ -167,6 +167,8 @@ ship_client_t *client_create_connection(int sock, int version, int type,
     TAILQ_INSERT_TAIL(clients, rv, qentry);
     ship_inc_clients(ship);
 
+    pkt_log_start(rv);
+
     return rv;
 }
 

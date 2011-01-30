@@ -39,7 +39,6 @@
 
 /* Configuration data for the server. */
 extern sylverant_shipcfg_t *cfg;
-extern in_addr_t local_addr;
 
 /* Forward declaration */
 static int send_greply(shipgate_conn_t *c, uint32_t gc1, uint32_t gc2,
@@ -1656,7 +1655,7 @@ int shipgate_send_ship_info(shipgate_conn_t *c, ship_t *ship) {
     /* Fill in the packet. */
     strcpy(pkt->name, ship->cfg->name);
     pkt->ship_addr = ship->cfg->ship_ip;
-    pkt->int_addr = local_addr;
+    pkt->int_addr = 0;
     pkt->ship_port = htons(ship->cfg->base_port);
     pkt->ship_key = htons(c->key_idx);
     pkt->clients = htons(ship->num_clients);

@@ -79,9 +79,6 @@ static const char type_codes[][3] = {
 extern sylverant_shipcfg_t *cfg;
 extern ship_t **ships;
 
-extern in_addr_t local_addr;
-extern in_addr_t netmask;
-
 /* Forward declaration. */
 static int send_dc_lobby_arrows(lobby_t *l, ship_client_t *c);
 
@@ -6208,15 +6205,7 @@ static int send_gc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
 
 int send_choice_reply(ship_client_t *c, dc_choice_set_t *search) {
     int minlvl = 0, maxlvl = 199, cl;
-    in_addr_t addr;
-
-    /* Figure out the IP address to send. */
-    if(netmask && (c->addr & netmask) == (local_addr & netmask)) {
-        addr = local_addr;
-    }
-    else {
-        addr = c->cur_ship->cfg->ship_ip;
-    }
+    in_addr_t addr = c->cur_ship->cfg->ship_ip;
 
     /* Parse the packet for the minimum and maximum levels. */
     switch(LE16(search->entries[0].item_id)) {
