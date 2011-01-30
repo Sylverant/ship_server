@@ -776,7 +776,12 @@ typedef struct dc_c_rank_update {
             struct {
                 uint32_t unk1;
                 char string[0x0C];
-                uint8_t unk2[0x68];
+                uint8_t unk2[0x24];
+                uint16_t grave_unk4;
+                uint16_t grave_deaths;
+                uint32_t grave_coords_time[5];
+                char grave_team[20];
+                char grave_message[24];
                 uint32_t times[9];
                 uint32_t battle[7];
             };
@@ -793,7 +798,12 @@ typedef struct pc_c_rank_update {
             struct {
                 uint32_t unk1;
                 uint16_t string[0x0C];
-                uint8_t unk2[0x94];
+                uint8_t unk2[0x24];
+                uint16_t grave_unk4;
+                uint16_t grave_deaths;
+                uint32_t grave_coords_time[5];
+                uint16_t grave_team[20];
+                uint16_t grave_message[24];
                 uint32_t times[9];
                 uint32_t battle[7];
             };

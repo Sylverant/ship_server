@@ -6561,6 +6561,10 @@ static void copy_c_rank_gc(gc_c_rank_update_pkt *pkt, int entry,
 static void copy_c_rank_dc(dc_c_rank_update_pkt *pkt, int entry,
                            ship_client_t *s) {
     int j;
+    iconv_t ic, ic2;
+    size_t in, out;
+    ICONV_CONST char *inptr;
+    char *outptr;
 
     switch(s->version) {
         case CLIENT_VERSION_DCV2:
@@ -6575,6 +6579,7 @@ static void copy_c_rank_dc(dc_c_rank_update_pkt *pkt, int entry,
 
             /* This is a bit hackish.... */
             pkt->entries[entry].unk1 = s->pl->pc.c_rank.part.unk1;
+            memcpy(pkt->entries[entry].unk2, s->pl->pc.c_rank.part.unk2, 0x24);
 
             /* Copy the rank over. */
             for(j = 0; j < 0x0C; ++j) {
@@ -6587,6 +6592,43 @@ static void copy_c_rank_dc(dc_c_rank_update_pkt *pkt, int entry,
                    9 * sizeof(uint32_t));
             memcpy(pkt->entries[entry].battle, s->pl->pc.c_rank.part.battle,
                    7 * sizeof(uint32_t));
+
+            /* Deal with the grave data... */
+            if(s->pl->pc.c_rank.part.grave_team[1] == (uint16_t)'J') {
+                ic = iconv_open("SHIFT_JIS", "UTF-16LE");
+            }
+            else {
+                ic = iconv_open("ISO-8859-1", "UTF-16LE");
+            }
+
+            if(s->pl->pc.c_rank.part.grave_message[1] == (uint16_t)'J') {
+                ic2 = iconv_open("SHIFT_JIS", "UTF-16LE");
+            }
+            else {
+                ic2 = iconv_open("ISO-8859-1", "UTF-16LE");
+            }
+
+            /* Copy over the simple stuff... */
+            memcpy(&pkt->entries[entry].grave_unk4,
+                   &s->pl->pc.c_rank.part.grave_unk4, 24);
+
+            /* Convert the team name */
+            in = 40;
+            out = 20;
+            inptr = (char *)s->pl->pc.c_rank.part.grave_team;
+            outptr = pkt->entries[entry].grave_team;
+            iconv(ic, &inptr, &in, &outptr, &out);
+
+            /* Convert the message */
+            in = 48;
+            out = 24;
+            inptr = (char *)s->pl->pc.c_rank.part.grave_message;
+            outptr = pkt->entries[entry].grave_message;
+            iconv(ic2, &inptr, &in, &outptr, &out);
+
+            /* Clean up the iconv stuff */
+            iconv_close(ic);
+            iconv_close(ic2);
             break;
 
         case CLIENT_VERSION_GC:
@@ -6617,6 +6659,10 @@ static void copy_c_rank_dc(dc_c_rank_update_pkt *pkt, int entry,
 static void copy_c_rank_pc(pc_c_rank_update_pkt *pkt, int entry,
                            ship_client_t *s) {
     int j;
+    iconv_t ic, ic2;
+    size_t in, out;
+    ICONV_CONST char *inptr;
+    char *outptr;
 
     switch(s->version) {
         case CLIENT_VERSION_PC:
@@ -6629,7 +6675,9 @@ static void copy_c_rank_pc(pc_c_rank_update_pkt *pkt, int entry,
 
             memset(pkt->entries[entry].c_rank, 0, 0xF0);
 
+            /* This is a bit hackish.... */
             pkt->entries[entry].unk1 = s->pl->v2.c_rank.part.unk1;
+            memcpy(pkt->entries[entry].unk2, s->pl->v2.c_rank.part.unk2, 0x24);
 
             /* Copy the rank over. */
             for(j = 0; j < 0x0C; ++j) {
@@ -6642,6 +6690,43 @@ static void copy_c_rank_pc(pc_c_rank_update_pkt *pkt, int entry,
                    9 * sizeof(uint32_t));
             memcpy(pkt->entries[entry].battle, s->pl->v2.c_rank.part.battle,
                    7 * sizeof(uint32_t));
+
+            /* Deal with the grave data... */
+            if(s->pl->v2.c_rank.part.grave_team[1] == 'J') {
+                ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+            }
+            else {
+                ic = iconv_open("UTF-16LE", "ISO-8859-1");
+            }
+
+            if(s->pl->v2.c_rank.part.grave_message[1] == 'J') {
+                ic2 = iconv_open("UTF-16LE", "SHIFT_JIS");
+            }
+            else {
+                ic2 = iconv_open("UTF-16LE", "ISO-8859-1");
+            }
+
+            /* Copy over the simple stuff... */
+            memcpy(&pkt->entries[entry].grave_unk4,
+                   &s->pl->v2.c_rank.part.grave_unk4, 24);
+
+            /* Convert the team name */
+            in = 20;
+            out = 40;
+            inptr = s->pl->v2.c_rank.part.grave_team;
+            outptr = (char *)pkt->entries[entry].grave_team;
+            iconv(ic, &inptr, &in, &outptr, &out);
+
+            /* Convert the message */
+            in = 24;
+            out = 48;
+            inptr = s->pl->v2.c_rank.part.grave_message;
+            outptr = (char *)pkt->entries[entry].grave_message;
+            iconv(ic2, &inptr, &in, &outptr, &out);
+
+            /* Clean up the iconv stuff */
+            iconv_close(ic);
+            iconv_close(ic2);
             break;
 
         case CLIENT_VERSION_GC:
