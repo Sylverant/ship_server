@@ -733,14 +733,14 @@ static int dc_process_login(ship_client_t *c, dc_login_93_pkt *pkt) {
     }
 
     /* Save what we care about in here. */
-    c->guildcard = pkt->guildcard;
+    c->guildcard = LE32(pkt->guildcard);
     c->language_code = pkt->language_code;
 
     /* See if this person is a GM. */
-    c->privilege = is_gm(pkt->guildcard, pkt->serial, pkt->access_key,
+    c->privilege = is_gm(c->guildcard, pkt->serial, pkt->access_key,
                          c->cur_ship);
 
-    if(send_dc_security(c, pkt->guildcard, NULL, 0)) {
+    if(send_dc_security(c, c->guildcard, NULL, 0)) {
         return -1;
     }
 

@@ -2218,7 +2218,7 @@ int wcommand_parse(ship_client_t *c, dc_chat_pkt *pkt) {
     /* Fill in the rest of the packet. */
     p2->hdr.dc.pkt_type = CHAT_TYPE;
     p2->hdr.dc.flags = 0;
-    p2->hdr.dc.pkt_len = LE16(12 + (tlen - out));
+    p2->hdr.dc.pkt_len = LE16((12 + (tlen - out)));
     p2->padding = 0;
     p2->guildcard = pkt->guildcard;
 

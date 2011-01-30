@@ -561,7 +561,7 @@ static int send_dc_info_reply(ship_client_t *c, const char *msg) {
     /* Convert the message to the appropriate encoding. */
     in = strlen(msg) + 1;
     out = 65524;
-    inptr = msg;
+    inptr = (ICONV_CONST char *)msg;
     outptr = pkt->msg;
     iconv(ic, &inptr, &in, &outptr, &out);
     iconv_close(ic);
@@ -1521,11 +1521,11 @@ static int send_dc_guild_reply_sg(ship_client_t *c, dc_guild_reply_pkt *pkt) {
             break;
 
         case CLIENT_VERSION_GC:
-            pkt->port = LE16(port + 2);
+            pkt->port = LE16((port + 2));
             break;
 
         case CLIENT_VERSION_EP3:
-            pkt->port += LE16(port + 3);
+            pkt->port += LE16((port + 3));
             break;
     }
 
@@ -1768,7 +1768,9 @@ static int send_dc_game_join(ship_client_t *c, lobby_t *l) {
     pkt->rand_seed = LE32(l->rand_seed);
 
     /* Fill in the variations array. */
-    memcpy(pkt->maps, l->maps, 0x20 * 4);
+    for(i = 0; i < 0x20; ++i) {
+        pkt->maps[i] = LE32(l->maps[i]);
+    }
 
     for(i = 0; i < 4; ++i) {
         if(l->clients[i]) {
@@ -1831,7 +1833,9 @@ static int send_pc_game_join(ship_client_t *c, lobby_t *l) {
     pkt->rand_seed = LE32(l->rand_seed);
 
     /* Fill in the variations array. */
-    memcpy(pkt->maps, l->maps, 0x20 * 4);
+    for(i = 0; i < 0x20; ++i) {
+        pkt->maps[i] = LE32(l->maps[i]);
+    }
 
     for(i = 0; i < 4; ++i) {
         if(l->clients[i]) {
@@ -1889,7 +1893,9 @@ static int send_gc_game_join(ship_client_t *c, lobby_t *l) {
     pkt->one2 = 1;
 
     /* Fill in the variations array. */
-    memcpy(pkt->maps, l->maps, 0x20 * 4);
+    for(i = 0; i < 0x20; ++i) {
+        pkt->maps[i] = LE32(l->maps[i]);
+    }
 
     for(i = 0; i < 4; ++i) {
         if(l->clients[i]) {

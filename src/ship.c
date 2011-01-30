@@ -829,8 +829,9 @@ static int dc_process_login(ship_client_t *c, dc_login_93_pkt *pkt) {
     }
 
     c->language_code = pkt->language_code;
+    c->guildcard = LE32(pkt->guildcard);
 
-    if(send_dc_security(c, pkt->guildcard, NULL, 0)) {
+    if(send_dc_security(c, c->guildcard, NULL, 0)) {
         return -1;
     }
 
@@ -864,8 +865,9 @@ static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
     }
 
     c->language_code = pkt->language_code;
+    c->guildcard = LE32(pkt->guildcard);
 
-    if(send_dc_security(c, pkt->guildcard, NULL, 0)) {
+    if(send_dc_security(c, c->guildcard, NULL, 0)) {
         return -1;
     }
 
@@ -888,8 +890,9 @@ static int gc_process_login(ship_client_t *c, gc_login_9e_pkt *pkt) {
     }
 
     c->language_code = pkt->language_code;
+    c->guildcard = LE32(pkt->guildcard);
 
-    if(send_dc_security(c, pkt->guildcard, NULL, 0)) {
+    if(send_dc_security(c, c->guildcard, NULL, 0)) {
         return -1;
     }
 
