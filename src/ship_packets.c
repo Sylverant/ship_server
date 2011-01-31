@@ -64,7 +64,7 @@ cs_opt_t cs_options[] = {
     { 0x0002, 0x0004, "RAmar" },
     { 0x0002, 0x0005, "RAcast" },
     { 0x0002, 0x0006, "RAcaseal" },
-    { 0x0002, 0x0007, "FOmar" },
+    { 0x0002, 0x0007, "FOmarl" },
     { 0x0002, 0x0008, "FOnewm" },
     { 0x0002, 0x0009, "FOnewearl" }
 };
