@@ -2102,6 +2102,12 @@ static int handle_unignore(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return send_txt(c, "%s", __(c, "\tE\tC7Ignore list entry cleared"));
 }
 
+/* Usage: /quit */
+static int handle_quit(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    c->flags |= CLIENT_FLAG_DISCONNECTED;
+    return 0;
+}
+
 static command_t cmds[] = {
     { "warp"     , handle_warp      },
     { "kill"     , handle_kill      },
@@ -2153,6 +2159,7 @@ static command_t cmds[] = {
     { "unstfu"   , handle_unstfu    },
     { "ignore"   , handle_ignore    },
     { "unignore" , handle_unignore  },
+    { "quit"     , handle_quit      },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

@@ -117,7 +117,7 @@ static void load_config() {
     struct in_addr tmp;
     int i;
 
-    debug(DBG_LOG, "Loading Sylverant Ship configuration file... ");
+    debug(DBG_LOG, "Loading Sylverant Ship configuration file...\n");
 
     if(sylverant_read_ship_config(config_file, &cfg)) {
         debug(DBG_ERROR, "Cannot load Sylverant Ship configuration file!\n");
@@ -131,8 +131,6 @@ static void load_config() {
         debug(DBG_ERROR, "Cannot allocate memory!\n");
         exit(1);
     }
-
-    debug(DBG_LOG, "Ok\n");
 
     /* Print out the configuration. */
     debug(DBG_LOG, "Configured parameters:\n");
