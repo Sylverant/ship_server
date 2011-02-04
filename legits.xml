@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<!DOCTYPE items PUBLIC "-//Sylverant//DTD Items List 1.0//EN"
+  "http://sylverant.net/dtd/items1/items.dtd">
+
 <!-- All items not included are automatically allowed -->
 <items byteorder="little" default="allow" check_sranks="true" check_pbs="true">
     <!-- Offline Quest Weapons -->
@@ -1959,66 +1962,79 @@
     <!-- Item stack -->
     <!-- Sol Atomizer -->
     <item code="0x000303">
+        <versions v1="true" v2="true" gc="true" />
         <stack max="10" />
     </item>
 
     <!-- Moon Atomizer -->
     <item code="0x000403">
+        <versions v1="true" v2="true" gc="true" />
         <stack max="10" />
     </item>
 
     <!-- Star Atomizer -->
     <item code="0x000503">
+        <versions v1="true" v2="true" gc="true" />
         <stack max="10" />
     </item>
 
     <!-- Antidote -->
     <item code="0x000603">
+        <versions v1="true" v2="true" gc="true" />
         <stack max="10" />
     </item>
 
     <!-- Antiparalysis -->
     <item code="0x010603">
+        <versions v1="true" v2="true" gc="true" />
         <stack max="10" />
     </item>
 
     <!-- Telepipe -->
     <item code="0x000703">
+        <versions v1="true" v2="true" gc="true" />
         <stack max="10" />
     </item>
 
     <!-- Trap Vision -->
     <item code="0x000803">
+        <versions v1="true" v2="true" gc="true" />
         <stack max="10" />
     </item>
 
     <!-- Monomate -->
     <item code="0x000003">
+        <versions v1="true" v2="true" gc="true" />
         <stack max="10" />
     </item>
 
     <!-- Dimate -->
     <item code="0x010003">
+        <versions v1="true" v2="true" gc="true" />
         <stack max="10" />
     </item>
 
     <!-- Trimate -->
     <item code="0x020003">
+        <versions v1="true" v2="true" gc="true" />
         <stack max="10" />
     </item>
 
     <!-- Monofluid -->
     <item code="0x000103">
+        <versions v1="true" v2="true" gc="true" />
         <stack max="10" />
     </item>
 
     <!-- Difluid -->
     <item code="0x010103">
+        <versions v1="true" v2="true" gc="true" />
         <stack max="10" />
     </item>
 
     <!-- Trifluid -->
     <item code="0x020103">
+        <versions v1="true" v2="true" gc="true" />
         <stack max="10" />
     </item>
 
