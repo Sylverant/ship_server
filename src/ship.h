@@ -35,6 +35,7 @@
 #undef CLIENTS_H_COUNTS_ONLY
 
 #include "quests.h"
+#include "bans.h"
 
 /* Forward declarations. */
 struct client_queue;
@@ -96,6 +97,9 @@ struct ship {
 
     local_gm_t *gm_list;
     int gm_count;
+
+    pthread_rwlock_t banlock;
+    struct gcban_queue guildcard_bans;
 
     struct miniship_queue ships;
     int mccount;

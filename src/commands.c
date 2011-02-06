@@ -33,6 +33,7 @@
 #include "utils.h"
 #include "shipgate.h"
 #include "items.h"
+#include "bans.h"
 
 /* Some macros for commonly used privilege checks. */
 #define LOCAL_GM(c) \
@@ -822,13 +823,13 @@ static int handle_gban_d(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
         /* Disconnect them if we find them */
         if(i->guildcard == gc) {
             if(strlen(reason) > 1) {
-                send_message_box(i, "%s\n%s: %s\n%s\n%s",
+                send_message_box(i, "%s\n%s %s\n%s\n%s",
                                  __(i, "\tEYou have been banned by a GM"),
                                  __(i, "Ban Length:"), __(i, "1 day"),
                                  __(i, "Reason:"), reason + 1);
             }
             else {
-                send_message_box(i, "%s\n%s: %s",
+                send_message_box(i, "%s\n%s %s",
                                  __(i, "\tEYou have been banned by a GM"),
                                  __(i, "Ban Length:"), __(i, "1 day"));
             }
@@ -875,13 +876,13 @@ static int handle_gban_w(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
         /* Disconnect them if we find them */
         if(i->guildcard == gc) {
             if(strlen(reason) > 1) {
-                send_message_box(i, "%s\n%s: %s\n%s\n%s",
+                send_message_box(i, "%s\n%s %s\n%s\n%s",
                                  __(i, "\tEYou have been banned by a GM"),
                                  __(i, "Ban Length:"), __(i, "1 week"),
                                  __(i, "Reason:"), reason + 1);
             }
             else {
-                send_message_box(i, "%s\n%s: %s",
+                send_message_box(i, "%s\n%s %s",
                                  __(i, "\tEYou have been banned by a GM"),
                                  __(i, "Ban Length:"), __(i, "1 week"));
             }
@@ -928,13 +929,13 @@ static int handle_gban_m(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
         /* Disconnect them if we find them */
         if(i->guildcard == gc) {
             if(strlen(reason) > 1) {
-                send_message_box(i, "%s\n%s: %s\n%s\n%s",
+                send_message_box(i, "%s\n%s %s\n%s\n%s",
                                  __(i, "\tEYou have been banned by a GM"),
                                  __(i, "Ban Length:"), __(i, "30 days"),
                                  __(i, "Reason:"), reason + 1);
             }
             else {
-                send_message_box(i, "%s\n%s: %s",
+                send_message_box(i, "%s\n%s %s",
                                  __(i, "\tEYou have been banned by a GM"),
                                  __(i, "Ban Length:"), __(i, "30 days"));
             }
@@ -982,13 +983,13 @@ static int handle_gban_p(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
         /* Disconnect them if we find them */
         if(i->guildcard == gc) {
             if(strlen(reason) > 1) {
-                send_message_box(i, "%s\n%s: %s\n%s\n%s",
+                send_message_box(i, "%s\n%s %s\n%s\n%s",
                                  __(i, "\tEYou have been banned by a GM"),
                                  __(i, "Ban Length:"), __(i, "Forever"),
                                  __(i, "Reason:"), reason + 1);
             }
             else {
-                send_message_box(i, "%s\n%s: %s",
+                send_message_box(i, "%s\n%s %s",
                                  __(i, "\tEYou have been banned by a GM"),
                                  __(i, "Ban Length:"), __(i, "Forever"));
             }
@@ -2115,6 +2116,250 @@ static int handle_gameevent(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return send_txt(c, "%s", __(c, "\tE\tC7Game Event set."));
 }
 
+/* Usage: /ban:d guildcard reason */
+static int handle_ban_d(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    uint32_t gc;
+    block_t *b;
+    ship_t *s = c->cur_ship;
+    ship_client_t *i;
+    char *reason;
+    int j;
+
+    /* Make sure the requester is a local GM. */
+    if(!LOCAL_GM(c)) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
+    }
+
+    /* Figure out the user requested */
+    errno = 0;
+    gc = (uint32_t)strtoul(params, &reason, 10);
+
+    if(errno != 0) {
+        /* Send a message saying invalid guildcard number */
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card"));
+    }
+
+    /* Set the ban in the list (86,400s = 7 days) */
+    if(ban_guildcard(s, time(NULL) + 86400, c->guildcard, gc, reason + 1)) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Error setting ban!"));
+    }
+
+    /* Look for the requested user and kick them if they're on the ship. */
+    for(j = 0; j < s->cfg->blocks; ++j) {
+        if((b = s->blocks[j])) {
+            pthread_mutex_lock(&b->mutex);
+
+            TAILQ_FOREACH(i, b->clients, qentry) {
+                /* Disconnect them if we find them */
+                if(i->guildcard == gc) {
+                    if(strlen(reason) > 1) {
+                        send_message_box(i, "%s\n%s %s\n%s\n%s",
+                                         __(i, "\tEYou have been banned from "
+                                            "this ship"), __(i, "Ban Length:"),
+                                         __(i, "1 day"), __(i, "Reason:"),
+                                         reason + 1);
+                    }
+                    else {
+                        send_message_box(i, "%s\n%s %s",
+                                         __(i, "\tEYou have been banned from "
+                                            "this ship"), __(i, "Ban Length:"),
+                                         __(i, "1 day"));
+                    }
+
+                    i->flags |= CLIENT_FLAG_DISCONNECTED;
+                }
+            }
+
+            pthread_mutex_unlock(&b->mutex);
+        }
+    }
+
+    return send_txt(c, "%s", __(c, "\tE\tC7Successfully set ban."));
+}
+
+/* Usage: /ban:w guildcard reason */
+static int handle_ban_w(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    uint32_t gc;
+    block_t *b;
+    ship_t *s = c->cur_ship;
+    ship_client_t *i;
+    char *reason;
+    int j;
+
+    /* Make sure the requester is a local GM. */
+    if(!LOCAL_GM(c)) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
+    }
+
+    /* Figure out the user requested */
+    errno = 0;
+    gc = (uint32_t)strtoul(params, &reason, 10);
+
+    if(errno != 0) {
+        /* Send a message saying invalid guildcard number */
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card"));
+    }
+
+    /* Set the ban in the list (604,800s = 7 days) */
+    if(ban_guildcard(s, time(NULL) + 604800, c->guildcard, gc, reason + 1)) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Error setting ban!"));
+    }
+
+    /* Look for the requested user and kick them if they're on the ship. */
+    for(j = 0; j < s->cfg->blocks; ++j) {
+        if((b = s->blocks[j])) {
+            pthread_mutex_lock(&b->mutex);
+
+            TAILQ_FOREACH(i, b->clients, qentry) {
+                /* Disconnect them if we find them */
+                if(i->guildcard == gc) {
+                    if(strlen(reason) > 1) {
+                        send_message_box(i, "%s\n%s %s\n%s\n%s",
+                                         __(i, "\tEYou have been banned from "
+                                            "this ship"), __(i, "Ban Length:"),
+                                         __(i, "1 week"), __(i, "Reason:"),
+                                         reason + 1);
+                    }
+                    else {
+                        send_message_box(i, "%s\n%s %s",
+                                         __(i, "\tEYou have been banned from "
+                                            "this ship"), __(i, "Ban Length:"),
+                                         __(i, "1 week"));
+                    }
+
+                    i->flags |= CLIENT_FLAG_DISCONNECTED;
+                }
+            }
+
+            pthread_mutex_unlock(&b->mutex);
+        }
+    }
+
+    return send_txt(c, "%s", __(c, "\tE\tC7Successfully set ban."));
+}
+
+/* Usage: /ban:m guildcard reason */
+static int handle_ban_m(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    uint32_t gc;
+    block_t *b;
+    ship_t *s = c->cur_ship;
+    ship_client_t *i;
+    char *reason;
+    int j;
+
+    /* Make sure the requester is a local GM. */
+    if(!LOCAL_GM(c)) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
+    }
+
+    /* Figure out the user requested */
+    errno = 0;
+    gc = (uint32_t)strtoul(params, &reason, 10);
+
+    if(errno != 0) {
+        /* Send a message saying invalid guildcard number */
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card"));
+    }
+
+    /* Set the ban in the list (2,592,000s = 30 days) */
+    if(ban_guildcard(s, time(NULL) + 2592000, c->guildcard, gc, reason + 1)) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Error setting ban!"));
+    }
+
+    /* Look for the requested user and kick them if they're on the ship. */
+    for(j = 0; j < s->cfg->blocks; ++j) {
+        if((b = s->blocks[j])) {
+            pthread_mutex_lock(&b->mutex);
+
+            TAILQ_FOREACH(i, b->clients, qentry) {
+                /* Disconnect them if we find them */
+                if(i->guildcard == gc) {
+                    if(strlen(reason) > 1) {
+                        send_message_box(i, "%s\n%s %s\n%s\n%s",
+                                         __(i, "\tEYou have been banned from "
+                                            "this ship"), __(i, "Ban Length:"),
+                                         __(i, "30 days"), __(i, "Reason:"),
+                                         reason + 1);
+                    }
+                    else {
+                        send_message_box(i, "%s\n%s %s",
+                                         __(i, "\tEYou have been banned from "
+                                            "this ship"), __(i, "Ban Length:"),
+                                         __(i, "30 days"));
+                    }
+
+                    i->flags |= CLIENT_FLAG_DISCONNECTED;
+                }
+            }
+
+            pthread_mutex_unlock(&b->mutex);
+        }
+    }
+
+    return send_txt(c, "%s", __(c, "\tE\tC7Successfully set ban."));
+}
+
+/* Usage: /ban:p guildcard reason */
+static int handle_ban_p(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    uint32_t gc;
+    ship_t *s = c->cur_ship;
+    block_t *b;
+    ship_client_t *i;
+    int j;
+    char *reason;
+
+    /* Make sure the requester is a local GM. */
+    if(!LOCAL_GM(c)) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
+    }
+
+    /* Figure out the user requested */
+    errno = 0;
+    gc = (uint32_t)strtoul(params, &reason, 10);
+
+    if(errno != 0) {
+        /* Send a message saying invalid guildcard number */
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card"));
+    }
+
+    /* Set the ban in the list. An end time of -1 = forever */
+    if(ban_guildcard(s, (time_t)-1, c->guildcard, gc, reason + 1)) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Error setting ban!"));
+    }
+
+    /* Look for the requested user and kick them if they're on the ship. */
+    for(j = 0; j < s->cfg->blocks; ++j) {
+        if((b = s->blocks[j])) {
+            pthread_mutex_lock(&b->mutex);
+
+            TAILQ_FOREACH(i, b->clients, qentry) {
+                /* Disconnect them if we find them */
+                if(i->guildcard == gc) {
+                    if(strlen(reason) > 1) {
+                        send_message_box(i, "%s\n%s %s\n%s\n%s",
+                                         __(i, "\tEYou have been banned from "
+                                            "this ship"), __(i, "Ban Length:"),
+                                         __(i, "Forever"), __(i, "Reason:"),
+                                         reason + 1);
+                    }
+                    else {
+                        send_message_box(i, "%s\n%s %s",
+                                         __(i, "\tEYou have been banned from "
+                                            "this ship"), __(i, "Ban Length:"),
+                                         __(i, "Forever"));
+                    }
+
+                    i->flags |= CLIENT_FLAG_DISCONNECTED;
+                }
+            }
+
+            pthread_mutex_unlock(&b->mutex);
+        }
+    }
+
+    return send_txt(c, "%s", __(c, "\tE\tC7Successfully set ban."));
+}
+
 static command_t cmds[] = {
     { "warp"     , handle_warp      },
     { "kill"     , handle_kill      },
@@ -2168,6 +2413,10 @@ static command_t cmds[] = {
     { "unignore" , handle_unignore  },
     { "quit"     , handle_quit      },
     { "gameevent", handle_gameevent },
+    { "ban:d"    , handle_ban_d     },
+    { "ban:w"    , handle_ban_w     },
+    { "ban:m"    , handle_ban_m     },
+    { "ban:p"    , handle_ban_p     },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

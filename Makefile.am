@@ -30,7 +30,7 @@ ship_server_SOURCES = src/block.c src/block.h src/clients.c src/clients.h \
                       src/list.c src/items.c src/items.h src/word_select.c \
                       src/word_select.h src/word_select-dc.h \
                       src/word_select-pc.h src/word_select-gc.h \
-                      src/quests.c src/quests.h
+                      src/quests.c src/quests.h src/bans.c src/bans.h
 
 datarootdir = @datarootdir@
 SUBDIRS = l10n

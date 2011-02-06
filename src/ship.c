@@ -32,6 +32,7 @@
 #include "ship_packets.h"
 #include "shipgate.h"
 #include "utils.h"
+#include "bans.h"
 
 static void clean_shiplist(ship_t *s) {
     miniship_t *i, *tmp;
@@ -69,6 +70,7 @@ static void *ship_thd(void *d) {
     int sock, rv;
     ssize_t sent;
     time_t now;
+    time_t last_ban_sweep = time(NULL);
 
     /* Fire up the threads for each block. */
     for(i = 1; i <= s->cfg->blocks; ++i) {
@@ -90,6 +92,12 @@ static void *ship_thd(void *d) {
         if(s->shutdown_time && s->shutdown_time <= now) {
             s->run = 0;
             break;
+        }
+
+        /* If we haven't swept the bans list in the last day, do it now. */
+        if((last_ban_sweep + 3600 * 24) <= now) {
+            ban_sweep_guildcards(s);
+            last_ban_sweep = now = time(NULL);
         }
 
         /* If the shipgate isn't there, attempt to reconnect */
@@ -383,6 +391,8 @@ static void *ship_thd(void *d) {
     }
 
     /* Free the ship structure. */
+    ban_list_clear(rv);
+    pthread_rwlock_destroy(&s->banlock);
     pthread_rwlock_destroy(&s->qlock);
     sylverant_free_limits(s->limits);
     shipgate_cleanup(&s->sg);
@@ -712,8 +722,10 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
 
     /* Fill in the structure. */
     pthread_rwlock_init(&rv->qlock, NULL);
+    pthread_rwlock_init(&rv->banlock, NULL);
     TAILQ_INIT(rv->clients);
     TAILQ_INIT(&rv->ships);
+    TAILQ_INIT(&rv->guildcard_bans);
     rv->cfg = s;
     rv->dcsock = dcsock;
     rv->pcsock = pcsock;
@@ -721,9 +733,18 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     rv->ep3sock = ep3sock;
     rv->run = 1;
 
+    /* Attempt to read the ban list */
+    if(s->bans_file[0]) {
+        if(ban_list_read(s->bans_file, rv)) {
+            debug(DBG_WARN, "%s: Couldn't read bans file!\n", s->name);
+        }
+    }
+
     /* Connect to the shipgate. */
     if(shipgate_connect(rv, &rv->sg)) {
         debug(DBG_ERROR, "%s: Couldn't connect to shipgate!\n", s->name);
+        ban_list_clear(rv);
+        pthread_rwlock_destroy(&rv->banlock);
         pthread_rwlock_destroy(&rv->qlock);
         sylverant_free_limits(rv->limits);
         free(rv->gm_list);
@@ -744,6 +765,8 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     /* Register with the shipgate. */
     if(shipgate_send_ship_info(&rv->sg, rv)) {
         debug(DBG_ERROR, "%s: Couldn't register with shipgate!\n", s->name);
+        ban_list_clear(rv);
+        pthread_rwlock_destroy(&rv->banlock);
         pthread_rwlock_destroy(&rv->qlock);
         shipgate_cleanup(&rv->sg);
         sylverant_free_limits(rv->limits);
@@ -770,6 +793,8 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     /* Start up the thread for this ship. */
     if(pthread_create(&rv->thd, NULL, &ship_thd, rv)) {
         debug(DBG_ERROR, "%s: Cannot start ship thread!\n", s->name);
+        ban_list_clear(rv);
+        pthread_rwlock_destroy(&rv->banlock);
         pthread_rwlock_destroy(&rv->qlock);
         sylverant_free_limits(rv->limits);
         shipgate_cleanup(&rv->sg);
@@ -813,8 +838,31 @@ void ship_server_shutdown(ship_t *s, time_t when) {
     }
 }
 
+static int send_ban_msg(ship_client_t *c, time_t until, const char *reason) {
+    char string[512];
+    struct tm cooked;
+
+    /* Create the ban string. */
+    sprintf(string, __(c, "\tEYou have been banned from this ship.\n"
+                       "Reason:\n%s\n\nYour ban expires:\n"), reason);
+
+    if(until == (time_t)-1) {
+        strcat(string, __(c, "Never"));
+    }
+    else {
+        gmtime_r(&until, &cooked);
+        sprintf(string, "%s%02u:%02u UTC %u.%02u.%02u", string, cooked.tm_hour,
+                cooked.tm_min, cooked.tm_year + 1900, cooked.tm_mon + 1,
+                cooked.tm_mday);
+    }
+
+    return send_message_box(c, "%s", string);
+}
+
 static int dc_process_login(ship_client_t *c, dc_login_93_pkt *pkt) {
     ship_t *s = c->cur_ship;
+    char *ban_reason;
+    time_t ban_end;
 
     /* Make sure v1 is allowed on this ship. */
     if((s->cfg->shipgate_flags & SHIPGATE_FLAG_NOV1)) {
@@ -826,6 +874,13 @@ static int dc_process_login(ship_client_t *c, dc_login_93_pkt *pkt) {
 
     c->language_code = pkt->language_code;
     c->guildcard = LE32(pkt->guildcard);
+
+    /* See if the user is banned */
+    if(is_guildcard_banned(s, c->guildcard, &ban_reason, &ban_end)) {
+        send_ban_msg(c, ban_end, ban_reason);
+        c->flags |= CLIENT_FLAG_DISCONNECTED;
+        return 0;
+    }
 
     if(send_dc_security(c, c->guildcard, NULL, 0)) {
         return -1;
@@ -841,6 +896,8 @@ static int dc_process_login(ship_client_t *c, dc_login_93_pkt *pkt) {
 /* Just in case I ever use the rest of the stuff... */
 static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
     ship_t *s = c->cur_ship;
+    char *ban_reason;
+    time_t ban_end;
 
     /* Make sure the client's version is allowed on this ship. */
     if(c->version != CLIENT_VERSION_PC) {
@@ -863,6 +920,13 @@ static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
     c->language_code = pkt->language_code;
     c->guildcard = LE32(pkt->guildcard);
 
+    /* See if the user is banned */
+    if(is_guildcard_banned(s, c->guildcard, &ban_reason, &ban_end)) {
+        send_ban_msg(c, ban_end, ban_reason);
+        c->flags |= CLIENT_FLAG_DISCONNECTED;
+        return 0;
+    }
+
     if(send_dc_security(c, c->guildcard, NULL, 0)) {
         return -1;
     }
@@ -876,6 +940,8 @@ static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
 
 static int gc_process_login(ship_client_t *c, gc_login_9e_pkt *pkt) {
     ship_t *s = c->cur_ship;
+    char *ban_reason;
+    time_t ban_end;
 
     /* Make sure PSOGC is allowed on this ship. */
     if((s->cfg->shipgate_flags & SHIPGATE_FLAG_NOEP12)) {
@@ -887,6 +953,13 @@ static int gc_process_login(ship_client_t *c, gc_login_9e_pkt *pkt) {
 
     c->language_code = pkt->language_code;
     c->guildcard = LE32(pkt->guildcard);
+
+    /* See if the user is banned */
+    if(is_guildcard_banned(s, c->guildcard, &ban_reason, &ban_end)) {
+        send_ban_msg(c, ban_end, ban_reason);
+        c->flags |= CLIENT_FLAG_DISCONNECTED;
+        return 0;
+    }
 
     if(send_dc_security(c, c->guildcard, NULL, 0)) {
         return -1;
