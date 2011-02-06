@@ -609,39 +609,25 @@ static int handle_item4(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
 /* Usage: /event number */
 static int handle_event(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
-    lobby_t *l = c->cur_lobby;
+    lobby_t *l;
     ship_t *s = c->cur_ship;
     ship_client_t *c2;
     block_t *b;
-    int event, gevent, i, j;
+    int event, i, j;
 
     /* Make sure the requester is a GM. */
     if(!LOCAL_GM(c)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
-    /* Make sure that the requester is in a lobby lobby, not a game lobby */
-    if(l->type != LOBBY_TYPE_DEFAULT) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a "
-                                    "non-game lobby."));
-    }
-
     /* Grab the event number */
     event = atoi(params);
-
-    if(event > 7) {
-        gevent = 0;
-    }
-    else if(event == 7) {
-        gevent = 2;
-    }
-    else {
-        gevent = event;
-    }
 
     if(event < 0 || event > 14) {
         return send_txt(c, "%s", __(c, "\tE\tC7Invalid event code."));
     }
+
+    s->cfg->lobby_event = event;
 
     /* Go through all the blocks... */
     for(i = 0; i < s->cfg->blocks; ++i) {
@@ -656,7 +642,6 @@ static int handle_event(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
                 if(l->type == LOBBY_TYPE_DEFAULT) {
                     l->event = event;
-                    l->gevent = gevent;
 
                     for(j = 0; j < l->max_clients; ++j) {
                         if(l->clients[j] != NULL) {
@@ -2108,6 +2093,28 @@ static int handle_quit(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return 0;
 }
 
+/* Usage: /gameevent number */
+static int handle_gameevent(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    ship_t *s = c->cur_ship;
+    int event;
+
+    /* Make sure the requester is a GM. */
+    if(!LOCAL_GM(c)) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
+    }
+
+    /* Grab the event number */
+    event = atoi(params);
+
+    if(event < 0 || event > 6) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid event code."));
+    }
+
+    s->cfg->game_event = event;
+
+    return send_txt(c, "%s", __(c, "\tE\tC7Game Event set."));
+}
+
 static command_t cmds[] = {
     { "warp"     , handle_warp      },
     { "kill"     , handle_kill      },
@@ -2160,6 +2167,7 @@ static command_t cmds[] = {
     { "ignore"   , handle_ignore    },
     { "unignore" , handle_unignore  },
     { "quit"     , handle_quit      },
+    { "gameevent", handle_gameevent },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

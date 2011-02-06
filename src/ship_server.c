@@ -148,7 +148,8 @@ static void load_config() {
         debug(DBG_LOG, "Ship IP: %s\n", inet_ntoa(tmp));
         debug(DBG_LOG, "Base Port: %d\n", (int)cfg->ships[i].base_port);
         debug(DBG_LOG, "Blocks: %d\n", cfg->ships[i].blocks);
-        debug(DBG_LOG, "Event: %d\n", cfg->ships[i].event);
+        debug(DBG_LOG, "Lobby Event: %d\n", cfg->ships[i].lobby_event);
+        debug(DBG_LOG, "Game Event: %d\n", cfg->ships[i].game_event);
 
         if(cfg->ships[i].menu_code) {
             debug(DBG_LOG, "Menu: %c%c\n", (char)cfg->ships[i].menu_code,

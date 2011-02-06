@@ -82,7 +82,6 @@ struct lobby {
     uint8_t event;
     uint8_t episode;
 
-    uint8_t gevent;
     uint8_t max_chal;
     uint8_t legit_check_passed;
     uint8_t legit_check_done;
