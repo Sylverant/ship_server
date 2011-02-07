@@ -150,6 +150,10 @@ static int handle_kill(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     TAILQ_FOREACH(i, b->clients, qentry) {
         /* Disconnect them if we find them */
         if(i->guildcard == gc) {
+            if(c->privilege <= i->privilege) {
+                return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
+            }
+
             if(strlen(reason) > 1) {
                 send_message_box(i, "%s\n\n%s\n%s",
                                  __(i, "\tEYou have been kicked by a GM."),
