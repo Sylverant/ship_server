@@ -25,8 +25,6 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 
-#include <ifaddrs.h>
-
 #include <sylverant/config.h>
 #include <sylverant/debug.h>
 

@@ -2360,6 +2360,41 @@ static int handle_ban_p(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return send_txt(c, "%s", __(c, "\tE\tC7Successfully set ban."));
 }
 
+/* Usage: /unban guildcard */
+static int handle_unban(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    uint32_t gc;
+    ship_t *s = c->cur_ship;
+    int rv;
+
+    /* Make sure the requester is a local GM. */
+    if(!LOCAL_GM(c)) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
+    }
+
+    /* Figure out the user requested */
+    errno = 0;
+    gc = (uint32_t)strtoul(params, NULL, 10);
+
+    if(errno != 0) {
+        /* Send a message saying invalid guildcard number */
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card"));
+    }
+
+    /* Attempt to lift the ban */
+    rv = ban_lift_guildcard_ban(s, gc);
+
+    /* Did we succeed? */
+    if(!rv) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Lifted ban"));
+    }
+    else if(rv == -1) {
+        return send_txt(c, "%s", __(c, "\tE\tC7User not banned"));
+    }
+    else {
+        return send_txt(c, "%s", __(c, "\tE\tC7Error lifting ban"));
+    }
+}
+
 static command_t cmds[] = {
     { "warp"     , handle_warp      },
     { "kill"     , handle_kill      },
@@ -2417,6 +2452,7 @@ static command_t cmds[] = {
     { "ban:w"    , handle_ban_w     },
     { "ban:m"    , handle_ban_m     },
     { "ban:p"    , handle_ban_p     },
+    { "unban"    , handle_unban     },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 
