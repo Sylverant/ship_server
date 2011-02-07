@@ -391,7 +391,7 @@ static void *ship_thd(void *d) {
     }
 
     /* Free the ship structure. */
-    ban_list_clear(rv);
+    ban_list_clear(s);
     pthread_rwlock_destroy(&s->banlock);
     pthread_rwlock_destroy(&s->qlock);
     sylverant_free_limits(s->limits);
