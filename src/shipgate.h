@@ -364,6 +364,7 @@ static const char shipgate_login_msg[] =
 /* Error codes in response to a ban request */
 #define ERR_BAN_NOT_GM          0x00000001
 #define ERR_BAN_BAD_TYPE        0x00000002
+#define ERR_BAN_PRIVILEGE       0x00000003
 
 /* Error codes in response to a block login */
 #define ERR_BLOGIN_INVAL_NAME   0x00000001

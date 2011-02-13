@@ -40,6 +40,7 @@ sylverant_shipcfg_t *cfg;
 ship_t **ships;
 char *config_file = NULL;
 static const char *custom_dir = NULL;
+static int dont_daemonize = 0;
 
 /* Print information about this program to stdout. */
 static void print_program_info() {
@@ -67,6 +68,8 @@ static void print_help(const char *bin) {
            "--reallyquiet   Only log error messages\n"
            "-C configfile   Use the specified configuration instead of the\n"
            "                default one.\n"
+           "-D directory    Use the specified directory as the root\n"
+           "--nodaemon      Don't daemonize\n"
            "--help          Print this help and exit\n\n"
            "Note that if more than one verbosity level is specified, the last\n"
            "one specified will be used. The default is --verbose.\n", bin);
@@ -98,28 +101,26 @@ static void parse_command_line(int argc, char *argv[]) {
             /* Save the custom dir */
             custom_dir = argv[++i];
         }
+        else if(!strcmp(argv[i], "--nodaemon")) {
+            dont_daemonize = 1;
+        }
         else if(!strcmp(argv[i], "--help")) {
             print_help(argv[0]);
-            exit(0);
+            exit(EXIT_SUCCESS);
         }
         else {
             printf("Illegal command line argument: %s\n", argv[i]);
             print_help(argv[0]);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     }
 }
 
 /* Load the configuration file and print out parameters with DBG_LOG. */
 static void load_config() {
-    struct in_addr tmp;
-    int i;
-
-    debug(DBG_LOG, "Loading Sylverant Ship configuration file...\n");
-
     if(sylverant_read_ship_config(config_file, &cfg)) {
         debug(DBG_ERROR, "Cannot load Sylverant Ship configuration file!\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     /* Allocate space for the ships. */
@@ -127,8 +128,13 @@ static void load_config() {
 
     if(!ships) {
         debug(DBG_ERROR, "Cannot allocate memory!\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
+}
+
+static void print_config() {
+    struct in_addr tmp;
+    int i;
 
     /* Print out the configuration. */
     debug(DBG_LOG, "Configured parameters:\n");
@@ -161,12 +167,29 @@ static void load_config() {
     }
 }
 
+static void open_log() {
+    char fn[strlen(cfg->ships[0].name) + 32];
+    FILE *dbgfp;
+
+    sprintf(fn, "logs/%s_debug.log", cfg->ships[0].name);
+    dbgfp = fopen(fn, "a");
+
+    if(!dbgfp) {
+        debug(DBG_ERROR, "Cannot open log file\n");
+        perror("fopen");
+        exit(EXIT_FAILURE);
+    }
+
+    debug_set_file(dbgfp);
+}
+
 int main(int argc, char *argv[]) {
     int i;
     void *tmp;
 
-    /* Parse the command line and read our configuration. */
+    /* Parse the command line... */
     parse_command_line(argc, argv);
+
     load_config();
 
     if(!custom_dir) {
@@ -176,9 +199,22 @@ int main(int argc, char *argv[]) {
         chdir(custom_dir);
     }
 
+    /* If we're still alive and we're supposed to daemonize, do it now. */
+    if(!dont_daemonize) {
+        open_log();
+
+        if(daemon(1, 0)) {
+            debug(DBG_ERROR, "Cannot daemonize\n");
+            perror("daemon");
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    print_config();
+
     /* Set up things for clients to connect. */
     if(client_init()) {
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     /* Init mini18n if we have it */
