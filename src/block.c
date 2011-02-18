@@ -1031,10 +1031,22 @@ static int dc_process_change_lobby(ship_client_t *c, dc_select_pkt *pkt) {
 /* Process a chat packet. */
 static int dc_process_chat(ship_client_t *c, dc_chat_pkt *pkt) {
     lobby_t *l = c->cur_lobby;
+    int i;
 
     /* Sanity check... this shouldn't happen. */
     if(!l) {
         return -1;
+    }
+
+    /* Fill in escapes for the color chat stuff */
+    if(c->cc_char) {
+        for(i = 0; i < strlen(pkt->msg); ++i) {
+            /* Only accept it if it has a C right after, since that means we
+               should have a color code... */
+            if(pkt->msg[i] == c->cc_char && pkt->msg[i + 1] == 'C') {
+                pkt->msg[i] = '\t';
+            }
+        }
     }
 
 #ifndef DISABLE_CHAT_COMMANDS
@@ -1052,10 +1064,23 @@ static int dc_process_chat(ship_client_t *c, dc_chat_pkt *pkt) {
 static int pc_process_chat(ship_client_t *c, dc_chat_pkt *pkt) {
     lobby_t *l = c->cur_lobby;
     size_t len = LE16(pkt->hdr.dc.pkt_len) - 12;
+    int i;
 
     /* Sanity check... this shouldn't happen. */
     if(!l) {
         return -1;
+    }
+
+    /* Fill in escapes for the color chat stuff */
+    if(c->cc_char) {
+        for(i = 0; i < len; i += 2) {
+            /* Only accept it if it has a C right after, since that means we
+               should have a color code... */
+            if(pkt->msg[i] == c->cc_char && pkt->msg[i + 1] == '\0' &&
+               pkt->msg[i + 2] == 'C' && pkt->msg[i + 3] == '\0') {
+                pkt->msg[i] = '\t';
+            }
+        }
     }
 
 #ifndef DISABLE_CHAT_COMMANDS

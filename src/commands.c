@@ -1263,7 +1263,7 @@ static int handle_motd(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return send_message_box(c, "%s", c->cur_ship->motd);
 }
 
-/* Usage: /friendadd guildcard */
+/* Usage: /friendadd guildcard nickname */
 static int handle_friendadd(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     uint32_t gc;
     char *nick;
@@ -2399,6 +2399,24 @@ static int handle_unban(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     }
 }
 
+/* Usage: /cc [any ascii char] or /cc off */
+static int handle_cc(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    /* Are we turning it off? */
+    if(!strcmp(params, "off")) {
+        c->cc_char = 0;
+        return send_txt(c, "%s", __(c, "\tE\tC7Color Chat off"));
+    }
+
+    /* Make sure they only gave one character */
+    if(strlen(params) > 1) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid trigger char"));
+    }
+
+    /* Set the char in the client struct */
+    c->cc_char = params[0];
+    return send_txt(c, "%s", __(c, "\tE\tC7Color Chat on"));
+}
+
 static command_t cmds[] = {
     { "warp"     , handle_warp      },
     { "kill"     , handle_kill      },
@@ -2457,6 +2475,7 @@ static command_t cmds[] = {
     { "ban:m"    , handle_ban_m     },
     { "ban:p"    , handle_ban_p     },
     { "unban"    , handle_unban     },
+    { "cc"       , handle_cc        },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

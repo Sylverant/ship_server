@@ -92,8 +92,9 @@ struct ship_client {
     uint32_t next_item[4];
     uint32_t ignore_list[CLIENT_IGNORE_LIST_SIZE];
 
-    uint32_t privilege;
     uint32_t last_info_req;
+    uint8_t privilege;
+    uint8_t cc_char;
 
     item_t items[30];
 
@@ -117,10 +118,10 @@ struct ship_client {
     time_t join_time;
 };
 
-#define CLIENT_PRIV_LOCAL_GM    0x00000001
-#define CLIENT_PRIV_GLOBAL_GM   0x00000002
-#define CLIENT_PRIV_LOCAL_ROOT  0x00000004
-#define CLIENT_PRIV_GLOBAL_ROOT 0x00000008
+#define CLIENT_PRIV_LOCAL_GM    0x01
+#define CLIENT_PRIV_GLOBAL_GM   0x02
+#define CLIENT_PRIV_LOCAL_ROOT  0x04
+#define CLIENT_PRIV_GLOBAL_ROOT 0x08
 
 /* String versions of the character classes. */
 static const char *classes[12] __attribute__((unused)) = {
