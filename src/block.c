@@ -1042,8 +1042,10 @@ static int dc_process_chat(ship_client_t *c, dc_chat_pkt *pkt) {
     if(c->cc_char) {
         for(i = 0; i < strlen(pkt->msg); ++i) {
             /* Only accept it if it has a C right after, since that means we
-               should have a color code... */
-            if(pkt->msg[i] == c->cc_char && pkt->msg[i + 1] == 'C') {
+               should have a color code... Also, make sure there's at least one
+               character after the C, or we get junk... */
+            if(pkt->msg[i] == c->cc_char && pkt->msg[i + 1] == 'C' &&
+               pkt->msg[i + 2] != '\0') {
                 pkt->msg[i] = '\t';
             }
         }
@@ -1075,9 +1077,11 @@ static int pc_process_chat(ship_client_t *c, dc_chat_pkt *pkt) {
     if(c->cc_char) {
         for(i = 0; i < len; i += 2) {
             /* Only accept it if it has a C right after, since that means we
-               should have a color code... */
+               should have a color code... Also, make sure there's at least one
+               character after the C, or we get junk... */
             if(pkt->msg[i] == c->cc_char && pkt->msg[i + 1] == '\0' &&
-               pkt->msg[i + 2] == 'C' && pkt->msg[i + 3] == '\0') {
+               pkt->msg[i + 2] == 'C' && pkt->msg[i + 3] == '\0' &&
+               pkt->msg[i + 4] != '\0') {
                 pkt->msg[i] = '\t';
             }
         }
