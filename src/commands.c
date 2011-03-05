@@ -2408,13 +2408,33 @@ static int handle_cc(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     }
 
     /* Make sure they only gave one character */
-    if(strlen(params) > 1) {
+    if(strlen(params) != 1) {
         return send_txt(c, "%s", __(c, "\tE\tC7Invalid trigger char"));
     }
 
     /* Set the char in the client struct */
     c->cc_char = params[0];
     return send_txt(c, "%s", __(c, "\tE\tC7Color Chat on"));
+}
+
+/* Usage: /qlang [2 character language code] */
+static int handle_qlang(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    int i;
+
+    /* Make sure they only gave one character */
+    if(strlen(params) != 2) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid language code"));
+    }
+
+    /* Look for the specified language code */
+    for(i = 0; i < CLIENT_LANG_COUNT; ++i) {
+        if(!strcmp(language_codes[i], params)) {
+            c->q_lang = i;
+            return send_txt(c, "%s", __(c, "\tE\tC7Quest language set"));
+        }
+    }
+
+    return send_txt(c, "%s", __(c, "\tE\tC7Invalid language code"));
 }
 
 static command_t cmds[] = {
@@ -2476,6 +2496,7 @@ static command_t cmds[] = {
     { "ban:p"    , handle_ban_p     },
     { "unban"    , handle_unban     },
     { "cc"       , handle_cc        },
+    { "qlang"    , handle_qlang     },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

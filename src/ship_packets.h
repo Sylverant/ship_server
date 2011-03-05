@@ -41,6 +41,15 @@
 #endif
 #endif
 
+#define MENU_ID_INFODESK    0x00000000
+#define MENU_ID_BLOCK       0x00000001
+#define MENU_ID_GAME        0x00000002
+#define MENU_ID_QCATEGORY   0x00000003
+#define MENU_ID_QUEST       0x00000004
+#define MENU_ID_SHIP        0x00000005
+#define MENU_ID_GAME_TYPE   0x00000006
+#define MENU_ID_LOBBY       0xFFFFFFFF
+
 /* This must be placed into the copyright field in the DC welcome packet. */
 const static char dc_welcome_copyright[] =
     "DreamCast Lobby Server. Copyright SEGA Enterprises. 1999";
@@ -120,25 +129,25 @@ int send_message_box(ship_client_t *c, const char *fmt, ...) __printflike(2, 3);
 int send_quest_categories(ship_client_t *c, sylverant_quest_list_t *l);
 
 /* Send the list of quest categories to the client. */
-int send_quest_categories_new(ship_client_t *c);
+int send_quest_categories_new(ship_client_t *c, int lang);
 
 /* Send the list of quests in a category to the client. */
 int send_quest_list(ship_client_t *c, int cat, sylverant_quest_category_t *l);
 
 /* Send the list of quests in a category to the client. */
-int send_quest_list_new(ship_client_t *c, int cat);
+int send_quest_list_new(ship_client_t *c, int cat, int lang);
 
 /* Send information about a quest to the lobby. */
 int send_quest_info(lobby_t *l, sylverant_quest_t *q);
 
 /* Send information about a quest to the lobby. */
-int send_quest_info_new(lobby_t *l, uint32_t qid);
+int send_quest_info_new(lobby_t *l, uint32_t qid, int lang);
 
 /* Send a quest to everyone in a lobby. */
 int send_quest(lobby_t *l, sylverant_quest_t *q);
 
 /* Send a quest to everyone in a lobby. */
-int send_quest_new(lobby_t *l, uint32_t qid);
+int send_quest_new(lobby_t *l, uint32_t qid, int lc);
 
 /* Send the lobby name to the client. */
 int send_lobby_name(ship_client_t *c, lobby_t *l);

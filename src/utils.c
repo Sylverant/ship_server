@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -289,6 +289,22 @@ int pkt_log_stop(ship_client_t *i) {
     /* We're done, so clean up */
     pthread_mutex_unlock(&i->mutex);
     return 0;
+}
+
+char *istrncpy(iconv_t ic, char *outs, const char *ins, int out_len) {
+    size_t in, out;
+    ICONV_CONST char *inptr;
+    char *outptr;
+
+    memset(outs, 0, out_len);
+
+    in = strlen(ins);
+    out = out_len;
+    inptr = (ICONV_CONST char *)ins;
+    outptr = outs;
+    iconv(ic, &inptr, &in, &outptr, &out);
+
+    return outptr;
 }
 
 /* Initialize mini18n support. */

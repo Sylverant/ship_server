@@ -1022,11 +1022,11 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
     /* Figure out what the client is selecting. */
     switch(menu_id & 0xFF) {
         /* Blocks */
-        case 0x01:
+        case MENU_ID_BLOCK:
             return dc_process_block_sel(c, pkt);
 
         /* Ship */
-        case 0x05:
+        case MENU_ID_SHIP:
         {
             miniship_t *i;
             ship_t *s = c->cur_ship;
@@ -1080,11 +1080,11 @@ static int dc_process_info_req(ship_client_t *c, dc_select_pkt *pkt) {
     /* What kind of information do they want? */
     switch(menu_id & 0xFF) {
         /* Block */
-        case 0x01:
+        case MENU_ID_BLOCK:
             return block_info_reply(c, item_id);
 
         /* Ship */
-        case 0x05:
+        case MENU_ID_SHIP:
         {
             ship_t *s = c->cur_ship;
             miniship_t *i;

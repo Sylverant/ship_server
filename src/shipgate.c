@@ -1854,7 +1854,7 @@ static int send_greply(shipgate_conn_t *c, uint32_t gc1, uint32_t gc2,
     dc->gc_target = gc2;
     dc->ip = ip;
     dc->port = LE16(port);
-    dc->menu_id = LE32(0xFFFFFFFF);
+    dc->menu_id = LE32(MENU_ID_LOBBY);
     dc->item_id = LE32(lobby);
     strcpy(dc->name, name);
 

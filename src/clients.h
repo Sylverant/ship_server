@@ -93,8 +93,10 @@ struct ship_client {
     uint32_t ignore_list[CLIENT_IGNORE_LIST_SIZE];
 
     uint32_t last_info_req;
+
     uint8_t privilege;
     uint8_t cc_char;
+    uint8_t q_lang;
 
     item_t items[30];
 

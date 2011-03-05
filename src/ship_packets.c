@@ -392,7 +392,7 @@ static int send_dc_block_list(ship_client_t *c, ship_t *s) {
             memset(&pkt->entries[entries], 0, 0x1C);
 
             /* Fill in what we have */
-            pkt->entries[entries].menu_id = LE32(0x00000001);
+            pkt->entries[entries].menu_id = LE32(MENU_ID_BLOCK);
             pkt->entries[entries].item_id = LE32(i);
             pkt->entries[entries].flags = LE16(0x0000);
 
@@ -410,7 +410,7 @@ static int send_dc_block_list(ship_client_t *c, ship_t *s) {
     memset(&pkt->entries[entries], 0, 0x1C);
 
     /* Fill in what we have */
-    pkt->entries[entries].menu_id = LE32(0x00000001);
+    pkt->entries[entries].menu_id = LE32(MENU_ID_BLOCK);
     pkt->entries[entries].item_id = LE32(0xFFFFFFFF);
     pkt->entries[entries].flags = LE16(0x0000);
 
@@ -464,7 +464,7 @@ static int send_pc_block_list(ship_client_t *c, ship_t *s) {
             memset(&pkt->entries[entries], 0, 0x2C);
 
             /* Fill in what we have */
-            pkt->entries[entries].menu_id = LE32(0x00000001);
+            pkt->entries[entries].menu_id = LE32(MENU_ID_BLOCK);
             pkt->entries[entries].item_id = LE32(i);
             pkt->entries[entries].flags = LE16(0x0000);
 
@@ -485,7 +485,7 @@ static int send_pc_block_list(ship_client_t *c, ship_t *s) {
     memset(&pkt->entries[entries], 0, 0x2C);
 
     /* Fill in what we have */
-    pkt->entries[entries].menu_id = LE32(0x00000001);
+    pkt->entries[entries].menu_id = LE32(MENU_ID_BLOCK);
     pkt->entries[entries].item_id = LE32(0xFFFFFFFF);
     pkt->entries[entries].flags = LE16(0x0000);
 
@@ -691,7 +691,7 @@ static int send_dc_lobby_list(ship_client_t *c) {
 
     /* Fill in the lobbies. */
     for(i = 0; i < max; ++i) {
-        pkt->entries[i].menu_id = 0xFFFFFFFF;
+        pkt->entries[i].menu_id = MENU_ID_LOBBY;
         pkt->entries[i].item_id = LE32((i + 1));
         pkt->entries[i].padding = 0;
     }
@@ -1414,7 +1414,7 @@ static int send_dc_guild_reply(ship_client_t *c, uint32_t gc, in_addr_t ip,
     pkt->gc_target = LE32(gc);
     pkt->ip = ip;
     pkt->port = LE16(port);
-    pkt->menu_id = LE32(0xFFFFFFFF);
+    pkt->menu_id = LE32(MENU_ID_LOBBY);
     pkt->item_id = LE32(lobby);
 
     /* No need to iconv, we're not doing anything fancy here */
@@ -1464,7 +1464,7 @@ static int send_pc_guild_reply(ship_client_t *c, uint32_t gc, in_addr_t ip,
     pkt->gc_target = LE32(gc);
     pkt->ip = ip;
     pkt->port = LE16(port);
-    pkt->menu_id = LE32(0xFFFFFFFF);
+    pkt->menu_id = LE32(MENU_ID_LOBBY);
     pkt->item_id = LE32(lobby);
 
     /* Fill in the location string... */
@@ -2011,7 +2011,7 @@ static int send_dc_game_list(ship_client_t *c, block_t *b) {
     pkt->hdr.pkt_type = GAME_LIST_TYPE;
 
     /* Fill in the first entry */
-    pkt->entries[0].menu_id = 0xFFFFFFFF;
+    pkt->entries[0].menu_id = MENU_ID_LOBBY;
     pkt->entries[0].item_id = 0xFFFFFFFF;
     pkt->entries[0].flags = 0x04;
     strcpy(pkt->entries[0].name, b->ship->cfg->name);
@@ -2029,7 +2029,7 @@ static int send_dc_game_list(ship_client_t *c, block_t *b) {
         memset(pkt->entries + entries, 0, 0x1C);
 
         /* Copy the lobby's data to the packet */
-        pkt->entries[entries].menu_id = LE32(0x00000002);
+        pkt->entries[entries].menu_id = LE32(MENU_ID_GAME);
         pkt->entries[entries].item_id = LE32(l->lobby_id);
         pkt->entries[entries].difficulty = 0x22 + l->difficulty;
         pkt->entries[entries].players = l->num_clients;
@@ -2095,7 +2095,7 @@ static int send_pc_game_list(ship_client_t *c, block_t *b) {
     pkt->hdr.pkt_type = GAME_LIST_TYPE;
 
     /* Fill in the first entry */
-    pkt->entries[0].menu_id = 0xFFFFFFFF;
+    pkt->entries[0].menu_id = MENU_ID_LOBBY;
     pkt->entries[0].item_id = 0xFFFFFFFF;
     pkt->entries[0].flags = 0x04;
 
@@ -2118,7 +2118,7 @@ static int send_pc_game_list(ship_client_t *c, block_t *b) {
         memset(pkt->entries + entries, 0, 0x2C);
 
         /* Copy the lobby's data to the packet */
-        pkt->entries[entries].menu_id = LE32(0x00000002);
+        pkt->entries[entries].menu_id = LE32(MENU_ID_GAME);
         pkt->entries[entries].item_id = LE32(l->lobby_id);
         pkt->entries[entries].difficulty = 0x22 + l->difficulty;
         pkt->entries[entries].players = l->num_clients;
@@ -2177,7 +2177,7 @@ static int send_gc_game_list(ship_client_t *c, block_t *b) {
     pkt->hdr.pkt_type = GAME_LIST_TYPE;
 
     /* Fill in the first entry */
-    pkt->entries[0].menu_id = 0xFFFFFFFF;
+    pkt->entries[0].menu_id = MENU_ID_LOBBY;
     pkt->entries[0].item_id = 0xFFFFFFFF;
     pkt->entries[0].flags = 0x04;
     strcpy(pkt->entries[0].name, b->ship->cfg->name);
@@ -2202,7 +2202,7 @@ static int send_gc_game_list(ship_client_t *c, block_t *b) {
         memset(pkt->entries + entries, 0, 0x1C);
 
         /* Copy the lobby's data to the packet */
-        pkt->entries[entries].menu_id = LE32(0x00000002);
+        pkt->entries[entries].menu_id = LE32(MENU_ID_GAME);
         pkt->entries[entries].item_id = LE32(l->lobby_id);
         pkt->entries[entries].difficulty = 0x22 + l->difficulty;
         pkt->entries[entries].players = l->num_clients;
@@ -2247,7 +2247,7 @@ static int send_ep3_game_list(ship_client_t *c, block_t *b) {
     pkt->hdr.pkt_type = GAME_LIST_TYPE;
 
     /* Fill in the first entry */
-    pkt->entries[0].menu_id = 0xFFFFFFFF;
+    pkt->entries[0].menu_id = MENU_ID_LOBBY;
     pkt->entries[0].item_id = 0xFFFFFFFF;
     pkt->entries[0].flags = 0x04;
     strcpy(pkt->entries[0].name, b->ship->cfg->name);
@@ -2265,7 +2265,7 @@ static int send_ep3_game_list(ship_client_t *c, block_t *b) {
         memset(pkt->entries + entries, 0, 0x1C);
 
         /* Copy the lobby's data to the packet */
-        pkt->entries[entries].menu_id = LE32(0x00000002);
+        pkt->entries[entries].menu_id = LE32(MENU_ID_GAME);
         pkt->entries[entries].item_id = LE32(l->lobby_id);
         pkt->entries[entries].difficulty = 0x22 + l->difficulty;
         pkt->entries[entries].players = l->num_clients;
@@ -2347,7 +2347,7 @@ static int send_dc_info_list(ship_client_t *c, ship_t *s) {
         memset(&pkt->entries[i], 0, 0x1C);
 
         /* Fill in what we have */
-        pkt->entries[i].menu_id = LE32(0x00000000);
+        pkt->entries[i].menu_id = LE32(MENU_ID_INFODESK);
         pkt->entries[i].item_id = LE32((i - 1));
         pkt->entries[i].flags = LE16(0x0000);
 
@@ -2411,7 +2411,7 @@ static int send_pc_info_list(ship_client_t *c, ship_t *s) {
         memset(&pkt->entries[i], 0, 0x2C);
 
         /* Fill in what we have */
-        pkt->entries[i].menu_id = LE32(0x00000000);
+        pkt->entries[i].menu_id = LE32(MENU_ID_INFODESK);
         pkt->entries[i].item_id = LE32((i - 1));
         pkt->entries[i].flags = LE16(0x0000);
 
@@ -2491,7 +2491,7 @@ int send_pc_game_type_sel(ship_client_t *c) {
     iconv(ic, &inptr, &in, &outptr, &out);
 
     /* Add the "Allow PSOv1" entry */
-    pkt->entries[1].menu_id = LE32(0x00000006);
+    pkt->entries[1].menu_id = LE32(MENU_ID_GAME_TYPE);
     pkt->entries[1].item_id = LE32(0);
     pkt->entries[1].flags = 0;
 
@@ -2502,7 +2502,7 @@ int send_pc_game_type_sel(ship_client_t *c) {
     iconv(ic, &inptr, &in, &outptr, &out);
 
     /* Add the "PSOv2 Only" entry */
-    pkt->entries[2].menu_id = LE32(0x00000006);
+    pkt->entries[2].menu_id = LE32(MENU_ID_GAME_TYPE);
     pkt->entries[2].item_id = LE32(1);
     pkt->entries[2].flags = 0;
 
@@ -2513,7 +2513,7 @@ int send_pc_game_type_sel(ship_client_t *c) {
     iconv(ic, &inptr, &in, &outptr, &out);
 
     /* Add the "PSOPC Only" entry */
-    pkt->entries[3].menu_id = LE32(0x00000006);
+    pkt->entries[3].menu_id = LE32(MENU_ID_GAME_TYPE);
     pkt->entries[3].item_id = LE32(2);
     pkt->entries[3].flags = 0;
 
@@ -2702,7 +2702,7 @@ static int send_dc_quest_categories(ship_client_t *c,
         memset(pkt->entries + entries, 0, 0x98);
 
         /* Copy the category's information over to the packet */
-        pkt->entries[entries].menu_id = LE32(0x00000003);
+        pkt->entries[entries].menu_id = LE32(MENU_ID_QCATEGORY);
         pkt->entries[entries].item_id = LE32(i);
 
         /* Convert the name and the description to the appropriate encoding
@@ -2781,7 +2781,7 @@ static int send_pc_quest_categories(ship_client_t *c,
         memset(pkt->entries + i, 0, 0x128);
 
         /* Copy the category's information over to the packet */
-        pkt->entries[entries].menu_id = LE32(0x00000003);
+        pkt->entries[entries].menu_id = LE32(MENU_ID_QCATEGORY);
         pkt->entries[entries].item_id = LE32(i);
 
         /* Convert the name and the description to UTF-16. */
@@ -2828,7 +2828,7 @@ int send_quest_categories(ship_client_t *c, sylverant_quest_list_t *l) {
 }
 
 /* Send the list of quest categories to the client. */
-static int send_dc_quest_categories_new(ship_client_t *c) {
+static int send_dc_quest_categories_new(ship_client_t *c, int lang) {
     uint8_t *sendbuf = get_sendbuf();
     dc_quest_list_pkt *pkt = (dc_quest_list_pkt *)sendbuf;
     int i, len = 0x04, entries = 0;
@@ -2841,13 +2841,13 @@ static int send_dc_quest_categories_new(ship_client_t *c) {
     lobby_t *l = c->cur_lobby;
 
     if(l->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3) {
-        qlist = &c->cur_ship->qlist[CLIENT_VERSION_GC][c->language_code];
+        qlist = &c->cur_ship->qlist[CLIENT_VERSION_GC][lang];
     }
     else if(!l->v2) {
-        qlist = &c->cur_ship->qlist[CLIENT_VERSION_DCV1][c->language_code];
+        qlist = &c->cur_ship->qlist[CLIENT_VERSION_DCV1][lang];
     }
     else {
-        qlist = &c->cur_ship->qlist[CLIENT_VERSION_DCV2][c->language_code];
+        qlist = &c->cur_ship->qlist[CLIENT_VERSION_DCV2][lang];
     }
 
     /* Verify we got the sendbuf. */
@@ -2857,7 +2857,7 @@ static int send_dc_quest_categories_new(ship_client_t *c) {
 
     /* Quest stuff is stored internally as UTF-8, set up for converting to the
        right encoding */
-    if(c->language_code != CLIENT_LANG_JAPANESE) {
+    if(lang != CLIENT_LANG_JAPANESE) {
         ic = iconv_open("ISO-8859-1", "UTF-8");
 
         if(ic == (iconv_t)-1) {
@@ -2897,7 +2897,8 @@ static int send_dc_quest_categories_new(ship_client_t *c) {
         memset(pkt->entries + entries, 0, 0x98);
 
         /* Copy the category's information over to the packet */
-        pkt->entries[entries].menu_id = LE32(0x00000003);
+        pkt->entries[entries].menu_id = LE32((MENU_ID_QCATEGORY |
+                                              (lang << 24)));
         pkt->entries[entries].item_id = LE32(i);
 
         /* Convert the name and the description to the appropriate encoding */
@@ -2927,7 +2928,7 @@ static int send_dc_quest_categories_new(ship_client_t *c) {
     return crypt_send(c, len, sendbuf);
 }
 
-static int send_pc_quest_categories_new(ship_client_t *c) {
+static int send_pc_quest_categories_new(ship_client_t *c, int lang) {
     uint8_t *sendbuf = get_sendbuf();
     pc_quest_list_pkt *pkt = (pc_quest_list_pkt *)sendbuf;
     int i, len = 0x04, entries = 0;
@@ -2940,10 +2941,10 @@ static int send_pc_quest_categories_new(ship_client_t *c) {
     lobby_t *l = c->cur_lobby;
 
     if(!l->v2) {
-        qlist = &c->cur_ship->qlist[CLIENT_VERSION_DCV1][c->language_code];
+        qlist = &c->cur_ship->qlist[CLIENT_VERSION_DCV1][lang];
     }
     else {
-        qlist = &c->cur_ship->qlist[CLIENT_VERSION_PC][c->language_code];
+        qlist = &c->cur_ship->qlist[CLIENT_VERSION_PC][lang];
     }
 
     /* Verify we got the sendbuf. */
@@ -2982,7 +2983,8 @@ static int send_pc_quest_categories_new(ship_client_t *c) {
         memset(pkt->entries + i, 0, 0x128);
 
         /* Copy the category's information over to the packet */
-        pkt->entries[entries].menu_id = LE32(0x00000003);
+        pkt->entries[entries].menu_id = LE32((MENU_ID_QCATEGORY |
+                                              (lang << 24)));
         pkt->entries[entries].item_id = LE32(i);
 
         /* Convert the name and the description to UTF-16. */
@@ -3012,17 +3014,21 @@ static int send_pc_quest_categories_new(ship_client_t *c) {
     return crypt_send(c, len, sendbuf);
 }
 
-int send_quest_categories_new(ship_client_t *c) {
+int send_quest_categories_new(ship_client_t *c, int lang) {
+    if(lang < 0 || lang >= CLIENT_LANG_COUNT) {
+        lang = c->language_code;
+    }
+
     /* Call the appropriate function. */
     switch(c->version) {
         case CLIENT_VERSION_DCV1:
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3: /* XXXX? */
-            return send_dc_quest_categories_new(c);
+            return send_dc_quest_categories_new(c, lang);
 
         case CLIENT_VERSION_PC:
-            return send_pc_quest_categories_new(c);
+            return send_pc_quest_categories_new(c, lang);
     }
 
     return -1;
@@ -3086,7 +3092,7 @@ static int send_dc_quest_list(ship_client_t *c, int cat,
         memset(pkt->entries + entries, 0, 0x98);
 
         /* Copy the category's information over to the packet */
-        pkt->entries[entries].menu_id = LE32(((0x00000004) | (cat << 8)));
+        pkt->entries[entries].menu_id = LE32(((MENU_ID_QUEST) | (cat << 8)));
         pkt->entries[entries].item_id = LE32(i);
 
         /* Convert the name and the description to the appropriate encoding
@@ -3166,7 +3172,7 @@ static int send_pc_quest_list(ship_client_t *c, int cat,
         memset(pkt->entries + entries, 0, 0x98);
 
         /* Copy the category's information over to the packet */
-        pkt->entries[entries].menu_id = LE32(((0x00000004) | (cat << 8)));
+        pkt->entries[entries].menu_id = LE32(((MENU_ID_QUEST) | (cat << 8)));
         pkt->entries[entries].item_id = LE32(i);
 
         /* Convert the name and the description to UTF-16. */
@@ -3254,7 +3260,7 @@ static int send_gc_quest_list(ship_client_t *c, int cat,
         memset(pkt->entries + entries, 0, 0x98);
 
         /* Copy the category's information over to the packet */
-        pkt->entries[entries].menu_id = LE32(((0x00000004) | (cat << 8)));
+        pkt->entries[entries].menu_id = LE32(((MENU_ID_QUEST) | (cat << 8)));
         pkt->entries[entries].item_id = LE32(i);
 
         /* Convert the name and the description to the appropriate encoding
@@ -3315,7 +3321,7 @@ int send_quest_list(ship_client_t *c, int cat, sylverant_quest_category_t *l) {
 }
 
 /* Send the list of quests in a category to the client. */
-static int send_dc_quest_list_new(ship_client_t *c, int cn) {
+static int send_dc_quest_list_new(ship_client_t *c, int cn, int lang) {
     uint8_t *sendbuf = get_sendbuf();
     dc_quest_list_pkt *pkt = (dc_quest_list_pkt *)sendbuf;
     int i, len = 0x04, entries = 0, max = INT_MAX, j;
@@ -3336,10 +3342,10 @@ static int send_dc_quest_list_new(ship_client_t *c, int cn) {
     }
     
     if(!l->v2) {
-        qlist = &c->cur_ship->qlist[CLIENT_VERSION_DCV1][c->language_code];
+        qlist = &c->cur_ship->qlist[CLIENT_VERSION_DCV1][lang];
     }
     else {
-        qlist = &c->cur_ship->qlist[CLIENT_VERSION_DCV2][c->language_code];
+        qlist = &c->cur_ship->qlist[CLIENT_VERSION_DCV2][lang];
     }
 
     /* Check the category for sanity */
@@ -3351,7 +3357,7 @@ static int send_dc_quest_list_new(ship_client_t *c, int cn) {
 
     /* Quest stuff is stored internally as UTF-8, set up for converting to the
        right encoding */
-    if(c->language_code != CLIENT_LANG_JAPANESE) {
+    if(lang != CLIENT_LANG_JAPANESE) {
         ic = iconv_open("ISO-8859-1", "UTF-8");
 
         if(ic == (iconv_t)-1) {
@@ -3396,7 +3402,7 @@ static int send_dc_quest_list_new(ship_client_t *c, int cn) {
             }
 
             if(!elem->qptr[tmp->version][tmp->language_code] &&
-               !elem->qptr[tmp->version][CLIENT_LANG_ENGLISH]) {
+               !elem->qptr[tmp->version][lang]) {
                 break;
             }
         }
@@ -3411,7 +3417,8 @@ static int send_dc_quest_list_new(ship_client_t *c, int cn) {
         memset(pkt->entries + entries, 0, 0x98);
 
         /* Copy the category's information over to the packet */
-        pkt->entries[entries].menu_id = LE32(((0x00000004) | (cn << 8)));
+        pkt->entries[entries].menu_id = LE32(((MENU_ID_QUEST) | (cn << 8) |
+                                              (lang << 24)));
         pkt->entries[entries].item_id = LE32(quest->qid);
 
         /* Convert the name and the description to the appropriate encoding */
@@ -3441,7 +3448,7 @@ static int send_dc_quest_list_new(ship_client_t *c, int cn) {
     return crypt_send(c, len, sendbuf);
 }
 
-static int send_pc_quest_list_new(ship_client_t *c, int cn) {
+static int send_pc_quest_list_new(ship_client_t *c, int cn, int lang) {
     uint8_t *sendbuf = get_sendbuf();
     pc_quest_list_pkt *pkt = (pc_quest_list_pkt *)sendbuf;
     int i, len = 0x04, entries = 0, max = INT_MAX, j;
@@ -3462,10 +3469,10 @@ static int send_pc_quest_list_new(ship_client_t *c, int cn) {
     }
 
     if(!l->v2) {
-        qlist = &c->cur_ship->qlist[CLIENT_VERSION_DCV1][c->language_code];
+        qlist = &c->cur_ship->qlist[CLIENT_VERSION_DCV1][lang];
     }
     else {
-        qlist = &c->cur_ship->qlist[CLIENT_VERSION_PC][c->language_code];
+        qlist = &c->cur_ship->qlist[CLIENT_VERSION_PC][lang];
     }
 
     /* Check the category for sanity */
@@ -3511,7 +3518,7 @@ static int send_pc_quest_list_new(ship_client_t *c, int cn) {
             }
 
             if(!elem->qptr[tmp->version][tmp->language_code] &&
-               !elem->qptr[tmp->version][CLIENT_LANG_ENGLISH]) {
+               !elem->qptr[tmp->version][lang]) {
                 break;
             }
         }
@@ -3526,7 +3533,8 @@ static int send_pc_quest_list_new(ship_client_t *c, int cn) {
         memset(pkt->entries + entries, 0, 0x98);
 
         /* Copy the category's information over to the packet */
-        pkt->entries[entries].menu_id = LE32(((0x00000004) | (cn << 8)));
+        pkt->entries[entries].menu_id = LE32(((MENU_ID_QUEST) | (cn << 8) |
+                                              (lang << 24)));
         pkt->entries[entries].item_id = LE32(quest->qid);
 
         /* Convert the name and the description to UTF-16. */
@@ -3556,7 +3564,7 @@ static int send_pc_quest_list_new(ship_client_t *c, int cn) {
     return crypt_send(c, len, sendbuf);
 }
 
-static int send_gc_quest_list_new(ship_client_t *c, int cn) {
+static int send_gc_quest_list_new(ship_client_t *c, int cn, int lang) {
     uint8_t *sendbuf = get_sendbuf();
     dc_quest_list_pkt *pkt = (dc_quest_list_pkt *)sendbuf;
     int i, len = 0x04, entries = 0, max = INT_MAX, j;
@@ -3577,13 +3585,13 @@ static int send_gc_quest_list_new(ship_client_t *c, int cn) {
     }
 
     if(l->version == CLIENT_VERSION_GC) {
-        qlist = &c->cur_ship->qlist[CLIENT_VERSION_GC][c->language_code];
+        qlist = &c->cur_ship->qlist[CLIENT_VERSION_GC][lang];
     }
     else if(!l->v2) {
-        qlist = &c->cur_ship->qlist[CLIENT_VERSION_DCV1][c->language_code];
+        qlist = &c->cur_ship->qlist[CLIENT_VERSION_DCV1][lang];
     }
     else {
-        qlist = &c->cur_ship->qlist[CLIENT_VERSION_DCV2][c->language_code];
+        qlist = &c->cur_ship->qlist[CLIENT_VERSION_DCV2][lang];
     }
 
     /* Check the category for sanity */
@@ -3595,7 +3603,7 @@ static int send_gc_quest_list_new(ship_client_t *c, int cn) {
 
     /* Quest stuff is stored internally as UTF-8, set up for converting to the
        right encoding */
-    if(c->language_code != CLIENT_LANG_JAPANESE) {
+    if(lang != CLIENT_LANG_JAPANESE) {
         ic = iconv_open("ISO-8859-1", "UTF-8");
 
         if(ic == (iconv_t)-1) {
@@ -3640,7 +3648,7 @@ static int send_gc_quest_list_new(ship_client_t *c, int cn) {
             }
 
             if(!elem->qptr[tmp->version][tmp->language_code] &&
-               !elem->qptr[tmp->version][CLIENT_LANG_ENGLISH]) {
+               !elem->qptr[tmp->version][lang]) {
                 break;
             }
         }
@@ -3660,7 +3668,8 @@ static int send_gc_quest_list_new(ship_client_t *c, int cn) {
         memset(pkt->entries + entries, 0, 0x98);
 
         /* Copy the category's information over to the packet */
-        pkt->entries[entries].menu_id = LE32(((0x00000004) | (cn << 8)));
+        pkt->entries[entries].menu_id = LE32(((MENU_ID_QUEST) | (cn << 8) |
+                                              (lang << 24)));
         pkt->entries[entries].item_id = LE32(quest->qid);
 
         /* Convert the name and the description to the appropriate encoding */
@@ -3690,19 +3699,23 @@ static int send_gc_quest_list_new(ship_client_t *c, int cn) {
     return crypt_send(c, len, sendbuf);
 }
 
-int send_quest_list_new(ship_client_t *c, int cat) {
+int send_quest_list_new(ship_client_t *c, int cat, int lang) {
+    if(lang >= CLIENT_LANG_COUNT) {
+        return -1;
+    }
+
     /* Call the appropriate function. */
     switch(c->version) {
         case CLIENT_VERSION_DCV1:
         case CLIENT_VERSION_DCV2:
-            return send_dc_quest_list_new(c, cat);
+            return send_dc_quest_list_new(c, cat, lang);
 
         case CLIENT_VERSION_PC:
-            return send_pc_quest_list_new(c, cat);
+            return send_pc_quest_list_new(c, cat, lang);
 
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3: /* XXXX? */
-            return send_gc_quest_list_new(c, cat);
+            return send_gc_quest_list_new(c, cat, lang);
     }
 
     return -1;
@@ -3796,7 +3809,7 @@ int send_quest_info(lobby_t *l, sylverant_quest_t *q) {
     return 0;
 }
 
-int send_quest_info_new(lobby_t *l, uint32_t qid) {
+int send_quest_info_new(lobby_t *l, uint32_t qid, int lang) {
     ship_client_t *c;
     int i;
     quest_map_elem_t *elem;
@@ -3816,15 +3829,15 @@ int send_quest_info_new(lobby_t *l, uint32_t qid) {
             q = elem->qptr[c->version][c->language_code];
 
             /* If we didn't find it on the normal language code, try the
-               fallback one (which is always English, for now). */
+               fallback one. */
             if(!q) {
-                q = elem->qptr[c->version][CLIENT_LANG_ENGLISH];
+                q = elem->qptr[c->version][lang];
 
                 /* If we still didn't find it, we've got trouble elsewhere... */
                 if(!q) {
                     debug(DBG_WARN, "Couldn't find quest to send info!\n"
                           "ID: %d, Ver: %d, Language: %d, Fallback: %d\n", qid,
-                          c->version, c->language_code, CLIENT_LANG_ENGLISH);
+                          c->version, c->language_code, lang);
                     continue;
                 }
             }
@@ -5209,7 +5222,7 @@ static int send_qst_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1,
     return 0;
 }
 
-int send_quest_new(lobby_t *l, uint32_t qid) {
+int send_quest_new(lobby_t *l, uint32_t qid, int lc) {
     int i;
     int v1 = 0;
     ship_t *s = l->clients[l->leader_id]->cur_ship;
@@ -5235,16 +5248,16 @@ int send_quest_new(lobby_t *l, uint32_t qid) {
             lang = c->language_code;
 
             /* If we didn't find it on the normal language code, try the
-               fallback one (which is always English, for now). */
+               fallback one. */
             if(!q) {
-                q = elem->qptr[c->version][CLIENT_LANG_ENGLISH];
-                lang = CLIENT_LANG_ENGLISH;
+                q = elem->qptr[c->version][lc];
+                lang = lc;
                 
                 /* If we still didn't find it, we've got trouble elsewhere... */
                 if(!q) {
                     debug(DBG_WARN, "Couldn't find quest to send!\n"
                           "ID: %d, Ver: %d, Language: %d, Fallback: %d\n", qid,
-                          c->version, c->language_code, CLIENT_LANG_ENGLISH);
+                          c->version, c->language_code, lc);
 
                     /* Unfortunately, we're going to have to disconnect the user
                        if this happens, since we really have no recourse. */
@@ -5509,7 +5522,7 @@ static int send_dc_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
 
     /* Fill in the "DATABASE/JP" entry */
     memset(&pkt->entries[0], 0, 0x1C);
-    pkt->entries[0].menu_id = LE32(0x00000005);
+    pkt->entries[0].menu_id = LE32(MENU_ID_SHIP);
     pkt->entries[0].item_id = 0;
     pkt->entries[0].flags = LE16(0x0004);
     strcpy(pkt->entries[0].name, "DATABASE/JP");
@@ -5531,7 +5544,7 @@ static int send_dc_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
             memset(&pkt->entries[entries], 0, 0x1C);
 
             /* Copy the ship's information to the packet. */
-            pkt->entries[entries].menu_id = LE32(0x00000005);
+            pkt->entries[entries].menu_id = LE32(MENU_ID_SHIP);
             pkt->entries[entries].item_id = LE32(i->ship_id);
             pkt->entries[entries].flags = 0;
             strcpy(pkt->entries[entries].name, i->name);
@@ -5557,7 +5570,7 @@ static int send_dc_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
             memset(&pkt->entries[entries], 0, 0x1C);
 
             /* Fill in what we have */
-            pkt->entries[entries].menu_id = LE32((0x00000005 |
+            pkt->entries[entries].menu_id = LE32((MENU_ID_SHIP |
                                                   (s->menu_codes[j] << 8)));
             pkt->entries[entries].item_id = LE32(0x00000000);
             pkt->entries[entries].flags = LE16(0x0000);
@@ -5614,7 +5627,7 @@ static int send_pc_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
 
     /* Fill in the "DATABASE/JP" entry */
     memset(&pkt->entries[0], 0, 0x1C);
-    pkt->entries[0].menu_id = LE32(0x00000005);
+    pkt->entries[0].menu_id = LE32(MENU_ID_SHIP);
     pkt->entries[0].item_id = 0;
     pkt->entries[0].flags = LE16(0x0004);
     memcpy(pkt->entries[0].name, "D\0A\0T\0A\0B\0A\0S\0E\0/\0J\0P\0", 22);
@@ -5635,7 +5648,7 @@ static int send_pc_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
             memset(&pkt->entries[entries], 0, 0x2C);
 
             /* Copy the ship's information to the packet. */
-            pkt->entries[entries].menu_id = LE32(0x00000005);
+            pkt->entries[entries].menu_id = LE32(MENU_ID_SHIP);
             pkt->entries[entries].item_id = LE32(i->ship_id);
             pkt->entries[entries].flags = 0;
 
@@ -5668,7 +5681,7 @@ static int send_pc_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
             memset(&pkt->entries[entries], 0, 0x2C);
 
             /* Fill in what we have */
-            pkt->entries[entries].menu_id = LE32((0x00000005 |
+            pkt->entries[entries].menu_id = LE32((MENU_ID_SHIP |
                                                   (s->menu_codes[j] << 8)));
             pkt->entries[entries].item_id = LE32(0x00000000);
             pkt->entries[entries].flags = LE16(0x0000);
@@ -5973,7 +5986,7 @@ static int send_dc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
 
                     pkt->entries[entries].ip = a;
                     pkt->entries[entries].port = LE16(b->dc_port);
-                    pkt->entries[entries].menu_id = LE32(0xFFFFFFFF);
+                    pkt->entries[entries].menu_id = LE32(MENU_ID_LOBBY);
                     pkt->entries[entries].item_id =
                         LE32(it->cur_lobby->lobby_id);
 
@@ -6087,7 +6100,7 @@ static int send_pc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
 
                     pkt->entries[entries].ip = a;
                     pkt->entries[entries].port = LE16(b->pc_port);
-                    pkt->entries[entries].menu_id = LE32(0xFFFFFFFF);
+                    pkt->entries[entries].menu_id = LE32(MENU_ID_LOBBY);
                     pkt->entries[entries].item_id =
                         LE32(it->cur_lobby->lobby_id);
 
@@ -6178,7 +6191,7 @@ static int send_gc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
 
                     pkt->entries[entries].ip = a;
                     pkt->entries[entries].port = LE16(b->gc_port);
-                    pkt->entries[entries].menu_id = LE32(0xFFFFFFFF);
+                    pkt->entries[entries].menu_id = LE32(MENU_ID_LOBBY);
                     pkt->entries[entries].item_id =
                         LE32(it->cur_lobby->lobby_id);
 

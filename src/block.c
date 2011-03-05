@@ -732,6 +732,7 @@ static int dc_process_login(ship_client_t *c, dc_login_93_pkt *pkt) {
     /* Save what we care about in here. */
     c->guildcard = LE32(pkt->guildcard);
     c->language_code = pkt->language_code;
+    c->q_lang = pkt->language_code;
 
     /* See if this person is a GM. */
     c->privilege = is_gm(c->guildcard, pkt->serial, pkt->access_key,
@@ -778,6 +779,7 @@ static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
     /* Save what we care about in here. */
     c->guildcard = LE32(pkt->guildcard);
     c->language_code = pkt->language_code;
+    c->q_lang = pkt->language_code;
 
     if(c->version != CLIENT_VERSION_PC)
         c->version = CLIENT_VERSION_DCV2;
@@ -817,6 +819,7 @@ static int gc_process_login(ship_client_t *c, gc_login_9e_pkt *pkt) {
     /* Save what we care about in here. */
     c->guildcard = LE32(pkt->guildcard);
     c->language_code = pkt->language_code;
+    c->q_lang = pkt->language_code;
 
     /* See if this person is a GM. */
     c->privilege = is_gm(c->guildcard, pkt->serial, pkt->access_key,
@@ -1525,7 +1528,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
     /* Figure out what the client is selecting. */
     switch(menu_id & 0xFF) {
         /* Lobby Information Desk */
-        case 0x00:
+        case MENU_ID_INFODESK:
         {
             FILE *fp;
             char buf[1024];
@@ -1569,7 +1572,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
         }
 
         /* Blocks */
-        case 0x01:
+        case MENU_ID_BLOCK:
         {
             ship_t *s = c->cur_ship;
             uint16_t port;
@@ -1617,7 +1620,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
         }
 
         /* Game Selection */
-        case 0x02:
+        case MENU_ID_GAME:
         {
             char tmp[32];
             char passwd[17];
@@ -1689,15 +1692,17 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
         }
 
         /* Quest category */
-        case 0x03:
+        case MENU_ID_QCATEGORY:
         {
             int rv;
+            int lang;
 
             pthread_rwlock_rdlock(&c->cur_ship->qlock);
 
             /* Are we using the new-style quest layout? */
             if(!TAILQ_EMPTY(&c->cur_ship->qmap)) {
-                rv = send_quest_list_new(c, (int)item_id);
+                lang = (menu_id >> 24) & 0xFF;
+                rv = send_quest_list_new(c, (int)item_id, lang);
             }
             else {
                 if(item_id >= c->cur_ship->quests.cat_count) {
@@ -1716,9 +1721,9 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
         }
 
         /* Quest */
-        case 0x04:
+        case MENU_ID_QUEST:
         {
-            int q = menu_id >> 8;
+            int q = (menu_id >> 8) & 0xFF, lang = (menu_id >> 24) & 0xFF;
             int rv;
             sylverant_quest_t *quest;
 
@@ -1732,7 +1737,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
             /* Are we using the new-style quest layout? */
             if(!TAILQ_EMPTY(&c->cur_ship->qmap)) {
                 c->cur_lobby->flags |= LOBBY_FLAG_QUESTING;
-                rv = send_quest_new(c->cur_lobby, item_id);
+                rv = send_quest_new(c->cur_lobby, item_id, lang);
             }
             else {
                 if(q >= c->cur_ship->quests.cat_count) {
@@ -1757,7 +1762,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
         }
 
         /* Ship */
-        case 0x05:
+        case MENU_ID_SHIP:
         {
             miniship_t *i;
             ship_t *s = c->cur_ship;
@@ -1801,7 +1806,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
         }
 
         /* Game type (PSOPC only) */
-        case 0x06:
+        case MENU_ID_GAME_TYPE:
         {
             lobby_t *l = c->create_lobby;
 
@@ -1847,17 +1852,17 @@ static int dc_process_info_req(ship_client_t *c, dc_select_pkt *pkt) {
     /* What kind of information do they want? */
     switch(menu_id & 0xFF) {
         /* Block */
-        case 0x01:
+        case MENU_ID_BLOCK:
             return block_info_reply(c, item_id);
 
         /* Game List */
-        case 0x02:
+        case MENU_ID_GAME:
             return lobby_info_reply(c, item_id);
 
         /* Quest */
-        case 0x04:
+        case MENU_ID_QUEST:
         {
-            int q = menu_id >> 8;
+            int q = (menu_id >> 8) & 0xFF, lang = (menu_id >> 24) & 0xFF;
             int rv;
             sylverant_quest_t *quest;
 
@@ -1865,7 +1870,7 @@ static int dc_process_info_req(ship_client_t *c, dc_select_pkt *pkt) {
 
             /* Are we using the new-style quest layout? */
             if(!TAILQ_EMPTY(&c->cur_ship->qmap)) {
-                rv = send_quest_info_new(c->cur_lobby, item_id);
+                rv = send_quest_info_new(c->cur_lobby, item_id, lang);
             }
             else {
                 if(q >= c->cur_ship->quests.cat_count) {
@@ -1889,7 +1894,7 @@ static int dc_process_info_req(ship_client_t *c, dc_select_pkt *pkt) {
         }
 
         /* Ship */
-        case 0x05:
+        case MENU_ID_SHIP:
         {
             ship_t *s = c->cur_ship;
             miniship_t *i;
@@ -2092,7 +2097,7 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
 
             /* Are we using the new-style quest layout? */
             if(!TAILQ_EMPTY(&c->cur_ship->qmap)) {
-                rv = send_quest_categories_new(c);
+                rv = send_quest_categories_new(c, c->q_lang);
             }
             else {
                 rv = send_quest_categories(c, &c->cur_ship->quests);

@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -19,6 +19,7 @@
 #define UTILS_H
 
 #include <stdio.h>
+#include <iconv.h>
 
 #include "ship_packets.h"
 
@@ -32,6 +33,8 @@ int pc_bug_report(ship_client_t *c, pc_simple_mail_pkt *pkt);
 
 int pkt_log_start(ship_client_t *i);
 int pkt_log_stop(ship_client_t *i);
+
+char *istrncpy(iconv_t ic, char *outs, const char *ins, int out_len);
 
 /* Actually implemented in list.c, not utils.c. */
 int send_player_list(ship_client_t *c, char *params);
