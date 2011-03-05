@@ -35,6 +35,8 @@ int pkt_log_start(ship_client_t *i);
 int pkt_log_stop(ship_client_t *i);
 
 char *istrncpy(iconv_t ic, char *outs, const char *ins, int out_len);
+size_t strlen16(const uint16_t *str);
+char *istrncpy16(iconv_t ic, char *outs, const uint16_t *ins, int out_len);
 
 /* Actually implemented in list.c, not utils.c. */
 int send_player_list(ship_client_t *c, char *params);

@@ -296,9 +296,34 @@ char *istrncpy(iconv_t ic, char *outs, const char *ins, int out_len) {
     ICONV_CONST char *inptr;
     char *outptr;
 
+    /* Clear the output buffer first */
     memset(outs, 0, out_len);
 
     in = strlen(ins);
+    out = out_len;
+    inptr = (ICONV_CONST char *)ins;
+    outptr = outs;
+    iconv(ic, &inptr, &in, &outptr, &out);
+
+    return outptr;
+}
+
+size_t strlen16(const uint16_t *str) {
+    size_t sz = 0;
+
+    while(*str++) ++sz;
+    return sz;
+}
+
+char *istrncpy16(iconv_t ic, char *outs, const uint16_t *ins, int out_len) {
+    size_t in, out;
+    ICONV_CONST char *inptr;
+    char *outptr;
+
+    /* Clear the output buffer first */
+    memset(outs, 0, out_len);
+
+    in = strlen16(ins) * 2;
     out = out_len;
     inptr = (ICONV_CONST char *)ins;
     outptr = outs;

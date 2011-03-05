@@ -1369,9 +1369,6 @@ static int pc_process_game_create(ship_client_t *c, pc_game_create_pkt *pkt) {
     uint8_t event = s->cfg->game_event;
     char name[16], password[16];
     iconv_t ic;
-    size_t in, out;
-    ICONV_CONST char *inptr;
-    char *outptr;
 
     /* Convert the name/password to the appropriate encoding. */
     if(LE16(pkt->name[1]) == (uint16_t)('J')) {
@@ -1386,17 +1383,8 @@ static int pc_process_game_create(ship_client_t *c, pc_game_create_pkt *pkt) {
         return -1;
     }
 
-    in = 32;
-    out = 16;
-    inptr = (char *)pkt->name;
-    outptr = name;
-    iconv(ic, &inptr, &in, &outptr, &out);
-
-    in = 32;
-    out = 16;
-    inptr = (char *)pkt->password;
-    outptr = password;
-    iconv(ic, &inptr, &in, &outptr, &out);
+    istrncpy16(ic, name, pkt->name, 16);
+    istrncpy16(ic, password, pkt->password, 16);
     iconv_close(ic);
 
     /* Check the user's ability to create a game of that difficulty. */
@@ -1644,9 +1632,6 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
 
             if(c->version == CLIENT_VERSION_PC) {
                 iconv_t ic;
-                size_t in, out;
-                ICONV_CONST char *inptr;
-                char *outptr;
 
                 ic = iconv_open("SHIFT_JIS", "UTF-16LE");
 
@@ -1655,11 +1640,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
                     return send_message1(c, "%s", __(c, "\tE\tC4Try again."));
                 }
 
-                in = 32;
-                out = 16;
-                inptr = tmp;
-                outptr = passwd;
-                iconv(ic, &inptr, &in, &outptr, &out);
+                istrncpy16(ic, passwd, (uint16_t *)tmp, 16);
                 iconv_close(ic);
                 passwd[16] = 0;
             }
