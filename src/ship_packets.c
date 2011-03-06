@@ -3831,13 +3831,20 @@ int send_quest_info_new(lobby_t *l, uint32_t qid, int lang) {
             /* If we didn't find it on the normal language code, try the
                fallback one. */
             if(!q) {
+                q = elem->qptr[c->version][c->q_lang];
+            }
+
+            /* If all else fails, go with the language the quest was selected by
+               the leader in, since that has to be there! */
+            if(!q) {
                 q = elem->qptr[c->version][lang];
 
                 /* If we still didn't find it, we've got trouble elsewhere... */
                 if(!q) {
                     debug(DBG_WARN, "Couldn't find quest to send info!\n"
-                          "ID: %d, Ver: %d, Language: %d, Fallback: %d\n", qid,
-                          c->version, c->language_code, lang);
+                          "ID: %d, Ver: %d, Language: %d, Fallback: %d, "
+                          "Fallback 2: %d\n", qid, c->version, c->language_code,
+                          c->q_lang, lang);
                     continue;
                 }
             }
@@ -5250,14 +5257,22 @@ int send_quest_new(lobby_t *l, uint32_t qid, int lc) {
             /* If we didn't find it on the normal language code, try the
                fallback one. */
             if(!q) {
+                q = elem->qptr[c->version][c->q_lang];
+                lang = c->q_lang;
+            }
+
+            /* If all else fails, go with the language the quest was selected by
+               the leader in, since that has to be there! */
+            if(!q) {
                 q = elem->qptr[c->version][lc];
                 lang = lc;
                 
                 /* If we still didn't find it, we've got trouble elsewhere... */
                 if(!q) {
                     debug(DBG_WARN, "Couldn't find quest to send!\n"
-                          "ID: %d, Ver: %d, Language: %d, Fallback: %d\n", qid,
-                          c->version, c->language_code, lc);
+                          "ID: %d, Ver: %d, Language: %d, Fallback: %d, "
+                          "Fallback 2: %d\n", qid, c->version, c->language_code,
+                          c->q_lang, lc);
 
                     /* Unfortunately, we're going to have to disconnect the user
                        if this happens, since we really have no recourse. */
