@@ -1682,10 +1682,11 @@ static int handle_dumpinv(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
-    printf("Inventory dump for %s (%d)\n", c->pl->v1.name, c->guildcard);
+    debug(DBG_LOG, "Inventory dump for %s (%d)\n", c->pl->v1.name,
+          c->guildcard);
 
     for(i = 0; i < c->item_count; ++i) {
-        printf("%d (%08x): %08x %08x %08x %08x: %s\n", i, 
+        debug(DBG_LOG, "%d (%08x): %08x %08x %08x %08x: %s\n", i, 
                LE32(c->items[i].item_id), LE32(c->items[i].data_l[0]),
                LE32(c->items[i].data_l[1]), LE32(c->items[i].data_l[2]),
                LE32(c->items[i].data2_l), item_get_name(&c->items[i]));

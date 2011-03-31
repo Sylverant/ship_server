@@ -455,6 +455,11 @@ static int handle_take_item(ship_client_t *c, subcmd_take_item_t *pkt) {
         memcpy(&item.data_l[0], &pkt->data_l[0], sizeof(uint32_t) * 5);
 
         if(!sylverant_limits_check_item(c->cur_ship->limits, &item, v)) {
+            debug(DBG_LOG, "Potentially non-legit item in legit mode:\n"
+                  "%08x %08x %08x %08x\n", LE32(pkt->data_l[0]), 
+                  LE32(pkt->data_l[1]), LE32(pkt->data_l[2]),
+                  LE32(pkt->data_l[0]));
+
             /* The item failed the check, so kick the user. */
             send_message_box(c, "%s\n\n%s\n%s",
                              __(c, "\tEYou have been kicked from the server."),
