@@ -600,7 +600,7 @@ int block_info_reply(ship_client_t *c, uint32_t block) {
 
     /* Fill in the string. */
     sprintf(string, "BLOCK%02d\n\n%d %s\n%d %s", b->b, players,
-            __(c, "Player(s)"), games, __(c, "Team(s)"));
+            __(c, "Users"), games, __(c, "Teams"));
 
     /* Send the information away. */
     return send_info_reply(c, string);
