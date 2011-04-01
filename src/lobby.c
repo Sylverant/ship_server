@@ -20,6 +20,7 @@
 #include <string.h>
 
 #include <sylverant/mtwist.h>
+#include <sylverant/debug.h>
 
 #include "lobby.h"
 #include "utils.h"
@@ -858,7 +859,7 @@ int lobby_info_reply(ship_client_t *c, uint32_t lobby) {
 
 /* Check if a single player is legit enough for the lobby. */
 int lobby_check_player_legit(lobby_t *l, ship_t *s, player_t *pl, uint32_t v) {
-    int j, rv = 1;
+    int j, rv = 1, irv = 1;
     sylverant_iitem_t *item;
 
     /* If we don't have a legit mode set, then everyone's legit! */
@@ -868,9 +869,17 @@ int lobby_check_player_legit(lobby_t *l, ship_t *s, player_t *pl, uint32_t v) {
     }
 
     /* Look through each item */
-    for(j = 0; j < pl->v1.inv.item_count && rv; ++j) {
+    for(j = 0; j < pl->v1.inv.item_count; ++j) {
         item = (sylverant_iitem_t *)&pl->v1.inv.items[j];
-        rv = sylverant_limits_check_item(s->limits, item, v);
+        irv = sylverant_limits_check_item(s->limits, item, v);
+
+        if(!irv) {
+            debug(DBG_LOG, "Potentially non-legit item in legit mode:\n"
+                  "%08x %08x %08x %08x\n", LE32(item->data_l[0]), 
+                  LE32(item->data_l[1]), LE32(item->data_l[2]),
+                  LE32(item->data_l[0]));
+            rv = irv;
+        }
     }
 
     return rv;
