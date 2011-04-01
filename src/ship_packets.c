@@ -792,9 +792,6 @@ static int send_pc_lobby_join(ship_client_t *c, lobby_t *l) {
     int i, pls = 0;
     uint16_t pkt_size = 0x10;
     iconv_t ic;
-    size_t in, out;
-    ICONV_CONST char *inptr;
-    char *outptr;
     uint8_t event = l->event;
     
     /* Verify we got the sendbuf. */
@@ -843,11 +840,8 @@ static int send_pc_lobby_join(ship_client_t *c, lobby_t *l) {
         pkt->entries[pls].hdr.client_id = LE32(i);
 
         /* Convert the name to UTF-16. */
-        in = strlen(l->clients[i]->pl->v1.name) + 1;
-        out = 32;
-        inptr = l->clients[i]->pl->v1.name;
-        outptr = (char *)pkt->entries[pls].hdr.name;
-        iconv(ic, &inptr, &in, &outptr, &out);
+        istrncpy(ic, (char *)pkt->entries[pls].hdr.name,
+                 l->clients[i]->pl->v1.name, 32);
 
         memcpy(&pkt->entries[pls].data, &l->clients[i]->pl->v1,
                sizeof(v1_player_t));
@@ -976,9 +970,6 @@ static int send_pc_lobby_add_player(lobby_t *l, ship_client_t *c,
     uint8_t *sendbuf = get_sendbuf();
     pc_lobby_join_pkt *pkt = (pc_lobby_join_pkt *)sendbuf;
     iconv_t ic;
-    size_t in, out;
-    ICONV_CONST char *inptr;
-    char *outptr;
     
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -1021,12 +1012,7 @@ static int send_pc_lobby_add_player(lobby_t *l, ship_client_t *c,
     pkt->entries[0].hdr.client_id = LE32(nc->client_id);
 
     /* Convert the name to UTF-16. */
-    in = strlen(nc->pl->v1.name) + 1;
-    out = 32;
-    inptr = nc->pl->v1.name;
-    outptr = (char *)pkt->entries[0].hdr.name;
-    iconv(ic, &inptr, &in, &outptr, &out);
-
+    istrncpy(ic, (char *)pkt->entries[0].hdr.name, nc->pl->v1.name, 32);
     memcpy(&pkt->entries[0].data, &nc->pl->v1, sizeof(v1_player_t));
 
     /* Send it away */
@@ -1434,9 +1420,6 @@ static int send_pc_guild_reply(ship_client_t *c, uint32_t gc, in_addr_t ip,
     pc_guild_reply_pkt *pkt = (pc_guild_reply_pkt *)sendbuf;
     char tmp[0x44];
     iconv_t ic;
-    size_t in, out;
-    ICONV_CONST char *inptr;
-    char *outptr;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -1468,18 +1451,11 @@ static int send_pc_guild_reply(ship_client_t *c, uint32_t gc, in_addr_t ip,
     pkt->item_id = LE32(lobby);
 
     /* Fill in the location string... */
-    in = sprintf(tmp, "%s,BLOCK%02d,%s", game, block, ship) + 1;
-    out = 0x88;
-    inptr = tmp;
-    outptr = (char *)pkt->location;
-    iconv(ic, &inptr, &in, &outptr, &out);
+    sprintf(tmp, "%s,BLOCK%02d,%s", game, block, ship);
+    istrncpy(ic, (char *)pkt->location, tmp, 0x88);
 
     /* ...and the name. */
-    in = strlen(name) + 1;
-    out = 0x40;
-    inptr = name;
-    outptr = (char *)pkt->name;
-    iconv(ic, &inptr, &in, &outptr, &out);
+    istrncpy(ic, (char *)pkt->name, name, 0x40);
 
     iconv_close(ic);
 
@@ -1534,9 +1510,6 @@ static int send_pc_guild_reply_sg(ship_client_t *c, dc_guild_reply_pkt *dc) {
     uint8_t *sendbuf = get_sendbuf();
     pc_guild_reply_pkt *pkt = (pc_guild_reply_pkt *)sendbuf;
     iconv_t ic;
-    size_t in, out;
-    ICONV_CONST char *inptr;
-    char *outptr;
     uint16_t port = LE16(dc->port);
 
     /* Verify we got the sendbuf. */
@@ -1568,19 +1541,9 @@ static int send_pc_guild_reply_sg(ship_client_t *c, dc_guild_reply_pkt *dc) {
     pkt->menu_id = dc->menu_id;
     pkt->item_id = dc->item_id;
 
-    /* Fill in the location string... */
-    in = strlen(dc->location) + 1;
-    out = 0x88;
-    inptr = dc->location;
-    outptr = (char *)pkt->location;
-    iconv(ic, &inptr, &in, &outptr, &out);
-
-    /* ...and the name. */
-    in = strlen(dc->name) + 1;
-    out = 0x40;
-    inptr = dc->name;
-    outptr = (char *)pkt->name;
-    iconv(ic, &inptr, &in, &outptr, &out);
+    /* Fill in the location string and the name*/
+    istrncpy(ic, (char *)pkt->location, dc->location, 0x88);
+    istrncpy(ic, (char *)pkt->name, dc->name, 0x40);
 
     iconv_close(ic);
 
@@ -1795,9 +1758,6 @@ static int send_pc_game_join(ship_client_t *c, lobby_t *l) {
     pc_game_join_pkt *pkt = (pc_game_join_pkt *)sendbuf;
     int clients = 0, i;
     iconv_t ic;
-    size_t in, out;
-    ICONV_CONST char *inptr;
-    char *outptr;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -1843,11 +1803,8 @@ static int send_pc_game_join(ship_client_t *c, lobby_t *l) {
             pkt->players[i].client_id = LE32(i);
 
             /* Convert the name to UTF-16. */
-            in = strlen(l->clients[i]->pl->v1.name) + 1;
-            out = 32;
-            inptr = l->clients[i]->pl->v1.name;
-            outptr = (char *)pkt->players[i].name;
-            iconv(ic, &inptr, &in, &outptr, &out);
+            istrncpy(ic, (char *)pkt->players[i].name,
+                     l->clients[i]->pl->v1.name, 32);
             ++clients;
         }
     }
@@ -2064,9 +2021,6 @@ static int send_pc_game_list(ship_client_t *c, block_t *b) {
     int entries = 1, len = 0x30;
     lobby_t *l;
     iconv_t ic, ic2;
-    size_t in, out;
-    ICONV_CONST char *inptr;
-    char *outptr;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -2099,11 +2053,7 @@ static int send_pc_game_list(ship_client_t *c, block_t *b) {
     pkt->entries[0].item_id = 0xFFFFFFFF;
     pkt->entries[0].flags = 0x04;
 
-    in = strlen(b->ship->cfg->name) + 1;
-    out = 0x20;
-    inptr = b->ship->cfg->name;
-    outptr = (char *)pkt->entries[0].name;
-    iconv(ic2, &inptr, &in, &outptr, &out);
+    istrncpy(ic2, (char *)pkt->entries[0].name, b->ship->cfg->name, 0x20);
 
     TAILQ_FOREACH(l, &b->lobbies, qentry) {
         /* Ignore default lobbies and Gamecube games */
@@ -2128,16 +2078,11 @@ static int send_pc_game_list(ship_client_t *c, block_t *b) {
             (l->v2 ? 0x40 : 0x00);
 
         /* Copy the name */
-        in = strlen(l->name);
-        out = 0x20;
-        inptr = l->name;
-        outptr = (char *)pkt->entries[entries].name;
-
         if(l->name[1] == 'J') {
-            iconv(ic, &inptr, &in, &outptr, &out);
+            istrncpy(ic, (char *)pkt->entries[entries].name, l->name, 0x20);
         }
         else {
-            iconv(ic2, &inptr, &in, &outptr, &out);
+            istrncpy(ic2, (char *)pkt->entries[entries].name, l->name, 0x20);
         }
 
         /* Unlock the lobby */
@@ -2371,9 +2316,6 @@ static int send_pc_info_list(ship_client_t *c, ship_t *s) {
     pc_block_list_pkt *pkt = (pc_block_list_pkt *)sendbuf;
     int i, len = 0x30;
     iconv_t ic;
-    size_t in, out;
-    ICONV_CONST char *inptr;
-    char *outptr;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -2399,11 +2341,7 @@ static int send_pc_info_list(ship_client_t *c, ship_t *s) {
     pkt->entries[0].item_id = 0;
     pkt->entries[0].flags = 0;
 
-    in = strlen(s->cfg->name) + 1;
-    out = 0x20;
-    inptr = s->cfg->name;
-    outptr = (char *)pkt->entries[0].name;
-    iconv(ic, &inptr, &in, &outptr, &out);
+    istrncpy(ic, (char *)pkt->entries[0].name, s->cfg->name, 0x20);
 
     /* Add each info item to the list. */
     for(i = 1; i <= s->cfg->info_file_count; ++i) {
@@ -2415,11 +2353,8 @@ static int send_pc_info_list(ship_client_t *c, ship_t *s) {
         pkt->entries[i].item_id = LE32((i - 1));
         pkt->entries[i].flags = LE16(0x0000);
 
-        in = strlen(s->cfg->info_files_desc[i - 1]) + 1;
-        out = 0x20;
-        inptr = s->cfg->info_files_desc[i - 1];
-        outptr = (char *)pkt->entries[i].name;
-        iconv(ic, &inptr, &in, &outptr, &out);
+        istrncpy(ic, (char *)pkt->entries[i].name,
+                 s->cfg->info_files_desc[i - 1], 0x20);
 
         len += 0x2C;
     }
@@ -2460,9 +2395,6 @@ int send_pc_game_type_sel(ship_client_t *c) {
     const char str2[16] = "PSOv2 Only";
     const char str3[16] = "PSOPC Only";
     iconv_t ic;
-    size_t in, out;
-    ICONV_CONST char *inptr;
-    char *outptr;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -2484,44 +2416,25 @@ int send_pc_game_type_sel(ship_client_t *c) {
     pkt->entries[0].item_id = 0;
     pkt->entries[0].flags = 0;
 
-    in = strlen(s->cfg->name) + 1;
-    out = 0x20;
-    inptr = s->cfg->name;
-    outptr = (char *)pkt->entries[0].name;
-    iconv(ic, &inptr, &in, &outptr, &out);
+    istrncpy(ic, (char *)pkt->entries[0].name, s->cfg->name, 0x20);
 
     /* Add the "Allow PSOv1" entry */
     pkt->entries[1].menu_id = LE32(MENU_ID_GAME_TYPE);
     pkt->entries[1].item_id = LE32(0);
     pkt->entries[1].flags = 0;
-
-    in = strlen(str1) + 1;
-    out = 0x20;
-    inptr = (char *)str1;
-    outptr = (char *)pkt->entries[1].name;
-    iconv(ic, &inptr, &in, &outptr, &out);
+    istrncpy(ic, (char *)pkt->entries[1].name, str1, 0x20);
 
     /* Add the "PSOv2 Only" entry */
     pkt->entries[2].menu_id = LE32(MENU_ID_GAME_TYPE);
     pkt->entries[2].item_id = LE32(1);
     pkt->entries[2].flags = 0;
-
-    in = strlen(str2) + 1;
-    out = 0x20;
-    inptr = (char *)str2;
-    outptr = (char *)pkt->entries[2].name;
-    iconv(ic, &inptr, &in, &outptr, &out);
+    istrncpy(ic, (char *)pkt->entries[2].name, str2, 0x20);
 
     /* Add the "PSOPC Only" entry */
     pkt->entries[3].menu_id = LE32(MENU_ID_GAME_TYPE);
     pkt->entries[3].item_id = LE32(2);
     pkt->entries[3].flags = 0;
-
-    in = strlen(str3) + 1;
-    out = 0x20;
-    inptr = (char *)str3;
-    outptr = (char *)pkt->entries[3].name;
-    iconv(ic, &inptr, &in, &outptr, &out);
+    istrncpy(ic, (char *)pkt->entries[3].name, str3, 0x20);
 
     iconv_close(ic);
 
@@ -3774,6 +3687,7 @@ static int send_dc_quest_info(ship_client_t *c, sylverant_quest_t *q) {
         outt = 0x248;
     }
 
+    /* Convert to the right encoding */
     in = 0x124;
     out = outt;
     inptr = q->long_desc;
@@ -5535,14 +5449,18 @@ static int send_dc_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
     /* Fill in the basics. */
     pkt->hdr.pkt_type = SHIP_LIST_TYPE;
 
-    /* Fill in the "DATABASE/JP" entry */
+    /* Fill in the "SHIP/US" entry */
     memset(&pkt->entries[0], 0, 0x1C);
     pkt->entries[0].menu_id = LE32(MENU_ID_SHIP);
     pkt->entries[0].item_id = 0;
     pkt->entries[0].flags = LE16(0x0004);
-    strcpy(pkt->entries[0].name, "DATABASE/JP");
+    strcpy(pkt->entries[0].name, "SHIP/US");
     pkt->entries[0].name[0x11] = 0x08;
     entries = 1;
+
+    tmp[0] = (char)(menu_code);
+    tmp[1] = (char)(menu_code >> 8);
+    tmp[2] = '\0';
 
     TAILQ_FOREACH(i, &s->ships, qentry) {
         if(i->ship_id && i->menu_code == menu_code) {
@@ -5562,7 +5480,9 @@ static int send_dc_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
             pkt->entries[entries].menu_id = LE32(MENU_ID_SHIP);
             pkt->entries[entries].item_id = LE32(i->ship_id);
             pkt->entries[entries].flags = 0;
-            strcpy(pkt->entries[entries].name, i->name);
+
+            sprintf(pkt->entries[entries].name, "%02x:%s%s%s", i->ship_number,
+                    tmp, tmp[0] ? "/" : "", i->name);
 
             ++entries;
             len += 0x1C;
@@ -5592,10 +5512,10 @@ static int send_dc_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
 
             /* Create the name string */
             if(tmp[0] && tmp[1]) {
-                sprintf(pkt->entries[entries].name, "\tC6%s Ship List", tmp);
+                sprintf(pkt->entries[entries].name, "SHIP/%s", tmp);
             }
             else {
-                strcpy(pkt->entries[entries].name, "\tC6Main Ships");
+                strcpy(pkt->entries[entries].name, "SHIP/Main");
             }
 
             /* We're done with this ship, increment the counter */
@@ -5618,9 +5538,6 @@ static int send_pc_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
     pc_ship_list_pkt *pkt = (pc_ship_list_pkt *)sendbuf;
     int len = 0x30, entries = 0, j;
     iconv_t ic = iconv_open("UTF-16LE", "ASCII");
-    size_t in, out;
-    ICONV_CONST char *inptr;
-    char *outptr;
     miniship_t *i;
     char tmp[18], tmp2[3];
 
@@ -5640,13 +5557,17 @@ static int send_pc_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
     /* Fill in the basics. */
     pkt->hdr.pkt_type = SHIP_LIST_TYPE;
 
-    /* Fill in the "DATABASE/JP" entry */
+    /* Fill in the "SHIP/US" entry */
     memset(&pkt->entries[0], 0, 0x1C);
     pkt->entries[0].menu_id = LE32(MENU_ID_SHIP);
     pkt->entries[0].item_id = 0;
     pkt->entries[0].flags = LE16(0x0004);
-    memcpy(pkt->entries[0].name, "D\0A\0T\0A\0B\0A\0S\0E\0/\0J\0P\0", 22);
+    memcpy(pkt->entries[0].name, "S\0H\0I\0P\0/\0U\0S\0", 14);
     entries = 1;
+
+    tmp2[0] = (char)(menu_code);
+    tmp2[1] = (char)(menu_code >> 8);
+    tmp2[2] = '\0';
 
     TAILQ_FOREACH(i, &s->ships, qentry) {
         if(i->ship_id && i->menu_code == menu_code) {
@@ -5667,12 +5588,11 @@ static int send_pc_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
             pkt->entries[entries].item_id = LE32(i->ship_id);
             pkt->entries[entries].flags = 0;
 
+            sprintf(tmp, "%02x:%s%s%s", i->ship_number, tmp2,
+                    tmp2[0] ? "/" : "", i->name);
+
             /* Convert the name to UTF-16 */
-            in = strlen(i->name) + 1;
-            out = 0x22;
-            inptr = i->name;
-            outptr = (char *)pkt->entries[entries].name;
-            iconv(ic, &inptr, &in, &outptr, &out);
+            istrncpy(ic, (char *)pkt->entries[entries].name, tmp, 0x22);
 
             ++entries;
             len += 0x2C;
@@ -5703,20 +5623,16 @@ static int send_pc_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
 
             /* Create the name string (UTF-8) */
             if(tmp2[0] && tmp2[1]) {
-                sprintf(tmp, "\tC6%s Ship List", tmp2);
+                sprintf(tmp, "SHIP/%s", tmp2);
             }
             else {
-                strcpy(tmp, "\tC6Main Ships");
+                strcpy(tmp, "SHIP/Main");
             }
 
             /* And convert to UTF-16 */
-            in = strlen(tmp);
-            out = 0x22;
-            inptr = tmp;
-            outptr = (char *)pkt->entries[entries].name;
-            iconv(ic, &inptr, &in, &outptr, &out);
+            istrncpy(ic, (char *)pkt->entries[entries].name, tmp, 0x22);
 
-            /* We're done with this ship, increment the counter */
+            /* We're done with this "ship", increment the counter */
             ++entries;
             len += 0x2C;
         }
@@ -5880,9 +5796,6 @@ static int send_pc_choice_search(ship_client_t *c) {
     uint16_t len = 4 + 0x3C * CS_OPTIONS_COUNT;
     uint16_t i;
     iconv_t ic;
-    size_t in, out;
-    ICONV_CONST char *inptr;
-    char *outptr;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -5908,11 +5821,7 @@ static int send_pc_choice_search(ship_client_t *c) {
         pkt->entries[i].item_id = LE16(cs_options[i].item_id);
 
         /* Convert the text to UTF-16 */
-        in = strlen(cs_options[i].text) + 1;
-        out = 0x38;
-        inptr = cs_options[i].text;
-        outptr = (char *)pkt->entries[i].text;
-        iconv(ic, &inptr, &in, &outptr, &out);
+        istrncpy(ic, (char *)pkt->entries[i].text, cs_options[i].text, 0x38);
     }
 
     iconv_close(ic);
@@ -6034,9 +5943,6 @@ static int send_pc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
     uint8_t entries = 0;
     int i, j;
     iconv_t ic;
-    size_t in, out;
-    ICONV_CONST char *inptr;
-    char *outptr;
     ship_t *s;
     block_t *b;
     ship_client_t *it;
@@ -6092,26 +5998,18 @@ static int send_pc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
                     memset(&pkt->entries[entries], 0, 0x154);
                     pkt->entries[entries].guildcard = LE32(it->guildcard);
 
-                    in = strlen(it->pl->v1.name) + 1;
-                    out = 0x20;
-                    inptr = it->pl->v1.name;
-                    outptr = (char *)pkt->entries[entries].name;
-                    iconv(ic, &inptr, &in, &outptr, &out);
+                    istrncpy(ic, (char *)pkt->entries[entries].name,
+                             it->pl->v1.name, 0x20);
 
-                    in = sprintf(tmp, "%s Lvl %d\n",
-                                 classes[it->pl->v1.ch_class],
-                                 it->pl->v1.level + 1) + 1;
-                    out = 0x40;
-                    inptr = tmp;
-                    outptr = (char *)pkt->entries[entries].cl_lvl;
-                    iconv(ic, &inptr, &in, &outptr, &out);
+                    sprintf(tmp, "%s Lvl %d\n", classes[it->pl->v1.ch_class],
+                            it->pl->v1.level + 1);
+                    istrncpy(ic, (char *)pkt->entries[entries].cl_lvl, tmp,
+                             0x40);
 
-                    in = sprintf(tmp, "%s,BLOCK%02d,%s", it->cur_lobby->name,
-                                 it->cur_block->b, s->cfg->name) + 1;
-                    out = 0x60;
-                    inptr = tmp;
-                    outptr = (char *)pkt->entries[entries].location;
-                    iconv(ic, &inptr, &in, &outptr, &out);
+                    sprintf(tmp, "%s,BLOCK%02d,%s", it->cur_lobby->name,
+                            it->cur_block->b, s->cfg->name);
+                    istrncpy(ic, (char *)pkt->entries[entries].location, tmp,
+                             0x60);
 
                     pkt->entries[entries].ip = a;
                     pkt->entries[entries].port = LE16(b->pc_port);
@@ -6347,14 +6245,13 @@ static int send_pc_simple_mail_dc(ship_client_t *c, dc_simple_mail_pkt *p) {
     pkt->gc_sender = p->gc_sender;
     pkt->gc_dest = p->gc_dest;
 
-    /* Convert the name. */
+    /* Convert the name and the text. */
     in = 0x10;
     out = 0x20;
     inptr = p->name;
     outptr = (char *)pkt->name;
     iconv(ic, &inptr, &in, &outptr, &out);
 
-    /* Convert the first instance of text. */
     in = 0x90;
     out = 0x120;
     inptr = p->stuff;
