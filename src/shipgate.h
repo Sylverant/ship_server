@@ -180,7 +180,8 @@ typedef struct shipgate_ship_status {
     uint16_t clients;
     uint16_t games;
     uint16_t menu_code;
-    uint16_t reserved;
+    uint8_t  ship_number;
+    uint8_t  reserved;
 } PACKED shipgate_ship_status_pkt;
 
 /* A packet sent to/from clients to save/restore character data. */

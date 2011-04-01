@@ -641,7 +641,7 @@ static int handle_sstatus(shipgate_conn_t *conn, shipgate_ship_status_pkt *p) {
     uint16_t status = ntohs(p->status);
     uint32_t sid = ntohl(p->ship_id);
     ship_t *s = conn->ship;
-    miniship_t *i, *j;
+    miniship_t *i, *j, *k;
     uint16_t code = 0;
     void *tmp;
 
@@ -717,11 +717,8 @@ static int handle_sstatus(shipgate_conn_t *conn, shipgate_ship_status_pkt *p) {
             menu_code_sort(s->menu_codes, s->mccount);
         }
 
+        /* Copy the ship data */
         memset(i, 0, sizeof(miniship_t));
-
-        /* Add the new ship, and copy its data */
-        TAILQ_INSERT_TAIL(&s->ships, i, qentry);
-
         memcpy(i->name, p->name, 12);
         i->ship_id = sid;
         i->ship_addr = p->ship_addr;
@@ -731,6 +728,25 @@ static int handle_sstatus(shipgate_conn_t *conn, shipgate_ship_status_pkt *p) {
         i->games = ntohs(p->games);
         i->menu_code = code;
         i->flags = ntohl(p->flags);
+        i->ship_number = p->ship_number;
+
+        /* Add the new ship to the list */
+        j = TAILQ_FIRST(&s->ships);
+        if(j && j->ship_number < i->ship_number) {
+            /* Figure out where this entry is going. */
+            while(j && i->ship_number > j->ship_number) {
+                k = j;
+                j = TAILQ_NEXT(j, qentry);
+            }
+
+            /* We've got the spot to put it at, so add it in. */
+            TAILQ_INSERT_AFTER(&s->ships, k, i, qentry);
+        }
+        else {
+            /* Nothing here (or the first entry goes after this one), add us to
+               the front of the list. */
+            TAILQ_INSERT_HEAD(&s->ships, i, qentry);
+        }
     }
 
     return 0;
