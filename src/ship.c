@@ -1093,7 +1093,11 @@ static int dc_process_info_req(ship_client_t *c, dc_select_pkt *pkt) {
             TAILQ_FOREACH(i, &s->ships, qentry) {
                 if(i->ship_id == item_id) {
                     char string[256];
-                    sprintf(string, "%s\n\n%d %s\n%d %s", i->name, i->clients,
+                    char tmp[3] = { (char)i->menu_code,
+                        (char)(i->menu_code >> 8), 0 };
+
+                    sprintf(string, "%02x:%s%s%s\n%d %s\n%d %s", i->ship_number,
+                            tmp, tmp[0] ? "/" : "", i->name, i->clients,
                             __(c, "Users"), i->games, __(c, "Teams"));
                     return send_info_reply(c, string);
                 }

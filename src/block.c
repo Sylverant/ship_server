@@ -599,7 +599,7 @@ int block_info_reply(ship_client_t *c, uint32_t block) {
     pthread_mutex_unlock(&b->mutex);
 
     /* Fill in the string. */
-    sprintf(string, "BLOCK%02d\n\n%d %s\n%d %s", b->b, players,
+    sprintf(string, "BLOCK%02d\n%d %s\n%d %s", b->b, players,
             __(c, "Users"), games, __(c, "Teams"));
 
     /* Send the information away. */
@@ -1884,8 +1884,12 @@ static int dc_process_info_req(ship_client_t *c, dc_select_pkt *pkt) {
             TAILQ_FOREACH(i, &s->ships, qentry) {
                 if(i->ship_id == item_id) {
                     char string[256];
-                    sprintf(string, "%s\n\n%d %s\n%d %s", i->name, i->clients,
-                            __(c, "Player(s)"), i->games, __(c, "Teams(s)"));
+                    char tmp[3] = { (char)i->menu_code,
+                        (char)(i->menu_code >> 8), 0 };
+
+                    sprintf(string, "%02x:%s%s%s\n%d %s\n%d %s", i->ship_number,
+                            tmp, tmp[0] ? "/" : "", i->name, i->clients,
+                            __(c, "Users"), i->games, __(c, "Teams"));
                     return send_info_reply(c, string);
                 }
             }
