@@ -34,6 +34,18 @@
 #include "utils.h"
 #include "bans.h"
 
+miniship_t *ship_find_ship(ship_t *s, uint32_t sid) {
+    miniship_t *i;
+
+    TAILQ_FOREACH(i, &s->ships, qentry) {
+        if(i->ship_id == sid) {
+            return i;
+        }
+    }
+
+    return NULL;
+}
+
 static void clean_shiplist(ship_t *s) {
     miniship_t *i, *tmp;
 

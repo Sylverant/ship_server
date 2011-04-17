@@ -36,7 +36,7 @@ typedef struct ship ship_t;
 
 #define PACKED __attribute__((packed))
 
-#define SHIPGATE_PROTO_VER  4
+#define SHIPGATE_PROTO_VER  5
 
 /* The header that is prepended to any packets sent to the shipgate. */
 typedef struct shipgate_hdr {
@@ -296,6 +296,38 @@ typedef struct shipgate_kick_req {
     char reason[64];
 } PACKED shipgate_kick_pkt;
 
+/* Packet to send a portion of the user's friend list to the ship, including
+   online/offline status. */
+typedef struct shipgate_friend_list {
+    shipgate_hdr_t hdr;
+    uint32_t requester;
+    uint32_t block;
+    struct {
+        uint32_t guildcard;
+        uint32_t ship;
+        uint32_t block;
+        uint32_t reserved;
+        char name[32];
+    } entries[];
+} PACKED shipgate_friend_list_pkt;
+
+/* Packet to request a portion of the friend list be sent */
+typedef struct shipgate_friend_list_req {
+    shipgate_hdr_t hdr;
+    uint32_t requester;
+    uint32_t block;
+    uint32_t start;
+    uint32_t reserved;
+} PACKED shipgate_friend_list_req;
+
+/* Packet to send a global message to all ships */
+typedef struct shipgate_global_msg {
+    shipgate_hdr_t hdr;
+    uint32_t requester;
+    uint32_t reserved;
+    char text[];                        /* UTF-8, padded to 8-byte boundary */
+} PACKED shipgate_global_msg_pkt;
+
 #undef PACKED
 
 /* Size of the shipgate login packet. */
@@ -333,6 +365,8 @@ static const char shipgate_login_msg[] =
 #define SHDR_TYPE_LOBBYCHG  0x001F      /* A user changes lobbies */
 #define SHDR_TYPE_BCLIENTS  0x0020      /* A bulk transfer of client info */
 #define SHDR_TYPE_KICK      0x0021      /* A kick request */
+#define SHDR_TYPE_FRLIST    0x0022      /* Friend list request/reply */
+#define SHDR_TYPE_GLOBALMSG 0x0023      /* A Global message packet */
 
 /* Flags that can be set in the login packet */
 #define LOGIN_FLAG_GMONLY   0x00000001  /* Only Global GMs are allowed */
@@ -341,6 +375,7 @@ static const char shipgate_login_msg[] =
 #define LOGIN_FLAG_NOV2     0x00000020  /* Do not allow DCv2 clients */
 #define LOGIN_FLAG_NOPC     0x00000040  /* Do not allow PSOPC clients */
 #define LOGIN_FLAG_NOEP12   0x00000080  /* Do not allow PSO Ep1&2 clients */
+#define LOGIN_FLAG_NOEP3    0x00000100  /* Do not allow PSO Ep3 clients */
 
 /* General error codes */
 #define ERR_NO_ERROR            0x00000000
@@ -437,4 +472,13 @@ int shipgate_send_clients(shipgate_conn_t *c);
 /* Send a kick packet */
 int shipgate_send_kick(shipgate_conn_t *c, uint32_t requester, uint32_t user,
                        const char *reason);
+
+/* Send a friend list request packet */
+int shipgate_send_frlist_req(shipgate_conn_t *c, uint32_t gc, uint32_t block,
+                             uint32_t start);
+
+/* Send a global message packet */
+int shipgate_send_global_msg(shipgate_conn_t *c, uint32_t gc,
+                             const char *text);
+
 #endif /* !SHIPGATE_H */

@@ -114,6 +114,8 @@ struct ship {
 typedef struct ship ship_t;
 #endif
 
+miniship_t *ship_find_ship(ship_t *s, uint32_t sid);
+
 ship_t *ship_server_start(sylverant_ship_t *s);
 void ship_server_stop(ship_t *s);
 void ship_server_shutdown(ship_t *s, time_t when);

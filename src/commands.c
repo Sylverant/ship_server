@@ -2438,6 +2438,42 @@ static int handle_qlang(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return send_txt(c, "%s", __(c, "\tE\tC7Invalid language code"));
 }
 
+/* Usage /friends page */
+static int handle_friends(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    ship_t *s = c->cur_ship;
+    block_t *b = c->cur_block;
+    uint32_t page;
+
+    /* Figure out the user requested */
+    errno = 0;
+    page = (uint32_t)strtoul(params, NULL, 10);
+
+    if(errno != 0) {
+        /* Send a message saying invalid page number */
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Page"));
+    }
+
+    /* Send the request to the shipgate */
+    return shipgate_send_frlist_req(&s->sg, c->guildcard, b->b, page * 5);
+}
+
+/* Usage /gbc message */
+static int handle_gbc(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    ship_t *s = c->cur_ship;
+
+    /* Make sure the requester is a Global GM. */
+    if(!GLOBAL_GM(c)) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
+    }
+
+    /* Make sure there's a message to send */
+    if(!strlen(params)) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Forget something?"));
+    }
+
+    return shipgate_send_global_msg(&s->sg, c->guildcard, params);
+}
+
 static command_t cmds[] = {
     { "warp"     , handle_warp      },
     { "kill"     , handle_kill      },
@@ -2498,6 +2534,8 @@ static command_t cmds[] = {
     { "unban"    , handle_unban     },
     { "cc"       , handle_cc        },
     { "qlang"    , handle_qlang     },
+    { "friends"  , handle_friends   },
+    { "gbc"      , handle_gbc       },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 
@@ -2548,12 +2586,12 @@ int wcommand_parse(ship_client_t *c, dc_chat_pkt *pkt) {
     unsigned char buf[len];
     dc_chat_pkt *p2 = (dc_chat_pkt *)buf;
 
-    ic = iconv_open("ISO-8859-1", "UTF-16LE");
+    ic = iconv_open("UTF-8", "UTF-16LE");
     if(ic == (iconv_t)-1) {
         return -1;
     }
 
-    /* Convert the text to ISO-8859-1. */
+    /* Convert the text to UTF-8. */
     in = out = tlen;
     inptr = pkt->msg;
     outptr = p2->msg;

@@ -1414,6 +1414,129 @@ out:
     return 0;
 }
 
+static int handle_frlist(shipgate_conn_t *c, shipgate_friend_list_pkt *pkt) {
+    ship_t *s = c->ship;
+    block_t *b;
+    ship_client_t *i;
+    uint32_t gc = ntohl(pkt->requester), gc2;
+    uint32_t block = ntohl(pkt->block), bl2, ship;
+    int j, total;
+    char msg[1024];
+    miniship_t *ms;
+
+    /* Check the block number first. */
+    if(block > s->cfg->blocks) {
+        return 0;
+    }
+
+    b = s->blocks[block - 1];
+    pthread_mutex_lock(&b->mutex);
+
+    total = ntohs(pkt->hdr.pkt_unc_len) - sizeof(shipgate_friend_list_pkt);
+
+    if(!total) {
+        strcpy(msg, __(i, "\tENo friends at that offset."));
+    }
+    else {
+        msg[0] = '\0';
+    }
+
+    /* Find the requested client. */
+    TAILQ_FOREACH(i, b->clients, qentry) {
+        if(i->guildcard == gc) {
+            pthread_mutex_lock(&i->mutex);
+
+            for(j = 0; total; ++j, total -= 48) {
+                ship = ntohl(pkt->entries[j].ship);
+                bl2 = ntohl(pkt->entries[j].block);
+                gc2 = ntohl(pkt->entries[j].guildcard);
+
+                if(ship && block) {
+                    /* Grab the ship the user is on */
+                    ms = ship_find_ship(s, ship);
+
+                    if(!ms) {
+                        continue;
+                    }
+
+                    /* Fill in the message */
+                    if(ms->menu_code) {
+                        sprintf(msg, "%s\tC2%s (%d)\n\tC7%02x:%c%c/%s "
+                                "BLOCK%02d\n", msg, pkt->entries[j].name, gc2,
+                                ms->ship_number, (char)(ms->menu_code),
+                                (char)(ms->menu_code >> 8), ms->name, bl2);
+                    }
+                    else {
+                        sprintf(msg, "%s\tC2%s (%d)\n\tC7%02x:%s BLOCK%02d\n",
+                                msg, pkt->entries[j].name, gc2, ms->ship_number,
+                                ms->name, bl2);
+                    }
+                }
+                else {
+                    /* Not online? Much easier to deal with! */
+                    sprintf(msg, "%s\tC4%s (%d)\n", msg, pkt->entries[j].name,
+                            gc2);
+                }
+            }
+
+            /* Send the message to the user */
+            if(send_message_box(i, "%s", msg)) {
+                i->flags |= CLIENT_FLAG_DISCONNECTED;
+            }
+
+            pthread_mutex_unlock(&i->mutex);
+
+            goto out;
+        }
+    }
+
+out:
+    pthread_mutex_unlock(&b->mutex);
+    return 0;
+}
+
+static int handle_globalmsg(shipgate_conn_t *c, shipgate_global_msg_pkt *pkt) {
+    uint16_t text_len;
+    ship_t *s = c->ship;
+    int i;
+    block_t *b;
+    ship_client_t *i2;
+
+    /* Make sure the message looks sane */
+    text_len = ntohs(pkt->hdr.pkt_len) - sizeof(shipgate_global_msg_pkt);
+
+    /* Make sure the string is NUL terminated */
+    if(pkt->text[text_len - 1]) {
+        debug(DBG_WARN, "Ignoring Non-terminated global msg\n");
+        return 0;
+    }
+
+    /* Go through each block and send the message to anyone that is alive. */
+    for(i = 0; i < s->cfg->blocks; ++i) {
+        b = s->blocks[i];
+
+        if(b && b->run) {
+            pthread_mutex_lock(&b->mutex);
+
+            /* Send the message to each player. */
+            TAILQ_FOREACH(i2, b->clients, qentry) {
+                pthread_mutex_lock(&i2->mutex);
+
+                if(i2->pl) {
+                    send_txt(i2, "%s\n%s", __(i2, "\tE\tC7Global Message:"),
+                             pkt->text);
+                }
+
+                pthread_mutex_unlock(&i2->mutex);
+            }
+
+            pthread_mutex_unlock(&b->mutex);
+        }
+    }
+
+    return 0;
+}
+
 static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
     uint16_t type = ntohs(pkt->pkt_type);
     uint16_t flags = ntohs(pkt->flags);
@@ -1515,6 +1638,12 @@ static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
 
             case SHDR_TYPE_KICK:
                 return handle_kick(conn, (shipgate_kick_pkt *)pkt);
+
+            case SHDR_TYPE_FRLIST:
+                return handle_frlist(conn, (shipgate_friend_list_pkt *)pkt);
+
+            case SHDR_TYPE_GLOBALMSG:
+                return handle_globalmsg(conn, (shipgate_global_msg_pkt *)pkt);
         }
     }
 
@@ -2099,4 +2228,61 @@ int shipgate_send_kick(shipgate_conn_t *c, uint32_t requester, uint32_t user,
 
     /* Send the packet away */
     return send_crypt(c, sizeof(shipgate_kick_pkt), sendbuf);
+}
+
+/* Send a friend list request packet */
+int shipgate_send_frlist_req(shipgate_conn_t *c, uint32_t gc, uint32_t block,
+                             uint32_t start) {
+    uint8_t *sendbuf = get_sendbuf();
+    shipgate_friend_list_req *pkt = (shipgate_friend_list_req *)sendbuf;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Fill in the packet */
+    pkt->hdr.pkt_len = htons(sizeof(shipgate_friend_list_req));
+    pkt->hdr.pkt_type = htons(SHDR_TYPE_FRLIST);
+    pkt->hdr.pkt_unc_len = pkt->hdr.pkt_len;
+    pkt->hdr.flags = htons(SHDR_NO_DEFLATE);
+
+    pkt->requester = htonl(gc);
+    pkt->block = htonl(block);
+    pkt->start = htonl(start);
+
+    /* Send the packet away */
+    return send_crypt(c, sizeof(shipgate_friend_list_req), sendbuf);
+}
+
+/* Send a global message packet */
+int shipgate_send_global_msg(shipgate_conn_t *c, uint32_t gc,
+                             const char *text) {
+    uint8_t *sendbuf = get_sendbuf();
+    shipgate_global_msg_pkt *pkt = (shipgate_global_msg_pkt *)sendbuf;
+    uint16_t text_len = strlen(text) + 1, tl2 = (text_len + 7) & 0xFFF8;
+    uint16_t len = tl2 + sizeof(shipgate_global_msg_pkt);
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Make sure its sane */
+    if(text_len > 0x100 || !text) {
+        return -1;
+    }
+
+    /* Fill in the packet */
+    pkt->hdr.pkt_len = htons(len);
+    pkt->hdr.pkt_type = htons(SHDR_TYPE_GLOBALMSG);
+    pkt->hdr.pkt_unc_len = pkt->hdr.pkt_len;
+    pkt->hdr.flags = htons(SHDR_NO_DEFLATE);
+
+    pkt->requester = htonl(gc);
+    memcpy(pkt->text, text, text_len);
+    memset(pkt->text + text_len, 0, tl2 - text_len);
+
+    /* Send the packet away */
+    return send_crypt(c, len, sendbuf);
 }
