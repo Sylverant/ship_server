@@ -641,6 +641,7 @@ int lobby_change_lobby(ship_client_t *c, lobby_t *req) {
     else {
         send_game_join(c, c->cur_lobby);
         c->cur_lobby->flags |= LOBBY_FLAG_BURSTING;
+        c->flags |= CLIENT_FLAG_BURSTING;
     }
 
     /* ...and let his/her new lobby know that he/she has arrived. */

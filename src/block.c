@@ -1500,6 +1500,7 @@ static int dc_process_done_burst(ship_client_t *c) {
     pthread_mutex_lock(&l->mutex);
 
     l->flags &= ~LOBBY_FLAG_BURSTING;
+    c->flags &= ~CLIENT_FLAG_BURSTING;
 
     /* Handle the end of burst stuff with the lobby */
     rv = send_simple(c, PING_TYPE, 0) | lobby_handle_done_burst(l);
@@ -1894,8 +1895,7 @@ static int dc_process_info_req(ship_client_t *c, dc_select_pkt *pkt) {
                 }
             }
 
-            return send_info_reply(c,
-                                   __(c, "\tE\tC4That ship is now\noffline."));
+            return 0;
         }
 
         default:
