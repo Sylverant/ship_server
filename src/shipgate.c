@@ -1434,17 +1434,16 @@ static int handle_frlist(shipgate_conn_t *c, shipgate_friend_list_pkt *pkt) {
 
     total = ntohs(pkt->hdr.pkt_unc_len) - sizeof(shipgate_friend_list_pkt);
 
-    if(!total) {
-        strcpy(msg, __(i, "\tENo friends at that offset."));
-    }
-    else {
-        msg[0] = '\0';
-    }
+    msg[0] = '\0';
 
     /* Find the requested client. */
     TAILQ_FOREACH(i, b->clients, qentry) {
         if(i->guildcard == gc) {
             pthread_mutex_lock(&i->mutex);
+
+            if(!total) {
+                strcpy(msg, __(i, "\tENo friends at that offset."));
+            }
 
             for(j = 0; total; ++j, total -= 48) {
                 ship = ntohl(pkt->entries[j].ship);
