@@ -1399,60 +1399,75 @@
         <evp max="20" />
     </item>
 
-    <!-- Shields -->
+    <!-- Shields 
+
+         A quick note about the DFP/EVP values in here. There's a bug with some versions of
+         PSO (at least the PC port) where the items that get dropped are potentially not legit.
+         When this happens, the max values for EVP and DFP get reversed, and the item is dropped
+         based on this incorrect assignment. All of the shields in here have what their "true"
+         DFP limit should be commented out (and the DFP and EVP are both checked against the same
+         value. -->
     <!-- TRIPOLIC SHIELD -->
     <item code="0x280201">
         <versions v1="true" v2="true" />
-        <dfp max="15" />
+        <!-- <dfp max="15" /> -->
+        <dfp max="50" />
         <evp max="50" />
     </item>
 
     <!-- STANDSTILL SHIELD -->
     <item code="0x290201">
         <versions v1="true" v2="true" />
-        <dfp max="15" />
+        <!-- <dfp max="15" /> -->
+        <dfp max="50" />
         <evp max="50" />
     </item>
 
     <!-- KASAMI BRACER -->
     <item code="0x2B0201">
         <versions v1="true" v2="true" />
-        <dfp max="15" />
+        <!-- <dfp max="15" /> -->
+        <dfp max="50" />
         <evp max="50" />
     </item>
 
     <!-- GODS SHIELD SUZAKU -->
     <item code="0x2C0201">
         <versions v1="true" v2="true" />
-        <dfp max="15" />
+        <!-- <dfp max="15" /> -->
+        <dfp max="50" />
         <evp max="50" />
     </item>
 
     <!-- GODS SHIELD GENBU -->
     <item code="0x2D0201">
         <versions v1="true" v2="true" />
-        <dfp max="15" />
+        <!-- <dfp max="15" /> -->
+        <dfp max="50" />
         <evp max="50" />
     </item>
 
     <!-- GODS SHIELD BYAKKO -->
     <item code="0x2E0201">
         <versions v1="true" v2="true" />
-        <dfp max="15" />
+        <!-- <dfp max="15" /> -->
+        <dfp max="50" />
         <evp max="50" />
     </item>
 
     <!-- GODS SHIELD SEIRYU -->
     <item code="0x2F0201">
         <versions v1="true" v2="true" />
-        <dfp max="15" />
+        <!-- <dfp max="15" /> -->
+        <dfp max="50" />
         <evp max="50" />
     </item>
 
     <!-- HUNTER'S SHELL -->
     <item code="0x300201">
         <versions v1="true" v2="true" />
-        <dfp max="15" />
+        <!-- <dfp max="15" /> -->
+        <dfp max="50" />
         <evp max="50" />
     </item>
 
@@ -1473,7 +1488,8 @@
     <!-- SECURE FEET -->
     <item code="0x350201">
         <versions v1="true" v2="true" />
-        <dfp max="15" />
+        <!-- <dfp max="15" /> -->
+        <dfp max="50" />
         <evp max="50" />
     </item>
 
