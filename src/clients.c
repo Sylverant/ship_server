@@ -15,6 +15,10 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#ifdef HAVE_PYTHON
+#include <Python.h>
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -32,6 +36,12 @@
 #include "utils.h"
 #include "clients.h"
 #include "ship_packets.h"
+#include "scripts.h"
+
+#ifdef HAVE_PYTHON
+/* Forward declaration */
+static PyObject *client_pyobj_create(ship_client_t *c);
+#endif
 
 /* The key for accessing our thread-specific receive buffer. */
 pthread_key_t recvbuf_key;
@@ -87,6 +97,7 @@ ship_client_t *client_create_connection(int sock, int version, int type,
         if(!rv->pl) {
             perror("malloc");
             free(rv);
+            close(sock);
             return NULL;
         }
 
@@ -106,6 +117,14 @@ ship_client_t *client_create_connection(int sock, int version, int type,
         rv->flags |= CLIENT_FLAG_TYPE_SHIP;
     }
 
+#ifdef HAVE_PYTHON
+    rv->pyobj = client_pyobj_create(rv);
+    
+    if(!rv->pyobj) {
+        goto err;
+    }
+#endif
+
     switch(version) {
         case CLIENT_VERSION_DCV1:
         case CLIENT_VERSION_DCV2:
@@ -120,14 +139,7 @@ ship_client_t *client_create_connection(int sock, int version, int type,
 
             /* Send the client the welcome packet, or die trying. */
             if(send_dc_welcome(rv, server_seed_dc, client_seed_dc)) {
-                close(sock);
-
-                if(type == CLIENT_TYPE_BLOCK) {
-                    free(rv->pl);
-                }
-
-                free(rv);
-                return NULL;
+                goto err;
             }
 
             break;
@@ -144,14 +156,7 @@ ship_client_t *client_create_connection(int sock, int version, int type,
 
             /* Send the client the welcome packet, or die trying. */
             if(send_dc_welcome(rv, server_seed_dc, client_seed_dc)) {
-                close(sock);
-
-                if(type == CLIENT_TYPE_BLOCK) {
-                    free(rv->pl);
-                }
-
-                free(rv);
-                return NULL;
+                goto err;
             }
 
             break;
@@ -168,6 +173,20 @@ ship_client_t *client_create_connection(int sock, int version, int type,
     ship_inc_clients(ship);
 
     return rv;
+
+err:
+    close(sock);
+
+    if(type == CLIENT_TYPE_BLOCK) {
+        free(rv->pl);
+    }
+
+#ifdef HAVE_PYTHON
+    Py_XDECREF(rv->pyobj);
+#endif
+
+    free(rv);
+    return NULL;
 }
 
 /* Destroy a connection, closing the socket and removing it from the list. */
@@ -227,6 +246,10 @@ void client_destroy_connection(ship_client_t *c, struct client_queue *clients) {
     if(c->pl) {
         free(c->pl);
     }
+
+#ifdef HAVE_PYTHON
+    Py_XDECREF(c->pyobj);
+#endif
 
     free(c);
 }
@@ -503,3 +526,169 @@ void client_send_friendmsg(ship_client_t *c, int on, const char *fname,
              on ? __(c, "online") : __(c, "offline"), __(c, "Character: "),
              fname, ship, (int)block);
 }
+
+#ifdef HAVE_PYTHON
+
+/* Basic client class structure */
+typedef struct client_pyobj {
+    PyObject_HEAD
+    ship_client_t *client;
+} ClientObject;
+
+/* Destroy a Client object */
+static void Client_dealloc(ClientObject *self) {
+    self->ob_type->tp_free((PyObject *)self);
+}
+
+/* Get the user's guildcard number */
+static PyObject *Client_guildcard(ClientObject *self) {
+    if(!self->client) {
+        return NULL;
+    }
+
+    return Py_BuildValue("k", (unsigned long)self->client->guildcard);
+}
+
+/* Is the client a block client? */
+static PyObject *Client_isOnBlock(ClientObject *self) {
+    if(!self->client) {
+        return NULL;
+    }
+
+    if(!(self->client->flags & CLIENT_FLAG_TYPE_SHIP)) {
+        Py_RETURN_TRUE;
+    }
+
+    Py_RETURN_FALSE;
+}
+
+/* Disconnect the client */
+static PyObject *Client_disconnect(ClientObject *self) {
+    if(!self->client) {
+        return NULL;
+    }
+
+    self->client->flags |= CLIENT_FLAG_DISCONNECTED;
+    Py_RETURN_NONE;
+}
+
+/* Get the user's IPv4 address */
+static PyObject *Client_addr(ClientObject *self) {
+    if(!self->client) {
+        return NULL;
+    }
+
+    return PyString_FromStringAndSize((const char *)&self->client->addr, 4);
+}
+
+/* Get the user's version */
+static PyObject *Client_version(ClientObject *self) {
+    if(!self->client) {
+        return NULL;
+    }
+
+    return Py_BuildValue("i", self->client->version);
+}
+
+/* Get the user's client ID */
+static PyObject *Client_clientID(ClientObject *self) {
+    if(!self->client) {
+        return NULL;
+    }
+
+    return Py_BuildValue("i", self->client->client_id);
+}
+
+/* Get the user's privilege level */
+static PyObject *Client_privilege(ClientObject *self) {
+    if(!self->client) {
+        return NULL;
+    }
+    
+    return Py_BuildValue("B", self->client->privilege);
+}
+
+/* List of methods available to the Client class */
+static PyMethodDef Client_methods[] = {
+    { "guildcard", (PyCFunction)Client_guildcard, METH_NOARGS,
+        "Return the guildcard number" },
+    { "isOnBlock", (PyCFunction)Client_isOnBlock, METH_NOARGS,
+        "Returns True if the client is on a block" },
+    { "disconnect", (PyCFunction)Client_disconnect, METH_NOARGS,
+        "Disconnect the client" },
+    { "addr", (PyCFunction)Client_addr, METH_NOARGS,
+        "Get the IPv4 address of the client" },
+    { "version", (PyCFunction)Client_version, METH_NOARGS,
+        "Get the version of PSO the user is playing" },
+    { "clientID", (PyCFunction)Client_clientID, METH_NOARGS,
+        "Get the user's client ID" },
+    { "privilege", (PyCFunction)Client_privilege, METH_NOARGS,
+        "Get the user's privilege level" },
+    { NULL }
+};
+
+static PyTypeObject sylverant_ClientType = {
+    PyObject_HEAD_INIT(NULL)
+    0,                              /* ob_size */
+    "sylverant.Client",             /* tp_name */
+    sizeof(ClientObject),           /* tp_basicsize */
+    0,                              /* tp_itemsize */
+    (destructor)Client_dealloc,     /* tp_dealloc */
+    0,                              /* tp_print */
+    0,                              /* tp_getattr */
+    0,                              /* tp_setattr */
+    0,                              /* tp_compare */
+    0,                              /* tp_repr */
+    0,                              /* tp_as_number */
+    0,                              /* tp_as_sequence */
+    0,                              /* tp_as_mapping */
+    0,                              /* tp_hash */
+    0,                              /* tp_call */
+    0,                              /* tp_str */
+    0,                              /* tp_getattro */
+    0,                              /* tp_setattro */
+    0,                              /* tp_as_buffer */
+    Py_TPFLAGS_DEFAULT,             /* tp_flags */
+    "Ship Server Clients",          /* tp_doc */
+    0,                              /* tp_traverse */
+    0,                              /* tp_clear */
+    0,                              /* tp_richcompare */
+    0,                              /* tp_weaklistoffset */
+    0,                              /* tp_iter */
+    0,                              /* tp_iternext */
+    Client_methods,                 /* tp_methods */
+    0,                              /* tp_members */
+    0,                              /* tp_getset */
+    0,                              /* tp_base */
+    0,                              /* tp_dict */
+    0,                              /* tp_descr_get */
+    0,                              /* tp_descr_set */
+    0,                              /* tp_dictoffset */
+    0,                              /* tp_init */
+    0,                              /* tp_alloc */
+    PyType_GenericNew,              /* tp_new */
+};
+
+void client_init_scripting(PyObject *m) {
+    if(PyType_Ready(&sylverant_ClientType) < 0)
+        return;
+
+    Py_INCREF(&sylverant_ClientType);
+
+    PyModule_AddObject(m, "Client", (PyObject *)&sylverant_ClientType);
+}
+
+/* Get a Client object for Python */
+static PyObject *client_pyobj_create(ship_client_t *c) {
+    ClientObject *rv;
+
+    rv = PyObject_New(ClientObject, &sylverant_ClientType);
+
+    if(rv) {
+        rv->client = c;
+    }
+
+    return (PyObject *)rv;
+}
+
+#endif /* HAVE_PYTHON */

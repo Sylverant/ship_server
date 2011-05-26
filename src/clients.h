@@ -27,6 +27,10 @@
 #ifndef CLIENTS_H
 #define CLIENTS_H
 
+#ifdef HAVE_PYTHON
+#include <Python.h>
+#endif
+
 #include <time.h>
 #include <inttypes.h>
 #include <pthread.h>
@@ -118,6 +122,10 @@ struct ship_client {
     time_t last_message;
     time_t last_sent;
     time_t join_time;
+
+#ifdef HAVE_PYTHON
+    PyObject *pyobj;
+#endif
 };
 
 #define CLIENT_PRIV_LOCAL_GM    0x01
@@ -225,6 +233,13 @@ int client_has_ignored(ship_client_t *c, uint32_t gc);
 /* Send a message to a client telling them that a friend has logged on/off */
 void client_send_friendmsg(ship_client_t *c, int on, const char *fname,
                            const char *ship, uint32_t block, const char *nick);
+
+#ifdef HAVE_PYTHON
+
+/* Initialize the Client class for Python */
+void client_init_scripting(PyObject *m);
+
+#endif
 
 #endif /* !CLIENTS_H */
 #endif /* !CLIENTS_H_COUNTS_ONLY */

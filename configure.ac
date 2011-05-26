@@ -1,7 +1,7 @@
 dnl
 dnl This file is part of Sylverant PSO Server.
 dnl
-dnl Copyright (C) 2009 Lawrence Sebald
+dnl Copyright (C) 2009, 2011 Lawrence Sebald
 dnl
 dnl This program is free software: you can redistribute it and/or modify
 dnl it under the terms of the GNU Affero General Public License version 3
@@ -41,6 +41,15 @@ LIBS="$LIBS $libxml2_LIBS"
 AC_CHECK_LIB([sylverant], [sylverant_read_config], , AC_MSG_ERROR([libsylverant is required!]))
 AC_CHECK_LIB([crypto], [RC4], , AC_MSG_ERROR([libcrypto is required!]))
 AC_CHECK_LIB([mini18n], [mini18n_get], , AC_MSG_WARN([Internationalization support requires mini18n]))
+
+AM_PATH_PYTHON([2.5], , AC_MSG_WARN([Scripting support requires Python >= 2.5]))
+
+# Add Python's flags into the mix if its enabled.
+if test "$PYTHON" != ":" ; then
+    CFLAGS="$CFLAGS `python-config --cflags` -DHAVE_PYTHON"
+    LIBS="$LIBS `python-config --libs`"
+    LDFLAGS="$LDFLAGS `python-config --ldflags`"
+fi
 
 AM_ICONV
 AM_ICONV_LINK

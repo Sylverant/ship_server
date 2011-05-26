@@ -26,6 +26,7 @@
 #include <sylverant/debug.h>
 
 #include "utils.h"
+#include "clients.h"
 
 #ifdef HAVE_LIBMINI18N
 mini18n_t langs[CLIENT_LANG_COUNT];
@@ -330,6 +331,17 @@ char *istrncpy16(iconv_t ic, char *outs, const uint16_t *ins, int out_len) {
     iconv(ic, &inptr, &in, &outptr, &out);
 
     return outptr;
+}
+
+void *xmalloc(size_t size) {
+    void *rv = malloc(size);
+
+    if(!rv) {
+        perror("malloc");
+        exit(EXIT_FAILURE);
+    }
+
+    return rv;
 }
 
 /* Initialize mini18n support. */

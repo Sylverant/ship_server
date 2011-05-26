@@ -32,6 +32,7 @@
 #include "clients.h"
 #include "shipgate.h"
 #include "utils.h"
+#include "scripts.h"
 
 /* Configuration data for the server. */
 sylverant_shipcfg_t *cfg;
@@ -220,6 +221,9 @@ int main(int argc, char *argv[]) {
     /* Init mini18n if we have it */
     init_i18n();
 
+    /* Init scripting support, if we have Python */
+    init_scripts();
+
     /* Start up the servers for the ships we've configured. */
     for(i = 0; i < cfg->ship_count; ++i) {
         ships[i] = ship_server_start(&cfg->ships[i]);
@@ -242,6 +246,7 @@ int main(int argc, char *argv[]) {
         pthread_setspecific(recvbuf_key, NULL);
     }
 
+    cleanup_scripts();
     cleanup_i18n();
     client_shutdown();
     sylverant_free_ship_config(cfg);

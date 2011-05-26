@@ -1168,6 +1168,10 @@ static int handle_shutdown(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
         }
     }
 
+    /* Log the event to the log file */
+    debug(DBG_LOG, "Ship server shutdown scheduled for %d minutes by %u\n",
+          when, c->guildcard);
+
     ship_server_shutdown(s, time(NULL) + (when * 60));
     return 0;
 }
