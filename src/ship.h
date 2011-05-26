@@ -95,6 +95,7 @@ struct ship {
     shipgate_conn_t sg;
     pthread_rwlock_t qlock;
     sylverant_limits_t *limits;
+    pthread_rwlock_t llock;
 
     local_gm_t *gm_list;
     int gm_count;

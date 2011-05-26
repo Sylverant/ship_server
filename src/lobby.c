@@ -863,9 +863,12 @@ int lobby_check_player_legit(lobby_t *l, ship_t *s, player_t *pl, uint32_t v) {
     int j, rv = 1, irv = 1;
     sylverant_iitem_t *item;
 
+    pthread_rwlock_rdlock(&s->llock);
+
     /* If we don't have a legit mode set, then everyone's legit! */
     if(!s->limits || (!(l->flags & LOBBY_FLAG_LEGIT_MODE) &&
                       !(l->flags & LOBBY_FLAG_LEGIT_CHECK))) {
+        pthread_rwlock_unlock(&s->llock);
         return 1;
     }
 
@@ -882,6 +885,8 @@ int lobby_check_player_legit(lobby_t *l, ship_t *s, player_t *pl, uint32_t v) {
             rv = irv;
         }
     }
+
+    pthread_rwlock_unlock(&s->llock);
 
     return rv;
 }

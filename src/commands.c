@@ -275,6 +275,7 @@ static int handle_refresh(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     sylverant_quest_list_t quests;
     sylverant_quest_list_t qlist[CLIENT_VERSION_COUNT][CLIENT_LANG_COUNT];
     quest_map_t qmap;
+    sylverant_limits_t *limits, *tmplimits;
     int i, j;
     char fn[512];
 
@@ -366,6 +367,25 @@ static int handle_refresh(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
         }
         else {
             return send_txt(c, "%s", __(c, "\tE\tC7No configured GM list!"));
+        }
+    }
+    else if(!strcmp(params, "limits")) {
+        if(s->cfg->limits_file[0]) {
+            if(sylverant_read_limits(s->cfg->limits_file, &limits)) {
+                return send_txt(c, "%s", __(c, "\tE\tC7Couldn't read limits!"));
+            }
+
+            pthread_rwlock_wrlock(&s->llock);
+            tmplimits = s->limits;
+            s->limits = limits;
+            pthread_rwlock_unlock(&s->llock);
+
+            sylverant_free_limits(tmplimits);
+
+            return send_txt(c, "%s", __(c, "\tE\tC7Updated limits"));
+        }
+        else {
+            return send_txt(c, "%s", __(c, "\tE\tC7No configured limits!"));
         }
     }
     else {

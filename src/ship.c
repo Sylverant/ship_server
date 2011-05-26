@@ -406,6 +406,7 @@ static void *ship_thd(void *d) {
     ban_list_clear(s);
     pthread_rwlock_destroy(&s->banlock);
     pthread_rwlock_destroy(&s->qlock);
+    pthread_rwlock_destroy(&s->llock);
     sylverant_free_limits(s->limits);
     shipgate_cleanup(&s->sg);
     free(s->motd);
@@ -735,6 +736,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     /* Fill in the structure. */
     pthread_rwlock_init(&rv->qlock, NULL);
     pthread_rwlock_init(&rv->banlock, NULL);
+    pthread_rwlock_init(&rv->llock, NULL);
     TAILQ_INIT(rv->clients);
     TAILQ_INIT(&rv->ships);
     TAILQ_INIT(&rv->guildcard_bans);
@@ -758,6 +760,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
         ban_list_clear(rv);
         pthread_rwlock_destroy(&rv->banlock);
         pthread_rwlock_destroy(&rv->qlock);
+        pthread_rwlock_destroy(&rv->llock);
         sylverant_free_limits(rv->limits);
         free(rv->gm_list);
         sylverant_quests_destroy(&rv->quests);
@@ -780,6 +783,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
         ban_list_clear(rv);
         pthread_rwlock_destroy(&rv->banlock);
         pthread_rwlock_destroy(&rv->qlock);
+        pthread_rwlock_destroy(&rv->llock);
         shipgate_cleanup(&rv->sg);
         sylverant_free_limits(rv->limits);
         free(rv->gm_list);
@@ -808,6 +812,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
         ban_list_clear(rv);
         pthread_rwlock_destroy(&rv->banlock);
         pthread_rwlock_destroy(&rv->qlock);
+        pthread_rwlock_destroy(&rv->llock);
         sylverant_free_limits(rv->limits);
         shipgate_cleanup(&rv->sg);
         free(rv->motd);
