@@ -123,6 +123,8 @@ ship_client_t *client_create_connection(int sock, int version, int type,
     if(!rv->pyobj) {
         goto err;
     }
+
+    script_execute(ScriptActionClientLogin, rv->pyobj, NULL);
 #endif
 
     switch(version) {
@@ -195,6 +197,10 @@ void client_destroy_connection(ship_client_t *c, struct client_queue *clients) {
     char tstr[26];
 
     TAILQ_REMOVE(clients, c, qentry);
+
+#ifdef HAVE_PYTHON
+    script_execute(ScriptActionClientLogout, c->pyobj, NULL);
+#endif
 
     /* If the user was on a block, notify the shipgate */
     if(!(c->flags & CLIENT_FLAG_TYPE_SHIP) && c->pl->v1.name[0]) {

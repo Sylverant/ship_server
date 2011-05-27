@@ -48,6 +48,26 @@ typedef struct script_entry {
     PyObject *module;
 } script_entry_t;
 
+/* Scriptable actions */
+typedef enum script_action {
+    ScriptActionInvalid = -1,
+    ScriptActionFirst = 0,
+    ScriptActionClientLogin = 0,
+    ScriptActionClientLogout,
+    ScriptActionCount
+} script_action_t;
+
+typedef struct script_event {
+    PyObject *function;
+    script_entry_t *module;
+} script_event_t;
+
+void script_eventlist_clear();
+int script_eventlist_read(const char *fn);
+
+/* Call the script function for the given event with the args listed */
+int script_execute(script_action_t event, ...);
+
 script_entry_t *script_lookup(const char *filename, uint32_t *hashv);
 script_entry_t *script_add(const char *filename);
 void script_remove_entry(script_entry_t *entry);
