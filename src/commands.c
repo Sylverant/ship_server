@@ -1062,6 +1062,18 @@ static int handle_legit(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
                         __(c, "\tE\tC7Only the leader may use this command."));
     }
 
+    /* If we're not in normal mode, then this command doesn't do anything... */
+    if((l->flags & LOBBY_FLAG_LEGIT_MODE)) {
+        pthread_mutex_unlock(&l->mutex);
+        return send_txt(c, "%s", __(c, "\tE\tC7Already in legit mode."));
+    }
+
+    /* Make sure we're not already checking for legitness... */
+    if((l->flags & LOBBY_FLAG_LEGIT_CHECK)) {
+        pthread_mutex_unlock(&l->mutex);
+        return send_txt(c, "%s", __(c, "\tE\tC7Legit check in progress..."));
+    }
+
     /* Set the temporarily unavailable flag on the lobby so that we can do the
        legit check, as well as legit check flag (so we know that we're doing the
        legit check). */
@@ -2498,6 +2510,19 @@ static int handle_gbc(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return shipgate_send_global_msg(&s->sg, c->guildcard, params);
 }
 
+/* Usage /logout */
+static int handle_logout(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    /* See if they're logged in first */
+    if(!(c->flags & CLIENT_FLAG_LOGGED_IN)) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Not logged in."));
+    }
+
+    /* Clear the logged in status. */
+    c->flags &= ~CLIENT_FLAG_LOGGED_IN;
+
+    return send_txt(c, "%s", __(c, "\tE\tC7Logged out."));
+}
+
 static command_t cmds[] = {
     { "warp"     , handle_warp      },
     { "kill"     , handle_kill      },
@@ -2560,6 +2585,7 @@ static command_t cmds[] = {
     { "qlang"    , handle_qlang     },
     { "friends"  , handle_friends   },
     { "gbc"      , handle_gbc       },
+    { "logout"   , handle_logout    },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 
