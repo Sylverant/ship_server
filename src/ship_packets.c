@@ -3300,7 +3300,13 @@ static int send_dc_quest_list_new(ship_client_t *c, int cn, int lang) {
         elem = (quest_map_elem_t *)quest->user_data;
 
         /* Skip quests that aren't for the current event */
-        if(!(quest->event & (1 << c->cur_lobby->event))) {
+        if(!(quest->event & (1 << l->event))) {
+            continue;
+        }
+
+        /* Skip quests where the number of players isn't in range. */
+        if(quest->max_players < l->num_clients ||
+           quest->min_players > l->num_clients) {
             continue;
         }
 
@@ -3416,7 +3422,13 @@ static int send_pc_quest_list_new(ship_client_t *c, int cn, int lang) {
         elem = (quest_map_elem_t *)quest->user_data;
 
         /* Skip quests that aren't for the current event */
-        if(!(quest->event & (1 << c->cur_lobby->event))) {
+        if(!(quest->event & (1 << l->event))) {
+            continue;
+        }
+
+        /* Skip quests where the number of players isn't in range. */
+        if(quest->max_players < l->num_clients ||
+           quest->min_players > l->num_clients) {
             continue;
         }
 
@@ -3546,7 +3558,13 @@ static int send_gc_quest_list_new(ship_client_t *c, int cn, int lang) {
         elem = (quest_map_elem_t *)quest->user_data;
 
         /* Skip quests that aren't for the current event */
-        if(!(quest->event & (1 << c->cur_lobby->event))) {
+        if(!(quest->event & (1 << l->event))) {
+            continue;
+        }
+
+        /* Skip quests where the number of players isn't in range. */
+        if(quest->max_players < l->num_clients ||
+           quest->min_players > l->num_clients) {
             continue;
         }
 
