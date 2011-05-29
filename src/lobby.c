@@ -778,16 +778,16 @@ int lobby_info_reply(ship_client_t *c, uint32_t lobby) {
         legit = l->flags & LOBBY_FLAG_LEGIT_MODE;
         questing = l->flags & LOBBY_FLAG_QUESTING;
 
-        sprintf(msg, "%s:%d:%02d:%02d\n"    /* Game time */
+        sprintf(msg, "%s: %d:%02d:%02d\n"   /* Game time */
                 "%s: %s\n"                  /* Legit/normal mode */
                 "%s\n"                      /* Questing/Free adventure */
                 "%s: %d-%d\n"               /* Levels allowed */
-                "%s:",                      /* Versions allowed */
+                "%s:\n",                    /* Versions allowed */
                 __(c, "\tETime"), h, m, s,
                 __(c, "Mode"), legit ? __(c, "Legit") : __(c, "Normal"),
                 questing ? __(c, "Questing") : __(c, "Free Adventure"),
-                __(c, "Level"), l->min_level, l->max_level,
-                __(c, "Versions"));
+                __(c, "Level Range"), l->min_level, l->max_level,
+                __(c, "Versions Allowed"));
 
         /* Figure out what versions are allowed. */
         if(l->version == CLIENT_VERSION_GC) {
