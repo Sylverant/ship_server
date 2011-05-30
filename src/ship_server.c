@@ -21,12 +21,14 @@
 #include <unistd.h>
 #include <netdb.h>
 #include <pthread.h>
+#include <signal.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 
 #include <sylverant/config.h>
 #include <sylverant/debug.h>
+#include <sylverant/mtwist.h>
 
 #include "ship.h"
 #include "clients.h"
@@ -184,6 +186,21 @@ static void open_log() {
     debug_set_file(dbgfp);
 }
 
+/* Install any handlers for signals we care about */
+static void install_signal_handlers() {
+    struct sigaction sa;
+
+    sigemptyset(&sa.sa_mask);
+
+    /* Ignore SIGPIPEs */
+    sa.sa_handler = SIG_IGN;
+
+    if(sigaction(SIGPIPE, &sa, NULL) == -1) {
+        perror("sigaction");
+        exit(EXIT_FAILURE);
+    }
+}
+
 int main(int argc, char *argv[]) {
     int i;
     void *tmp;
@@ -223,6 +240,10 @@ int main(int argc, char *argv[]) {
 
     /* Init scripting support, if we have Python */
     init_scripts();
+
+    /* Initialize the random number generator and install signal handlers */
+    init_genrand(time(NULL));
+    install_signal_handlers();
 
     /* Start up the servers for the ships we've configured. */
     for(i = 0; i < cfg->ship_count; ++i) {
