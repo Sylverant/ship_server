@@ -881,7 +881,7 @@ int lobby_check_player_legit(lobby_t *l, ship_t *s, player_t *pl, uint32_t v) {
             debug(DBG_LOG, "Potentially non-legit item in legit mode:\n"
                   "%08x %08x %08x %08x\n", LE32(item->data_l[0]), 
                   LE32(item->data_l[1]), LE32(item->data_l[2]),
-                  LE32(item->data_l[0]));
+                  LE32(item->data2_l));
             rv = irv;
         }
     }
