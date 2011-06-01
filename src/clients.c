@@ -38,6 +38,12 @@
 #include "ship_packets.h"
 #include "scripts.h"
 
+#ifdef UNUSED
+#undef UNUSED
+#endif
+
+#define UNUSED __attribute__((unused))
+
 #ifdef HAVE_PYTHON
 /* Forward declaration */
 static PyObject *client_pyobj_create(ship_client_t *c);
@@ -112,6 +118,11 @@ ship_client_t *client_create_connection(int sock, int version, int type,
     rv->addr = addr;
     rv->arrow = 1;
     rv->last_message = time(NULL);
+    rv->hdr_size = 4;
+
+    /* Make sure any packets sent early bail... */
+    rv->ckey.type = 0xFF;
+    rv->skey.type = 0xFF;
 
     if(type == CLIENT_TYPE_SHIP) {
         rv->flags |= CLIENT_FLAG_TYPE_SHIP;
@@ -137,7 +148,6 @@ ship_client_t *client_create_connection(int sock, int version, int type,
 
             CRYPT_CreateKeys(&rv->skey, &server_seed_dc, CRYPT_PC);
             CRYPT_CreateKeys(&rv->ckey, &client_seed_dc, CRYPT_PC);
-            rv->hdr_size = 4;
 
             /* Send the client the welcome packet, or die trying. */
             if(send_dc_welcome(rv, server_seed_dc, client_seed_dc)) {
@@ -154,7 +164,6 @@ ship_client_t *client_create_connection(int sock, int version, int type,
 
             CRYPT_CreateKeys(&rv->skey, &server_seed_dc, CRYPT_GAMECUBE);
             CRYPT_CreateKeys(&rv->ckey, &client_seed_dc, CRYPT_GAMECUBE);
-            rv->hdr_size = 4;
 
             /* Send the client the welcome packet, or die trying. */
             if(send_dc_welcome(rv, server_seed_dc, client_seed_dc)) {
@@ -547,7 +556,7 @@ static void Client_dealloc(ClientObject *self) {
 }
 
 /* Get the user's guildcard number */
-static PyObject *Client_guildcard(ClientObject *self) {
+static PyObject *Client_guildcard(ClientObject *self, PyObject *args UNUSED) {
     if(!self->client) {
         return NULL;
     }
@@ -556,7 +565,7 @@ static PyObject *Client_guildcard(ClientObject *self) {
 }
 
 /* Is the client a block client? */
-static PyObject *Client_isOnBlock(ClientObject *self) {
+static PyObject *Client_isOnBlock(ClientObject *self, PyObject *args UNUSED) {
     if(!self->client) {
         return NULL;
     }
@@ -569,7 +578,7 @@ static PyObject *Client_isOnBlock(ClientObject *self) {
 }
 
 /* Disconnect the client */
-static PyObject *Client_disconnect(ClientObject *self) {
+static PyObject *Client_disconnect(ClientObject *self, PyObject *args UNUSED) {
     if(!self->client) {
         return NULL;
     }
@@ -579,7 +588,7 @@ static PyObject *Client_disconnect(ClientObject *self) {
 }
 
 /* Get the user's IPv4 address */
-static PyObject *Client_addr(ClientObject *self) {
+static PyObject *Client_addr(ClientObject *self, PyObject *args UNUSED) {
     if(!self->client) {
         return NULL;
     }
@@ -588,7 +597,7 @@ static PyObject *Client_addr(ClientObject *self) {
 }
 
 /* Get the user's version */
-static PyObject *Client_version(ClientObject *self) {
+static PyObject *Client_version(ClientObject *self, PyObject *args UNUSED) {
     if(!self->client) {
         return NULL;
     }
@@ -597,7 +606,7 @@ static PyObject *Client_version(ClientObject *self) {
 }
 
 /* Get the user's client ID */
-static PyObject *Client_clientID(ClientObject *self) {
+static PyObject *Client_clientID(ClientObject *self, PyObject *args UNUSED) {
     if(!self->client) {
         return NULL;
     }
@@ -606,12 +615,44 @@ static PyObject *Client_clientID(ClientObject *self) {
 }
 
 /* Get the user's privilege level */
-static PyObject *Client_privilege(ClientObject *self) {
+static PyObject *Client_privilege(ClientObject *self, PyObject *args UNUSED) {
     if(!self->client) {
         return NULL;
     }
     
     return Py_BuildValue("B", self->client->privilege);
+}
+
+/* Send a packet to the client */
+static PyObject *Client_send(ClientObject *self, PyObject *args) {
+    unsigned char *pkt = NULL;
+    int pkt_len = 0, pkt_len2;
+
+    if(!self->client || self->client->skey.type == 0xFF) {
+        return NULL;
+    }
+
+    /* Grab the argument list */
+    if(!PyArg_ParseTuple(args, "s#:send", (char *)&pkt, &pkt_len)) {
+        return NULL;
+    }
+
+    /* Check the packet for sanity */
+    if(pkt_len < 4 || (pkt_len & 0x03)) {
+        return NULL;
+    }
+
+    pkt_len2 = pkt[2] | (pkt[3] << 8);
+    if(pkt_len2 != pkt_len) {
+        return NULL;
+    }
+
+    /* Send it away */
+    if(send_pkt_dc(self->client, (dc_pkt_hdr_t *)pkt)) {
+        return NULL;
+    }
+
+    Py_RETURN_NONE;
 }
 
 /* List of methods available to the Client class */
@@ -630,6 +671,8 @@ static PyMethodDef Client_methods[] = {
         "Get the user's client ID" },
     { "privilege", (PyCFunction)Client_privilege, METH_NOARGS,
         "Get the user's privilege level" },
+    { "send", (PyCFunction)Client_send, METH_VARARGS,
+        "Send a packet to the user" },
     { NULL }
 };
 
