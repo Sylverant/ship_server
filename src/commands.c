@@ -2457,6 +2457,7 @@ static int handle_cc(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 /* Usage: /qlang [2 character language code] */
 static int handle_qlang(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     int i;
+    ship_t *s = c->cur_ship;
 
     /* Make sure they only gave one character */
     if(strlen(params) != 2) {
@@ -2467,6 +2468,10 @@ static int handle_qlang(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     for(i = 0; i < CLIENT_LANG_COUNT; ++i) {
         if(!strcmp(language_codes[i], params)) {
             c->q_lang = i;
+
+            shipgate_send_user_opt(&s->sg, c->guildcard, c->cur_block->b,
+                                   USER_OPT_QUEST_LANG, 1, &c->q_lang);
+
             return send_txt(c, "%s", __(c, "\tE\tC7Quest language set"));
         }
     }

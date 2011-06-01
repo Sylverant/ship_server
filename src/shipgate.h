@@ -36,7 +36,7 @@ typedef struct ship ship_t;
 
 #define PACKED __attribute__((packed))
 
-#define SHIPGATE_PROTO_VER  5
+#define SHIPGATE_PROTO_VER  6
 
 /* The header that is prepended to any packets sent to the shipgate. */
 typedef struct shipgate_hdr {
@@ -328,6 +328,23 @@ typedef struct shipgate_global_msg {
     char text[];                        /* UTF-8, padded to 8-byte boundary */
 } PACKED shipgate_global_msg_pkt;
 
+/* An individual option for the options packet */
+typedef struct shipgate_user_opt {
+    uint32_t option;
+    uint32_t length;
+    uint8_t data[];
+} PACKED shipgate_user_opt_t;
+
+/* Packet used to send a user's settings to a ship */
+typedef struct shipgate_user_options {
+    shipgate_hdr_t hdr;
+    uint32_t guildcard;
+    uint32_t block;
+    uint32_t count;
+    uint32_t reserved;
+    shipgate_user_opt_t options[];
+} PACKED shipgate_user_opt_pkt;
+
 #undef PACKED
 
 /* Size of the shipgate login packet. */
@@ -367,6 +384,7 @@ static const char shipgate_login_msg[] =
 #define SHDR_TYPE_KICK      0x0021      /* A kick request */
 #define SHDR_TYPE_FRLIST    0x0022      /* Friend list request/reply */
 #define SHDR_TYPE_GLOBALMSG 0x0023      /* A Global message packet */
+#define SHDR_TYPE_USEROPT   0x0024      /* A user's options -- sent on login */
 
 /* Flags that can be set in the login packet */
 #define LOGIN_FLAG_GMONLY   0x00000001  /* Only Global GMs are allowed */
@@ -406,6 +424,9 @@ static const char shipgate_login_msg[] =
 #define ERR_BLOGIN_INVAL_NAME   0x00000001
 #define ERR_BLOGIN_ONLINE       0x00000002
 
+/* Possible values for user options */
+#define USER_OPT_QUEST_LANG     0x00000001
+
 /* Attempt to connect to the shipgate. Returns < 0 on error, returns 0 on
    success. */
 int shipgate_connect(ship_t *s, shipgate_conn_t *rv);
@@ -429,28 +450,28 @@ int shipgate_send_ship_info(shipgate_conn_t *c, ship_t *ship);
 int shipgate_send_cnt(shipgate_conn_t *c, uint16_t clients, uint16_t games);
 
 /* Forward a Dreamcast packet to the shipgate. */
-int shipgate_fw_dc(shipgate_conn_t *c, void *dcp);
+int shipgate_fw_dc(shipgate_conn_t *c, const void *dcp);
 
 /* Forward a PC packet to the shipgate. */
-int shipgate_fw_pc(shipgate_conn_t *c, void *pcp);
+int shipgate_fw_pc(shipgate_conn_t *c, const void *pcp);
 
 /* Send a ping packet to the server. */
 int shipgate_send_ping(shipgate_conn_t *c, int reply);
 
 /* Send the shipgate a character data save request. */
 int shipgate_send_cdata(shipgate_conn_t *c, uint32_t gc, uint32_t slot,
-                        void *cdata);
+                        const void *cdata);
 
 /* Send the shipgate a request for character data. */
 int shipgate_send_creq(shipgate_conn_t *c, uint32_t gc, uint32_t slot);
 
 /* Send a GM login request. */
 int shipgate_send_gmlogin(shipgate_conn_t *c, uint32_t gc, uint32_t block,
-                          char *username, char *password);
+                          const char *username, const char *password);
 
 /* Send a ban request. */
 int shipgate_send_ban(shipgate_conn_t *c, uint16_t type, uint32_t requester,
-                      uint32_t target, uint32_t until, char *msg);
+                      uint32_t target, uint32_t until, const char *msg);
 
 /* Send a friendlist update */
 int shipgate_send_friend_del(shipgate_conn_t *c, uint32_t user,
@@ -480,5 +501,9 @@ int shipgate_send_frlist_req(shipgate_conn_t *c, uint32_t gc, uint32_t block,
 /* Send a global message packet */
 int shipgate_send_global_msg(shipgate_conn_t *c, uint32_t gc,
                              const char *text);
+
+/* Send a user option update packet */
+int shipgate_send_user_opt(shipgate_conn_t *c, uint32_t gc, uint32_t block,
+                           uint32_t opt, uint32_t len, const uint8_t *data);
 
 #endif /* !SHIPGATE_H */

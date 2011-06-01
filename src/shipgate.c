@@ -42,8 +42,9 @@ extern sylverant_shipcfg_t *cfg;
 
 /* Forward declaration */
 static int send_greply(shipgate_conn_t *c, uint32_t gc1, uint32_t gc2,
-                       in_addr_t ip, uint16_t port, char game[], int block,
-                       char ship[], uint32_t lobby, char name[], uint32_t sid);
+                       in_addr_t ip, uint16_t port, const char *game, int block,
+                       const char *ship, uint32_t lobby, const char *name,
+                       uint32_t sid);
 
 /* Send a raw packet away. */
 static int send_raw(shipgate_conn_t *c, int len, uint8_t *sendbuf) {
@@ -293,7 +294,7 @@ int shipgate_reconnect(shipgate_conn_t *conn) {
 
 /* Send the shipgate a character data save request. */
 int shipgate_send_cdata(shipgate_conn_t *c, uint32_t gc, uint32_t slot,
-                        void *cdata) {
+                        const void *cdata) {
     uint8_t *sendbuf = get_sendbuf();
     shipgate_char_data_pkt *pkt = (shipgate_char_data_pkt *)sendbuf;
 
@@ -1536,6 +1537,62 @@ static int handle_globalmsg(shipgate_conn_t *c, shipgate_global_msg_pkt *pkt) {
     return 0;
 }
 
+static int  handle_useropt(shipgate_conn_t *c, shipgate_user_opt_pkt *pkt) {
+    ship_t *s = c->ship;
+    block_t *b;
+    ship_client_t *i;
+    uint32_t gc = ntohl(pkt->guildcard), block = ntohl(pkt->block);
+    uint8_t *optptr = (uint8_t *)pkt->options;
+    uint8_t *endptr = ((uint8_t *)pkt) + ntohs(pkt->hdr.pkt_unc_len);
+    shipgate_user_opt_t *opt = (shipgate_user_opt_t *)optptr;
+    uint32_t option, length;
+
+    /* Check the block number first. */
+    if(block > s->cfg->blocks) {
+        return 0;
+    }
+
+    b = s->blocks[block - 1];
+    pthread_mutex_lock(&b->mutex);
+
+    /* Find the requested client. */
+    TAILQ_FOREACH(i, b->clients, qentry) {
+        if(i->guildcard == gc) {
+            pthread_mutex_lock(&i->mutex);
+
+            /* Deal with the options */
+            while(optptr < endptr && opt->option != 0) {
+                option = ntohl(opt->option);
+                length = ntohl(opt->length);
+
+                switch(ntohl(opt->option)) {
+                    case USER_OPT_QUEST_LANG:
+                        /* Make sure the length is right */
+                        if(length != 16) {
+                            break;
+                        }
+
+                        /* Only byte of the data that's used is the first one.
+                           It has the language code in it. */
+                        i->q_lang = opt->data[0];
+                        break;
+                }
+
+                /* Adjust the pointers to the next option */
+                optptr = optptr + ntohl(opt->length);
+                opt = (shipgate_user_opt_t *)optptr;
+            }
+
+            pthread_mutex_unlock(&i->mutex);
+            goto out;
+        }
+    }
+
+out:
+    pthread_mutex_unlock(&b->mutex);
+    return 0;
+}
+
 static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
     uint16_t type = ntohs(pkt->pkt_type);
     uint16_t flags = ntohs(pkt->flags);
@@ -1643,6 +1700,15 @@ static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
 
             case SHDR_TYPE_GLOBALMSG:
                 return handle_globalmsg(conn, (shipgate_global_msg_pkt *)pkt);
+
+            case SHDR_TYPE_USEROPT:
+                /* We really should notify the user either way... but for now,
+                   punt. */
+                if(flags & (SHDR_RESPONSE | SHDR_FAILURE)) {
+                    return 0;
+                }
+
+                return handle_useropt(conn, (shipgate_user_opt_pkt *)pkt);
         }
     }
 
@@ -1838,9 +1904,9 @@ int shipgate_send_cnt(shipgate_conn_t *c, uint16_t clients, uint16_t games) {
 }
 
 /* Forward a Dreamcast packet to the shipgate. */
-int shipgate_fw_dc(shipgate_conn_t *c, void *dcp) {
+int shipgate_fw_dc(shipgate_conn_t *c, const void *dcp) {
     uint8_t *sendbuf = get_sendbuf();
-    dc_pkt_hdr_t *dc = (dc_pkt_hdr_t *)dcp;
+    const dc_pkt_hdr_t *dc = (const dc_pkt_hdr_t *)dcp;
     shipgate_fw_pkt *pkt = (shipgate_fw_pkt *)sendbuf;
     int dc_len = LE16(dc->pkt_len);
     int full_len = sizeof(shipgate_fw_pkt) + dc_len;
@@ -1868,9 +1934,9 @@ int shipgate_fw_dc(shipgate_conn_t *c, void *dcp) {
 }
 
 /* Forward a PC packet to the shipgate. */
-int shipgate_fw_pc(shipgate_conn_t *c, void *pcp) {
+int shipgate_fw_pc(shipgate_conn_t *c, const void *pcp) {
     uint8_t *sendbuf = get_sendbuf();
-    dc_pkt_hdr_t *pc = (dc_pkt_hdr_t *)pcp;
+    const dc_pkt_hdr_t *pc = (const dc_pkt_hdr_t *)pcp;
     shipgate_fw_pkt *pkt = (shipgate_fw_pkt *)sendbuf;
     int pc_len = LE16(pc->pkt_len);
     int full_len = sizeof(shipgate_fw_pkt) + pc_len;
@@ -1899,7 +1965,7 @@ int shipgate_fw_pc(shipgate_conn_t *c, void *pcp) {
 
 /* Send a GM login request. */
 int shipgate_send_gmlogin(shipgate_conn_t *c, uint32_t gc, uint32_t block,
-                          char *username, char *password) {
+                          const char *username, const char *password) {
     uint8_t *sendbuf = get_sendbuf();
     shipgate_gmlogin_req_pkt *pkt = (shipgate_gmlogin_req_pkt *)sendbuf;
 
@@ -1927,7 +1993,7 @@ int shipgate_send_gmlogin(shipgate_conn_t *c, uint32_t gc, uint32_t block,
 
 /* Send a ban request. */
 int shipgate_send_ban(shipgate_conn_t *c, uint16_t type, uint32_t requester,
-                      uint32_t target, uint32_t until, char *msg) {
+                      uint32_t target, uint32_t until, const char *msg) {
     uint8_t *sendbuf = get_sendbuf();
     shipgate_ban_req_pkt *pkt = (shipgate_ban_req_pkt *)sendbuf;
 
@@ -1964,8 +2030,9 @@ int shipgate_send_ban(shipgate_conn_t *c, uint16_t type, uint32_t requester,
 }
 
 static int send_greply(shipgate_conn_t *c, uint32_t gc1, uint32_t gc2,
-                       in_addr_t ip, uint16_t port, char game[], int block,
-                       char ship[], uint32_t lobby, char name[], uint32_t sid) {
+                       in_addr_t ip, uint16_t port, const char *game, int block,
+                       const char *ship, uint32_t lobby, const char *name,
+                       uint32_t sid) {
     uint8_t *sendbuf = get_sendbuf();
     shipgate_fw_pkt *pkt = (shipgate_fw_pkt *)sendbuf;
     dc_guild_reply_pkt *dc = (dc_guild_reply_pkt *)pkt->pkt;
@@ -2284,4 +2351,48 @@ int shipgate_send_global_msg(shipgate_conn_t *c, uint32_t gc,
 
     /* Send the packet away */
     return send_crypt(c, len, sendbuf);
+}
+
+/* Send a user option update packet */
+int shipgate_send_user_opt(shipgate_conn_t *c, uint32_t gc, uint32_t block,
+                           uint32_t opt, uint32_t len, const uint8_t *data) {
+    uint8_t *sendbuf = get_sendbuf();
+    shipgate_user_opt_pkt *pkt = (shipgate_user_opt_pkt *)sendbuf;
+    int padding = 8 - (len & 7);
+    uint16_t pkt_len = len + sizeof(shipgate_user_opt_pkt) + 8 + padding;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Make sure its sane */
+    if(!len || len >= 0x100 || !data) {
+        return -1;
+    }
+
+    /* Fill in the option data first */
+    pkt->options[0].option = htonl(opt);
+    memcpy(pkt->options[0].data, data, len);
+
+    /* Options must be a multiple of 8 bytes in length */
+    while(padding--) {
+        pkt->options[0].data[len++] = 0;
+    }
+
+    pkt->options[0].length = htonl(len + 8);
+
+    /* Fill in the packet */
+    pkt->hdr.pkt_len = htons(pkt_len);
+    pkt->hdr.pkt_type = htons(SHDR_TYPE_USEROPT);
+    pkt->hdr.pkt_unc_len = pkt->hdr.pkt_len;
+    pkt->hdr.flags = htons(SHDR_NO_DEFLATE);
+
+    pkt->guildcard = htonl(gc);
+    pkt->block = htonl(block);
+    pkt->count = htonl(1);
+    pkt->reserved = 0;
+
+    /* Send the packet away */
+    return send_crypt(c, pkt_len, sendbuf);
 }
