@@ -25,6 +25,8 @@
 #include <stdint.h>
 #include <sys/queue.h>
 
+#include "clients.h"
+
 /* Hash functions from lookup3.c */
 uint32_t hashword(const uint32_t *k, size_t length, uint32_t initval);
 void hashword2(const uint32_t *k, size_t length, uint32_t *pc, uint32_t *pb);
@@ -52,8 +54,12 @@ typedef struct script_entry {
 typedef enum script_action {
     ScriptActionInvalid = -1,
     ScriptActionFirst = 0,
-    ScriptActionClientLogin = 0,
-    ScriptActionClientLogout,
+    ScriptActionClientShipLogin = 0,
+    ScriptActionClientShipLogout,
+    ScriptActionClientBlockLogin,
+    ScriptActionClientBlockLogout,
+    ScriptActionUnknownShipPacket,
+    ScriptActionUnknownBlockPacket,
     ScriptActionCount
 } script_action_t;
 
@@ -67,6 +73,10 @@ int script_eventlist_read(const char *fn);
 
 /* Call the script function for the given event with the args listed */
 int script_execute(script_action_t event, ...);
+
+/* Call the script function for the given event that involves an unknown pkt */
+int script_execute_pkt(script_action_t event, ship_client_t *c, const void *pkt,
+                       uint16_t len);
 
 script_entry_t *script_lookup(const char *filename, uint32_t *hashv);
 script_entry_t *script_add(const char *filename);

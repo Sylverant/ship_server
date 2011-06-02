@@ -40,6 +40,7 @@
 #include "commands.h"
 #include "gm.h"
 #include "subcmd.h"
+#include "scripts.h"
 
 extern ship_t **ships;
 extern sylverant_shipcfg_t *cfg;
@@ -2182,6 +2183,12 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return ep3_process_game_create(c, (ep3_game_create_pkt *)pkt);
 
         default:
+#ifdef HAVE_PYTHON
+            if(script_execute_pkt(ScriptActionUnknownBlockPacket, c, pkt,
+                                  len) == 1) {
+                return 0;
+            }
+#endif
             debug(DBG_LOG, "Unknown packet!\n");
             print_packet((unsigned char *)pkt, len);
             return -3;

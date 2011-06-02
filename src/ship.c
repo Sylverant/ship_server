@@ -33,6 +33,7 @@
 #include "shipgate.h"
 #include "utils.h"
 #include "bans.h"
+#include "scripts.h"
 
 miniship_t *ship_find_ship(ship_t *s, uint32_t sid) {
     miniship_t *i;
@@ -1176,6 +1177,12 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return 0;
 
         default:
+#ifdef HAVE_PYTHON
+            if(script_execute_pkt(ScriptActionUnknownShipPacket, c, pkt,
+                                  len) == 1) {
+                return 0;
+            }
+#endif
             debug(DBG_LOG, "Unknown packet!\n");
             print_packet((unsigned char *)pkt, len);
             return -3;

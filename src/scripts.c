@@ -44,8 +44,12 @@
 /* Text versions of the script actions. This must match the list in the
    script_action_t enum in scripts.h. */
 static const xmlChar *script_action_text[] = {
-    XC"client login",
-    XC"client logout"
+    XC"client ship login",
+    XC"client ship logout",
+    XC"client block login",
+    XC"client block logout",
+    XC"unknown ship packet",
+    XC"unknown block packet",
 };
 
 #define SCRIPT_HASH_ENTRIES 24
@@ -279,6 +283,61 @@ int script_execute(script_action_t event, ...) {
     Py_DECREF(rv);
 
     return 0;
+}
+
+/* Call the script function for the given event that involves an unknown pkt */
+int script_execute_pkt(script_action_t event, ship_client_t *c, const void *pkt,
+                       uint16_t len) {
+    PyObject *args, *obj, *rv;
+    int irv = 0;
+
+    /* Make sure the event is sane */
+    if(event < ScriptActionFirst || event >= ScriptActionCount) {
+        return -1;
+    }
+
+    /* Short circuit if the event isn't defined */
+    if(!scriptevents[event].function) {
+        return 0;
+    }
+
+    /* Build up the tuple of arguments */
+    args = PyTuple_New(2);
+    if(!args) {
+        return -2;
+    }
+
+    /* First argument is the client object */
+    Py_INCREF(c->pyobj);
+    PyTuple_SetItem(args, 0, c->pyobj);
+
+    /* Second object is the bad packet */
+    obj = Py_BuildValue("s#", pkt, (int)len);
+    if(!obj) {
+        Py_DECREF(args);
+        return -4;
+    }
+
+    PyTuple_SetItem(args, 1, obj);
+
+    /* Attempt to call the function */
+    rv = PyObject_CallObject(scriptevents[event].function, args);
+    Py_DECREF(args);
+
+    if(!rv) {
+        debug(DBG_WARN, "Error calling function for event \"%s\":\n",
+              script_action_text[event]);
+        PyErr_Print();
+        return -3;
+    }
+
+    if(PyBool_Check(rv) && rv == Py_True) {
+        irv = 1;
+    }
+
+    Py_DECREF(rv);
+
+    return irv;
 }
 
 /* Look for an entry with the given filename */

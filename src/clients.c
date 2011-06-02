@@ -45,8 +45,9 @@
 #define UNUSED __attribute__((unused))
 
 #ifdef HAVE_PYTHON
-/* Forward declaration */
+/* Forward declarations */
 static PyObject *client_pyobj_create(ship_client_t *c);
+static void client_pyobj_invalidate(ship_client_t *c);
 #endif
 
 /* The key for accessing our thread-specific receive buffer. */
@@ -135,7 +136,12 @@ ship_client_t *client_create_connection(int sock, int version, int type,
         goto err;
     }
 
-    script_execute(ScriptActionClientLogin, rv->pyobj, NULL);
+    if(type == CLIENT_TYPE_SHIP) {
+        script_execute(ScriptActionClientShipLogin, rv->pyobj, NULL);
+    }
+    else {
+        script_execute(ScriptActionClientBlockLogin, rv->pyobj, NULL);
+    }
 #endif
 
     switch(version) {
@@ -193,6 +199,7 @@ err:
     }
 
 #ifdef HAVE_PYTHON
+    client_pyobj_invalidate(rv);
     Py_XDECREF(rv->pyobj);
 #endif
 
@@ -208,7 +215,12 @@ void client_destroy_connection(ship_client_t *c, struct client_queue *clients) {
     TAILQ_REMOVE(clients, c, qentry);
 
 #ifdef HAVE_PYTHON
-    script_execute(ScriptActionClientLogout, c->pyobj, NULL);
+    if(c->flags & CLIENT_FLAG_TYPE_SHIP) {
+        script_execute(ScriptActionClientShipLogout, c->pyobj, NULL);
+    }
+    else {
+        script_execute(ScriptActionClientBlockLogout, c->pyobj, NULL);
+    }
 #endif
 
     /* If the user was on a block, notify the shipgate */
@@ -263,6 +275,7 @@ void client_destroy_connection(ship_client_t *c, struct client_queue *clients) {
     }
 
 #ifdef HAVE_PYTHON
+    client_pyobj_invalidate(c);
     Py_XDECREF(c->pyobj);
 #endif
 
@@ -738,6 +751,12 @@ static PyObject *client_pyobj_create(ship_client_t *c) {
     }
 
     return (PyObject *)rv;
+}
+
+static void client_pyobj_invalidate(ship_client_t *c) {
+    ClientObject *o = (ClientObject *)c->pyobj;
+
+    o->client = NULL;
 }
 
 #endif /* HAVE_PYTHON */
