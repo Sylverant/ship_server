@@ -458,7 +458,7 @@ static int handle_take_item(ship_client_t *c, subcmd_take_item_t *pkt) {
             debug(DBG_LOG, "Potentially non-legit item in legit mode:\n"
                   "%08x %08x %08x %08x\n", LE32(pkt->data_l[0]), 
                   LE32(pkt->data_l[1]), LE32(pkt->data_l[2]),
-                  LE32(pkt->data_l[0]));
+                  LE32(pkt->data2_l));
 
             /* The item failed the check, so kick the user. */
             send_message_box(c, "%s\n\n%s\n%s",

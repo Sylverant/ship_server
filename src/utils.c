@@ -33,7 +33,16 @@ mini18n_t langs[CLIENT_LANG_COUNT];
 #endif
 
 void print_packet(const unsigned char *pkt, int len) {
-    fprint_packet(stdout, pkt, len, -1);
+    /* With NULL, this will simply grab the current output for the debug log.
+       It won't try to set the file to NULL. */
+    FILE *fp = debug_set_file(NULL);
+
+    if(!fp) {
+        fp = stdout;
+    }
+
+    fprint_packet(fp, pkt, len, -1);
+    fflush(fp);
 }
 
 void fprint_packet(FILE *fp, const unsigned char *pkt, int len, int rec) {
