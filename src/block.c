@@ -43,7 +43,7 @@
 #include "scripts.h"
 
 extern ship_t **ships;
-extern sylverant_shipcfg_t *cfg;
+extern sylverant_ship_t *cfg;
 
 static void *block_thd(void *d) {
     block_t *b = (block_t *)d;
@@ -1105,45 +1105,43 @@ static int pc_process_chat(ship_client_t *c, dc_chat_pkt *pkt) {
 /* Process a Guild Search request. */
 static int dc_process_guild_search(ship_client_t *c, dc_guild_search_pkt *pkt) {
     ship_t *s;
-    int i, j;
+    int i;
     ship_client_t *it;
     uint32_t gc = LE32(pkt->gc_target);
     int done = 0, rv = -1;
 
-    /* Search any local ships first. */
-    for(j = 0; j < cfg->ship_count && !done; ++j) {
-        s = ships[j];
-        for(i = 0; i < s->cfg->blocks && !done; ++i) {
-            pthread_mutex_lock(&s->blocks[i]->mutex);
+    /* Search the local ship first. */
+    s = ships[0];
+    for(i = 0; i < s->cfg->blocks && !done; ++i) {
+        pthread_mutex_lock(&s->blocks[i]->mutex);
 
-            /* Look through all clients on that block. */
-            TAILQ_FOREACH(it, s->blocks[i]->clients, qentry) {
-                /* Check if this is the target and the target has player
-                   data. */
-                if(it->guildcard == gc && it->pl) {
-                    pthread_mutex_lock(&it->mutex);
-                    rv = send_guild_reply(c, gc, s->cfg->ship_ip,
-                                          s->blocks[i]->dc_port,
-                                          it->cur_lobby->name,
-                                          s->blocks[i]->b, s->cfg->name,
-                                          it->cur_lobby->lobby_id,
-                                          it->pl->v1.name);
-                    done = 1;
-                    pthread_mutex_unlock(&it->mutex);
-                }
-                else if(it->guildcard == gc) {
-                    /* If they're on but don't have data, we're not going to
-                       find them anywhere else, return success. */
-                    rv = 0;
-                    done = 1;
-                }
-
-                if(done)
-                    break;
+        /* Look through all clients on that block. */
+        TAILQ_FOREACH(it, s->blocks[i]->clients, qentry) {
+            /* Check if this is the target and the target has player
+               data. */
+            if(it->guildcard == gc && it->pl) {
+                pthread_mutex_lock(&it->mutex);
+                rv = send_guild_reply(c, gc, s->cfg->ship_ip,
+                                      s->blocks[i]->dc_port,
+                                      it->cur_lobby->name,
+                                      s->blocks[i]->b, s->cfg->name,
+                                      it->cur_lobby->lobby_id,
+                                      it->pl->v1.name);
+                done = 1;
+                pthread_mutex_unlock(&it->mutex);
+            }
+            else if(it->guildcard == gc) {
+                /* If they're on but don't have data, we're not going to
+                   find them anywhere else, return success. */
+                rv = 0;
+                done = 1;
             }
 
-            pthread_mutex_unlock(&s->blocks[i]->mutex);
+            if(done)
+                break;
         }
+
+        pthread_mutex_unlock(&s->blocks[i]->mutex);
     }
 
     /* If we get here, we didn't find it locally. Send to the shipgate to
@@ -1157,7 +1155,7 @@ static int dc_process_guild_search(ship_client_t *c, dc_guild_search_pkt *pkt) {
 
 static int dc_process_mail(ship_client_t *c, dc_simple_mail_pkt *pkt) {
     ship_t *s;
-    int i, j;
+    int i;
     ship_client_t *it;
     uint32_t gc = LE32(pkt->gc_dest);
     int done = 0, rv = -1;
@@ -1173,64 +1171,62 @@ static int dc_process_mail(ship_client_t *c, dc_simple_mail_pkt *pkt) {
         return 0;
     }
 
-    /* Search any local ships first. */
-    for(j = 0; j < cfg->ship_count && !done; ++j) {
-        s = ships[j];
-        for(i = 0; i < s->cfg->blocks && !done; ++i) {
-            pthread_mutex_lock(&s->blocks[i]->mutex);
+    /* Search the local ship first. */
+    s = ships[0];
+    for(i = 0; i < s->cfg->blocks && !done; ++i) {
+        pthread_mutex_lock(&s->blocks[i]->mutex);
 
-            /* Look through all clients on that block. */
-            TAILQ_FOREACH(it, s->blocks[i]->clients, qentry) {
-                /* Check if this is the target and the target has player
-                   data. */
-                if(it->guildcard == gc && it->pl) {
-                    pthread_mutex_lock(&it->mutex);
+        /* Look through all clients on that block. */
+        TAILQ_FOREACH(it, s->blocks[i]->clients, qentry) {
+            /* Check if this is the target and the target has player
+               data. */
+            if(it->guildcard == gc && it->pl) {
+                pthread_mutex_lock(&it->mutex);
 
-                    /* Make sure the user hasn't blacklisted the sender. */
-                    if(client_has_blacklisted(it, c->guildcard) ||
-                       client_has_ignored(it, c->guildcard)) {
-                        done = 1;
-                        pthread_mutex_unlock(&it->mutex);
-                        rv = 0;
-                        break;
-                    }
-
-                    /* Check if the user has an autoreply set. */
-                    if(it->autoreply) {
-                        dc_simple_mail_pkt rep;
-                        memset(&rep, 0, sizeof(rep));
-
-                        rep.hdr.pkt_type = SIMPLE_MAIL_TYPE;
-                        rep.hdr.flags = 0;
-                        rep.hdr.pkt_len = LE16(DC_SIMPLE_MAIL_LENGTH);
-
-                        rep.tag = LE32(0x00010000);
-                        rep.gc_sender = pkt->gc_dest;
-                        rep.gc_dest = pkt->gc_sender;
-
-                        strcpy(rep.name, it->pl->v1.name);
-                        strcpy(rep.stuff, it->autoreply);
-                        send_simple_mail(CLIENT_VERSION_DCV1, c,
-                                         (dc_pkt_hdr_t *)&rep);
-                    }
-
-                    /* Send the mail. */
-                    rv = send_simple_mail(c->version, it, (dc_pkt_hdr_t *)pkt);
+                /* Make sure the user hasn't blacklisted the sender. */
+                if(client_has_blacklisted(it, c->guildcard) ||
+                   client_has_ignored(it, c->guildcard)) {
+                    done = 1;
                     pthread_mutex_unlock(&it->mutex);
-                    done = 1;
-                    break;
-                }
-                else if(it->guildcard == gc) {
-                    /* If they're on but don't have data, we're not going to
-                       find them anywhere else, return success. */
                     rv = 0;
-                    done = 1;
                     break;
                 }
-            }
 
-            pthread_mutex_unlock(&s->blocks[i]->mutex);
+                /* Check if the user has an autoreply set. */
+                if(it->autoreply) {
+                    dc_simple_mail_pkt rep;
+                    memset(&rep, 0, sizeof(rep));
+
+                    rep.hdr.pkt_type = SIMPLE_MAIL_TYPE;
+                    rep.hdr.flags = 0;
+                    rep.hdr.pkt_len = LE16(DC_SIMPLE_MAIL_LENGTH);
+
+                    rep.tag = LE32(0x00010000);
+                    rep.gc_sender = pkt->gc_dest;
+                    rep.gc_dest = pkt->gc_sender;
+
+                    strcpy(rep.name, it->pl->v1.name);
+                    strcpy(rep.stuff, it->autoreply);
+                    send_simple_mail(CLIENT_VERSION_DCV1, c,
+                                     (dc_pkt_hdr_t *)&rep);
+                }
+
+                /* Send the mail. */
+                rv = send_simple_mail(c->version, it, (dc_pkt_hdr_t *)pkt);
+                pthread_mutex_unlock(&it->mutex);
+                done = 1;
+                break;
+            }
+            else if(it->guildcard == gc) {
+                /* If they're on but don't have data, we're not going to
+                   find them anywhere else, return success. */
+                rv = 0;
+                done = 1;
+                break;
+            }
         }
+
+        pthread_mutex_unlock(&s->blocks[i]->mutex);
     }
 
     if(!done) {
@@ -1244,7 +1240,7 @@ static int dc_process_mail(ship_client_t *c, dc_simple_mail_pkt *pkt) {
 
 static int pc_process_mail(ship_client_t *c, pc_simple_mail_pkt *pkt) {
     ship_t *s;
-    int i, j;
+    int i;
     ship_client_t *it;
     uint32_t gc = LE32(pkt->gc_dest);
     int done = 0, rv = -1;
@@ -1260,63 +1256,61 @@ static int pc_process_mail(ship_client_t *c, pc_simple_mail_pkt *pkt) {
         return 0;
     }
 
-    /* Search any local ships first. */
-    for(j = 0; j < cfg->ship_count && !done; ++j) {
-        s = ships[j];
-        for(i = 0; i < s->cfg->blocks && !done; ++i) {
-            pthread_mutex_lock(&s->blocks[i]->mutex);
+    /* Search the local ship first. */
+    s = ships[0];
+    for(i = 0; i < s->cfg->blocks && !done; ++i) {
+        pthread_mutex_lock(&s->blocks[i]->mutex);
 
-            /* Look through all clients on that block. */
-            TAILQ_FOREACH(it, s->blocks[i]->clients, qentry) {
-                /* Check if this is the target and the target has player
-                   data. */
-                if(it->guildcard == gc && it->pl) {
-                    pthread_mutex_lock(&it->mutex);
+        /* Look through all clients on that block. */
+        TAILQ_FOREACH(it, s->blocks[i]->clients, qentry) {
+            /* Check if this is the target and the target has player
+               data. */
+            if(it->guildcard == gc && it->pl) {
+                pthread_mutex_lock(&it->mutex);
 
-                    /* Make sure the user hasn't blacklisted the sender. */
-                    if(client_has_blacklisted(it, c->guildcard) ||
-                       client_has_ignored(it, c->guildcard)) {
-                        done = 1;
-                        pthread_mutex_unlock(&it->mutex);
-                        rv = 0;
-                        break;
-                    }
-
-                    /* Check if the user has an autoreply set. */
-                    if(it->autoreply) {
-                        dc_simple_mail_pkt rep;
-                        memset(&rep, 0, sizeof(rep));
-
-                        rep.hdr.pkt_type = SIMPLE_MAIL_TYPE;
-                        rep.hdr.flags = 0;
-                        rep.hdr.pkt_len = LE16(DC_SIMPLE_MAIL_LENGTH);
-
-                        rep.tag = LE32(0x00010000);
-                        rep.gc_sender = pkt->gc_dest;
-                        rep.gc_dest = pkt->gc_sender;
-
-                        strcpy(rep.name, it->pl->v1.name);
-                        strcpy(rep.stuff, it->autoreply);
-                        send_simple_mail(CLIENT_VERSION_DCV1, c,
-                                         (dc_pkt_hdr_t *)&rep);
-                    }
-
-                    rv = send_simple_mail(c->version, it, (dc_pkt_hdr_t *)pkt);
+                /* Make sure the user hasn't blacklisted the sender. */
+                if(client_has_blacklisted(it, c->guildcard) ||
+                   client_has_ignored(it, c->guildcard)) {
+                    done = 1;
                     pthread_mutex_unlock(&it->mutex);
-                    done = 1;
-                    break;
-                }
-                else if(it->guildcard == gc) {
-                    /* If they're on but don't have data, we're not going to
-                       find them anywhere else, return success. */
                     rv = 0;
-                    done = 1;
                     break;
                 }
-            }
 
-            pthread_mutex_unlock(&s->blocks[i]->mutex);
+                /* Check if the user has an autoreply set. */
+                if(it->autoreply) {
+                    dc_simple_mail_pkt rep;
+                    memset(&rep, 0, sizeof(rep));
+
+                    rep.hdr.pkt_type = SIMPLE_MAIL_TYPE;
+                    rep.hdr.flags = 0;
+                    rep.hdr.pkt_len = LE16(DC_SIMPLE_MAIL_LENGTH);
+
+                    rep.tag = LE32(0x00010000);
+                    rep.gc_sender = pkt->gc_dest;
+                    rep.gc_dest = pkt->gc_sender;
+
+                    strcpy(rep.name, it->pl->v1.name);
+                    strcpy(rep.stuff, it->autoreply);
+                    send_simple_mail(CLIENT_VERSION_DCV1, c,
+                                     (dc_pkt_hdr_t *)&rep);
+                }
+
+                rv = send_simple_mail(c->version, it, (dc_pkt_hdr_t *)pkt);
+                pthread_mutex_unlock(&it->mutex);
+                done = 1;
+                break;
+            }
+            else if(it->guildcard == gc) {
+                /* If they're on but don't have data, we're not going to
+                   find them anywhere else, return success. */
+                rv = 0;
+                done = 1;
+                break;
+            }
         }
+
+        pthread_mutex_unlock(&s->blocks[i]->mutex);
     }
 
     if(!done) {

@@ -76,7 +76,7 @@ static const char type_codes[][3] = {
     "v1", "v2", "pc", "gc"
 };
 
-extern sylverant_shipcfg_t *cfg;
+extern sylverant_ship_t *cfg;
 extern ship_t **ships;
 
 /* Forward declaration. */
@@ -5867,7 +5867,7 @@ static int send_dc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
     dc_choice_reply_t *pkt = (dc_choice_reply_t *)sendbuf;
     uint16_t len = 4;
     uint8_t entries = 0;
-    int i, j;
+    int i;
     ship_t *s;
     block_t *b;
     ship_client_t *it;
@@ -5877,64 +5877,62 @@ static int send_dc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
         return -1;
     }
 
-    /* Search any local ships. */
-    for(j = 0; j < cfg->ship_count; ++j) {
-        s = ships[j];
-        for(i = 0; i < s->cfg->blocks; ++i) {
-            b = s->blocks[i];
+    /* Search the local ship. */
+    s = ships[0];
+    for(i = 0; i < s->cfg->blocks; ++i) {
+        b = s->blocks[i];
 
-            if(b && b->run) {
-                pthread_mutex_lock(&b->mutex);
+        if(b && b->run) {
+            pthread_mutex_lock(&b->mutex);
 
-                /* Look through all clients on that block. */
-                TAILQ_FOREACH(it, b->clients, qentry) {
-                    /* Look to see if they match the search. */
-                    if(!it->pl) {
-                        continue;
-                    }
-                    else if(!it->cur_lobby) {
-                        continue;
-                    }
-                    else if(it->pl->v1.level < minlvl ||
-                            it->pl->v1.level > maxlvl) {
-                        continue;
-                    }
-                    else if(cl != 0 && it->pl->v1.ch_class != cl - 1) {
-                        continue;
-                    }
-                    else if(it == c) {
-                        continue;
-                    }
-                    else if(it->version > CLIENT_VERSION_PC) {
-                        continue;
-                    }
-
-                    /* If we get here, they match the search. Fill in the
-                       entry. */
-                    memset(&pkt->entries[entries], 0, 0xD4);
-                    pkt->entries[entries].guildcard = LE32(it->guildcard);
-
-                    /* Everything here is ISO-8859-1 already... so no need to
-                       iconv anything in here */
-                    strcpy(pkt->entries[entries].name, it->pl->v1.name);
-                    sprintf(pkt->entries[entries].cl_lvl, "%s Lvl %d\n",
-                            classes[it->pl->v1.ch_class], it->pl->v1.level + 1);
-                    sprintf(pkt->entries[entries].location, "%s,BLOCK%02d,%s",
-                            it->cur_lobby->name, it->cur_block->b,
-                            s->cfg->name);
-
-                    pkt->entries[entries].ip = a;
-                    pkt->entries[entries].port = LE16(b->dc_port);
-                    pkt->entries[entries].menu_id = LE32(MENU_ID_LOBBY);
-                    pkt->entries[entries].item_id =
-                        LE32(it->cur_lobby->lobby_id);
-
-                    len += 0xD4;
-                    ++entries;
+            /* Look through all clients on that block. */
+            TAILQ_FOREACH(it, b->clients, qentry) {
+                /* Look to see if they match the search. */
+                if(!it->pl) {
+                    continue;
+                }
+                else if(!it->cur_lobby) {
+                    continue;
+                }
+                else if(it->pl->v1.level < minlvl ||
+                        it->pl->v1.level > maxlvl) {
+                    continue;
+                }
+                else if(cl != 0 && it->pl->v1.ch_class != cl - 1) {
+                    continue;
+                }
+                else if(it == c) {
+                    continue;
+                }
+                else if(it->version > CLIENT_VERSION_PC) {
+                    continue;
                 }
 
-                pthread_mutex_unlock(&b->mutex);
+                /* If we get here, they match the search. Fill in the
+                   entry. */
+                memset(&pkt->entries[entries], 0, 0xD4);
+                pkt->entries[entries].guildcard = LE32(it->guildcard);
+
+                /* Everything here is ISO-8859-1 already... so no need to
+                   iconv anything in here */
+                strcpy(pkt->entries[entries].name, it->pl->v1.name);
+                sprintf(pkt->entries[entries].cl_lvl, "%s Lvl %d\n",
+                        classes[it->pl->v1.ch_class], it->pl->v1.level + 1);
+                sprintf(pkt->entries[entries].location, "%s,BLOCK%02d,%s",
+                        it->cur_lobby->name, it->cur_block->b,
+                        s->cfg->name);
+
+                pkt->entries[entries].ip = a;
+                pkt->entries[entries].port = LE16(b->dc_port);
+                pkt->entries[entries].menu_id = LE32(MENU_ID_LOBBY);
+                pkt->entries[entries].item_id =
+                    LE32(it->cur_lobby->lobby_id);
+
+                len += 0xD4;
+                ++entries;
             }
+
+            pthread_mutex_unlock(&b->mutex);
         }
     }
 
@@ -5956,7 +5954,7 @@ static int send_pc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
     pc_choice_reply_t *pkt = (pc_choice_reply_t *)sendbuf;
     uint16_t len = 4;
     uint8_t entries = 0;
-    int i, j;
+    int i;
     iconv_t ic;
     ship_t *s;
     block_t *b;
@@ -5976,68 +5974,66 @@ static int send_pc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
         return -1;
     }
 
-    /* Search any local ships. */
-    for(j = 0; j < cfg->ship_count; ++j) {
-        s = ships[j];
-        for(i = 0; i < s->cfg->blocks; ++i) {
-            b = s->blocks[i];
+    /* Search the local ship. */
+    s = ships[0];
+    for(i = 0; i < s->cfg->blocks; ++i) {
+        b = s->blocks[i];
 
-            if(b && b->run) {
-                pthread_mutex_lock(&b->mutex);
+        if(b && b->run) {
+            pthread_mutex_lock(&b->mutex);
 
-                /* Look through all clients on that block. */
-                TAILQ_FOREACH(it, b->clients, qentry) {
-                    /* Look to see if they match the search. */
-                    if(!it->pl) {
-                        continue;
-                    }
-                    else if(!it->cur_lobby) {
-                        continue;
-                    }
-                    else if(it->pl->v1.level < minlvl ||
-                            it->pl->v1.level > maxlvl) {
-                        continue;
-                    }
-                    else if(cl != 0 && it->pl->v1.ch_class != cl - 1) {
-                        continue;
-                    }
-                    else if(it == c) {
-                        continue;
-                    }
-                    else if(it->version > CLIENT_VERSION_PC) {
-                        continue;
-                    }
-
-                    /* If we get here, they match the search. Fill in the
-                       entry. */
-                    memset(&pkt->entries[entries], 0, 0x154);
-                    pkt->entries[entries].guildcard = LE32(it->guildcard);
-
-                    istrncpy(ic, (char *)pkt->entries[entries].name,
-                             it->pl->v1.name, 0x20);
-
-                    sprintf(tmp, "%s Lvl %d\n", classes[it->pl->v1.ch_class],
-                            it->pl->v1.level + 1);
-                    istrncpy(ic, (char *)pkt->entries[entries].cl_lvl, tmp,
-                             0x40);
-
-                    sprintf(tmp, "%s,BLOCK%02d,%s", it->cur_lobby->name,
-                            it->cur_block->b, s->cfg->name);
-                    istrncpy(ic, (char *)pkt->entries[entries].location, tmp,
-                             0x60);
-
-                    pkt->entries[entries].ip = a;
-                    pkt->entries[entries].port = LE16(b->pc_port);
-                    pkt->entries[entries].menu_id = LE32(MENU_ID_LOBBY);
-                    pkt->entries[entries].item_id =
-                        LE32(it->cur_lobby->lobby_id);
-
-                    len += 0x154;
-                    ++entries;
+            /* Look through all clients on that block. */
+            TAILQ_FOREACH(it, b->clients, qentry) {
+                /* Look to see if they match the search. */
+                if(!it->pl) {
+                    continue;
+                }
+                else if(!it->cur_lobby) {
+                    continue;
+                }
+                else if(it->pl->v1.level < minlvl ||
+                        it->pl->v1.level > maxlvl) {
+                    continue;
+                }
+                else if(cl != 0 && it->pl->v1.ch_class != cl - 1) {
+                    continue;
+                }
+                else if(it == c) {
+                    continue;
+                }
+                else if(it->version > CLIENT_VERSION_PC) {
+                    continue;
                 }
 
-                pthread_mutex_unlock(&b->mutex);
+                /* If we get here, they match the search. Fill in the
+                   entry. */
+                memset(&pkt->entries[entries], 0, 0x154);
+                pkt->entries[entries].guildcard = LE32(it->guildcard);
+
+                istrncpy(ic, (char *)pkt->entries[entries].name,
+                         it->pl->v1.name, 0x20);
+
+                sprintf(tmp, "%s Lvl %d\n", classes[it->pl->v1.ch_class],
+                        it->pl->v1.level + 1);
+                istrncpy(ic, (char *)pkt->entries[entries].cl_lvl, tmp,
+                         0x40);
+
+                sprintf(tmp, "%s,BLOCK%02d,%s", it->cur_lobby->name,
+                        it->cur_block->b, s->cfg->name);
+                istrncpy(ic, (char *)pkt->entries[entries].location, tmp,
+                         0x60);
+
+                pkt->entries[entries].ip = a;
+                pkt->entries[entries].port = LE16(b->pc_port);
+                pkt->entries[entries].menu_id = LE32(MENU_ID_LOBBY);
+                pkt->entries[entries].item_id =
+                    LE32(it->cur_lobby->lobby_id);
+
+                len += 0x154;
+                ++entries;
             }
+
+            pthread_mutex_unlock(&b->mutex);
         }
     }
 
@@ -6061,7 +6057,7 @@ static int send_gc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
     dc_choice_reply_t *pkt = (dc_choice_reply_t *)sendbuf;
     uint16_t len = 4;
     uint8_t entries = 0;
-    int i, j;
+    int i;
     ship_t *s;
     block_t *b;
     ship_client_t *it;
@@ -6071,64 +6067,62 @@ static int send_gc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
         return -1;
     }
 
-    /* Search any local ships. */
-    for(j = 0; j < cfg->ship_count; ++j) {
-        s = ships[j];
-        for(i = 0; i < s->cfg->blocks; ++i) {
-            b = s->blocks[i];
+    /* Search the local ship. */
+    s = ships[0];
+    for(i = 0; i < s->cfg->blocks; ++i) {
+        b = s->blocks[i];
 
-            if(b && b->run) {
-                pthread_mutex_lock(&b->mutex);
+        if(b && b->run) {
+            pthread_mutex_lock(&b->mutex);
 
-                /* Look through all clients on that block. */
-                TAILQ_FOREACH(it, b->clients, qentry) {
-                    /* Look to see if they match the search. */
-                    if(!it->pl) {
-                        continue;
-                    }
-                    else if(!it->cur_lobby) {
-                        continue;
-                    }
-                    else if(it->pl->v1.level < minlvl ||
-                            it->pl->v1.level > maxlvl) {
-                        continue;
-                    }
-                    else if(cl != 0 && it->pl->v1.ch_class != cl - 1) {
-                        continue;
-                    }
-                    else if(it == c) {
-                        continue;
-                    }
-                    else if(c->version != CLIENT_VERSION_GC) {
-                        continue;
-                    }
-
-                    /* If we get here, they match the search. Fill in the
-                       entry. */
-                    memset(&pkt->entries[entries], 0, 0xD4);
-                    pkt->entries[entries].guildcard = LE32(it->guildcard);
-
-                    /* Everything here is ISO-8859-1 already, so no need to
-                       iconv */
-                    strcpy(pkt->entries[entries].name, it->pl->v1.name);
-                    sprintf(pkt->entries[entries].cl_lvl, "%s Lvl %d\n",
-                            classes[it->pl->v1.ch_class], it->pl->v1.level + 1);
-                    sprintf(pkt->entries[entries].location, "%s,BLOCK%02d,%s",
-                            it->cur_lobby->name, it->cur_block->b,
-                            s->cfg->name);
-
-                    pkt->entries[entries].ip = a;
-                    pkt->entries[entries].port = LE16(b->gc_port);
-                    pkt->entries[entries].menu_id = LE32(MENU_ID_LOBBY);
-                    pkt->entries[entries].item_id =
-                        LE32(it->cur_lobby->lobby_id);
-
-                    len += 0xD4;
-                    ++entries;
+            /* Look through all clients on that block. */
+            TAILQ_FOREACH(it, b->clients, qentry) {
+                /* Look to see if they match the search. */
+                if(!it->pl) {
+                    continue;
+                }
+                else if(!it->cur_lobby) {
+                    continue;
+                }
+                else if(it->pl->v1.level < minlvl ||
+                        it->pl->v1.level > maxlvl) {
+                    continue;
+                }
+                else if(cl != 0 && it->pl->v1.ch_class != cl - 1) {
+                    continue;
+                }
+                else if(it == c) {
+                    continue;
+                }
+                else if(c->version != CLIENT_VERSION_GC) {
+                    continue;
                 }
 
-                pthread_mutex_unlock(&b->mutex);
+                /* If we get here, they match the search. Fill in the
+                   entry. */
+                memset(&pkt->entries[entries], 0, 0xD4);
+                pkt->entries[entries].guildcard = LE32(it->guildcard);
+
+                /* Everything here is ISO-8859-1 already, so no need to
+                   iconv */
+                strcpy(pkt->entries[entries].name, it->pl->v1.name);
+                sprintf(pkt->entries[entries].cl_lvl, "%s Lvl %d\n",
+                        classes[it->pl->v1.ch_class], it->pl->v1.level + 1);
+                sprintf(pkt->entries[entries].location, "%s,BLOCK%02d,%s",
+                        it->cur_lobby->name, it->cur_block->b,
+                        s->cfg->name);
+
+                pkt->entries[entries].ip = a;
+                pkt->entries[entries].port = LE16(b->gc_port);
+                pkt->entries[entries].menu_id = LE32(MENU_ID_LOBBY);
+                pkt->entries[entries].item_id =
+                    LE32(it->cur_lobby->lobby_id);
+
+                len += 0xD4;
+                ++entries;
             }
+
+            pthread_mutex_unlock(&b->mutex);
         }
     }
 

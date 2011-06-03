@@ -37,7 +37,7 @@
 #include "scripts.h"
 
 /* Configuration data for the server. */
-sylverant_shipcfg_t *cfg;
+sylverant_ship_t *cfg;
 
 /* The actual ship structures. */
 ship_t **ships;
@@ -126,8 +126,8 @@ static void load_config() {
         exit(EXIT_FAILURE);
     }
 
-    /* Allocate space for the ships. */
-    ships = (ship_t **)malloc(sizeof(ship_t *) * cfg->ship_count);
+    /* Allocate space for the ship. */
+    ships = (ship_t **)malloc(sizeof(ship_t *));
 
     if(!ships) {
         debug(DBG_ERROR, "Cannot allocate memory!\n");
@@ -137,7 +137,6 @@ static void load_config() {
 
 static void print_config() {
     struct in_addr tmp;
-    int i;
 
     /* Print out the configuration. */
     debug(DBG_LOG, "Configured parameters:\n");
@@ -145,36 +144,33 @@ static void print_config() {
     tmp.s_addr = cfg->shipgate_ip;
     debug(DBG_LOG, "Shipgate IP: %s\n", inet_ntoa(tmp));
     debug(DBG_LOG, "Shipgate Port: %d\n", (int)cfg->shipgate_port);
-    debug(DBG_LOG, "Number of Ships: %d\n", cfg->ship_count);
 
-    /* Print out each ship's information. */
-    for(i = 0; i < cfg->ship_count; ++i) {
-        debug(DBG_LOG, "Ship Name: %s\n", cfg->ships[i].name);
+    /* Print out the ship's information. */
+    debug(DBG_LOG, "Ship Name: %s\n", cfg->name);
 
-        tmp.s_addr = cfg->ships[i].ship_ip;
-        debug(DBG_LOG, "Ship IP: %s\n", inet_ntoa(tmp));
-        debug(DBG_LOG, "Base Port: %d\n", (int)cfg->ships[i].base_port);
-        debug(DBG_LOG, "Blocks: %d\n", cfg->ships[i].blocks);
-        debug(DBG_LOG, "Lobby Event: %d\n", cfg->ships[i].lobby_event);
-        debug(DBG_LOG, "Game Event: %d\n", cfg->ships[i].game_event);
+    tmp.s_addr = cfg->ship_ip;
+    debug(DBG_LOG, "Ship IP: %s\n", inet_ntoa(tmp));
+    debug(DBG_LOG, "Base Port: %d\n", (int)cfg->base_port);
+    debug(DBG_LOG, "Blocks: %d\n", cfg->blocks);
+    debug(DBG_LOG, "Lobby Event: %d\n", cfg->lobby_event);
+    debug(DBG_LOG, "Game Event: %d\n", cfg->game_event);
 
-        if(cfg->ships[i].menu_code) {
-            debug(DBG_LOG, "Menu: %c%c\n", (char)cfg->ships[i].menu_code,
-                  (char)(cfg->ships[i].menu_code >> 8));
-        }
-        else {
-            debug(DBG_LOG, "Menu: Main\n");
-        }
-
-        debug(DBG_LOG, "Flags: 0x%08X\n", cfg->ships[i].shipgate_flags);
+    if(cfg->menu_code) {
+        debug(DBG_LOG, "Menu: %c%c\n", (char)cfg->menu_code,
+              (char)(cfg->menu_code >> 8));
     }
+    else {
+        debug(DBG_LOG, "Menu: Main\n");
+    }
+
+    debug(DBG_LOG, "Flags: 0x%08X\n", cfg->shipgate_flags);
 }
 
 static void open_log() {
-    char fn[strlen(cfg->ships[0].name) + 32];
+    char fn[strlen(cfg->name) + 32];
     FILE *dbgfp;
 
-    sprintf(fn, "logs/%s_debug.log", cfg->ships[0].name);
+    sprintf(fn, "logs/%s_debug.log", cfg->name);
     dbgfp = fopen(fn, "a");
 
     if(!dbgfp) {
@@ -202,7 +198,6 @@ static void install_signal_handlers() {
 }
 
 int main(int argc, char *argv[]) {
-    int i;
     void *tmp;
 
     /* Parse the command line... */
@@ -246,15 +241,10 @@ int main(int argc, char *argv[]) {
     install_signal_handlers();
 
     /* Start up the servers for the ships we've configured. */
-    for(i = 0; i < cfg->ship_count; ++i) {
-        ships[i] = ship_server_start(&cfg->ships[i]);
-    }
+    ships[0] = ship_server_start(cfg);
 
-    if(ships[0]) {
-        /* Run the ship server. */
-        /* XXXX: NO! This is not the right way to do this! */
-        pthread_join(ships[0]->thd, NULL);
-    }
+    /* Run the ship server. */
+    pthread_join(ships[0]->thd, NULL);
 
     /* Clean up... */
     if((tmp = pthread_getspecific(sendbuf_key))) {

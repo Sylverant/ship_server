@@ -38,7 +38,7 @@
 #include "ship_packets.h"
 
 /* Configuration data for the server. */
-extern sylverant_shipcfg_t *cfg;
+extern sylverant_ship_t *cfg;
 
 /* Forward declaration */
 static int send_greply(shipgate_conn_t *c, uint32_t gc1, uint32_t gc2,
