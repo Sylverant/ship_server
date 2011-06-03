@@ -43,7 +43,6 @@
 #include "scripts.h"
 
 extern ship_t **ships;
-extern sylverant_ship_t *cfg;
 
 static void *block_thd(void *d) {
     block_t *b = (block_t *)d;

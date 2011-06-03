@@ -76,7 +76,6 @@ static const char type_codes[][3] = {
     "v1", "v2", "pc", "gc"
 };
 
-extern sylverant_ship_t *cfg;
 extern ship_t **ships;
 
 /* Forward declaration. */

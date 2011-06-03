@@ -37,9 +37,6 @@
 #include "shipgate.h"
 #include "ship_packets.h"
 
-/* Configuration data for the server. */
-extern sylverant_ship_t *cfg;
-
 /* Forward declaration */
 static int send_greply(shipgate_conn_t *c, uint32_t gc1, uint32_t gc2,
                        in_addr_t ip, uint16_t port, const char *game, int block,
@@ -180,8 +177,8 @@ int shipgate_connect(ship_t *s, shipgate_conn_t *rv) {
     /* Connect the socket to the shipgate. */
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = cfg->shipgate_ip;
-    addr.sin_port = htons(cfg->shipgate_port);
+    addr.sin_addr.s_addr = s->cfg->shipgate_ip;
+    addr.sin_port = htons(s->cfg->shipgate_port);
 
     if(connect(sock, (struct sockaddr *)&addr, sizeof(struct sockaddr_in))) {
         perror("connect");
@@ -278,8 +275,8 @@ int shipgate_reconnect(shipgate_conn_t *conn) {
     /* Connect the socket to the shipgate. */
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = cfg->shipgate_ip;
-    addr.sin_port = htons(cfg->shipgate_port);
+    addr.sin_addr.s_addr = s->cfg->shipgate_ip;
+    addr.sin_port = htons(s->cfg->shipgate_port);
 
     if(connect(sock, (struct sockaddr *)&addr, sizeof(struct sockaddr_in))) {
         perror("connect");

@@ -36,9 +36,6 @@
 #include "utils.h"
 #include "scripts.h"
 
-/* Configuration data for the server. */
-sylverant_ship_t *cfg;
-
 /* The actual ship structures. */
 ship_t **ships;
 char *config_file = NULL;
@@ -46,7 +43,7 @@ static const char *custom_dir = NULL;
 static int dont_daemonize = 0;
 
 /* Print information about this program to stdout. */
-static void print_program_info() {
+static void print_program_info(void) {
     printf("Sylverant Ship Server version %s\n", VERSION);
     printf("Copyright (C) 2009, 2010, 2011 Lawrence Sebald\n\n");
     printf("This program is free software: you can redistribute it and/or\n"
@@ -120,7 +117,9 @@ static void parse_command_line(int argc, char *argv[]) {
 }
 
 /* Load the configuration file and print out parameters with DBG_LOG. */
-static void load_config() {
+static sylverant_ship_t *load_config(void) {
+    sylverant_ship_t *cfg;
+
     if(sylverant_read_ship_config(config_file, &cfg)) {
         debug(DBG_ERROR, "Cannot load Sylverant Ship configuration file!\n");
         exit(EXIT_FAILURE);
@@ -133,9 +132,11 @@ static void load_config() {
         debug(DBG_ERROR, "Cannot allocate memory!\n");
         exit(EXIT_FAILURE);
     }
+
+    return cfg;
 }
 
-static void print_config() {
+static void print_config(sylverant_ship_t *cfg) {
     struct in_addr tmp;
 
     /* Print out the configuration. */
@@ -166,7 +167,7 @@ static void print_config() {
     debug(DBG_LOG, "Flags: 0x%08X\n", cfg->shipgate_flags);
 }
 
-static void open_log() {
+static void open_log(sylverant_ship_t *cfg) {
     char fn[strlen(cfg->name) + 32];
     FILE *dbgfp;
 
@@ -199,11 +200,12 @@ static void install_signal_handlers() {
 
 int main(int argc, char *argv[]) {
     void *tmp;
+    sylverant_ship_t *cfg;
 
     /* Parse the command line... */
     parse_command_line(argc, argv);
 
-    load_config();
+    cfg = load_config();
 
     if(!custom_dir) {
         chdir(sylverant_directory);
@@ -214,7 +216,7 @@ int main(int argc, char *argv[]) {
 
     /* If we're still alive and we're supposed to daemonize, do it now. */
     if(!dont_daemonize) {
-        open_log();
+        open_log(cfg);
 
         if(daemon(1, 0)) {
             debug(DBG_ERROR, "Cannot daemonize\n");
@@ -223,7 +225,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    print_config();
+    print_config(cfg);
 
     /* Set up things for clients to connect. */
     if(client_init()) {

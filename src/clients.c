@@ -62,7 +62,7 @@ static void buf_dtor(void *rb) {
 }
 
 /* Initialize the clients system, allocating any thread specific keys */
-int client_init() {
+int client_init(void) {
     if(pthread_key_create(&recvbuf_key, &buf_dtor)) {
         perror("pthread_key_create");
         return -1;
@@ -77,7 +77,7 @@ int client_init() {
 }
 
 /* Clean up the clients system. */
-void client_shutdown() {
+void client_shutdown(void) {
     pthread_key_delete(recvbuf_key);
     pthread_key_delete(sendbuf_key);
 }
@@ -411,7 +411,7 @@ int client_process_pkt(ship_client_t *c) {
 }
 
 /* Retrieve the thread-specific recvbuf for the current thread. */
-uint8_t *get_recvbuf() {
+uint8_t *get_recvbuf(void) {
     uint8_t *recvbuf = (uint8_t *)pthread_getspecific(recvbuf_key);
 
     /* If we haven't initialized the recvbuf pointer yet for this thread, then

@@ -198,10 +198,10 @@ static const char version_codes[][3] __attribute__((unused)) = {
 };
 
 /* Initialize the clients system, allocating any thread specific keys */
-int client_init();
+int client_init(void);
 
 /* Clean up the clients system. */
-void client_shutdown();
+void client_shutdown(void);
 
 /* Create a new connection, storing it in the list of clients. */
 ship_client_t *client_create_connection(int sock, int version, int type,
@@ -216,7 +216,7 @@ void client_destroy_connection(ship_client_t *c, struct client_queue *clients);
 int client_process_pkt(ship_client_t *c);
 
 /* Retrieve the thread-specific recvbuf for the current thread. */
-uint8_t *get_recvbuf();
+uint8_t *get_recvbuf(void);
 
 /* Set up a simple mail autoreply. */
 int client_set_autoreply(ship_client_t *c, dc_pkt_hdr_t *pkt);
