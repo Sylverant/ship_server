@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2010 Lawrence Sebald
+    Copyright (C) 2010, 2011 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -38,7 +38,6 @@
 
 static int pllist_ship(ship_client_t *c, const char *name, int first,
                        int minlvl, int maxlvl, int ch_class) {
-    ship_t *s = c->cur_ship;
     block_t *b;
     ship_client_t *c2;
     int i, count = 0, len = 2;
@@ -56,12 +55,12 @@ static int pllist_ship(ship_client_t *c, const char *name, int first,
     strcpy(str, "\tE");
 
     /* Look through all blocks on the ship. */
-    for(i = 0; i < s->cfg->blocks && count < first + 4; ++i) {
-        if(!s->blocks[i]) {
+    for(i = 0; i < ship->cfg->blocks && count < first + 4; ++i) {
+        if(!ship->blocks[i]) {
             continue;
         }
 
-        b = s->blocks[i];
+        b = ship->blocks[i];
         pthread_mutex_lock(&b->mutex);
 
         /* Go through everyone in the block looking for any matches. */

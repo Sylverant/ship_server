@@ -76,8 +76,6 @@ static const char type_codes[][3] = {
     "v1", "v2", "pc", "gc"
 };
 
-extern ship_t **ships;
-
 /* Forward declaration. */
 static int send_dc_lobby_arrows(lobby_t *l, ship_client_t *c);
 
@@ -2389,7 +2387,6 @@ int send_info_list(ship_client_t *c, ship_t *s) {
 int send_pc_game_type_sel(ship_client_t *c) {
     uint8_t *sendbuf = get_sendbuf();
     pc_block_list_pkt *pkt = (pc_block_list_pkt *)sendbuf;
-    ship_t *s = c->cur_ship;
     const char str1[16] = "Allow PSOv1";
     const char str2[16] = "PSOv2 Only";
     const char str3[16] = "PSOPC Only";
@@ -2415,7 +2412,7 @@ int send_pc_game_type_sel(ship_client_t *c) {
     pkt->entries[0].item_id = 0;
     pkt->entries[0].flags = 0;
 
-    istrncpy(ic, (char *)pkt->entries[0].name, s->cfg->name, 0x20);
+    istrncpy(ic, (char *)pkt->entries[0].name, ship->cfg->name, 0x20);
 
     /* Add the "Allow PSOv1" entry */
     pkt->entries[1].menu_id = LE32(MENU_ID_GAME_TYPE);
@@ -2753,13 +2750,13 @@ static int send_dc_quest_categories_new(ship_client_t *c, int lang) {
     lobby_t *l = c->cur_lobby;
 
     if(l->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3) {
-        qlist = &c->cur_ship->qlist[CLIENT_VERSION_GC][lang];
+        qlist = &ship->qlist[CLIENT_VERSION_GC][lang];
     }
     else if(!l->v2) {
-        qlist = &c->cur_ship->qlist[CLIENT_VERSION_DCV1][lang];
+        qlist = &ship->qlist[CLIENT_VERSION_DCV1][lang];
     }
     else {
-        qlist = &c->cur_ship->qlist[CLIENT_VERSION_DCV2][lang];
+        qlist = &ship->qlist[CLIENT_VERSION_DCV2][lang];
     }
 
     /* Verify we got the sendbuf. */
@@ -2853,10 +2850,10 @@ static int send_pc_quest_categories_new(ship_client_t *c, int lang) {
     lobby_t *l = c->cur_lobby;
 
     if(!l->v2) {
-        qlist = &c->cur_ship->qlist[CLIENT_VERSION_DCV1][lang];
+        qlist = &ship->qlist[CLIENT_VERSION_DCV1][lang];
     }
     else {
-        qlist = &c->cur_ship->qlist[CLIENT_VERSION_PC][lang];
+        qlist = &ship->qlist[CLIENT_VERSION_PC][lang];
     }
 
     /* Verify we got the sendbuf. */
@@ -3251,10 +3248,10 @@ static int send_dc_quest_list_new(ship_client_t *c, int cn, int lang) {
     }
     
     if(!l->v2) {
-        qlist = &c->cur_ship->qlist[CLIENT_VERSION_DCV1][lang];
+        qlist = &ship->qlist[CLIENT_VERSION_DCV1][lang];
     }
     else {
-        qlist = &c->cur_ship->qlist[CLIENT_VERSION_DCV2][lang];
+        qlist = &ship->qlist[CLIENT_VERSION_DCV2][lang];
     }
 
     /* Check the category for sanity */
@@ -3384,10 +3381,10 @@ static int send_pc_quest_list_new(ship_client_t *c, int cn, int lang) {
     }
 
     if(!l->v2) {
-        qlist = &c->cur_ship->qlist[CLIENT_VERSION_DCV1][lang];
+        qlist = &ship->qlist[CLIENT_VERSION_DCV1][lang];
     }
     else {
-        qlist = &c->cur_ship->qlist[CLIENT_VERSION_PC][lang];
+        qlist = &ship->qlist[CLIENT_VERSION_PC][lang];
     }
 
     /* Check the category for sanity */
@@ -3506,13 +3503,13 @@ static int send_gc_quest_list_new(ship_client_t *c, int cn, int lang) {
     }
 
     if(l->version == CLIENT_VERSION_GC) {
-        qlist = &c->cur_ship->qlist[CLIENT_VERSION_GC][lang];
+        qlist = &ship->qlist[CLIENT_VERSION_GC][lang];
     }
     else if(!l->v2) {
-        qlist = &c->cur_ship->qlist[CLIENT_VERSION_DCV1][lang];
+        qlist = &ship->qlist[CLIENT_VERSION_DCV1][lang];
     }
     else {
-        qlist = &c->cur_ship->qlist[CLIENT_VERSION_DCV2][lang];
+        qlist = &ship->qlist[CLIENT_VERSION_DCV2][lang];
     }
 
     /* Check the category for sanity */
@@ -3745,7 +3742,7 @@ int send_quest_info_new(lobby_t *l, uint32_t qid, int lang) {
 
     /* Grab the mapped entry */
     c = l->clients[l->leader_id];
-    elem = quest_lookup(&c->cur_ship->qmap, qid);
+    elem = quest_lookup(&ship->qmap, qid);
 
     /* Make sure we get the quest we're looking for */
     if(!elem) {
@@ -4461,7 +4458,6 @@ static int send_dcv1_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1,
     int bindone = 0, datdone = 0, chunknum = 0;
     char fn_base[256], filename[256];
     size_t amt;
-    ship_t *s = c->cur_ship;
     sylverant_quest_t *q = qm->qptr[c->version][lang];
 
     /* Verify we got the sendbuf. */
@@ -4471,7 +4467,7 @@ static int send_dcv1_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1,
 
     /* Each quest has two files: a .dat file and a .bin file, send a file packet
        for each of them. */
-    sprintf(fn_base, "%s/%s-%s/%s", s->cfg->quests_dir,
+    sprintf(fn_base, "%s/%s-%s/%s", ship->cfg->quests_dir,
             version_codes[c->version], language_codes[lang], q->prefix);
 
     sprintf(filename, "%s.bin", fn_base);
@@ -4611,7 +4607,6 @@ static int send_dcv2_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1,
     int bindone = 0, datdone = 0, chunknum = 0;
     char fn_base[256], filename[256];
     size_t amt;
-    ship_t *s = c->cur_ship;
     sylverant_quest_t *q = qm->qptr[c->version][lang];
 
     /* Verify we got the sendbuf. */
@@ -4622,11 +4617,11 @@ static int send_dcv2_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1,
     /* Each quest has two files: a .dat file and a .bin file, send a file packet
        for each of them. */
     if(!v1 || (q->versions & SYLVERANT_QUEST_V1)) {
-        sprintf(fn_base, "%s/%s-%s/%s", s->cfg->quests_dir,
+        sprintf(fn_base, "%s/%s-%s/%s", ship->cfg->quests_dir,
                 version_codes[c->version], language_codes[lang], q->prefix);
     }
     else {
-        sprintf(fn_base, "%s/%s-%s/%s", s->cfg->quests_dir,
+        sprintf(fn_base, "%s/%s-%s/%s", ship->cfg->quests_dir,
                 version_codes[CLIENT_VERSION_DCV1], language_codes[lang],
                 q->prefix);
     }
@@ -4768,7 +4763,6 @@ static int send_pc_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1,
     int bindone = 0, datdone = 0, chunknum = 0;
     char fn_base[256], filename[256];
     size_t amt;
-    ship_t *s = c->cur_ship;
     sylverant_quest_t *q = qm->qptr[c->version][lang];
 
     /* Verify we got the sendbuf. */
@@ -4779,11 +4773,11 @@ static int send_pc_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1,
     /* Each quest has two files: a .dat file and a .bin file, send a file packet
        for each of them. */
     if(!v1 || (q->versions & SYLVERANT_QUEST_V1)) {
-        sprintf(fn_base, "%s/%s-%s/%s", s->cfg->quests_dir,
+        sprintf(fn_base, "%s/%s-%s/%s", ship->cfg->quests_dir,
                 version_codes[c->version], language_codes[lang], q->prefix);
     }
     else {
-        sprintf(fn_base, "%s/%s-%s/%sv1", s->cfg->quests_dir,
+        sprintf(fn_base, "%s/%s-%s/%sv1", ship->cfg->quests_dir,
                 version_codes[c->version], language_codes[lang], q->prefix);
     }
 
@@ -4926,7 +4920,6 @@ static int send_gc_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1,
     int bindone = 0, datdone = 0, chunknum = 0;
     char fn_base[256], filename[256];
     size_t amt;
-    ship_t *s = c->cur_ship;
     sylverant_quest_t *q = qm->qptr[c->version][lang];
 
     /* Verify we got the sendbuf. */
@@ -4937,11 +4930,11 @@ static int send_gc_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1,
     /* Each quest has two files: a .dat file and a .bin file, send a file packet
        for each of them. */
     if(!v1 || (q->versions & SYLVERANT_QUEST_V1)) {
-        sprintf(fn_base, "%s/%s-%s/%s", s->cfg->quests_dir,
+        sprintf(fn_base, "%s/%s-%s/%s", ship->cfg->quests_dir,
                 version_codes[c->version], language_codes[lang], q->prefix);
     }
     else {
-        sprintf(fn_base, "%s/%s-%s/%sv1", s->cfg->quests_dir,
+        sprintf(fn_base, "%s/%s-%s/%sv1", ship->cfg->quests_dir,
                 version_codes[c->version], language_codes[lang], q->prefix);
     }
 
@@ -5081,7 +5074,6 @@ static int send_qst_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1,
     long len;
     size_t read;
     uint8_t *sendbuf = get_sendbuf();
-    ship_t *s = c->cur_ship;
     sylverant_quest_t *q = qm->qptr[c->version][lang];
 
     /* Make sure we got the sendbuf and the quest */
@@ -5091,21 +5083,21 @@ static int send_qst_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1,
 
     /* Figure out what file we're going to send. */
     if(!v1 || (q->versions & SYLVERANT_QUEST_V1)) {
-        sprintf(filename, "%s/%s-%s/%s.qst", s->cfg->quests_dir,
+        sprintf(filename, "%s/%s-%s/%s.qst", ship->cfg->quests_dir,
                 version_codes[c->version], language_codes[lang], q->prefix);
     }
     else {
         switch(c->version) {
             case CLIENT_VERSION_DCV1:
             case CLIENT_VERSION_DCV2:
-                sprintf(filename, "%s/%s-%s/%s.qst", s->cfg->quests_dir,
+                sprintf(filename, "%s/%s-%s/%s.qst", ship->cfg->quests_dir,
                         version_codes[CLIENT_VERSION_DCV1],
                         language_codes[lang], q->prefix);
                 break;
 
             case CLIENT_VERSION_PC:
             case CLIENT_VERSION_GC:
-                sprintf(filename, "%s/%s-%s/%sv1.qst", s->cfg->quests_dir,
+                sprintf(filename, "%s/%s-%s/%sv1.qst", ship->cfg->quests_dir,
                         version_codes[c->version], language_codes[lang],
                         q->prefix);
                 break;
@@ -5160,8 +5152,7 @@ static int send_qst_quest_new(ship_client_t *c, quest_map_elem_t *qm, int v1,
 int send_quest_new(lobby_t *l, uint32_t qid, int lc) {
     int i;
     int v1 = 0;
-    ship_t *s = l->clients[l->leader_id]->cur_ship;
-    quest_map_elem_t *elem = quest_lookup(&s->qmap, qid);
+    quest_map_elem_t *elem = quest_lookup(&ship->qmap, qid);
     sylverant_quest_t *q;
     ship_client_t *c;
     int lang;
@@ -5867,7 +5858,6 @@ static int send_dc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
     uint16_t len = 4;
     uint8_t entries = 0;
     int i;
-    ship_t *s;
     block_t *b;
     ship_client_t *it;
 
@@ -5877,9 +5867,8 @@ static int send_dc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
     }
 
     /* Search the local ship. */
-    s = ships[0];
-    for(i = 0; i < s->cfg->blocks; ++i) {
-        b = s->blocks[i];
+    for(i = 0; i < ship->cfg->blocks; ++i) {
+        b = ship->blocks[i];
 
         if(b && b->run) {
             pthread_mutex_lock(&b->mutex);
@@ -5919,7 +5908,7 @@ static int send_dc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
                         classes[it->pl->v1.ch_class], it->pl->v1.level + 1);
                 sprintf(pkt->entries[entries].location, "%s,BLOCK%02d,%s",
                         it->cur_lobby->name, it->cur_block->b,
-                        s->cfg->name);
+                        ship->cfg->name);
 
                 pkt->entries[entries].ip = a;
                 pkt->entries[entries].port = LE16(b->dc_port);
@@ -5955,7 +5944,6 @@ static int send_pc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
     uint8_t entries = 0;
     int i;
     iconv_t ic;
-    ship_t *s;
     block_t *b;
     ship_client_t *it;
     char tmp[64];
@@ -5974,9 +5962,8 @@ static int send_pc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
     }
 
     /* Search the local ship. */
-    s = ships[0];
-    for(i = 0; i < s->cfg->blocks; ++i) {
-        b = s->blocks[i];
+    for(i = 0; i < ship->cfg->blocks; ++i) {
+        b = ship->blocks[i];
 
         if(b && b->run) {
             pthread_mutex_lock(&b->mutex);
@@ -6018,7 +6005,7 @@ static int send_pc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
                          0x40);
 
                 sprintf(tmp, "%s,BLOCK%02d,%s", it->cur_lobby->name,
-                        it->cur_block->b, s->cfg->name);
+                        it->cur_block->b, ship->cfg->name);
                 istrncpy(ic, (char *)pkt->entries[entries].location, tmp,
                          0x60);
 
@@ -6057,7 +6044,6 @@ static int send_gc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
     uint16_t len = 4;
     uint8_t entries = 0;
     int i;
-    ship_t *s;
     block_t *b;
     ship_client_t *it;
 
@@ -6067,9 +6053,8 @@ static int send_gc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
     }
 
     /* Search the local ship. */
-    s = ships[0];
-    for(i = 0; i < s->cfg->blocks; ++i) {
-        b = s->blocks[i];
+    for(i = 0; i < ship->cfg->blocks; ++i) {
+        b = ship->blocks[i];
 
         if(b && b->run) {
             pthread_mutex_lock(&b->mutex);
@@ -6109,7 +6094,7 @@ static int send_gc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
                         classes[it->pl->v1.ch_class], it->pl->v1.level + 1);
                 sprintf(pkt->entries[entries].location, "%s,BLOCK%02d,%s",
                         it->cur_lobby->name, it->cur_block->b,
-                        s->cfg->name);
+                        ship->cfg->name);
 
                 pkt->entries[entries].ip = a;
                 pkt->entries[entries].port = LE16(b->gc_port);
@@ -6139,7 +6124,7 @@ static int send_gc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
 
 int send_choice_reply(ship_client_t *c, dc_choice_set_t *search) {
     int minlvl = 0, maxlvl = 199, cl;
-    in_addr_t addr = c->cur_ship->cfg->ship_ip;
+    in_addr_t addr = ship->cfg->ship_ip;
 
     /* Parse the packet for the minimum and maximum levels. */
     switch(LE16(search->entries[0].item_id)) {

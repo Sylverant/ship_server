@@ -527,7 +527,7 @@ int lobby_change_lobby(ship_client_t *c, lobby_t *req) {
         }
 
         /* Send the message to the shipgate */
-        shipgate_send_lobby_chg(&c->cur_ship->sg, c->guildcard, l->lobby_id,
+        shipgate_send_lobby_chg(&ship->sg, c->guildcard, l->lobby_id,
                                 l->name);
 
         return 0;
@@ -606,7 +606,7 @@ int lobby_change_lobby(ship_client_t *c, lobby_t *req) {
 
     /* Make sure that the client is legit enough to be there. */
     if((req->type == LOBBY_TYPE_GAME) && (req->flags & LOBBY_FLAG_LEGIT_MODE) &&
-       !lobby_check_client_legit(req, c->cur_ship, c)) {
+       !lobby_check_client_legit(req, ship, c)) {
         rv = -9;
         goto out;
     }
@@ -653,8 +653,8 @@ int lobby_change_lobby(ship_client_t *c, lobby_t *req) {
     }
 
     /* Send the message to the shipgate */
-    shipgate_send_lobby_chg(&c->cur_ship->sg, c->guildcard,
-                            c->cur_lobby->lobby_id, c->cur_lobby->name);
+    shipgate_send_lobby_chg(&ship->sg, c->guildcard, c->cur_lobby->lobby_id,
+                            c->cur_lobby->name);
 
 out:
     /* We're done, unlock the locks. */

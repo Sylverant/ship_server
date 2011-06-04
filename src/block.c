@@ -42,8 +42,6 @@
 #include "subcmd.h"
 #include "scripts.h"
 
-extern ship_t **ships;
-
 static void *block_thd(void *d) {
     block_t *b = (block_t *)d;
     ship_t *s = b->ship;
@@ -552,7 +550,6 @@ void block_server_stop(block_t *b) {
 }
 
 int block_info_reply(ship_client_t *c, uint32_t block) {
-    ship_t *s = c->cur_ship;
     block_t *b;
     char string[256];
     int games = 0, players = 0;
@@ -560,17 +557,17 @@ int block_info_reply(ship_client_t *c, uint32_t block) {
     ship_client_t *i2;
 
     /* Make sure the block selected is in range. */
-    if(block > s->cfg->blocks) {
+    if(block > ship->cfg->blocks) {
         return 0;
     }
 
     /* Make sure that block is up and running. */
-    if(s->blocks[block - 1] == NULL  || s->blocks[block - 1]->run == 0) {
+    if(ship->blocks[block - 1] == NULL  || ship->blocks[block - 1]->run == 0) {
         return 0;
     }
 
     /* Grab the block in question */
-    b = s->blocks[block - 1];
+    b = ship->blocks[block - 1];
 
     pthread_mutex_lock(&b->mutex);
 
@@ -719,10 +716,8 @@ static int join_game(ship_client_t *c, lobby_t *l) {
 /* Process a login packet, sending security data, a lobby list, and a character
    data request. */
 static int dc_process_login(ship_client_t *c, dc_login_93_pkt *pkt) {
-    ship_t *s = c->cur_ship;
-
     /* Make sure v1 is allowed on this ship. */
-    if((s->cfg->shipgate_flags & SHIPGATE_FLAG_NOV1)) {
+    if((ship->cfg->shipgate_flags & SHIPGATE_FLAG_NOV1)) {
         send_message_box(c, "%s", __(c, "\tEPSO Version 1 is not supported on\n"
                                      "this ship.\n\nDisconnecting."));
         c->flags |= CLIENT_FLAG_DISCONNECTED;
@@ -735,8 +730,7 @@ static int dc_process_login(ship_client_t *c, dc_login_93_pkt *pkt) {
     c->q_lang = pkt->language_code;
 
     /* See if this person is a GM. */
-    c->privilege = is_gm(c->guildcard, pkt->serial, pkt->access_key,
-                         c->cur_ship);
+    c->privilege = is_gm(c->guildcard, pkt->serial, pkt->access_key, ship);
 
     if(send_dc_security(c, c->guildcard, NULL, 0)) {
         return -1;
@@ -756,11 +750,9 @@ static int dc_process_login(ship_client_t *c, dc_login_93_pkt *pkt) {
 /* Process a v2 login packet, sending security data, a lobby list, and a
    character data request. */
 static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
-    ship_t *s = c->cur_ship;
-
     /* Make sure the client's version is allowed on this ship. */
     if(c->version != CLIENT_VERSION_PC) {
-        if((s->cfg->shipgate_flags & SHIPGATE_FLAG_NOV2)) {
+        if((ship->cfg->shipgate_flags & SHIPGATE_FLAG_NOV2)) {
             send_message_box(c, "%s", __(c, "\tEPSO Version 2 is not supported "
                                          "on\nthis ship.\n\nDisconnecting."));
             c->flags |= CLIENT_FLAG_DISCONNECTED;
@@ -768,7 +760,7 @@ static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
         }
     }
     else {
-        if((s->cfg->shipgate_flags & SHIPGATE_FLAG_NOPC)) {
+        if((ship->cfg->shipgate_flags & SHIPGATE_FLAG_NOPC)) {
             send_message_box(c, "%s", __(c, "\tEPSO for PC is not supported "
                                          "on\nthis ship.\n\nDisconnecting."));
             c->flags |= CLIENT_FLAG_DISCONNECTED;
@@ -785,8 +777,7 @@ static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
         c->version = CLIENT_VERSION_DCV2;
 
     /* See if this person is a GM. */
-    c->privilege = is_gm(c->guildcard, pkt->serial, pkt->access_key,
-                         c->cur_ship);
+    c->privilege = is_gm(c->guildcard, pkt->serial, pkt->access_key, ship);
 
     if(send_dc_security(c, c->guildcard, NULL, 0)) {
         return -1;
@@ -806,10 +797,8 @@ static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
 /* Process a GC login packet, sending security data, a lobby list, and a
    character data request. */
 static int gc_process_login(ship_client_t *c, gc_login_9e_pkt *pkt) {
-    ship_t *s = c->cur_ship;
-
     /* Make sure PSOGC is allowed on this ship. */
-    if((s->cfg->shipgate_flags & SHIPGATE_FLAG_NOEP12)) {
+    if((ship->cfg->shipgate_flags & SHIPGATE_FLAG_NOEP12)) {
         send_message_box(c, "%s", __(c, "\tEPSO Episode 1 & 2 is not supported "
                                      "on\nthis ship.\n\nDisconnecting."));
         c->flags |= CLIENT_FLAG_DISCONNECTED;
@@ -822,8 +811,7 @@ static int gc_process_login(ship_client_t *c, gc_login_9e_pkt *pkt) {
     c->q_lang = pkt->language_code;
 
     /* See if this person is a GM. */
-    c->privilege = is_gm(c->guildcard, pkt->serial, pkt->access_key,
-                         c->cur_ship);
+    c->privilege = is_gm(c->guildcard, pkt->serial, pkt->access_key, ship);
 
     if(send_dc_security(c, c->guildcard, NULL, 0)) {
         return -1;
@@ -881,7 +869,7 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
         }
 
         /* See if this client passed the test or not. */
-        if(lobby_check_player_legit(l, c->cur_ship, &pkt->data, v)) {
+        if(lobby_check_player_legit(l, ship, &pkt->data, v)) {
             ++l->legit_check_passed;
         }
 
@@ -971,15 +959,15 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
         /* Do a few things that should only be done once per session... */
         if(!(c->flags & CLIENT_FLAG_SENT_MOTD)) {
             /* Notify the shipgate */
-            shipgate_send_block_login(&c->cur_ship->sg, 1, c->guildcard,
+            shipgate_send_block_login(&ship->sg, 1, c->guildcard,
                                       c->cur_block->b, c->pl->v1.name);
-            shipgate_send_lobby_chg(&c->cur_ship->sg, c->guildcard,
+            shipgate_send_lobby_chg(&ship->sg, c->guildcard,
                                     c->cur_lobby->lobby_id, c->cur_lobby->name);
 
             /* Set up to send the Message of the Day if we have one and the
                client hasn't already gotten it this session.
                XXXX: Disabled for Gamecube, for now (due to bugginess). */
-            if(c->cur_ship->motd && c->version != CLIENT_VERSION_GC &&
+            if(ship->motd && c->version != CLIENT_VERSION_GC &&
                c->version != CLIENT_VERSION_EP3) {
                 send_simple(c, PING_TYPE, 0);
             }
@@ -988,7 +976,7 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
             }
         }
         else {
-            shipgate_send_lobby_chg(&c->cur_ship->sg, c->guildcard,
+            shipgate_send_lobby_chg(&ship->sg, c->guildcard,
                                     c->cur_lobby->lobby_id, c->cur_lobby->name);
         }
     }
@@ -1103,27 +1091,25 @@ static int pc_process_chat(ship_client_t *c, dc_chat_pkt *pkt) {
 
 /* Process a Guild Search request. */
 static int dc_process_guild_search(ship_client_t *c, dc_guild_search_pkt *pkt) {
-    ship_t *s;
     int i;
     ship_client_t *it;
     uint32_t gc = LE32(pkt->gc_target);
     int done = 0, rv = -1;
 
     /* Search the local ship first. */
-    s = ships[0];
-    for(i = 0; i < s->cfg->blocks && !done; ++i) {
-        pthread_mutex_lock(&s->blocks[i]->mutex);
+    for(i = 0; i < ship->cfg->blocks && !done; ++i) {
+        pthread_mutex_lock(&ship->blocks[i]->mutex);
 
         /* Look through all clients on that block. */
-        TAILQ_FOREACH(it, s->blocks[i]->clients, qentry) {
+        TAILQ_FOREACH(it, ship->blocks[i]->clients, qentry) {
             /* Check if this is the target and the target has player
                data. */
             if(it->guildcard == gc && it->pl) {
                 pthread_mutex_lock(&it->mutex);
-                rv = send_guild_reply(c, gc, s->cfg->ship_ip,
-                                      s->blocks[i]->dc_port,
+                rv = send_guild_reply(c, gc, ship->cfg->ship_ip,
+                                      ship->blocks[i]->dc_port,
                                       it->cur_lobby->name,
-                                      s->blocks[i]->b, s->cfg->name,
+                                      ship->blocks[i]->b, ship->cfg->name,
                                       it->cur_lobby->lobby_id,
                                       it->pl->v1.name);
                 done = 1;
@@ -1140,20 +1126,19 @@ static int dc_process_guild_search(ship_client_t *c, dc_guild_search_pkt *pkt) {
                 break;
         }
 
-        pthread_mutex_unlock(&s->blocks[i]->mutex);
+        pthread_mutex_unlock(&ship->blocks[i]->mutex);
     }
 
     /* If we get here, we didn't find it locally. Send to the shipgate to
        continue searching. */
     if(!done) {
-        return shipgate_fw_dc(&c->cur_ship->sg, pkt);
+        return shipgate_fw_dc(&ship->sg, pkt);
     }
 
     return rv;
 }
 
 static int dc_process_mail(ship_client_t *c, dc_simple_mail_pkt *pkt) {
-    ship_t *s;
     int i;
     ship_client_t *it;
     uint32_t gc = LE32(pkt->gc_dest);
@@ -1171,12 +1156,11 @@ static int dc_process_mail(ship_client_t *c, dc_simple_mail_pkt *pkt) {
     }
 
     /* Search the local ship first. */
-    s = ships[0];
-    for(i = 0; i < s->cfg->blocks && !done; ++i) {
-        pthread_mutex_lock(&s->blocks[i]->mutex);
+    for(i = 0; i < ship->cfg->blocks && !done; ++i) {
+        pthread_mutex_lock(&ship->blocks[i]->mutex);
 
         /* Look through all clients on that block. */
-        TAILQ_FOREACH(it, s->blocks[i]->clients, qentry) {
+        TAILQ_FOREACH(it, ship->blocks[i]->clients, qentry) {
             /* Check if this is the target and the target has player
                data. */
             if(it->guildcard == gc && it->pl) {
@@ -1225,20 +1209,19 @@ static int dc_process_mail(ship_client_t *c, dc_simple_mail_pkt *pkt) {
             }
         }
 
-        pthread_mutex_unlock(&s->blocks[i]->mutex);
+        pthread_mutex_unlock(&ship->blocks[i]->mutex);
     }
 
     if(!done) {
         /* If we get here, we didn't find it locally. Send to the shipgate to
            continue searching. */
-        return shipgate_fw_dc(&c->cur_ship->sg, pkt);
+        return shipgate_fw_dc(&ship->sg, pkt);
     }
 
     return rv;
 }
 
 static int pc_process_mail(ship_client_t *c, pc_simple_mail_pkt *pkt) {
-    ship_t *s;
     int i;
     ship_client_t *it;
     uint32_t gc = LE32(pkt->gc_dest);
@@ -1256,12 +1239,11 @@ static int pc_process_mail(ship_client_t *c, pc_simple_mail_pkt *pkt) {
     }
 
     /* Search the local ship first. */
-    s = ships[0];
-    for(i = 0; i < s->cfg->blocks && !done; ++i) {
-        pthread_mutex_lock(&s->blocks[i]->mutex);
+    for(i = 0; i < ship->cfg->blocks && !done; ++i) {
+        pthread_mutex_lock(&ship->blocks[i]->mutex);
 
         /* Look through all clients on that block. */
-        TAILQ_FOREACH(it, s->blocks[i]->clients, qentry) {
+        TAILQ_FOREACH(it, ship->blocks[i]->clients, qentry) {
             /* Check if this is the target and the target has player
                data. */
             if(it->guildcard == gc && it->pl) {
@@ -1309,13 +1291,13 @@ static int pc_process_mail(ship_client_t *c, pc_simple_mail_pkt *pkt) {
             }
         }
 
-        pthread_mutex_unlock(&s->blocks[i]->mutex);
+        pthread_mutex_unlock(&ship->blocks[i]->mutex);
     }
 
     if(!done) {
         /* If we get here, we didn't find it locally. Send to the shipgate to
            continue searching. */
-        return shipgate_fw_pc(&c->cur_ship->sg, pkt);
+        return shipgate_fw_pc(&ship->sg, pkt);
     }
 
     return rv;
@@ -1323,8 +1305,7 @@ static int pc_process_mail(ship_client_t *c, pc_simple_mail_pkt *pkt) {
 
 static int dc_process_game_create(ship_client_t *c, dc_game_create_pkt *pkt) {
     lobby_t *l;
-    ship_t *s = c->cur_ship;
-    uint8_t event = s->cfg->game_event;
+    uint8_t event = ship->cfg->game_event;
 
     /* Check the user's ability to create a game of that difficulty. */
     if((LE32(c->pl->v1.level) + 1) < game_required_level[pkt->difficulty]) {
@@ -1359,8 +1340,7 @@ static int dc_process_game_create(ship_client_t *c, dc_game_create_pkt *pkt) {
 
 static int pc_process_game_create(ship_client_t *c, pc_game_create_pkt *pkt) {
     lobby_t *l = NULL;
-    ship_t *s = c->cur_ship;
-    uint8_t event = s->cfg->game_event;
+    uint8_t event = ship->cfg->game_event;
     char name[16], password[16];
     iconv_t ic;
 
@@ -1420,8 +1400,7 @@ static int pc_process_game_create(ship_client_t *c, pc_game_create_pkt *pkt) {
 
 static int gc_process_game_create(ship_client_t *c, gc_game_create_pkt *pkt) {
     lobby_t *l;
-    ship_t *s = c->cur_ship;
-    uint8_t event = s->cfg->game_event;
+    uint8_t event = ship->cfg->game_event;
 
     /* Check the user's ability to create a game of that difficulty. */
     if((LE32(c->pl->v1.level) + 1) < game_required_level[pkt->difficulty]) {
@@ -1518,7 +1497,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
             long len;
 
             /* The item_id should be the information the client wants. */
-            if(item_id >= c->cur_ship->cfg->info_file_count) {
+            if(item_id >= ship->cfg->info_file_count) {
                 send_message1(c, "%s\n\n%s",
                               __(c, "\tE\tC4That information is\nclassified!"),
                               __(c, "\tC7Nah, it just doesn't\nexist, sorry."));
@@ -1526,7 +1505,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
             }
 
             /* Attempt to open the file */
-            fp = fopen(c->cur_ship->cfg->info_files[item_id], "r");
+            fp = fopen(ship->cfg->info_files[item_id], "r");
 
             if(!fp) {
                 send_message1(c, "%s\n\n%s",
@@ -1557,41 +1536,40 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
         /* Blocks */
         case MENU_ID_BLOCK:
         {
-            ship_t *s = c->cur_ship;
             uint16_t port;
 
             /* See if it's the "Ship Select" entry */
             if(item_id == 0xFFFFFFFF) {
-                return send_ship_list(c, s, s->cfg->menu_code);
+                return send_ship_list(c, ship, ship->cfg->menu_code);
             }
 
             /* Make sure the block selected is in range. */
-            if(item_id > s->cfg->blocks) {
+            if(item_id > ship->cfg->blocks) {
                 return -1;
             }
 
             /* Make sure that block is up and running. */
-            if(s->blocks[item_id - 1] == NULL  ||
-               s->blocks[item_id - 1]->run == 0) {
+            if(ship->blocks[item_id - 1] == NULL  ||
+               ship->blocks[item_id - 1]->run == 0) {
                 return -2;
             }
 
             switch(c->version) {
                 case CLIENT_VERSION_DCV1:
                 case CLIENT_VERSION_DCV2:
-                    port = s->blocks[item_id - 1]->dc_port;
+                    port = ship->blocks[item_id - 1]->dc_port;
                     break;
                     
                 case CLIENT_VERSION_PC:
-                    port = s->blocks[item_id - 1]->pc_port;
+                    port = ship->blocks[item_id - 1]->pc_port;
                     break;
 
                 case CLIENT_VERSION_GC:
-                    port = s->blocks[item_id - 1]->gc_port;
+                    port = ship->blocks[item_id - 1]->gc_port;
                     break;
 
                 case CLIENT_VERSION_EP3:
-                    port = s->blocks[item_id - 1]->ep3_port;
+                    port = ship->blocks[item_id - 1]->ep3_port;
                     break;
 
                 default:
@@ -1599,7 +1577,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
             }
 
             /* Redirect the client where we want them to go. */
-            return send_redirect(c, s->cfg->ship_ip, port);
+            return send_redirect(c, ship->cfg->ship_ip, port);
         }
 
         /* Game Selection */
@@ -1673,26 +1651,26 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
             int rv;
             int lang;
 
-            pthread_rwlock_rdlock(&c->cur_ship->qlock);
+            pthread_rwlock_rdlock(&ship->qlock);
 
             /* Are we using the new-style quest layout? */
-            if(!TAILQ_EMPTY(&c->cur_ship->qmap)) {
+            if(!TAILQ_EMPTY(&ship->qmap)) {
                 lang = (menu_id >> 24) & 0xFF;
                 rv = send_quest_list_new(c, (int)item_id, lang);
             }
             else {
-                if(item_id >= c->cur_ship->quests.cat_count) {
+                if(item_id >= ship->quests.cat_count) {
                     rv = send_message1(c, "%s",
                                        __(c, "\tE\tC4That category is\n"
                                           "non-existant."));
                 }
                 else {
                     rv = send_quest_list(c, (int)item_id,
-                                         c->cur_ship->quests.cats + item_id);
+                                         ship->quests.cats + item_id);
                 }
             }
 
-            pthread_rwlock_unlock(&c->cur_ship->qlock);
+            pthread_rwlock_unlock(&ship->qlock);
             return rv;
         }
 
@@ -1708,32 +1686,32 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
                                      __(c, "\tE\tC4Please wait a moment."));
             }
 
-            pthread_rwlock_rdlock(&c->cur_ship->qlock);
+            pthread_rwlock_rdlock(&ship->qlock);
 
             /* Are we using the new-style quest layout? */
-            if(!TAILQ_EMPTY(&c->cur_ship->qmap)) {
+            if(!TAILQ_EMPTY(&ship->qmap)) {
                 c->cur_lobby->flags |= LOBBY_FLAG_QUESTING;
                 rv = send_quest_new(c->cur_lobby, item_id, lang);
             }
             else {
-                if(q >= c->cur_ship->quests.cat_count) {
+                if(q >= ship->quests.cat_count) {
                     rv = send_message1(c, "%s",
                                        __(c, "\tE\tC4That category is\n"
                                           "non-existant."));
                 }
-                else if(item_id >= c->cur_ship->quests.cats[q].quest_count) {
+                else if(item_id >= ship->quests.cats[q].quest_count) {
                     rv = send_message1(c, "%s",
                                        __(c, "\tE\tC4That quest is\n"
                                           "non-existant."));
                 }
                 else {
                     c->cur_lobby->flags |= LOBBY_FLAG_QUESTING;
-                    quest = &c->cur_ship->quests.cats[q].quests[item_id];
+                    quest = &ship->quests.cats[q].quests[item_id];
                     rv = send_quest(c->cur_lobby, quest);
                 }
             }
 
-            pthread_rwlock_unlock(&c->cur_ship->qlock);
+            pthread_rwlock_unlock(&ship->qlock);
             return rv;
         }
 
@@ -1741,12 +1719,11 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
         case MENU_ID_SHIP:
         {
             miniship_t *i;
-            ship_t *s = c->cur_ship;
             int off = 0;
 
             /* See if the user picked a Ship List item */
             if(item_id == 0) {
-                return send_ship_list(c, s, (uint16_t)(menu_id >> 8));
+                return send_ship_list(c, ship, (uint16_t)(menu_id >> 8));
             }
 
             switch(c->version) {
@@ -1770,7 +1747,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
 
             /* Go through all the ships that we know about looking for the one
                that the user has requested. */
-            TAILQ_FOREACH(i, &s->ships, qentry) {
+            TAILQ_FOREACH(i, &ship->ships, qentry) {
                 if(i->ship_id == item_id) {
                     return send_redirect(c, i->ship_addr, i->ship_port + off);
                 }
@@ -1796,7 +1773,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
 
                 /* Add the lobby to the list of lobbies on the block. */
                 TAILQ_INSERT_TAIL(&c->cur_block->lobbies, l, qentry);
-                ship_inc_games(c->cur_ship);
+                ship_inc_games(ship);
                 c->create_lobby = NULL;
 
                 /* Add the user to the lobby... */
@@ -1818,7 +1795,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
 }
 
 static int dc_process_lobby_inf(ship_client_t *c) {
-    return send_info_list(c, c->cur_ship);
+    return send_info_list(c, ship);
 }
 
 static int dc_process_info_req(ship_client_t *c, dc_select_pkt *pkt) {
@@ -1842,41 +1819,40 @@ static int dc_process_info_req(ship_client_t *c, dc_select_pkt *pkt) {
             int rv;
             sylverant_quest_t *quest;
 
-            pthread_rwlock_rdlock(&c->cur_ship->qlock);
+            pthread_rwlock_rdlock(&ship->qlock);
 
             /* Are we using the new-style quest layout? */
-            if(!TAILQ_EMPTY(&c->cur_ship->qmap)) {
+            if(!TAILQ_EMPTY(&ship->qmap)) {
                 rv = send_quest_info_new(c->cur_lobby, item_id, lang);
             }
             else {
-                if(q >= c->cur_ship->quests.cat_count) {
+                if(q >= ship->quests.cat_count) {
                     rv = send_message1(c, "%s",
                                        __(c, "\tE\tC4That category is\n"
                                           "non-existant."));
                 }
-                else if(item_id >= c->cur_ship->quests.cats[q].quest_count) {
+                else if(item_id >= ship->quests.cats[q].quest_count) {
                     rv = send_message1(c, "%s",
                                        __(c, "\tE\tC4That quest is\n"
                                           "non-existant."));
                 }
                 else {
-                    quest = &c->cur_ship->quests.cats[q].quests[item_id];
+                    quest = &ship->quests.cats[q].quests[item_id];
                     rv = send_quest_info(c->cur_lobby, quest);
                 }
             }
 
-            pthread_rwlock_unlock(&c->cur_ship->qlock);
+            pthread_rwlock_unlock(&ship->qlock);
             return rv;
         }
 
         /* Ship */
         case MENU_ID_SHIP:
         {
-            ship_t *s = c->cur_ship;
             miniship_t *i;
 
             /* Find the ship if its still online */
-            TAILQ_FOREACH(i, &s->ships, qentry) {
+            TAILQ_FOREACH(i, &ship->ships, qentry) {
                 if(i->ship_id == item_id) {
                     char string[256];
                     char tmp[3] = { (char)i->menu_code,
@@ -1998,10 +1974,10 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return dc_process_change_lobby(c, (dc_select_pkt *)pkt);
 
         case PING_TYPE:
-            if(!(c->flags & CLIENT_FLAG_SENT_MOTD) && c->cur_ship->motd &&
+            if(!(c->flags & CLIENT_FLAG_SENT_MOTD) && ship->motd &&
                c->version != CLIENT_VERSION_GC &&
                c->version != CLIENT_VERSION_EP3) {
-                send_message_box(c, "%s", c->cur_ship->motd);
+                send_message_box(c, "%s", ship->motd);
                 c->flags |= CLIENT_FLAG_SENT_MOTD;
             }
 
@@ -2064,26 +2040,26 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return dc_process_lobby_inf(c);
 
         case BLOCK_LIST_REQ_TYPE:
-            return send_block_list(c, c->cur_ship);
+            return send_block_list(c, ship);
 
         case INFO_REQUEST_TYPE:
             return dc_process_info_req(c, (dc_select_pkt *)pkt);
 
         case QUEST_LIST_TYPE:
-            pthread_rwlock_rdlock(&c->cur_ship->qlock);
+            pthread_rwlock_rdlock(&ship->qlock);
             pthread_mutex_lock(&c->cur_lobby->mutex);
             c->cur_lobby->flags |= LOBBY_FLAG_QUESTSEL;
 
             /* Are we using the new-style quest layout? */
-            if(!TAILQ_EMPTY(&c->cur_ship->qmap)) {
+            if(!TAILQ_EMPTY(&ship->qmap)) {
                 rv = send_quest_categories_new(c, c->q_lang);
             }
             else {
-                rv = send_quest_categories(c, &c->cur_ship->quests);
+                rv = send_quest_categories(c, &ship->quests);
             }
 
             pthread_mutex_unlock(&c->cur_lobby->mutex);
-            pthread_rwlock_unlock(&c->cur_ship->qlock);
+            pthread_rwlock_unlock(&ship->qlock);
             return rv;
 
         case QUEST_END_LIST_TYPE:
@@ -2102,7 +2078,7 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return dc_process_arrow(c, flags);
 
         case SHIP_LIST_TYPE:
-            return send_ship_list(c, c->cur_ship, c->cur_ship->cfg->menu_code);
+            return send_ship_list(c, ship, ship->cfg->menu_code);
 
         case CHOICE_OPTION_TYPE:
             return send_choice_search(c);

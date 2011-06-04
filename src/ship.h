@@ -115,6 +115,9 @@ struct ship {
 typedef struct ship ship_t;
 #endif
 
+/* The one global ship structure */
+extern ship_t *ship;
+
 miniship_t *ship_find_ship(ship_t *s, uint32_t sid);
 
 ship_t *ship_server_start(sylverant_ship_t *s);

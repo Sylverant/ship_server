@@ -425,7 +425,7 @@ static int handle_dc_mail(shipgate_conn_t *conn, dc_simple_mail_pkt *pkt) {
 
                         strcpy(rep.name, c->pl->v1.name);
                         strcpy(rep.stuff, c->autoreply);
-                        shipgate_fw_dc(&c->cur_ship->sg, (dc_pkt_hdr_t *)&rep);
+                        shipgate_fw_dc(&ship->sg, (dc_pkt_hdr_t *)&rep);
                     }
 
                     /* Forward the packet there. */
@@ -490,7 +490,7 @@ static int handle_pc_mail(shipgate_conn_t *conn, pc_simple_mail_pkt *pkt) {
 
                         strcpy(rep.name, c->pl->v1.name);
                         strcpy(rep.stuff, c->autoreply);
-                        shipgate_fw_dc(&c->cur_ship->sg, (dc_pkt_hdr_t *)&rep);
+                        shipgate_fw_dc(&ship->sg, (dc_pkt_hdr_t *)&rep);
                     }
 
                     /* Forward the packet there. */

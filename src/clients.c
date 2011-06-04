@@ -114,7 +114,6 @@ ship_client_t *client_create_connection(int sock, int version, int type,
     /* Store basic parameters in the client structure. */
     rv->sock = sock;
     rv->version = version;
-    rv->cur_ship = ship;
     rv->cur_block = block;
     rv->addr = addr;
     rv->arrow = 1;
@@ -225,12 +224,12 @@ void client_destroy_connection(ship_client_t *c, struct client_queue *clients) {
 
     /* If the user was on a block, notify the shipgate */
     if(!(c->flags & CLIENT_FLAG_TYPE_SHIP) && c->pl->v1.name[0]) {
-        shipgate_send_block_login(&c->cur_ship->sg, 0, c->guildcard,
+        shipgate_send_block_login(&ship->sg, 0, c->guildcard,
                                   c->cur_block->b, c->pl->v1.name);
     }
 
     pthread_mutex_destroy(&c->mutex);
-    ship_dec_clients(c->cur_ship);
+    ship_dec_clients(ship);
 
     /* If the client has a lobby sitting around that was created but not added
        to the list of lobbies, destroy it */

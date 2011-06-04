@@ -175,10 +175,10 @@ static int handle_kill(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
        ship). */
     if(GLOBAL_GM(c)) {
         if(strlen(reason) > 1) {
-            shipgate_send_kick(&c->cur_ship->sg, c->guildcard, gc, reason + 1);
+            shipgate_send_kick(&ship->sg, c->guildcard, gc, reason + 1);
         }
         else {
-            shipgate_send_kick(&c->cur_ship->sg, c->guildcard, gc, NULL);
+            shipgate_send_kick(&ship->sg, c->guildcard, gc, NULL);
         }
     }
 
@@ -269,9 +269,8 @@ static int handle_max_level(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return send_txt(c, "%s", __(c, "\tE\tC7Maximum level set."));
 }
 
-/* Usage: /refresh [quests or gms] */
+/* Usage: /refresh [quests, gms, or limits] */
 static int handle_refresh(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
-    ship_t *s = c->cur_ship;
     sylverant_quest_list_t quests;
     sylverant_quest_list_t qlist[CLIENT_VERSION_COUNT][CLIENT_LANG_COUNT];
     quest_map_t qmap;
@@ -285,32 +284,32 @@ static int handle_refresh(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     }
 
     if(!strcmp(params, "quests")) {
-        if(s->cfg->quests_file && s->cfg->quests_file[0]) {
-            if(sylverant_quests_read(s->cfg->quests_file, &quests)) {
+        if(ship->cfg->quests_file && ship->cfg->quests_file[0]) {
+            if(sylverant_quests_read(ship->cfg->quests_file, &quests)) {
                 debug(DBG_ERROR, "%s: Couldn't read quests file!\n",
-                      s->cfg->name);
+                      ship->cfg->name);
                 return send_txt(c, "%s",
                                 __(c, "\tE\tC7Couldn't read quests file!"));
             }
 
             /* Lock the mutex to prevent anyone from trying anything funny. */
-            pthread_rwlock_wrlock(&s->qlock);
+            pthread_rwlock_wrlock(&ship->qlock);
 
             /* Out with the old, and in with the new. */
-            sylverant_quests_destroy(&s->quests);
-            s->quests = quests;
+            sylverant_quests_destroy(&ship->quests);
+            ship->quests = quests;
 
             /* Unlock the lock, we're done. */
-            pthread_rwlock_unlock(&s->qlock);
+            pthread_rwlock_unlock(&ship->qlock);
             return send_txt(c, "%s", __(c, "\tE\tC7Updated quest list"));
         }
-        else if(s->cfg->quests_dir && s->cfg->quests_dir[0]) {
+        else if(ship->cfg->quests_dir && ship->cfg->quests_dir[0]) {
             /* Read in the new quests first */
             TAILQ_INIT(&qmap);
 
             for(i = 0; i < CLIENT_VERSION_COUNT; ++i) {
                 for(j = 0; j < CLIENT_LANG_COUNT; ++j) {
-                    sprintf(fn, "%s/%s-%s/quests.xml", s->cfg->quests_dir,
+                    sprintf(fn, "%s/%s-%s/quests.xml", ship->cfg->quests_dir,
                             version_codes[i], language_codes[j]);
                     if(!sylverant_quests_read(fn, &qlist[i][j])) {
                         if(!quest_map(&qmap, &qlist[i][j], i, j)) { 
@@ -327,21 +326,21 @@ static int handle_refresh(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
             }
 
             /* Lock the mutex to prevent anyone from trying anything funny. */
-            pthread_rwlock_wrlock(&s->qlock);
+            pthread_rwlock_wrlock(&ship->qlock);
             
             /* Out with the old, and in with the new. */
             for(i = 0; i < CLIENT_VERSION_COUNT; ++i) {
                 for(j = 0; j < CLIENT_LANG_COUNT; ++j) {
-                    sylverant_quests_destroy(&s->qlist[i][j]);
-                    s->qlist[i][j] = qlist[i][j];
+                    sylverant_quests_destroy(&ship->qlist[i][j]);
+                    ship->qlist[i][j] = qlist[i][j];
                 }
             }
 
-            quest_cleanup(&s->qmap);
-            s->qmap = qmap;
+            quest_cleanup(&ship->qmap);
+            ship->qmap = qmap;
             
             /* Unlock the lock, we're done. */
-            pthread_rwlock_unlock(&s->qlock);
+            pthread_rwlock_unlock(&ship->qlock);
             return send_txt(c, "%s", __(c, "\tE\tC7Updated quest list"));
         }
         else {
@@ -355,10 +354,10 @@ static int handle_refresh(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
             return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
         }
 
-        if(s->cfg->gm_file[0]) {
+        if(ship->cfg->gm_file[0]) {
             /* Try to read the GM file. This will clean out the old list as
                well, if needed. */
-            if(gm_list_read(s->cfg->gm_file, s)) {
+            if(gm_list_read(ship->cfg->gm_file, ship)) {
                 return send_txt(c, "%s",
                                 __(c, "\tE\tC7Couldn't read GM list!"));
             }
@@ -370,15 +369,15 @@ static int handle_refresh(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
         }
     }
     else if(!strcmp(params, "limits")) {
-        if(s->cfg->limits_file[0]) {
-            if(sylverant_read_limits(s->cfg->limits_file, &limits)) {
+        if(ship->cfg->limits_file[0]) {
+            if(sylverant_read_limits(ship->cfg->limits_file, &limits)) {
                 return send_txt(c, "%s", __(c, "\tE\tC7Couldn't read limits!"));
             }
 
-            pthread_rwlock_wrlock(&s->llock);
-            tmplimits = s->limits;
-            s->limits = limits;
-            pthread_rwlock_unlock(&s->llock);
+            pthread_rwlock_wrlock(&ship->llock);
+            tmplimits = ship->limits;
+            ship->limits = limits;
+            pthread_rwlock_unlock(&ship->llock);
 
             sylverant_free_limits(tmplimits);
 
@@ -417,7 +416,7 @@ static int handle_save(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     slot += 4;
 
     /* Send the character data to the shipgate */
-    if(shipgate_send_cdata(&c->cur_ship->sg, c->guildcard, slot, c->pl)) {
+    if(shipgate_send_cdata(&ship->sg, c->guildcard, slot, c->pl)) {
         /* Send a message saying we couldn't save */
         return send_txt(c, "%s", __(c, "\tE\tC7Couldn't save character data"));
     }
@@ -451,7 +450,7 @@ static int handle_restore(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     slot += 4;
 
     /* Send the request to the shipgate. */
-    if(shipgate_send_creq(&c->cur_ship->sg, c->guildcard, slot)) {
+    if(shipgate_send_creq(&ship->sg, c->guildcard, slot)) {
         /* Send a message saying we couldn't request */
         return send_txt(c, "%s",
                         __(c, "\tE\tC7Couldn't request character data"));
@@ -500,7 +499,6 @@ static int handle_bstat(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
 /* Usage /bcast message */
 static int handle_bcast(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
-    ship_t *s = c->cur_ship;
     block_t *b;
     int i;
     ship_client_t *i2;
@@ -511,8 +509,8 @@ static int handle_bcast(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     }
 
     /* Go through each block and send the message to anyone that is alive. */
-    for(i = 0; i < s->cfg->blocks; ++i) {
-        b = s->blocks[i];
+    for(i = 0; i < ship->cfg->blocks; ++i) {
+        b = ship->blocks[i];
 
         if(b && b->run) {
             pthread_mutex_lock(&b->mutex);
@@ -580,7 +578,7 @@ static int handle_login(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     password[len] = '\0';
 
     /* We'll get success/failure later from the shipgate. */
-    return shipgate_send_gmlogin(&c->cur_ship->sg, c->guildcard,
+    return shipgate_send_gmlogin(&ship->sg, c->guildcard,
                                  c->cur_block->b, username, password);
 }
 
@@ -635,7 +633,6 @@ static int handle_item4(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 /* Usage: /event number */
 static int handle_event(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     lobby_t *l;
-    ship_t *s = c->cur_ship;
     ship_client_t *c2;
     block_t *b;
     int event, i, j;
@@ -652,11 +649,11 @@ static int handle_event(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
         return send_txt(c, "%s", __(c, "\tE\tC7Invalid event code."));
     }
 
-    s->cfg->lobby_event = event;
+    ship->cfg->lobby_event = event;
 
     /* Go through all the blocks... */
-    for(i = 0; i < s->cfg->blocks; ++i) {
-        b = s->blocks[i];
+    for(i = 0; i < ship->cfg->blocks; ++i) {
+        b = ship->blocks[i];
 
         if(b && b->run) {
             pthread_mutex_lock(&b->mutex);
@@ -836,7 +833,7 @@ static int handle_gban_d(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     }
 
     /* Set the ban with the shipgate first (86400s = 1 day). */
-    if(shipgate_send_ban(&c->cur_ship->sg, SHDR_TYPE_GCBAN, c->guildcard, gc,
+    if(shipgate_send_ban(&ship->sg, SHDR_TYPE_GCBAN, c->guildcard, gc,
                          time(NULL) + 86400, reason + 1)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Error setting ban!"));
     }
@@ -889,7 +886,7 @@ static int handle_gban_w(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     }
 
     /* Set the ban with the shipgate first (604800s = 1 week). */
-    if(shipgate_send_ban(&c->cur_ship->sg, SHDR_TYPE_GCBAN, c->guildcard, gc,
+    if(shipgate_send_ban(&ship->sg, SHDR_TYPE_GCBAN, c->guildcard, gc,
                          time(NULL) + 604800, reason + 1)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Error setting ban!"));
     }
@@ -942,7 +939,7 @@ static int handle_gban_m(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     }
 
     /* Set the ban with the shipgate first (2,592,000s = 30 days). */
-    if(shipgate_send_ban(&c->cur_ship->sg, SHDR_TYPE_GCBAN, c->guildcard, gc,
+    if(shipgate_send_ban(&ship->sg, SHDR_TYPE_GCBAN, c->guildcard, gc,
                          time(NULL) + 2592000, reason + 1)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Error setting ban!"));
     }
@@ -996,7 +993,7 @@ static int handle_gban_p(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     /* Set the ban with the shipgate first (0xFFFFFFFF = forever (or close
        enough anyway)). */
-    if(shipgate_send_ban(&c->cur_ship->sg, SHDR_TYPE_GCBAN, c->guildcard, gc,
+    if(shipgate_send_ban(&ship->sg, SHDR_TYPE_GCBAN, c->guildcard, gc,
                          0xFFFFFFFF, reason + 1)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Error setting ban!"));
     }
@@ -1153,7 +1150,6 @@ static int handle_shutdown(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     int i;
     ship_client_t *i2;
     uint32_t when;
-    ship_t *s = c->cur_ship;
     block_t *b;
 
     /* Make sure the requester is a local root. */
@@ -1176,8 +1172,8 @@ static int handle_shutdown(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     }
 
     /* Go through each block and send a notification to everyone. */
-    for(i = 0; i < s->cfg->blocks; ++i) {
-        b = s->blocks[i];
+    for(i = 0; i < ship->cfg->blocks; ++i) {
+        b = ship->blocks[i];
 
         if(b && b->run) {
             pthread_mutex_lock(&b->mutex);
@@ -1204,7 +1200,7 @@ static int handle_shutdown(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     debug(DBG_LOG, "Ship server shutdown scheduled for %d minutes by %u\n",
           when, c->guildcard);
 
-    ship_server_shutdown(s, time(NULL) + (when * 60));
+    ship_server_shutdown(ship, time(NULL) + (when * 60));
     return 0;
 }
 
@@ -1296,7 +1292,7 @@ static int handle_endlog(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
 /* Usage: /motd */
 static int handle_motd(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
-    return send_message_box(c, "%s", c->cur_ship->motd);
+    return send_message_box(c, "%s", ship->motd);
 }
 
 /* Usage: /friendadd guildcard nickname */
@@ -1319,7 +1315,7 @@ static int handle_friendadd(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     }
 
     /* Send a request to the shipgate to do the rest */
-    shipgate_send_friend_add(&c->cur_ship->sg, c->guildcard, gc, nick + 1);
+    shipgate_send_friend_add(&ship->sg, c->guildcard, gc, nick + 1);
     
     /* Any further messages will be handled by the shipgate handler */
     return 0;
@@ -1339,7 +1335,7 @@ static int handle_frienddel(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     }
 
     /* Send a request to the shipgate to do the rest */
-    shipgate_send_friend_del(&c->cur_ship->sg, c->guildcard, gc);
+    shipgate_send_friend_del(&ship->sg, c->guildcard, gc);
 
     /* Any further messages will be handled by the shipgate handler */
     return 0;
@@ -2137,7 +2133,6 @@ static int handle_quit(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
 /* Usage: /gameevent number */
 static int handle_gameevent(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
-    ship_t *s = c->cur_ship;
     int event;
 
     /* Make sure the requester is a GM. */
@@ -2152,7 +2147,7 @@ static int handle_gameevent(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
         return send_txt(c, "%s", __(c, "\tE\tC7Invalid event code."));
     }
 
-    s->cfg->game_event = event;
+    ship->cfg->game_event = event;
 
     return send_txt(c, "%s", __(c, "\tE\tC7Game Event set."));
 }
@@ -2161,7 +2156,6 @@ static int handle_gameevent(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 static int handle_ban_d(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     uint32_t gc;
     block_t *b;
-    ship_t *s = c->cur_ship;
     ship_client_t *i;
     char *reason;
     int j;
@@ -2181,13 +2175,13 @@ static int handle_ban_d(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     }
 
     /* Set the ban in the list (86,400s = 7 days) */
-    if(ban_guildcard(s, time(NULL) + 86400, c->guildcard, gc, reason + 1)) {
+    if(ban_guildcard(ship, time(NULL) + 86400, c->guildcard, gc, reason + 1)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Error setting ban!"));
     }
 
     /* Look for the requested user and kick them if they're on the ship. */
-    for(j = 0; j < s->cfg->blocks; ++j) {
-        if((b = s->blocks[j])) {
+    for(j = 0; j < ship->cfg->blocks; ++j) {
+        if((b = ship->blocks[j])) {
             pthread_mutex_lock(&b->mutex);
 
             TAILQ_FOREACH(i, b->clients, qentry) {
@@ -2222,7 +2216,6 @@ static int handle_ban_d(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 static int handle_ban_w(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     uint32_t gc;
     block_t *b;
-    ship_t *s = c->cur_ship;
     ship_client_t *i;
     char *reason;
     int j;
@@ -2242,13 +2235,13 @@ static int handle_ban_w(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     }
 
     /* Set the ban in the list (604,800s = 7 days) */
-    if(ban_guildcard(s, time(NULL) + 604800, c->guildcard, gc, reason + 1)) {
+    if(ban_guildcard(ship, time(NULL) + 604800, c->guildcard, gc, reason + 1)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Error setting ban!"));
     }
 
     /* Look for the requested user and kick them if they're on the ship. */
-    for(j = 0; j < s->cfg->blocks; ++j) {
-        if((b = s->blocks[j])) {
+    for(j = 0; j < ship->cfg->blocks; ++j) {
+        if((b = ship->blocks[j])) {
             pthread_mutex_lock(&b->mutex);
 
             TAILQ_FOREACH(i, b->clients, qentry) {
@@ -2283,7 +2276,6 @@ static int handle_ban_w(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 static int handle_ban_m(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     uint32_t gc;
     block_t *b;
-    ship_t *s = c->cur_ship;
     ship_client_t *i;
     char *reason;
     int j;
@@ -2303,13 +2295,14 @@ static int handle_ban_m(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     }
 
     /* Set the ban in the list (2,592,000s = 30 days) */
-    if(ban_guildcard(s, time(NULL) + 2592000, c->guildcard, gc, reason + 1)) {
+    if(ban_guildcard(ship, time(NULL) + 2592000, c->guildcard, gc,
+                     reason + 1)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Error setting ban!"));
     }
 
     /* Look for the requested user and kick them if they're on the ship. */
-    for(j = 0; j < s->cfg->blocks; ++j) {
-        if((b = s->blocks[j])) {
+    for(j = 0; j < ship->cfg->blocks; ++j) {
+        if((b = ship->blocks[j])) {
             pthread_mutex_lock(&b->mutex);
 
             TAILQ_FOREACH(i, b->clients, qentry) {
@@ -2343,7 +2336,6 @@ static int handle_ban_m(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 /* Usage: /ban:p guildcard reason */
 static int handle_ban_p(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     uint32_t gc;
-    ship_t *s = c->cur_ship;
     block_t *b;
     ship_client_t *i;
     int j;
@@ -2364,13 +2356,13 @@ static int handle_ban_p(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     }
 
     /* Set the ban in the list. An end time of -1 = forever */
-    if(ban_guildcard(s, (time_t)-1, c->guildcard, gc, reason + 1)) {
+    if(ban_guildcard(ship, (time_t)-1, c->guildcard, gc, reason + 1)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Error setting ban!"));
     }
 
     /* Look for the requested user and kick them if they're on the ship. */
-    for(j = 0; j < s->cfg->blocks; ++j) {
-        if((b = s->blocks[j])) {
+    for(j = 0; j < ship->cfg->blocks; ++j) {
+        if((b = ship->blocks[j])) {
             pthread_mutex_lock(&b->mutex);
 
             TAILQ_FOREACH(i, b->clients, qentry) {
@@ -2404,7 +2396,6 @@ static int handle_ban_p(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 /* Usage: /unban guildcard */
 static int handle_unban(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     uint32_t gc;
-    ship_t *s = c->cur_ship;
     int rv;
 
     /* Make sure the requester is a local GM. */
@@ -2422,7 +2413,7 @@ static int handle_unban(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     }
 
     /* Attempt to lift the ban */
-    rv = ban_lift_guildcard_ban(s, gc);
+    rv = ban_lift_guildcard_ban(ship, gc);
 
     /* Did we succeed? */
     if(!rv) {
@@ -2457,7 +2448,6 @@ static int handle_cc(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 /* Usage: /qlang [2 character language code] */
 static int handle_qlang(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     int i;
-    ship_t *s = c->cur_ship;
 
     /* Make sure they only gave one character */
     if(strlen(params) != 2) {
@@ -2469,7 +2459,7 @@ static int handle_qlang(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
         if(!strcmp(language_codes[i], params)) {
             c->q_lang = i;
 
-            shipgate_send_user_opt(&s->sg, c->guildcard, c->cur_block->b,
+            shipgate_send_user_opt(&ship->sg, c->guildcard, c->cur_block->b,
                                    USER_OPT_QUEST_LANG, 1, &c->q_lang);
 
             return send_txt(c, "%s", __(c, "\tE\tC7Quest language set"));
@@ -2481,7 +2471,6 @@ static int handle_qlang(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
 /* Usage /friends page */
 static int handle_friends(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
-    ship_t *s = c->cur_ship;
     block_t *b = c->cur_block;
     uint32_t page;
 
@@ -2495,13 +2484,11 @@ static int handle_friends(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     }
 
     /* Send the request to the shipgate */
-    return shipgate_send_frlist_req(&s->sg, c->guildcard, b->b, page * 5);
+    return shipgate_send_frlist_req(&ship->sg, c->guildcard, b->b, page * 5);
 }
 
 /* Usage /gbc message */
 static int handle_gbc(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
-    ship_t *s = c->cur_ship;
-
     /* Make sure the requester is a Global GM. */
     if(!GLOBAL_GM(c)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
@@ -2512,7 +2499,7 @@ static int handle_gbc(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
         return send_txt(c, "%s", __(c, "\tE\tC7Forget something?"));
     }
 
-    return shipgate_send_global_msg(&s->sg, c->guildcard, params);
+    return shipgate_send_global_msg(&ship->sg, c->guildcard, params);
 }
 
 /* Usage /logout */

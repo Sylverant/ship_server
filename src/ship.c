@@ -878,12 +878,11 @@ static int send_ban_msg(ship_client_t *c, time_t until, const char *reason) {
 }
 
 static int dc_process_login(ship_client_t *c, dc_login_93_pkt *pkt) {
-    ship_t *s = c->cur_ship;
     char *ban_reason;
     time_t ban_end;
 
     /* Make sure v1 is allowed on this ship. */
-    if((s->cfg->shipgate_flags & SHIPGATE_FLAG_NOV1)) {
+    if((ship->cfg->shipgate_flags & SHIPGATE_FLAG_NOV1)) {
         send_message_box(c, "%s", __(c, "\tEPSO Version 1 is not supported on\n"
                                      "this ship.\n\nDisconnecting."));
         c->flags |= CLIENT_FLAG_DISCONNECTED;
@@ -894,7 +893,7 @@ static int dc_process_login(ship_client_t *c, dc_login_93_pkt *pkt) {
     c->guildcard = LE32(pkt->guildcard);
 
     /* See if the user is banned */
-    if(is_guildcard_banned(s, c->guildcard, &ban_reason, &ban_end)) {
+    if(is_guildcard_banned(ship, c->guildcard, &ban_reason, &ban_end)) {
         send_ban_msg(c, ban_end, ban_reason);
         c->flags |= CLIENT_FLAG_DISCONNECTED;
         return 0;
@@ -904,7 +903,7 @@ static int dc_process_login(ship_client_t *c, dc_login_93_pkt *pkt) {
         return -1;
     }
 
-    if(send_block_list(c, c->cur_ship)) {
+    if(send_block_list(c, ship)) {
         return -2;
     }
 
@@ -913,13 +912,12 @@ static int dc_process_login(ship_client_t *c, dc_login_93_pkt *pkt) {
 
 /* Just in case I ever use the rest of the stuff... */
 static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
-    ship_t *s = c->cur_ship;
     char *ban_reason;
     time_t ban_end;
 
     /* Make sure the client's version is allowed on this ship. */
     if(c->version != CLIENT_VERSION_PC) {
-        if((s->cfg->shipgate_flags & SHIPGATE_FLAG_NOV2)) {
+        if((ship->cfg->shipgate_flags & SHIPGATE_FLAG_NOV2)) {
             send_message_box(c, "%s", __(c, "\tEPSO Version 2 is not supported "
                                          "on\nthis ship.\n\nDisconnecting."));
             c->flags |= CLIENT_FLAG_DISCONNECTED;
@@ -927,7 +925,7 @@ static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
         }
     }
     else {
-        if((s->cfg->shipgate_flags & SHIPGATE_FLAG_NOPC)) {
+        if((ship->cfg->shipgate_flags & SHIPGATE_FLAG_NOPC)) {
             send_message_box(c, "%s", __(c, "\tEPSO for PC is not supported "
                                          "on\nthis ship.\n\nDisconnecting."));
             c->flags |= CLIENT_FLAG_DISCONNECTED;
@@ -939,7 +937,7 @@ static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
     c->guildcard = LE32(pkt->guildcard);
 
     /* See if the user is banned */
-    if(is_guildcard_banned(s, c->guildcard, &ban_reason, &ban_end)) {
+    if(is_guildcard_banned(ship, c->guildcard, &ban_reason, &ban_end)) {
         send_ban_msg(c, ban_end, ban_reason);
         c->flags |= CLIENT_FLAG_DISCONNECTED;
         return 0;
@@ -949,7 +947,7 @@ static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
         return -1;
     }
 
-    if(send_block_list(c, c->cur_ship)) {
+    if(send_block_list(c, ship)) {
         return -2;
     }
 
@@ -957,12 +955,11 @@ static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
 }
 
 static int gc_process_login(ship_client_t *c, gc_login_9e_pkt *pkt) {
-    ship_t *s = c->cur_ship;
     char *ban_reason;
     time_t ban_end;
 
     /* Make sure PSOGC is allowed on this ship. */
-    if((s->cfg->shipgate_flags & SHIPGATE_FLAG_NOEP12)) {
+    if((ship->cfg->shipgate_flags & SHIPGATE_FLAG_NOEP12)) {
         send_message_box(c, "%s", __(c, "\tEPSO Episode 1 & 2 is not supported "
                                      "on\nthis ship.\n\nDisconnecting."));
         c->flags |= CLIENT_FLAG_DISCONNECTED;
@@ -973,7 +970,7 @@ static int gc_process_login(ship_client_t *c, gc_login_9e_pkt *pkt) {
     c->guildcard = LE32(pkt->guildcard);
 
     /* See if the user is banned */
-    if(is_guildcard_banned(s, c->guildcard, &ban_reason, &ban_end)) {
+    if(is_guildcard_banned(ship, c->guildcard, &ban_reason, &ban_end)) {
         send_ban_msg(c, ban_end, ban_reason);
         c->flags |= CLIENT_FLAG_DISCONNECTED;
         return 0;
@@ -983,13 +980,13 @@ static int gc_process_login(ship_client_t *c, gc_login_9e_pkt *pkt) {
         return -1;
     }
 
-    if(!c->cur_ship->motd) {
-        if(send_block_list(c, c->cur_ship)) {
+    if(!ship->motd) {
+        if(send_block_list(c, ship)) {
             return -2;
         }
     }
     else {
-        if(send_message_box(c, "%s", c->cur_ship->motd)) {
+        if(send_message_box(c, "%s", ship->motd)) {
             return -2;
         }
     }
@@ -999,37 +996,39 @@ static int gc_process_login(ship_client_t *c, gc_login_9e_pkt *pkt) {
 
 static int dc_process_block_sel(ship_client_t *c, dc_select_pkt *pkt) {
     int block = LE32(pkt->item_id);
-    ship_t *s = c->cur_ship;
 
     /* See if the block selected is the "Ship Select" block */
     if(block == 0xFFFFFFFF) {
-        return send_ship_list(c, s, s->cfg->menu_code);
+        return send_ship_list(c, ship, ship->cfg->menu_code);
     }
 
     /* Make sure the block selected is in range. */
-    if(block > s->cfg->blocks) {
+    if(block > ship->cfg->blocks) {
         return -1;
     }
 
     /* Make sure that block is up and running. */
-    if(s->blocks[block - 1] == NULL  || s->blocks[block - 1]->run == 0) {
+    if(ship->blocks[block - 1] == NULL  || ship->blocks[block - 1]->run == 0) {
         return -2;
     }
 
     /* Redirect the client where we want them to go. */
     if(c->version == CLIENT_VERSION_DCV1 ||
        c->version == CLIENT_VERSION_DCV2) {
-        return send_redirect(c, s->cfg->ship_ip, s->blocks[block - 1]->dc_port);
+        return send_redirect(c, ship->cfg->ship_ip,
+                             ship->blocks[block - 1]->dc_port);
     }
     else if(c->version == CLIENT_VERSION_PC) {
-        return send_redirect(c, s->cfg->ship_ip, s->blocks[block - 1]->pc_port);
+        return send_redirect(c, ship->cfg->ship_ip,
+                             ship->blocks[block - 1]->pc_port);
     }
     else if(c->version == CLIENT_VERSION_GC) {
-        return send_redirect(c, s->cfg->ship_ip, s->blocks[block - 1]->gc_port);
+        return send_redirect(c, ship->cfg->ship_ip,
+                             ship->blocks[block - 1]->gc_port);
     }
     else {
-        return send_redirect(c, s->cfg->ship_ip,
-                             s->blocks[block - 1]->ep3_port);
+        return send_redirect(c, ship->cfg->ship_ip,
+                             ship->blocks[block - 1]->ep3_port);
     }
 }
 
@@ -1047,12 +1046,11 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
         case MENU_ID_SHIP:
         {
             miniship_t *i;
-            ship_t *s = c->cur_ship;
             int off = 0;
 
             /* See if the user picked a Ship List item */
             if(item_id == 0) {
-                return send_ship_list(c, s, (uint16_t)(menu_id >> 8));
+                return send_ship_list(c, ship, (uint16_t)(menu_id >> 8));
             }
 
             switch(c->version) {
@@ -1076,7 +1074,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
 
             /* Go through all the ships that we know about looking for the one
                that the user has requested. */
-            TAILQ_FOREACH(i, &s->ships, qentry) {
+            TAILQ_FOREACH(i, &ship->ships, qentry) {
                 if(i->ship_id == item_id) {
                     return send_redirect(c, i->ship_addr, i->ship_port + off);
                 }
@@ -1104,11 +1102,10 @@ static int dc_process_info_req(ship_client_t *c, dc_select_pkt *pkt) {
         /* Ship */
         case MENU_ID_SHIP:
         {
-            ship_t *s = c->cur_ship;
             miniship_t *i;
 
             /* Find the ship if its still online */
-            TAILQ_FOREACH(i, &s->ships, qentry) {
+            TAILQ_FOREACH(i, &ship->ships, qentry) {
                 if(i->ship_id == item_id) {
                     char string[256];
                     char tmp[3] = { (char)i->menu_code,
@@ -1169,7 +1166,7 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return gc_process_login(c, (gc_login_9e_pkt *)pkt);
 
         case GC_MSG_BOX_CLOSED_TYPE:
-            return send_block_list(c, c->cur_ship);
+            return send_block_list(c, ship);
 
         case GAME_COMMAND0_TYPE:
             /* Ignore these, since taking screenshots on PSOPC generates them

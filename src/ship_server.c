@@ -37,8 +37,8 @@
 #include "scripts.h"
 
 /* The actual ship structures. */
-ship_t **ships;
-char *config_file = NULL;
+ship_t *ship;
+static char *config_file = NULL;
 static const char *custom_dir = NULL;
 static int dont_daemonize = 0;
 
@@ -122,14 +122,6 @@ static sylverant_ship_t *load_config(void) {
 
     if(sylverant_read_ship_config(config_file, &cfg)) {
         debug(DBG_ERROR, "Cannot load Sylverant Ship configuration file!\n");
-        exit(EXIT_FAILURE);
-    }
-
-    /* Allocate space for the ship. */
-    ships = (ship_t **)malloc(sizeof(ship_t *));
-
-    if(!ships) {
-        debug(DBG_ERROR, "Cannot allocate memory!\n");
         exit(EXIT_FAILURE);
     }
 
@@ -242,11 +234,9 @@ int main(int argc, char *argv[]) {
     init_genrand(time(NULL));
     install_signal_handlers();
 
-    /* Start up the servers for the ships we've configured. */
-    ships[0] = ship_server_start(cfg);
-
-    /* Run the ship server. */
-    pthread_join(ships[0]->thd, NULL);
+    /* Set up the ship and start it. */
+    ship = ship_server_start(cfg);
+    pthread_join(ship->thd, NULL);
 
     /* Clean up... */
     if((tmp = pthread_getspecific(sendbuf_key))) {
@@ -263,7 +253,6 @@ int main(int argc, char *argv[]) {
     cleanup_i18n();
     client_shutdown();
     sylverant_free_ship_config(cfg);
-    free(ships);
 
     return 0;
 }

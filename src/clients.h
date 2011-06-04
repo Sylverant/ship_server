@@ -104,7 +104,6 @@ struct ship_client {
 
     item_t items[30];
 
-    ship_t *cur_ship;
     block_t *cur_block;
     lobby_t *cur_lobby;
     player_t *pl;
