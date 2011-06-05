@@ -354,7 +354,7 @@ static int handle_refresh(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
             return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
         }
 
-        if(ship->cfg->gm_file[0]) {
+        if(ship->cfg->gm_file && ship->cfg->gm_file[0]) {
             /* Try to read the GM file. This will clean out the old list as
                well, if needed. */
             if(gm_list_read(ship->cfg->gm_file, ship)) {
@@ -369,7 +369,7 @@ static int handle_refresh(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
         }
     }
     else if(!strcmp(params, "limits")) {
-        if(ship->cfg->limits_file[0]) {
+        if(ship->cfg->limits_file && ship->cfg->limits_file[0]) {
             if(sylverant_read_limits(ship->cfg->limits_file, &limits)) {
                 return send_txt(c, "%s", __(c, "\tE\tC7Couldn't read limits!"));
             }

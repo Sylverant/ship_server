@@ -405,6 +405,7 @@ static void *ship_thd(void *d) {
 
     /* Free the ship structure. */
     ban_list_clear(s);
+    cleanup_scripts(s);
     pthread_rwlock_destroy(&s->banlock);
     pthread_rwlock_destroy(&s->qlock);
     pthread_rwlock_destroy(&s->llock);
@@ -692,7 +693,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     }
 
     /* Attempt to read the GM list in. */
-    if(s->gm_file[0]) {
+    if(s->gm_file) {
         debug(DBG_LOG, "%s: Reading Local GM List...\n", s->name);
 
         if(gm_list_read(s->gm_file, rv)) {
@@ -715,7 +716,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     }
 
     /* Attempt to read the item limits list in. */
-    if(s->limits_file[0]) {
+    if(s->limits_file) {
         if(sylverant_read_limits(s->limits_file, &rv->limits)) {
             debug(DBG_ERROR, "%s: Couldn't read limits file!\n", s->name);
             free(rv->gm_list);
@@ -748,8 +749,11 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     rv->ep3sock = ep3sock;
     rv->run = 1;
 
+    /* Initialize scripting support */
+    init_scripts(rv);
+
     /* Attempt to read the ban list */
-    if(s->bans_file[0]) {
+    if(s->bans_file) {
         if(ban_list_read(s->bans_file, rv)) {
             debug(DBG_WARN, "%s: Couldn't read bans file!\n", s->name);
         }
@@ -759,6 +763,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     if(shipgate_connect(rv, &rv->sg)) {
         debug(DBG_ERROR, "%s: Couldn't connect to shipgate!\n", s->name);
         ban_list_clear(rv);
+        cleanup_scripts(rv);
         pthread_rwlock_destroy(&rv->banlock);
         pthread_rwlock_destroy(&rv->qlock);
         pthread_rwlock_destroy(&rv->llock);
@@ -782,6 +787,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     if(shipgate_send_ship_info(&rv->sg, rv)) {
         debug(DBG_ERROR, "%s: Couldn't register with shipgate!\n", s->name);
         ban_list_clear(rv);
+        cleanup_scripts(rv);
         pthread_rwlock_destroy(&rv->banlock);
         pthread_rwlock_destroy(&rv->qlock);
         pthread_rwlock_destroy(&rv->llock);
@@ -803,7 +809,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     }
 
     /* If we have a message of the day, read it */
-    if(s->motd_file[0]) {
+    if(s->motd_file) {
         ship_read_motd(rv, s->motd_file);
     }
 
@@ -811,6 +817,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     if(pthread_create(&rv->thd, NULL, &ship_thd, rv)) {
         debug(DBG_ERROR, "%s: Cannot start ship thread!\n", s->name);
         ban_list_clear(rv);
+        cleanup_scripts(rv);
         pthread_rwlock_destroy(&rv->banlock);
         pthread_rwlock_destroy(&rv->qlock);
         pthread_rwlock_destroy(&rv->llock);

@@ -26,6 +26,7 @@
 #include <sys/queue.h>
 
 #include "clients.h"
+#include "ship.h"
 
 /* Hash functions from lookup3.c */
 uint32_t hashword(const uint32_t *k, size_t length, uint32_t initval);
@@ -86,8 +87,8 @@ void script_hash_cleanup(void);
 
 #endif
 
-void init_scripts(void);
-void cleanup_scripts(void);
+void init_scripts(ship_t *s);
+void cleanup_scripts(ship_t *s);
 
 
 #endif /* !SCRIPTS_H */

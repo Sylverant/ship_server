@@ -453,11 +453,16 @@ void script_hash_cleanup(void) {
     }
 }
 
-void init_scripts(void) {
+void init_scripts(ship_t *s) {
     PyObject* m;
     int i;
     char *origpath;
     char *scriptdir;
+
+    /* Don't bother trying if nothing's configured... */
+    if(!s->cfg->scripts_file) {
+        return;
+    }
 
     Py_InitializeEx(0);
 
@@ -487,8 +492,8 @@ void init_scripts(void) {
 
     memset(scriptevents, 0, sizeof(script_event_t) * ScriptActionCount);
 
-    /* XXXX: Read in the configuration (hard-coded file for now, fix later) */
-    if(script_eventlist_read("config/scripts.xml")) {
+    /* Read in the configuration */
+    if(script_eventlist_read(s->cfg->scripts_file)) {
         debug(DBG_WARN, "Couldn't load scripts configuration!\n");
     }
     else {
@@ -496,7 +501,12 @@ void init_scripts(void) {
     }
 }
 
-void cleanup_scripts(void) {
+void cleanup_scripts(ship_t *s) {
+    /* Don't bother trying if scripting support isn't configured */
+    if(!s->cfg->scripts_file) {
+        return;
+    }
+
     script_eventlist_clear();
     script_hash_cleanup();
     Py_Finalize();
@@ -504,10 +514,10 @@ void cleanup_scripts(void) {
 
 #else
 
-void init_scripts(void) {
+void init_scripts(ship_t *s) {
 }
 
-void cleanup_scripts(void) {
+void cleanup_scripts(ship_t *s) {
 }
 
 #endif /* HAVE_PYTHON */

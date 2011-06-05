@@ -227,9 +227,6 @@ int main(int argc, char *argv[]) {
     /* Init mini18n if we have it */
     init_i18n();
 
-    /* Init scripting support, if we have Python */
-    init_scripts();
-
     /* Initialize the random number generator and install signal handlers */
     init_genrand(time(NULL));
     install_signal_handlers();
@@ -249,7 +246,6 @@ int main(int argc, char *argv[]) {
         pthread_setspecific(recvbuf_key, NULL);
     }
 
-    cleanup_scripts();
     cleanup_i18n();
     client_shutdown();
     sylverant_free_ship_config(cfg);
