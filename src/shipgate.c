@@ -720,7 +720,6 @@ static int handle_sstatus(shipgate_conn_t *conn, shipgate_ship_status_pkt *p) {
         memcpy(i->name, p->name, 12);
         i->ship_id = sid;
         i->ship_addr = p->ship_addr;
-        i->int_addr = p->int_addr;
         i->ship_port = ntohs(p->ship_port);
         i->clients = ntohs(p->clients);
         i->games = ntohs(p->games);
@@ -1862,7 +1861,6 @@ int shipgate_send_ship_info(shipgate_conn_t *c, ship_t *ship) {
     /* Fill in the packet. */
     strcpy(pkt->name, ship->cfg->name);
     pkt->ship_addr = ship->cfg->ship_ip;
-    pkt->int_addr = 0;
     pkt->ship_port = htons(ship->cfg->base_port);
     pkt->ship_key = htons(c->key_idx);
     pkt->clients = htons(ship->num_clients);

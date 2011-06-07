@@ -140,7 +140,7 @@ typedef struct shipgate_login_reply {
     shipgate_hdr_t hdr;
     char name[12];
     uint32_t ship_addr;
-    uint32_t int_addr;
+    uint32_t int_addr;                  /* reserved for compatibility */
     uint16_t ship_port;
     uint16_t ship_key;
     uint16_t clients;
@@ -173,7 +173,7 @@ typedef struct shipgate_ship_status {
     char name[12];
     uint32_t ship_id;
     uint32_t ship_addr;
-    uint32_t int_addr;
+    uint32_t int_addr;                  /* reserved for compatibility */
     uint16_t ship_port;
     uint16_t status;
     uint32_t flags;
