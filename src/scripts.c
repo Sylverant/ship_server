@@ -459,11 +459,6 @@ void init_scripts(ship_t *s) {
     char *origpath;
     char *scriptdir;
 
-    /* Don't bother trying if nothing's configured... */
-    if(!s->cfg->scripts_file) {
-        return;
-    }
-
     Py_InitializeEx(0);
 
     /* Add the scripts directory to the path */
@@ -492,6 +487,11 @@ void init_scripts(ship_t *s) {
 
     memset(scriptevents, 0, sizeof(script_event_t) * ScriptActionCount);
 
+    /* No reason to try to load if nothing's configured... */
+    if(!s->cfg->scripts_file) {
+        return;
+    }
+
     /* Read in the configuration */
     if(script_eventlist_read(s->cfg->scripts_file)) {
         debug(DBG_WARN, "Couldn't load scripts configuration!\n");
@@ -502,11 +502,6 @@ void init_scripts(ship_t *s) {
 }
 
 void cleanup_scripts(ship_t *s) {
-    /* Don't bother trying if scripting support isn't configured */
-    if(!s->cfg->scripts_file) {
-        return;
-    }
-
     script_eventlist_clear();
     script_hash_cleanup();
     Py_Finalize();
