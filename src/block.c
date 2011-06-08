@@ -1098,6 +1098,10 @@ static int dc_process_guild_search(ship_client_t *c, dc_guild_search_pkt *pkt) {
 
     /* Search the local ship first. */
     for(i = 0; i < ship->cfg->blocks && !done; ++i) {
+        if(!ship->blocks[i] || !ship->blocks[i]->run) {
+            continue;
+        }
+
         pthread_mutex_lock(&ship->blocks[i]->mutex);
 
         /* Look through all clients on that block. */
@@ -1157,6 +1161,10 @@ static int dc_process_mail(ship_client_t *c, dc_simple_mail_pkt *pkt) {
 
     /* Search the local ship first. */
     for(i = 0; i < ship->cfg->blocks && !done; ++i) {
+        if(!ship->blocks[i] || !ship->blocks[i]->run) {
+            continue;
+        }
+
         pthread_mutex_lock(&ship->blocks[i]->mutex);
 
         /* Look through all clients on that block. */
@@ -1240,6 +1248,10 @@ static int pc_process_mail(ship_client_t *c, pc_simple_mail_pkt *pkt) {
 
     /* Search the local ship first. */
     for(i = 0; i < ship->cfg->blocks && !done; ++i) {
+        if(!ship->blocks[i] || !ship->blocks[i]->run) {
+            continue;
+        }
+
         pthread_mutex_lock(&ship->blocks[i]->mutex);
 
         /* Look through all clients on that block. */
