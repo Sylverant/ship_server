@@ -129,20 +129,35 @@ static sylverant_ship_t *load_config(void) {
 }
 
 static void print_config(sylverant_ship_t *cfg) {
-    struct in_addr tmp;
+    char ipstr[INET6_ADDRSTRLEN] = { 0 };
 
     /* Print out the configuration. */
     debug(DBG_LOG, "Configured parameters:\n");
 
-    tmp.s_addr = cfg->shipgate_ip;
-    debug(DBG_LOG, "Shipgate IP: %s\n", inet_ntoa(tmp));
+    if(cfg->shipgate_ip) {
+        inet_ntop(AF_INET, &cfg->shipgate_ip, ipstr, INET6_ADDRSTRLEN);
+    }
+    else {
+        inet_ntop(AF_INET6, &cfg->shipgate_ip6, ipstr, INET6_ADDRSTRLEN);
+    }
+
+    debug(DBG_LOG, "Shipgate IP: %s\n", ipstr);
     debug(DBG_LOG, "Shipgate Port: %d\n", (int)cfg->shipgate_port);
 
     /* Print out the ship's information. */
     debug(DBG_LOG, "Ship Name: %s\n", cfg->name);
 
-    tmp.s_addr = cfg->ship_ip;
-    debug(DBG_LOG, "Ship IP: %s\n", inet_ntoa(tmp));
+    inet_ntop(AF_INET, &cfg->ship_ip, ipstr, INET6_ADDRSTRLEN);
+    debug(DBG_LOG, "Ship IPv4 Address: %s\n", ipstr);
+
+    if(cfg->ship_ip6[0]) {
+        inet_ntop(AF_INET6, &cfg->ship_ip6, ipstr, INET6_ADDRSTRLEN);
+        debug(DBG_LOG, "Ship IPv6 Address: %s\n", ipstr);
+    }
+    else {
+        debug(DBG_LOG, "Ship IPv6 Address: None\n");
+    }
+
     debug(DBG_LOG, "Base Port: %d\n", (int)cfg->base_port);
     debug(DBG_LOG, "Blocks: %d\n", cfg->blocks);
     debug(DBG_LOG, "Lobby Event: %d\n", cfg->lobby_event);

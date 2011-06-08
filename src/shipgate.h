@@ -36,7 +36,7 @@ typedef struct ship ship_t;
 
 #define PACKED __attribute__((packed))
 
-#define SHIPGATE_PROTO_VER  6
+#define SHIPGATE_PROTO_VER  7
 
 /* The header that is prepended to any packets sent to the shipgate. */
 typedef struct shipgate_hdr {
@@ -135,7 +135,9 @@ typedef struct shipgate_login {
     uint8_t ship_nonce[4];
 } PACKED shipgate_login_pkt;
 
-/* The reply to the login request from the shipgate. */
+/* The reply to the login request from the shipgate. This form is deprecated,
+   and not valid in shipgate protocol v7. New ships should use the other form
+   (type 0x0025) instead of this one (type 0x0010). */
 typedef struct shipgate_login_reply {
     shipgate_hdr_t hdr;
     char name[12];
@@ -150,6 +152,25 @@ typedef struct shipgate_login_reply {
     uint8_t reserved[2];
     uint32_t proto_ver;
 } PACKED shipgate_login_reply_pkt;
+
+/* The reply to the login request from the shipgate (with IPv6 support).
+   Note that IPv4 support is still required, as PSO itself does not actually
+   support IPv6. Only ship<->shipgate communications are supported over IPv6
+   (for the time being anyway). */
+typedef struct shipgate_login6_reply {
+    shipgate_hdr_t hdr;
+    uint32_t proto_ver;
+    uint32_t flags;
+    uint8_t name[12];
+    uint32_t ship_addr4;                /* IPv4 address (required) */
+    uint8_t ship_addr6[16];             /* IPv6 address (optional) */
+    uint16_t ship_port;
+    uint16_t ship_key;
+    uint16_t clients;
+    uint16_t games;
+    uint16_t menu_code;
+    uint8_t reserved[6];                /* Pad to a multiple of 8 bytes */
+} PACKED shipgate_login6_reply_pkt;
 
 /* A update of the client/games count. */
 typedef struct shipgate_cnt {
@@ -385,6 +406,7 @@ static const char shipgate_login_msg[] =
 #define SHDR_TYPE_FRLIST    0x0022      /* Friend list request/reply */
 #define SHDR_TYPE_GLOBALMSG 0x0023      /* A Global message packet */
 #define SHDR_TYPE_USEROPT   0x0024      /* A user's options -- sent on login */
+#define SHDR_TYPE_LOGIN6    0x0025      /* A ship login (potentially IPv6) */
 
 /* Flags that can be set in the login packet */
 #define LOGIN_FLAG_GMONLY   0x00000001  /* Only Global GMs are allowed */

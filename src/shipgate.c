@@ -139,6 +139,7 @@ int shipgate_send_ping(shipgate_conn_t *c, int reply) {
 int shipgate_connect(ship_t *s, shipgate_conn_t *rv) {
     int sock, i;
     struct sockaddr_in addr;
+    struct sockaddr_in6 addr6;
     shipgate_login_pkt pkt;
     FILE *fp;
     uint8_t key[128], hash[64];
@@ -167,23 +168,47 @@ int shipgate_connect(ship_t *s, shipgate_conn_t *rv) {
     debug(DBG_LOG, "%s: Connecting to shipgate...\n", s->cfg->name);
 
     /* Create the socket for the connection. */
-    sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if(s->cfg->shipgate_ip) {
+        sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-    if(sock < 0) {
-        perror("socket");
-        return -1;
+        if(sock < 0) {
+            perror("socket");
+            return -1;
+        }
+
+        /* Connect the socket to the shipgate. */
+        memset(&addr, 0, sizeof(addr));
+        addr.sin_family = AF_INET;
+        addr.sin_addr.s_addr = s->cfg->shipgate_ip;
+        addr.sin_port = htons(s->cfg->shipgate_port);
+
+        if(connect(sock, (struct sockaddr *)&addr,
+                   sizeof(struct sockaddr_in))) {
+            perror("connect");
+            close(sock);
+            return -2;
+        }
     }
+    else {
+        sock = socket(PF_INET6, SOCK_STREAM, IPPROTO_TCP);
 
-    /* Connect the socket to the shipgate. */
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = s->cfg->shipgate_ip;
-    addr.sin_port = htons(s->cfg->shipgate_port);
+        if(sock < 0) {
+            perror("socket");
+            return -1;
+        }
 
-    if(connect(sock, (struct sockaddr *)&addr, sizeof(struct sockaddr_in))) {
-        perror("connect");
-        close(sock);
-        return -2;
+        /* Connect the socket to the shipgate. */
+        memset(&addr6, 0, sizeof(addr6));
+        addr6.sin6_family = AF_INET6;
+        memcpy(&addr6.sin6_addr, s->cfg->shipgate_ip6, 16);
+        addr6.sin6_port = htons(s->cfg->shipgate_port);
+
+        if(connect(sock, (struct sockaddr *)&addr6,
+                   sizeof(struct sockaddr_in6))) {
+            perror("connect");
+            close(sock);
+            return -2;
+        }
     }
 
     /* Wait for the shipgate to respond back. */
@@ -248,6 +273,7 @@ int shipgate_connect(ship_t *s, shipgate_conn_t *rv) {
 int shipgate_reconnect(shipgate_conn_t *conn) {
     int sock;
     struct sockaddr_in addr;
+    struct sockaddr_in6 addr6;
     ship_t *s = conn->ship;
     miniship_t *i, *tmp;
 
@@ -265,23 +291,46 @@ int shipgate_reconnect(shipgate_conn_t *conn) {
     debug(DBG_LOG, "%s: Reconnecting to shipgate...\n", conn->ship->cfg->name);
 
     /* Create the socket for the connection. */
-    sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if(s->cfg->shipgate_ip) {
+        sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-    if(sock < 0) {
-        perror("socket");
-        return -1;
+        if(sock < 0) {
+            perror("socket");
+            return -1;
+        }
+
+        /* Connect the socket to the shipgate. */
+        memset(&addr, 0, sizeof(addr));
+        addr.sin_family = AF_INET;
+        addr.sin_addr.s_addr = s->cfg->shipgate_ip;
+        addr.sin_port = htons(s->cfg->shipgate_port);
+
+        if(connect(sock, (struct sockaddr *)&addr, sizeof(struct sockaddr_in))) {
+            perror("connect");
+            close(sock);
+            return -2;
+        }
     }
+    else {
+        sock = socket(PF_INET6, SOCK_STREAM, IPPROTO_TCP);
 
-    /* Connect the socket to the shipgate. */
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = s->cfg->shipgate_ip;
-    addr.sin_port = htons(s->cfg->shipgate_port);
+        if(sock < 0) {
+            perror("socket");
+            return -1;
+        }
 
-    if(connect(sock, (struct sockaddr *)&addr, sizeof(struct sockaddr_in))) {
-        perror("connect");
-        close(sock);
-        return -2;
+        /* Connect the socket to the shipgate. */
+        memset(&addr6, 0, sizeof(addr6));
+        addr6.sin6_family = AF_INET6;
+        memcpy(&addr6.sin6_addr, s->cfg->shipgate_ip6, 16);
+        addr6.sin6_port = htons(s->cfg->shipgate_port);
+
+        if(connect(sock, (struct sockaddr *)&addr6,
+                   sizeof(struct sockaddr_in6))) {
+            perror("connect");
+            close(sock);
+            return -2;
+        }
     }
 
     conn->sock = sock;
@@ -1595,15 +1644,18 @@ static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
 
     if(!conn->has_key) {
         /* Silently ignore non-login packets when we're without a key. */
-        if(type != SHDR_TYPE_LOGIN) {
+        if(type != SHDR_TYPE_LOGIN && type != SHDR_TYPE_LOGIN6) {
             return 0;
         }
 
-        if(!(flags & SHDR_RESPONSE)) {
+        if(type == SHDR_TYPE_LOGIN && !(flags & SHDR_RESPONSE)) {
             return handle_login(conn, (shipgate_login_pkt *)pkt);
         }
-        else {
+        else if(type == SHDR_TYPE_LOGIN6 && (flags & SHDR_RESPONSE)) {
             return handle_login_reply(conn, (shipgate_error_pkt *)pkt);
+        }
+        else {
+            return 0;
         }
     }
 
@@ -1842,7 +1894,7 @@ int shipgate_send_pkts(shipgate_conn_t *c) {
 /* Send a newly opened ship's information to the shipgate. */
 int shipgate_send_ship_info(shipgate_conn_t *c, ship_t *ship) {
     uint8_t *sendbuf = get_sendbuf();
-    shipgate_login_reply_pkt *pkt = (shipgate_login_reply_pkt *)sendbuf;
+    shipgate_login6_reply_pkt *pkt = (shipgate_login6_reply_pkt *)sendbuf;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -1850,27 +1902,28 @@ int shipgate_send_ship_info(shipgate_conn_t *c, ship_t *ship) {
     }
 
     /* Clear the packet first */
-    memset(pkt, 0, sizeof(shipgate_login_reply_pkt));
+    memset(pkt, 0, sizeof(shipgate_login6_reply_pkt));
 
     /* Fill in the header. */
-    pkt->hdr.pkt_len = htons(sizeof(shipgate_login_reply_pkt));
-    pkt->hdr.pkt_type = htons(SHDR_TYPE_LOGIN);
-    pkt->hdr.pkt_unc_len = htons(sizeof(shipgate_login_reply_pkt));
+    pkt->hdr.pkt_len = htons(sizeof(shipgate_login6_reply_pkt));
+    pkt->hdr.pkt_type = htons(SHDR_TYPE_LOGIN6);
+    pkt->hdr.pkt_unc_len = htons(sizeof(shipgate_login6_reply_pkt));
     pkt->hdr.flags = htons(SHDR_NO_DEFLATE | SHDR_RESPONSE);
 
     /* Fill in the packet. */
-    strcpy(pkt->name, ship->cfg->name);
-    pkt->ship_addr = ship->cfg->ship_ip;
+    pkt->proto_ver = htonl(SHIPGATE_PROTO_VER);
+    pkt->flags = htonl(ship->cfg->shipgate_flags);
+    memcpy(pkt->name, ship->cfg->name, 12);
+    pkt->ship_addr4 = ship->cfg->ship_ip;
+    memcpy(pkt->ship_addr6, ship->cfg->ship_ip6, 16);
     pkt->ship_port = htons(ship->cfg->base_port);
     pkt->ship_key = htons(c->key_idx);
     pkt->clients = htons(ship->num_clients);
     pkt->games = htons(ship->num_games);
     pkt->menu_code = htons(ship->cfg->menu_code);
-    pkt->flags = htonl(ship->cfg->shipgate_flags);
-    pkt->proto_ver = htonl(SHIPGATE_PROTO_VER);
 
     /* Send it away */
-    return send_raw(c, sizeof(shipgate_login_reply_pkt), sendbuf);
+    return send_raw(c, sizeof(shipgate_login6_reply_pkt), sendbuf);
 }
 
 /* Send a client count update to the shipgate. */
