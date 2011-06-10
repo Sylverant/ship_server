@@ -238,6 +238,17 @@ typedef struct dc_redirect {
     uint8_t padding[2];
 } PACKED dc_redirect_pkt;
 
+typedef struct dc_redirect6 {
+    union {
+        dc_pkt_hdr_t dc;
+        pc_pkt_hdr_t pc;
+    } hdr;
+    uint8_t ip_addr[16];
+    uint16_t port;          /* Little-endian */
+    uint8_t padding[2];
+} PACKED dc_redirect6_pkt;
+
+
 /* The packet sent as a timestamp */
 typedef struct dc_timestamp {
     union {
@@ -987,6 +998,7 @@ typedef struct ep3_game_create {
  
 #define DC_WELCOME_LENGTH               0x004C
 #define DC_REDIRECT_LENGTH              0x000C
+#define DC_REDIRECT6_LENGTH             0x0018
 #define DC_TIMESTAMP_LENGTH             0x0020
 #define DC_LOBBY_LIST_LENGTH            0x00C4
 #define EP3_LOBBY_LIST_LENGTH           0x0100
