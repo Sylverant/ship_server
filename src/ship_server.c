@@ -138,7 +138,7 @@ static void print_config(sylverant_ship_t *cfg) {
         inet_ntop(AF_INET, &cfg->shipgate_ip, ipstr, INET6_ADDRSTRLEN);
     }
     else {
-        inet_ntop(AF_INET6, &cfg->shipgate_ip6, ipstr, INET6_ADDRSTRLEN);
+        inet_ntop(AF_INET6, cfg->shipgate_ip6, ipstr, INET6_ADDRSTRLEN);
     }
 
     debug(DBG_LOG, "Shipgate IP: %s\n", ipstr);
@@ -151,7 +151,7 @@ static void print_config(sylverant_ship_t *cfg) {
     debug(DBG_LOG, "Ship IPv4 Address: %s\n", ipstr);
 
     if(cfg->ship_ip6[0]) {
-        inet_ntop(AF_INET6, &cfg->ship_ip6, ipstr, INET6_ADDRSTRLEN);
+        inet_ntop(AF_INET6, cfg->ship_ip6, ipstr, INET6_ADDRSTRLEN);
         debug(DBG_LOG, "Ship IPv6 Address: %s\n", ipstr);
     }
     else {
