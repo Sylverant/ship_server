@@ -727,6 +727,8 @@ static int send_dc_lobby_join(ship_client_t *c, lobby_t *l) {
     int i, pls = 0;
     uint16_t pkt_size = 0x10;
     uint8_t event = l->event;
+    uint16_t costume;
+    uint8_t ch_class;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -771,6 +773,27 @@ static int send_dc_lobby_join(ship_client_t *c, lobby_t *l) {
         memcpy(&pkt->entries[pls].data, &l->clients[i]->pl->v1,
                sizeof(v1_player_t));
 
+        /* Normalize costumes to the set that PSODC knows about, and make sure
+           the extra classes are taken care of too. */
+        if(c->version < CLIENT_VERSION_GC &&
+           l->clients[i]->version >= CLIENT_VERSION_GC) {
+            costume = LE16(pkt->entries[pls].data.costume) % 9;
+            pkt->entries[pls].data.costume = LE16(costume);
+            costume = LE16(pkt->entries[pls].data.skin) % 9;
+            pkt->entries[pls].data.skin = LE16(costume);
+
+            ch_class = pkt->entries[pls].data.ch_class;
+
+            if(ch_class == 9)
+                ch_class = 2;       /* HUcaseal -> HUcast */
+            else if(ch_class == 10)
+                ch_class = 6;       /* FOmar -> FOmarl */
+            else if(ch_class == 11)
+                ch_class = 3;       /* RAmarl -> RAmar */
+
+            pkt->entries[pls].data.ch_class = ch_class;
+        }
+
         ++pls;
         pkt_size += 1084;
     }
@@ -790,6 +813,8 @@ static int send_pc_lobby_join(ship_client_t *c, lobby_t *l) {
     uint16_t pkt_size = 0x10;
     iconv_t ic;
     uint8_t event = l->event;
+    uint16_t costume;
+    uint8_t ch_class;
     
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -842,6 +867,26 @@ static int send_pc_lobby_join(ship_client_t *c, lobby_t *l) {
 
         memcpy(&pkt->entries[pls].data, &l->clients[i]->pl->v1,
                sizeof(v1_player_t));
+
+        /* Normalize costumes to the set that PSOPC knows about, and make sure
+           the extra classes are taken care of too. */
+        if(l->clients[i]->version >= CLIENT_VERSION_GC) {
+            costume = LE16(pkt->entries[pls].data.costume) % 9;
+            pkt->entries[pls].data.costume = LE16(costume);
+            costume = LE16(pkt->entries[pls].data.skin) % 9;
+            pkt->entries[pls].data.skin = LE16(costume);
+
+            ch_class = pkt->entries[pls].data.ch_class;
+
+            if(ch_class == 9)
+                ch_class = 2;       /* HUcaseal -> HUcast */
+            else if(ch_class == 10)
+                ch_class = 6;       /* FOmar -> FOmarl */
+            else if(ch_class == 11)
+                ch_class = 3;       /* RAmarl -> RAmar */
+
+            pkt->entries[pls].data.ch_class = ch_class;
+        }
 
         ++pls;
         pkt_size += 1100;
@@ -921,6 +966,8 @@ static int send_dc_lobby_add_player(lobby_t *l, ship_client_t *c,
                                     ship_client_t *nc) {
     uint8_t *sendbuf = get_sendbuf();
     dc_lobby_join_pkt *pkt = (dc_lobby_join_pkt *)sendbuf;
+    uint16_t costume;
+    uint8_t ch_class;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -958,6 +1005,26 @@ static int send_dc_lobby_add_player(lobby_t *l, ship_client_t *c,
     memcpy(pkt->entries[0].hdr.name, nc->pl->v1.name, 16);
     memcpy(&pkt->entries[0].data, &nc->pl->v1, sizeof(v1_player_t));
 
+    /* Normalize costumes to the set that PSODC knows about, and make sure the
+       extra classes are taken care of too. */
+    if(c->version < CLIENT_VERSION_GC && nc->version >= CLIENT_VERSION_GC) {
+        costume = LE16(pkt->entries[0].data.costume) % 9;
+        pkt->entries[0].data.costume = LE16(costume);
+        costume = LE16(pkt->entries[0].data.skin) % 9;
+        pkt->entries[0].data.skin = LE16(costume);
+
+        ch_class = pkt->entries[0].data.ch_class;
+
+        if(ch_class == 9)
+            ch_class = 2;       /* HUcaseal -> HUcast */
+        else if(ch_class == 10)
+            ch_class = 6;       /* FOmar -> FOmarl */
+        else if(ch_class == 11)
+            ch_class = 3;       /* RAmarl -> RAmar */
+
+        pkt->entries[0].data.ch_class = ch_class;
+    }
+
     /* Send it away */
     return crypt_send(c, 0x044C, sendbuf);
 }
@@ -967,6 +1034,8 @@ static int send_pc_lobby_add_player(lobby_t *l, ship_client_t *c,
     uint8_t *sendbuf = get_sendbuf();
     pc_lobby_join_pkt *pkt = (pc_lobby_join_pkt *)sendbuf;
     iconv_t ic;
+    uint16_t costume;
+    uint8_t ch_class;
     
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -1011,6 +1080,26 @@ static int send_pc_lobby_add_player(lobby_t *l, ship_client_t *c,
     /* Convert the name to UTF-16. */
     istrncpy(ic, (char *)pkt->entries[0].hdr.name, nc->pl->v1.name, 32);
     memcpy(&pkt->entries[0].data, &nc->pl->v1, sizeof(v1_player_t));
+
+    /* Normalize costumes to the set that PSOPC knows about, and make sure
+       the extra classes are taken care of too. */
+    if(nc->version >= CLIENT_VERSION_GC) {
+        costume = LE16(pkt->entries[0].data.costume) % 9;
+        pkt->entries[0].data.costume = LE16(costume);
+        costume = LE16(pkt->entries[0].data.skin) % 9;
+        pkt->entries[0].data.skin = LE16(costume);
+
+        ch_class = pkt->entries[0].data.ch_class;
+
+        if(ch_class == 9)
+            ch_class = 2;       /* HUcaseal -> HUcast */
+        else if(ch_class == 10)
+            ch_class = 6;       /* FOmar -> FOmarl */
+        else if(ch_class == 11)
+            ch_class = 3;       /* RAmarl -> RAmar */
+
+        pkt->entries[0].data.ch_class = ch_class;
+    }
 
     /* Send it away */
     return crypt_send(c, 0x045C, sendbuf);
