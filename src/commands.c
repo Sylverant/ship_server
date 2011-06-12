@@ -2515,6 +2515,27 @@ static int handle_logout(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return send_txt(c, "%s", __(c, "\tE\tC7Logged out."));
 }
 
+/* Usage /override */
+static int handle_override(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    lobby_t *l = c->cur_lobby;
+
+    /* Make sure the requester is a GM */
+    if(!LOCAL_GM(c)) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
+    }
+
+    /* Make sure that the requester is in a lobby lobby, not a game lobby */
+    if(l->type != LOBBY_TYPE_DEFAULT) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a non-game "
+                                    "lobby."));
+    }
+
+    /* Set the flag so we know when they join a lobby */
+    c->flags |= CLIENT_FLAG_OVERRIDE_GAME;
+
+    return send_txt(c, "%s", __(c, "\tE\tC7Lobby restriction override on."));
+}
+
 static command_t cmds[] = {
     { "warp"     , handle_warp      },
     { "kill"     , handle_kill      },
@@ -2578,6 +2599,7 @@ static command_t cmds[] = {
     { "friends"  , handle_friends   },
     { "gbc"      , handle_gbc       },
     { "logout"   , handle_logout    },
+    { "override" , handle_override  },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

@@ -185,6 +185,7 @@ extern pthread_key_t sendbuf_key;
 #define CLIENT_FLAG_LOGGED_IN       0x00000100
 #define CLIENT_FLAG_STFU            0x00000200
 #define CLIENT_FLAG_BURSTING        0x00000400
+#define CLIENT_FLAG_OVERRIDE_GAME   0x00000800
 
 /* The list of language codes for the quest directories. */
 static const char language_codes[][3] __attribute__((unused)) = {

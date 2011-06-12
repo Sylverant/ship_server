@@ -1599,6 +1599,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
             char passwd[17];
             lobby_t *l;
             uint16_t len = LE16(pkt->hdr.dc.pkt_len);
+            int override = c->flags & CLIENT_FLAG_OVERRIDE_GAME;
 
             /* Make sure the packets aren't too long */
             if(c->version == CLIENT_VERSION_PC && len > 0x2C) {
@@ -1645,7 +1646,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
             }
 
             /* Check the provided password (if any). */
-            if(l->passwd[0] && strcmp(passwd, l->passwd)) {
+            if(l->passwd[0] && strcmp(passwd, l->passwd) && !override) {
                 send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't join game!"),
                               __(c, "\tC7Wrong Password."));
                 return 0;

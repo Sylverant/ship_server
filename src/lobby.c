@@ -406,6 +406,51 @@ static int lobby_add_client_locked(ship_client_t *c, lobby_t *l) {
     return -1;
 }
 
+static int lobby_elect_leader_cross_locked(lobby_t *l) {
+    int i, earliest_i = -1;
+    time_t earliest = time(NULL);
+
+    /* Go through and look for a new leader. The new leader will be the person
+       who has been in the lobby the longest amount of time. This version will
+       prefer someone who's on Dreamcast or PC over Gamecube for the sake of a
+       cross-platform game. */
+    for(i = 0; i < l->max_clients; ++i) {
+        /* We obviously can't give it to the old leader, they're gone now. */
+        if(i == l->leader_id) {
+            continue;
+        }
+        /* Check if this person joined before the current earliest. */
+        else if(l->clients[i] && l->clients[i]->join_time < earliest &&
+                l->clients[i]->version < CLIENT_VERSION_GC) {
+            earliest_i = i;
+            earliest = l->clients[i]->join_time;
+        }
+    }
+
+    /* Are we stuck with someone on Gamecube? If so, we can't support cross-
+       platform play anymore... */
+    if(earliest_i == -1) {
+        l->flags &= ~LOBBY_FLAG_GC_ALLOWED;
+        l->version = CLIENT_VERSION_GC;
+        l->episode = 1;
+
+        /* Same loop as above, but without the requirement of not on Gamecube.
+           If we're here, everyone's obviously on Gamecube, if anyone's even
+           left in the lobby at all. */
+        for(i = 0; i < l->max_clients; ++i) {
+            if(i == l->leader_id) {
+                continue;
+            }
+            else if(l->clients[i] && l->clients[i]->join_time < earliest) {
+                earliest_i = i;
+                earliest = l->clients[i]->join_time;
+            }
+        }
+    }
+
+    return earliest_i;
+}
+
 static int lobby_elect_leader_locked(lobby_t *l) {
     int i, earliest_i = -1;
     time_t earliest = time(NULL);
@@ -440,7 +485,13 @@ static int lobby_remove_client_locked(ship_client_t *c, int client_id,
 
     /* The client was the leader... we need to fix that. */
     if(client_id == l->leader_id) {
-        new_leader = lobby_elect_leader_locked(l);
+        if(l->version < CLIENT_VERSION_GC &&
+           (l->flags & LOBBY_FLAG_GC_ALLOWED)) {
+            new_leader = lobby_elect_leader_cross_locked(l);
+        }
+        else {
+            new_leader = lobby_elect_leader_locked(l);
+        }
 
         /* Check if we didn't get a new leader. */
         if(new_leader == -1) {
@@ -508,6 +559,10 @@ int lobby_change_lobby(ship_client_t *c, lobby_t *req) {
     int rv = 0;
     int old_cid = c->client_id;
     int delete_lobby = 0;
+    int override = (c->flags & CLIENT_FLAG_OVERRIDE_GAME);
+
+    /* Clear the override flag */
+    c->flags &= ~CLIENT_FLAG_OVERRIDE_GAME;
 
     /* If they're not in a lobby, add them to the first available default
        lobby. */
@@ -547,18 +602,20 @@ int lobby_change_lobby(ship_client_t *c, lobby_t *req) {
     }
 
     /* See if the lobby doesn't allow this player by policy. */
-    if((req->flags & LOBBY_FLAG_PCONLY) && c->version != CLIENT_VERSION_PC) {
+    if((req->flags & LOBBY_FLAG_PCONLY) && c->version != CLIENT_VERSION_PC &&
+       !override) {
         rv = -13;
         goto out;
     }
 
-    if((req->flags & LOBBY_FLAG_V1ONLY) && c->version != CLIENT_VERSION_DCV1) {
+    if((req->flags & LOBBY_FLAG_V1ONLY) && c->version != CLIENT_VERSION_DCV1 &&
+       !override) {
         rv = -12;
         goto out;
     }
 
     if((req->flags & LOBBY_FLAG_DCONLY) && c->version != CLIENT_VERSION_DCV1 &&
-       c->version != CLIENT_VERSION_DCV2) {
+       c->version != CLIENT_VERSION_DCV2 && !override) {
         rv = -11;
         goto out;
     }
@@ -586,13 +643,13 @@ int lobby_change_lobby(ship_client_t *c, lobby_t *req) {
     }
 
     /* Make sure the character is in the correct level range. */
-    if(req->min_level > (LE32(c->pl->v1.level) + 1)) {
+    if(req->min_level > (LE32(c->pl->v1.level) + 1) && !override) {
         /* Too low. */
         rv = -4;
         goto out;
     }
 
-    if(req->max_level < (LE32(c->pl->v1.level) + 1)) {
+    if(req->max_level < (LE32(c->pl->v1.level) + 1) && !override) {
         /* Too high. */
         rv = -5;
         goto out;
@@ -606,7 +663,7 @@ int lobby_change_lobby(ship_client_t *c, lobby_t *req) {
 
     /* Make sure that the client is legit enough to be there. */
     if((req->type == LOBBY_TYPE_GAME) && (req->flags & LOBBY_FLAG_LEGIT_MODE) &&
-       !lobby_check_client_legit(req, ship, c)) {
+       !lobby_check_client_legit(req, ship, c) && !override) {
         rv = -9;
         goto out;
     }
