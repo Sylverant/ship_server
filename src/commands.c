@@ -2469,7 +2469,7 @@ static int handle_qlang(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return send_txt(c, "%s", __(c, "\tE\tC7Invalid language code"));
 }
 
-/* Usage /friends page */
+/* Usage: /friends page */
 static int handle_friends(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     block_t *b = c->cur_block;
     uint32_t page;
@@ -2487,7 +2487,7 @@ static int handle_friends(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return shipgate_send_frlist_req(&ship->sg, c->guildcard, b->b, page * 5);
 }
 
-/* Usage /gbc message */
+/* Usage: /gbc message */
 static int handle_gbc(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     /* Make sure the requester is a Global GM. */
     if(!GLOBAL_GM(c)) {
@@ -2502,7 +2502,7 @@ static int handle_gbc(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return shipgate_send_global_msg(&ship->sg, c->guildcard, params);
 }
 
-/* Usage /logout */
+/* Usage: /logout */
 static int handle_logout(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     /* See if they're logged in first */
     if(!(c->flags & CLIENT_FLAG_LOGGED_IN)) {
@@ -2511,11 +2511,12 @@ static int handle_logout(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
     /* Clear the logged in status. */
     c->flags &= ~CLIENT_FLAG_LOGGED_IN;
+    c->flags &= ~CLIENT_FLAG_OVERRIDE_GAME;
 
     return send_txt(c, "%s", __(c, "\tE\tC7Logged out."));
 }
 
-/* Usage /override */
+/* Usage: /override */
 static int handle_override(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     lobby_t *l = c->cur_lobby;
 

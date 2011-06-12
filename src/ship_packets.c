@@ -781,6 +781,7 @@ static int send_dc_lobby_join(ship_client_t *c, lobby_t *l) {
             pkt->entries[pls].data.costume = LE16(costume);
             costume = LE16(pkt->entries[pls].data.skin) % 9;
             pkt->entries[pls].data.skin = LE16(costume);
+            costume = LE16(pkt->entries[pls].data.hair);
 
             ch_class = pkt->entries[pls].data.ch_class;
 
@@ -791,6 +792,11 @@ static int send_dc_lobby_join(ship_client_t *c, lobby_t *l) {
             else if(ch_class == 11)
                 ch_class = 3;       /* RAmarl -> RAmar */
 
+            /* Some classes we have to check the hairstyle on... */
+            if((ch_class == 0 || ch_class == 3 || ch_class == 7) && costume > 6)
+                costume = 0;
+
+            pkt->entries[pls].data.hair = LE16(costume);
             pkt->entries[pls].data.ch_class = ch_class;
         }
 
@@ -875,6 +881,7 @@ static int send_pc_lobby_join(ship_client_t *c, lobby_t *l) {
             pkt->entries[pls].data.costume = LE16(costume);
             costume = LE16(pkt->entries[pls].data.skin) % 9;
             pkt->entries[pls].data.skin = LE16(costume);
+            costume = LE16(pkt->entries[pls].data.hair);
 
             ch_class = pkt->entries[pls].data.ch_class;
 
@@ -885,6 +892,11 @@ static int send_pc_lobby_join(ship_client_t *c, lobby_t *l) {
             else if(ch_class == 11)
                 ch_class = 3;       /* RAmarl -> RAmar */
 
+            /* Some classes we have to check the hairstyle on... */
+            if((ch_class == 0 || ch_class == 3 || ch_class == 7) && costume > 6)
+                costume = 0;
+            
+            pkt->entries[pls].data.hair = LE16(costume);
             pkt->entries[pls].data.ch_class = ch_class;
         }
 
@@ -1012,6 +1024,7 @@ static int send_dc_lobby_add_player(lobby_t *l, ship_client_t *c,
         pkt->entries[0].data.costume = LE16(costume);
         costume = LE16(pkt->entries[0].data.skin) % 9;
         pkt->entries[0].data.skin = LE16(costume);
+        costume = LE16(pkt->entries[0].data.hair);
 
         ch_class = pkt->entries[0].data.ch_class;
 
@@ -1022,6 +1035,11 @@ static int send_dc_lobby_add_player(lobby_t *l, ship_client_t *c,
         else if(ch_class == 11)
             ch_class = 3;       /* RAmarl -> RAmar */
 
+        /* Some classes we have to check the hairstyle on... */
+        if((ch_class == 0 || ch_class == 3 || ch_class == 7) && costume > 6)
+            costume = 0;
+        
+        pkt->entries[0].data.hair = LE16(costume);
         pkt->entries[0].data.ch_class = ch_class;
     }
 
@@ -1088,6 +1106,7 @@ static int send_pc_lobby_add_player(lobby_t *l, ship_client_t *c,
         pkt->entries[0].data.costume = LE16(costume);
         costume = LE16(pkt->entries[0].data.skin) % 9;
         pkt->entries[0].data.skin = LE16(costume);
+        costume = LE16(pkt->entries[0].data.hair);
 
         ch_class = pkt->entries[0].data.ch_class;
 
@@ -1098,6 +1117,11 @@ static int send_pc_lobby_add_player(lobby_t *l, ship_client_t *c,
         else if(ch_class == 11)
             ch_class = 3;       /* RAmarl -> RAmar */
 
+        /* Some classes we have to check the hairstyle on... */
+        if((ch_class == 0 || ch_class == 3 || ch_class == 7) && costume > 6)
+            costume = 0;
+        
+        pkt->entries[0].data.hair = LE16(costume);
         pkt->entries[0].data.ch_class = ch_class;
     }
 
