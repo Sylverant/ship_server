@@ -45,6 +45,7 @@ static int dont_daemonize = 0;
 /* Print information about this program to stdout. */
 static void print_program_info(void) {
     printf("Sylverant Ship Server version %s\n", VERSION);
+    printf("SVN Revision: %s\n", SVN_REVISION);
     printf("Copyright (C) 2009, 2010, 2011 Lawrence Sebald\n\n");
     printf("This program is free software: you can redistribute it and/or\n"
            "modify it under the terms of the GNU Affero General Public\n"
@@ -54,7 +55,7 @@ static void print_program_info(void) {
            "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
            "GNU General Public License for more details.\n\n"
            "You should have received a copy of the GNU Affero General Public\n"
-           "License along with this program.  If not, see"
+           "License along with this program.  If not, see "
            "<http://www.gnu.org/licenses/>.\n");
 }
 
