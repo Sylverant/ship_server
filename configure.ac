@@ -16,6 +16,9 @@ dnl You should have received a copy of the GNU Affero General Public License
 dnl along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 AC_PREREQ([2.61])
+
+define([svnversion], esyscmd([sh -c "svnversion|tr -d '\n'"]))
+
 AC_INIT([ship_server], [0.1.0])
 AC_CONFIG_MACRO_DIR([m4])
 
@@ -72,6 +75,7 @@ AC_FUNC_REALLOC
 AC_CHECK_FUNCS([gethostname gettimeofday inet_ntoa memmove memset select socket strtoul])
 
 ADD_CFLAGS([-Wall])
+AC_DEFINE(SVN_REVISION, "svnversion", [SVN Revision])
 
 AC_CONFIG_FILES([Makefile]
                 [l10n/Makefile])

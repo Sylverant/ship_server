@@ -2537,6 +2537,12 @@ static int handle_override(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     return send_txt(c, "%s", __(c, "\tE\tC7Lobby restriction override on."));
 }
 
+/* Usage: /ver */
+static int handle_ver(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    return send_txt(c, "%s: %s", __(c, "\tE\tC7Ship Revision:"),
+                    SVN_REVISION);
+}
+
 static command_t cmds[] = {
     { "warp"     , handle_warp      },
     { "kill"     , handle_kill      },
@@ -2601,6 +2607,7 @@ static command_t cmds[] = {
     { "gbc"      , handle_gbc       },
     { "logout"   , handle_logout    },
     { "override" , handle_override  },
+    { "ver"      , handle_ver       },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 
