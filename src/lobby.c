@@ -595,6 +595,13 @@ int lobby_change_lobby(ship_client_t *c, lobby_t *req) {
         pthread_mutex_lock(&req->mutex);
     }
 
+    /* Don't allow HUcaseal, FOmar, or RAmarl characters in v1 games. */
+    if(req->type == LOBBY_TYPE_GAME && req->version == CLIENT_VERSION_DCV1 &&
+       c->pl->v1.ch_class > DCPCClassMax) {
+        rv = -15;
+        goto out;
+    }
+
     /* Make sure this isn't a single-player lobby. */
     if((req->flags & LOBBY_FLAG_SINGLEPLAYER)) {
         rv = -14;

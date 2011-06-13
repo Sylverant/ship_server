@@ -738,8 +738,8 @@ static int send_dc_lobby_join(ship_client_t *c, lobby_t *l) {
     /* Clear the packet's header. */
     memset(pkt, 0, sizeof(dc_lobby_join_pkt));
 
-    /* Don't send invalid event codes to the Dreamcast version. */
-    if(c->version < CLIENT_VERSION_GC && event > 6) {
+    /* Don't send lobby event codes to the Dreamcast version. */
+    if(c->version < CLIENT_VERSION_GC) {
         event = 0;
     }
 
@@ -785,15 +785,16 @@ static int send_dc_lobby_join(ship_client_t *c, lobby_t *l) {
 
             ch_class = pkt->entries[pls].data.ch_class;
 
-            if(ch_class == 9)
-                ch_class = 2;       /* HUcaseal -> HUcast */
-            else if(ch_class == 10)
-                ch_class = 6;       /* FOmar -> FOmarl */
-            else if(ch_class == 11)
-                ch_class = 3;       /* RAmarl -> RAmar */
+            if(ch_class == HUcaseal)
+                ch_class = HUcast;  /* HUcaseal -> HUcast */
+            else if(ch_class == FOmar)
+                ch_class = FOmarl;  /* FOmar -> FOmarl */
+            else if(ch_class == RAmarl)
+                ch_class = RAmar;   /* RAmarl -> RAmar */
 
             /* Some classes we have to check the hairstyle on... */
-            if((ch_class == 0 || ch_class == 3 || ch_class == 7) && costume > 6)
+            if((ch_class == HUmar || ch_class == RAmar || ch_class == FOnewm) &&
+               costume > 6)
                 costume = 0;
 
             pkt->entries[pls].data.hair = LE16(costume);
@@ -818,7 +819,6 @@ static int send_pc_lobby_join(ship_client_t *c, lobby_t *l) {
     int i, pls = 0;
     uint16_t pkt_size = 0x10;
     iconv_t ic;
-    uint8_t event = l->event;
     uint16_t costume;
     uint8_t ch_class;
     
@@ -835,11 +835,6 @@ static int send_pc_lobby_join(ship_client_t *c, lobby_t *l) {
         return -1;
     }
 
-    /* Don't send invalid event codes to the PC version. */
-    if(event > 6) {
-        event = 0;
-    }
-
     /* Clear the packet's header. */
     memset(pkt, 0, sizeof(pc_lobby_join_pkt));
 
@@ -849,7 +844,6 @@ static int send_pc_lobby_join(ship_client_t *c, lobby_t *l) {
     pkt->one = 1;
     pkt->lobby_num = l->lobby_id - 1;
     pkt->block_num = LE16(l->block->b);
-    pkt->event = LE16(l->event);
 
     for(i = 0; i < l->max_clients; ++i) {
         /* Skip blank clients. */
@@ -885,17 +879,18 @@ static int send_pc_lobby_join(ship_client_t *c, lobby_t *l) {
 
             ch_class = pkt->entries[pls].data.ch_class;
 
-            if(ch_class == 9)
-                ch_class = 2;       /* HUcaseal -> HUcast */
-            else if(ch_class == 10)
-                ch_class = 6;       /* FOmar -> FOmarl */
-            else if(ch_class == 11)
-                ch_class = 3;       /* RAmarl -> RAmar */
+            if(ch_class == HUcaseal)
+                ch_class = HUcast;  /* HUcaseal -> HUcast */
+            else if(ch_class == FOmar)
+                ch_class = FOmarl;  /* FOmar -> FOmarl */
+            else if(ch_class == RAmarl)
+                ch_class = RAmar;   /* RAmarl -> RAmar */
 
             /* Some classes we have to check the hairstyle on... */
-            if((ch_class == 0 || ch_class == 3 || ch_class == 7) && costume > 6)
+            if((ch_class == HUmar || ch_class == RAmar || ch_class == FOnewm) &&
+               costume > 6)
                 costume = 0;
-            
+
             pkt->entries[pls].data.hair = LE16(costume);
             pkt->entries[pls].data.ch_class = ch_class;
         }
@@ -927,7 +922,7 @@ int send_lobby_join(ship_client_t *c, lobby_t *l) {
                 return -1;
             }
 
-            if(l->type == LOBBY_TYPE_DEFAULT && send_lobby_c_rank(c, l)) {
+            if(send_lobby_c_rank(c, l)) {
                 return -1;
             }
 
@@ -938,7 +933,7 @@ int send_lobby_join(ship_client_t *c, lobby_t *l) {
                 return -1;
             }
 
-            if(l->type == LOBBY_TYPE_DEFAULT && send_lobby_c_rank(c, l)) {
+            if(send_lobby_c_rank(c, l)) {
                 return -1;
             }
 
@@ -974,6 +969,7 @@ int send_pkt_dc(ship_client_t *c, dc_pkt_hdr_t *pkt) {
     return crypt_send(c, len, sendbuf);
 }
 
+/* Send a packet to all clients in the lobby when a new player joins. */
 static int send_dc_lobby_add_player(lobby_t *l, ship_client_t *c,
                                     ship_client_t *nc) {
     uint8_t *sendbuf = get_sendbuf();
@@ -1028,17 +1024,22 @@ static int send_dc_lobby_add_player(lobby_t *l, ship_client_t *c,
 
         ch_class = pkt->entries[0].data.ch_class;
 
-        if(ch_class == 9)
-            ch_class = 2;       /* HUcaseal -> HUcast */
-        else if(ch_class == 10)
-            ch_class = 6;       /* FOmar -> FOmarl */
-        else if(ch_class == 11)
-            ch_class = 3;       /* RAmarl -> RAmar */
+        /* Only do this on lobby lobbies or if somehow we get here in a v1
+           lobby... */
+        if(l->type == LOBBY_TYPE_DEFAULT || l->version == CLIENT_VERSION_DCV1) {
+            if(ch_class == HUcaseal)
+                ch_class = HUcast;  /* HUcaseal -> HUcast */
+            else if(ch_class == FOmar)
+                ch_class = FOmarl;  /* FOmar -> FOmarl */
+            else if(ch_class == RAmarl)
+                ch_class = RAmar;   /* RAmarl -> RAmar */
+        }
 
         /* Some classes we have to check the hairstyle on... */
-        if((ch_class == 0 || ch_class == 3 || ch_class == 7) && costume > 6)
+        if((ch_class == HUmar || ch_class == RAmar || ch_class == FOnewm) &&
+           costume > 6)
             costume = 0;
-        
+
         pkt->entries[0].data.hair = LE16(costume);
         pkt->entries[0].data.ch_class = ch_class;
     }
@@ -1110,17 +1111,22 @@ static int send_pc_lobby_add_player(lobby_t *l, ship_client_t *c,
 
         ch_class = pkt->entries[0].data.ch_class;
 
-        if(ch_class == 9)
-            ch_class = 2;       /* HUcaseal -> HUcast */
-        else if(ch_class == 10)
-            ch_class = 6;       /* FOmar -> FOmarl */
-        else if(ch_class == 11)
-            ch_class = 3;       /* RAmarl -> RAmar */
+        /* Only do this on lobby lobbies or if somehow we get here in a v1
+           lobby... */
+        if(l->type == LOBBY_TYPE_DEFAULT || l->version == CLIENT_VERSION_DCV1) {
+            if(ch_class == HUcaseal)
+                ch_class = HUcast;  /* HUcaseal -> HUcast */
+            else if(ch_class == FOmar)
+                ch_class = FOmarl;  /* FOmar -> FOmarl */
+            else if(ch_class == RAmarl)
+                ch_class = RAmar;   /* RAmarl -> RAmar */
+        }
 
         /* Some classes we have to check the hairstyle on... */
-        if((ch_class == 0 || ch_class == 3 || ch_class == 7) && costume > 6)
+        if((ch_class == HUmar || ch_class == RAmar || ch_class == FOnewm) &&
+           costume > 6)
             costume = 0;
-        
+
         pkt->entries[0].data.hair = LE16(costume);
         pkt->entries[0].data.ch_class = ch_class;
     }
@@ -1129,7 +1135,6 @@ static int send_pc_lobby_add_player(lobby_t *l, ship_client_t *c,
     return crypt_send(c, 0x045C, sendbuf);
 }
 
-/* Send a packet to all clients in the lobby when a new player joins. */
 int send_lobby_add_player(lobby_t *l, ship_client_t *c) {
     int i;
 

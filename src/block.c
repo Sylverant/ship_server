@@ -629,6 +629,12 @@ static int join_game(ship_client_t *c, lobby_t *l) {
     int i;
     uint32_t id;
 
+    if(rv == -15) {
+        /* HUcaseal, FOmar, or RAmarl trying to join a v1 game */
+        send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't join game!"),
+                      __(c, "\tC7Your class is\nnot allowed in a\n"
+                         "PSOv1 game."));
+    }
     if(rv == -14) {
         /* Single player mode */
         send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't join game!"),
@@ -700,15 +706,17 @@ static int join_game(ship_client_t *c, lobby_t *l) {
         send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't join game!"),
                       __(c, "\tC7This game is\nfull."));
     }
+    else {
+        /* Fix up the inventory for their new lobby */
+        id = 0x00010000 | (c->client_id << 21) |
+            (l->highest_item[c->client_id]);
 
-    /* Fix up the inventory for their new lobby */
-    id = 0x00010000 | (c->client_id << 21) | (l->highest_item[c->client_id]);
+        for(i = 0; i < c->item_count; ++i, ++id) {
+            c->items[i].item_id = LE32(id);
+        }
 
-    for(i = 0; i < c->item_count; ++i, ++id) {
-        c->items[i].item_id = LE32(id);
+        l->highest_item[c->client_id] = (uint16_t)id;
     }
-
-    l->highest_item[c->client_id] = (uint16_t)id;
 
     return rv;
 }
@@ -1779,6 +1787,7 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
             if(l) {
                 if(item_id == 0) {
                     l->v2 = 0;
+                    l->version = CLIENT_VERSION_DCV1;
                 }
                 else if(item_id == 2) {
                     l->flags |= LOBBY_FLAG_PCONLY;

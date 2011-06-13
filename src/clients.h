@@ -132,6 +132,23 @@ struct ship_client {
 #define CLIENT_PRIV_LOCAL_ROOT  0x04
 #define CLIENT_PRIV_GLOBAL_ROOT 0x08
 
+/* Character classes */
+typedef enum client_classes {
+    HUmar = 0,
+    HUnewearl,
+    HUcast,
+    RAmar,
+    RAcast,
+    RAcaseal,
+    FOmarl,
+    FOnewm,
+    FOnewearl,
+    HUcaseal,
+    FOmar,
+    RAmarl,
+    DCPCClassMax = FOnewearl
+} client_class_t;
+
 /* String versions of the character classes. */
 static const char *classes[12] __attribute__((unused)) = {
     "HUmar", "HUnewearl", "HUcast",
