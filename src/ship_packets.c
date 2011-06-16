@@ -1541,8 +1541,13 @@ static int send_pc_guild_reply(ship_client_t *c, uint32_t gc, in_addr_t ip,
         return -1;
     }
 
-    /* We'll be converting stuff from ISO-8859-1 to UTF-16. */
-    ic = iconv_open("UTF-16LE", "ISO-8859-1");
+    /* We'll be converting stuff from ISO-8859-1/Shift-JIS to UTF-16. */
+    if(game[0] == '\t' && game[1] == 'J') {
+        ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+    }
+    else {
+        ic = iconv_open("UTF-16LE", "ISO-8859-1");
+    }
 
     if(ic == (iconv_t)-1) {
         return -1;
@@ -1632,8 +1637,13 @@ static int send_pc_guild_reply_sg(ship_client_t *c, dc_guild_reply_pkt *dc) {
         return -1;
     }
 
-    /* We'll be converting stuff from ISO-8859-1 to UTF-16. */
-    ic = iconv_open("UTF-16LE", "ISO-8859-1");
+    /* We'll be converting stuff from ISO-8859-1/Shift-JIS to UTF-16. */
+    if(dc->location[0] == '\t' && dc->location[1] == 'J') {
+        ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+    }
+    else {
+        ic = iconv_open("UTF-16LE", "ISO-8859-1");
+    }
 
     if(ic == (iconv_t)-1) {
         return -1;
@@ -6061,7 +6071,7 @@ static int send_pc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
     uint16_t len = 4;
     uint8_t entries = 0;
     int i;
-    iconv_t ic;
+    iconv_t ic, ic2;
     block_t *b;
     ship_client_t *it;
     char tmp[64];
@@ -6076,6 +6086,14 @@ static int send_pc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
 
     if(ic == (iconv_t)-1) {
         perror("iconv_open");
+        return -1;
+    }
+
+    ic2 = iconv_open("UTF-16LE", "SHIFT_JIS");
+
+    if(ic2 == (iconv_t)-1) {
+        perror("iconv_open");
+        iconv_close(ic);
         return -1;
     }
 
@@ -6124,8 +6142,15 @@ static int send_pc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
 
                 sprintf(tmp, "%s,BLOCK%02d,%s", it->cur_lobby->name,
                         it->cur_block->b, ship->cfg->name);
-                istrncpy(ic, (char *)pkt->entries[entries].location, tmp,
-                         0x60);
+
+                if(tmp[0] == '\t' && tmp[1] == 'J') {
+                    istrncpy(ic2, (char *)pkt->entries[entries].location, tmp,
+                             0x60);
+                }
+                else {
+                    istrncpy(ic, (char *)pkt->entries[entries].location, tmp,
+                             0x60);
+                }
 
                 pkt->entries[entries].ip = a;
                 pkt->entries[entries].port = LE16(b->pc_port);
@@ -6145,6 +6170,7 @@ static int send_pc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
     memset(&pkt->entries[entries], 0, 0x154);
     len += 0x154;
 
+    iconv_close(ic2);
     iconv_close(ic);
 
     /* Fill in the header. */
