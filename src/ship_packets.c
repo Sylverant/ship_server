@@ -765,7 +765,7 @@ static int send_dc_lobby_join(ship_client_t *c, lobby_t *l) {
         /* Copy the player's data into the packet. */
         pkt->entries[pls].hdr.tag = LE32(0x00010000);
         pkt->entries[pls].hdr.guildcard = LE32(l->clients[i]->guildcard);
-        pkt->entries[pls].hdr.ip_addr = l->clients[i]->addr;
+        pkt->entries[pls].hdr.ip_addr = 0xFFFFFFFF;
         pkt->entries[pls].hdr.client_id = LE32(i);
 
         /* No need to iconv... the encoding is already right */
@@ -858,7 +858,7 @@ static int send_pc_lobby_join(ship_client_t *c, lobby_t *l) {
         /* Copy the player's data into the packet. */
         pkt->entries[pls].hdr.tag = LE32(0x00010000);
         pkt->entries[pls].hdr.guildcard = LE32(l->clients[i]->guildcard);
-        pkt->entries[pls].hdr.ip_addr = l->clients[i]->addr;
+        pkt->entries[pls].hdr.ip_addr = 0xFFFFFFFF;
         pkt->entries[pls].hdr.client_id = LE32(i);
 
         /* Convert the name to UTF-16. */
@@ -1006,7 +1006,7 @@ static int send_dc_lobby_add_player(lobby_t *l, ship_client_t *c,
     /* Copy the player's data into the packet. */
     pkt->entries[0].hdr.tag = LE32(0x00010000);
     pkt->entries[0].hdr.guildcard = LE32(nc->guildcard);
-    pkt->entries[0].hdr.ip_addr = nc->addr;
+    pkt->entries[0].hdr.ip_addr = 0xFFFFFFFF;
     pkt->entries[0].hdr.client_id = LE32(nc->client_id);
 
     /* No need to iconv, the encoding is already right */
@@ -1093,7 +1093,7 @@ static int send_pc_lobby_add_player(lobby_t *l, ship_client_t *c,
     /* Copy the player's data into the packet. */
     pkt->entries[0].hdr.tag = LE32(0x00010000);
     pkt->entries[0].hdr.guildcard = LE32(nc->guildcard);
-    pkt->entries[0].hdr.ip_addr = nc->addr;
+    pkt->entries[0].hdr.ip_addr = 0xFFFFFFFF;
     pkt->entries[0].hdr.client_id = LE32(nc->client_id);
 
     /* Convert the name to UTF-16. */
@@ -1862,7 +1862,7 @@ static int send_dc_game_join(ship_client_t *c, lobby_t *l) {
             /* Copy the player's data into the packet. */
             pkt->players[i].tag = LE32(0x00010000);
             pkt->players[i].guildcard = LE32(l->clients[i]->guildcard);
-            pkt->players[i].ip_addr = 0;
+            pkt->players[i].ip_addr = 0xFFFFFFFF;
             pkt->players[i].client_id = LE32(i);
 
             /* No need to iconv, the name is fine as is */
@@ -1924,7 +1924,7 @@ static int send_pc_game_join(ship_client_t *c, lobby_t *l) {
             /* Copy the player's data into the packet. */
             pkt->players[i].tag = LE32(0x00010000);
             pkt->players[i].guildcard = LE32(l->clients[i]->guildcard);
-            pkt->players[i].ip_addr = 0;
+            pkt->players[i].ip_addr = 0xFFFFFFFF;
             pkt->players[i].client_id = LE32(i);
 
             /* Convert the name to UTF-16. */
@@ -1981,7 +1981,7 @@ static int send_gc_game_join(ship_client_t *c, lobby_t *l) {
             /* Copy the player's data into the packet. */
             pkt->players[i].tag = LE32(0x00010000);
             pkt->players[i].guildcard = LE32(l->clients[i]->guildcard);
-            pkt->players[i].ip_addr = 0;
+            pkt->players[i].ip_addr = 0xFFFFFFFF;
             pkt->players[i].client_id = LE32(i);
 
             /* No need to iconv the names, they'll be good as is */
@@ -2033,7 +2033,7 @@ static int send_ep3_game_join(ship_client_t *c, lobby_t *l) {
             /* Copy the player's data into the packet. */
             pkt->players[i].tag = LE32(0x00010000);
             pkt->players[i].guildcard = LE32(l->clients[i]->guildcard);
-            pkt->players[i].ip_addr = l->clients[i]->addr;
+            pkt->players[i].ip_addr = 0xFFFFFFFF;
             pkt->players[i].client_id = LE32(i);
             
             /* No need to iconv the names, they'll be good as is */
