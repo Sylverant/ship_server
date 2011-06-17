@@ -966,11 +966,23 @@ static int gc_process_login(ship_client_t *c, gc_login_9e_pkt *pkt) {
     time_t ban_end;
 
     /* Make sure PSOGC is allowed on this ship. */
-    if((ship->cfg->shipgate_flags & SHIPGATE_FLAG_NOEP12)) {
-        send_message_box(c, "%s", __(c, "\tEPSO Episode 1 & 2 is not supported "
-                                     "on\nthis ship.\n\nDisconnecting."));
-        c->flags |= CLIENT_FLAG_DISCONNECTED;
-        return 0;
+    if(c->version == CLIENT_VERSION_GC) {
+        if((ship->cfg->shipgate_flags & SHIPGATE_FLAG_NOEP12)) {
+            send_message_box(c, "%s", __(c, "\tEPSO Episode 1 & 2 is not "
+                                         "supported on\nthis ship.\n\n"
+                                         "Disconnecting."));
+            c->flags |= CLIENT_FLAG_DISCONNECTED;
+            return 0;
+        }
+    }
+    else {
+        if((ship->cfg->shipgate_flags & SHIPGATE_FLAG_NOEP3)) {
+            send_message_box(c, "%s", __(c, "\tEPSO Episode 3 is not "
+                                         "supported on\nthis ship.\n\n"
+                                         "Disconnecting."));
+            c->flags |= CLIENT_FLAG_DISCONNECTED;
+            return 0;
+        }
     }
 
     c->language_code = pkt->language_code;
