@@ -419,6 +419,39 @@ typedef struct pc_guild_reply {
     uint16_t name[0x20];
 } PACKED pc_guild_reply_pkt;
 
+/* IPv6 versions of the above two packets */
+typedef struct dc_guild_reply6 {
+    dc_pkt_hdr_t hdr;
+    uint32_t tag;
+    uint32_t gc_search;
+    uint32_t gc_target;
+    uint32_t padding1;
+    uint8_t ip[16];
+    uint16_t port;
+    uint16_t padding2;
+    char location[0x44];
+    uint32_t menu_id;
+    uint32_t item_id;
+    char padding3[0x3C];
+    char name[0x20];
+} PACKED dc_guild_reply6_pkt;
+
+typedef struct pc_guild_reply6 {
+    pc_pkt_hdr_t hdr;
+    uint32_t tag;
+    uint32_t gc_search;
+    uint32_t gc_target;
+    uint32_t padding1;
+    uint8_t ip[16];
+    uint16_t port;
+    uint16_t padding2;
+    uint16_t location[0x44];
+    uint32_t menu_id;
+    uint32_t item_id;
+    uint8_t padding3[0x3C];
+    uint16_t name[0x20];
+} PACKED pc_guild_reply6_pkt;
+
 /* The packet sent to send/deliver simple mail */
 typedef struct dc_simple_mail {
     dc_pkt_hdr_t hdr;
@@ -1006,6 +1039,8 @@ typedef struct ep3_game_create {
 #define DC_LOBBY_LEAVE_LENGTH           0x0008
 #define PC_GUILD_REPLY_LENGTH           0x0128
 #define DC_GUILD_REPLY_LENGTH           0x00C4
+#define PC_GUILD_REPLY6_LENGTH          0x0134
+#define DC_GUILD_REPLY6_LENGTH          0x00D0
 #define DC_GAME_JOIN_LENGTH             0x0114
 #define GC_GAME_JOIN_LENGTH             0x0114
 #define EP3_GAME_JOIN_LENGTH            0x1184

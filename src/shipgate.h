@@ -36,7 +36,7 @@ typedef struct ship ship_t;
 
 #define PACKED __attribute__((packed))
 
-#define SHIPGATE_PROTO_VER  7
+#define SHIPGATE_PROTO_VER  8
 
 /* The header that is prepended to any packets sent to the shipgate. */
 typedef struct shipgate_hdr {
@@ -184,25 +184,25 @@ typedef struct shipgate_cnt {
 typedef struct shipgate_fw {
     shipgate_hdr_t hdr;
     uint32_t ship_id;
-    uint32_t reserved;
+    uint32_t fw_flags;
     uint8_t pkt[0];
 } PACKED shipgate_fw_pkt;
 
 /* A packet telling clients that a ship has started or dropped. */
 typedef struct shipgate_ship_status {
     shipgate_hdr_t hdr;
-    char name[12];
+    uint8_t name[12];
     uint32_t ship_id;
-    uint32_t ship_addr;
-    uint32_t int_addr;                  /* reserved for compatibility */
+    uint32_t flags;
+    uint32_t ship_addr4;                /* IPv4 address (required) */
+    uint8_t ship_addr6[16];             /* IPv6 address (optional) */
     uint16_t ship_port;
     uint16_t status;
-    uint32_t flags;
     uint16_t clients;
     uint16_t games;
     uint16_t menu_code;
     uint8_t  ship_number;
-    uint8_t  reserved;
+    uint8_t  reserved[5];
 } PACKED shipgate_ship_status_pkt;
 
 /* A packet sent to/from clients to save/restore character data. */
@@ -448,6 +448,9 @@ static const char shipgate_login_msg[] =
 
 /* Possible values for user options */
 #define USER_OPT_QUEST_LANG     0x00000001
+
+/* Possible values for the fw_flags on a forwarded packet */
+#define FW_FLAG_PREFER_IPV6     0x00000001  /* Prefer IPv6 on reply */
 
 /* Attempt to connect to the shipgate. Returns < 0 on error, returns 0 on
    success. */

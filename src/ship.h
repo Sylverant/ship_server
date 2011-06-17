@@ -58,6 +58,7 @@ typedef struct miniship {
     char name[12];
     uint32_t ship_id;
     uint32_t ship_addr;
+    uint8_t ship_addr6[16];
     uint16_t ship_port;
     uint16_t clients;
     uint16_t games;

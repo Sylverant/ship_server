@@ -767,8 +767,9 @@ static int handle_sstatus(shipgate_conn_t *conn, shipgate_ship_status_pkt *p) {
         /* Copy the ship data */
         memset(i, 0, sizeof(miniship_t));
         memcpy(i->name, p->name, 12);
+        memcpy(i->ship_addr6, p->ship_addr6, 16);
         i->ship_id = sid;
-        i->ship_addr = p->ship_addr;
+        i->ship_addr = p->ship_addr4;
         i->ship_port = ntohs(p->ship_port);
         i->clients = ntohs(p->clients);
         i->games = ntohs(p->games);
