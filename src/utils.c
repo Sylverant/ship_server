@@ -372,6 +372,83 @@ const void *my_ntop(struct sockaddr_storage *addr, char str[INET6_ADDRSTRLEN]) {
     return NULL;
 }
 
+int open_sock(int family, uint16_t port) {
+    int sock = -1, val;
+    struct sockaddr_in addr;
+    struct sockaddr_in6 addr6;
+
+    /* Create the socket and listen for connections. */
+    sock = socket(family, SOCK_STREAM, IPPROTO_TCP);
+
+    if(sock < 0) {
+        perror("socket");
+        return -1;
+    }
+
+    /* Set SO_REUSEADDR so we don't run into issues when we kill the ship
+       server and bring it back up quickly... */
+    val = 1;
+    if(setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(int))) {
+        perror("setsockopt");
+        /* We can ignore this error, pretty much... its just a convenience thing
+           anyway... */
+    }
+
+    if(family == AF_INET) {
+        addr.sin_family = family;
+        addr.sin_addr.s_addr = INADDR_ANY;
+        addr.sin_port = htons(port);
+        memset(addr.sin_zero, 0, 8);
+
+        if(bind(sock, (struct sockaddr *)&addr, sizeof(struct sockaddr_in))) {
+            perror("bind");
+            close(sock);
+            return -1;
+        }
+
+        if(listen(sock, 10)) {
+            perror("listen");
+            close(sock);
+            return -1;
+        }
+    }
+    else if(family == AF_INET6) {
+        /* Since we create separate sockets for IPv4 and IPv6, make this one
+           support ONLY IPv6. */
+        val = 1;
+        if(setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, &val, sizeof(int))) {
+            perror("setsockopt IPV6_V6ONLY");
+            close(sock);
+            return -1;
+        }
+
+        memset(&addr6, 0, sizeof(struct sockaddr_in6));
+
+        addr6.sin6_family = family;
+        addr6.sin6_addr = in6addr_any;
+        addr6.sin6_port = htons(port);
+
+        if(bind(sock, (struct sockaddr *)&addr6, sizeof(struct sockaddr_in6))) {
+            perror("bind");
+            close(sock);
+            return -1;
+        }
+
+        if(listen(sock, 10)) {
+            perror("listen");
+            close(sock);
+            return -1;
+        }
+    }
+    else {
+        debug(DBG_ERROR, "Unknown socket family\n");
+        close(sock);
+        return -1;
+    }
+
+    return sock;
+}
+
 /* Initialize mini18n support. */
 void init_i18n(void) {
 #ifdef HAVE_LIBMINI18N

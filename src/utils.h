@@ -19,6 +19,7 @@
 #define UTILS_H
 
 #include <stdio.h>
+#include <stdint.h>
 #include <iconv.h>
 
 #include "ship_packets.h"
@@ -40,6 +41,7 @@ char *istrncpy16(iconv_t ic, char *outs, const uint16_t *ins, int out_len);
 
 void *xmalloc(size_t size);
 const void *my_ntop(struct sockaddr_storage *addr, char str[INET6_ADDRSTRLEN]);
+int open_sock(int family, uint16_t port);
 
 /* Actually implemented in list.c, not utils.c. */
 int send_player_list(ship_client_t *c, char *params);

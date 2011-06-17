@@ -77,10 +77,10 @@ struct ship {
     struct client_queue *clients;
 
     int run;
-    int dcsock;
-    int pcsock;
-    int gcsock;
-    int ep3sock;
+    int dcsock[2];
+    int pcsock[2];
+    int gcsock[2];
+    int ep3sock[2];
 
     time_t shutdown_time;
     int pipes[2];

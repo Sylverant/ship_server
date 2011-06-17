@@ -87,6 +87,12 @@ static void *ship_thd(void *d) {
     time_t now;
     time_t last_ban_sweep = time(NULL);
 
+#ifdef ENABLE_IPV6
+#define NUMSOCKS 2
+#else
+#define NUMSOCKS 1
+#endif
+
     /* Fire up the threads for each block. */
     for(i = 1; i <= s->cfg->blocks; ++i) {
         s->blocks[i - 1] = block_server_start(s, i, s->cfg->base_port +
@@ -156,14 +162,16 @@ static void *ship_thd(void *d) {
         }
 
         /* Add the listening sockets to the read fd_set. */
-        FD_SET(s->dcsock, &readfds);
-        nfds = nfds > s->dcsock ? nfds : s->dcsock;
-        FD_SET(s->pcsock, &readfds);
-        nfds = nfds > s->pcsock ? nfds : s->pcsock;
-        FD_SET(s->gcsock, &readfds);
-        nfds = nfds > s->gcsock ? nfds : s->gcsock;
-        FD_SET(s->ep3sock, &readfds);
-        nfds = nfds > s->ep3sock ? nfds : s->ep3sock;
+        for(i = 0; i < NUMSOCKS; ++i) {
+            FD_SET(s->dcsock[i], &readfds);
+            nfds = nfds > s->dcsock[i] ? nfds : s->dcsock[i];
+            FD_SET(s->pcsock[i], &readfds);
+            nfds = nfds > s->pcsock[i] ? nfds : s->pcsock[i];
+            FD_SET(s->gcsock[i], &readfds);
+            nfds = nfds > s->gcsock[i] ? nfds : s->gcsock[i];
+            FD_SET(s->ep3sock[i], &readfds);
+            nfds = nfds > s->ep3sock[i] ? nfds : s->ep3sock[i];
+        }
 
         FD_SET(s->pipes[1], &readfds);
         nfds = nfds > s->pipes[1] ? nfds : s->pipes[1];
@@ -195,111 +203,115 @@ static void *ship_thd(void *d) {
                 read(s->pipes[1], &len, 1);
             }
 
-            if(FD_ISSET(s->dcsock, &readfds)) {
-                len = sizeof(struct sockaddr_storage);
-                if((sock = accept(s->dcsock, addr_p, &len)) < 0) {
-                    perror("accept");
+            for(i = 0; i < NUMSOCKS; ++i) {
+                if(FD_ISSET(s->dcsock[i], &readfds)) {
+                    len = sizeof(struct sockaddr_storage);
+                    if((sock = accept(s->dcsock[i], addr_p, &len)) < 0) {
+                        perror("accept");
+                    }
+
+                    my_ntop(&addr, ipstr);
+                    debug(DBG_LOG, "%s: Accepted DC ship connection from %s\n",
+                          s->cfg->name, ipstr);
+
+                    if(!(tmp = client_create_connection(sock,
+                                                        CLIENT_VERSION_DCV1,
+                                                        CLIENT_TYPE_SHIP,
+                                                        s->clients, s, NULL,
+                                                        addr_p, len))) {
+                        close(sock);
+                    }
+
+                    if(s->shutdown_time) {
+                        send_message_box(tmp, "%s\n\n%s\n%s",
+                                         __(tmp, "\tEShip is going down for "
+                                            "shutdown"),
+                                         __(tmp, "Please try another ship."),
+                                         __(tmp, "Disconnecting."));
+                        it->flags |= CLIENT_FLAG_DISCONNECTED;
+                    }
                 }
 
-                my_ntop(&addr, ipstr);
-                debug(DBG_LOG, "%s: Accepted DC ship connection from %s\n",
-                      s->cfg->name, ipstr);
+                if(FD_ISSET(s->pcsock[i], &readfds)) {
+                    len = sizeof(struct sockaddr_storage);
+                    if((sock = accept(s->pcsock[i], addr_p, &len)) < 0) {
+                        perror("accept");
+                    }
 
-                if(!(tmp = client_create_connection(sock, CLIENT_VERSION_DCV1,
-                                                    CLIENT_TYPE_SHIP,
-                                                    s->clients, s, NULL, addr_p,
-                                                    len))) {
-                    close(sock);
+                    my_ntop(&addr, ipstr);
+                    debug(DBG_LOG, "%s: Accepted PC ship connection from %s\n",
+                          s->cfg->name, ipstr);
+
+                    if(!(tmp = client_create_connection(sock, CLIENT_VERSION_PC,
+                                                        CLIENT_TYPE_SHIP,
+                                                        s->clients, s, NULL,
+                                                        addr_p, len))) {
+                        close(sock);
+                    }
+
+                    if(s->shutdown_time) {
+                        send_message_box(tmp, "%s\n\n%s\n%s",
+                                         __(tmp, "\tEShip is going down for "
+                                            "shutdown"),
+                                         __(tmp, "Please try another ship."),
+                                         __(tmp, "Disconnecting."));
+                        it->flags |= CLIENT_FLAG_DISCONNECTED;
+                    }
                 }
 
-                if(s->shutdown_time) {
-                    send_message_box(tmp, "%s\n\n%s\n%s",
-                                     __(tmp, "\tEShip is going down for shut"
-                                        "down"),
-                                     __(tmp, "Please try another ship."),
-                                     __(tmp, "Disconnecting."));
-                    it->flags |= CLIENT_FLAG_DISCONNECTED;
-                }
-            }
+                if(FD_ISSET(s->gcsock[i], &readfds)) {
+                    len = sizeof(struct sockaddr_storage);
+                    if((sock = accept(s->gcsock[i], addr_p, &len)) < 0) {
+                        perror("accept");
+                    }
 
-            if(FD_ISSET(s->pcsock, &readfds)) {
-                len = sizeof(struct sockaddr_storage);
-                if((sock = accept(s->pcsock, addr_p, &len)) < 0) {
-                    perror("accept");
-                }
+                    my_ntop(&addr, ipstr);
+                    debug(DBG_LOG, "%s: Accepted GC ship connection from %s\n",
+                          s->cfg->name, ipstr);
 
-                my_ntop(&addr, ipstr);
-                debug(DBG_LOG, "%s: Accepted PC ship connection from %s\n",
-                      s->cfg->name, ipstr);
+                    if(!(tmp = client_create_connection(sock, CLIENT_VERSION_GC,
+                                                        CLIENT_TYPE_SHIP,
+                                                        s->clients, s, NULL,
+                                                        addr_p, len))) {
+                        close(sock);
+                    }
 
-                if(!(tmp = client_create_connection(sock, CLIENT_VERSION_PC,
-                                                    CLIENT_TYPE_SHIP,
-                                                    s->clients, s, NULL, addr_p,
-                                                    len))) {
-                    close(sock);
-                }
-
-                if(s->shutdown_time) {
-                    send_message_box(tmp, "%s\n\n%s\n%s",
-                                     __(tmp, "\tEShip is going down for shut"
-                                        "down"),
-                                     __(tmp, "Please try another ship."),
-                                     __(tmp, "Disconnecting."));
-                    it->flags |= CLIENT_FLAG_DISCONNECTED;
-                }
-            }
-
-            if(FD_ISSET(s->gcsock, &readfds)) {
-                len = sizeof(struct sockaddr_storage);
-                if((sock = accept(s->gcsock, addr_p, &len)) < 0) {
-                    perror("accept");
+                    if(s->shutdown_time) {
+                        send_message_box(tmp, "%s\n\n%s\n%s",
+                                         __(tmp, "\tEShip is going down for "
+                                            "shutdown"),
+                                         __(tmp, "Please try another ship."),
+                                         __(tmp, "Disconnecting."));
+                        it->flags |= CLIENT_FLAG_DISCONNECTED;
+                    }
                 }
 
-                my_ntop(&addr, ipstr);
-                debug(DBG_LOG, "%s: Accepted GC ship connection from %s\n",
-                      s->cfg->name, ipstr);
+                if(FD_ISSET(s->ep3sock[i], &readfds)) {
+                    len = sizeof(struct sockaddr_storage);
+                    if((sock = accept(s->ep3sock[i], addr_p, &len)) < 0) {
+                        perror("accept");
+                    }
 
-                if(!(tmp = client_create_connection(sock, CLIENT_VERSION_GC,
-                                                    CLIENT_TYPE_SHIP,
-                                                    s->clients, s, NULL, addr_p,
-                                                    len))) {
-                    close(sock);
-                }
+                    my_ntop(&addr, ipstr);
+                    debug(DBG_LOG, "%s: Accepted Episode 3 ship connection "
+                          "from %s\n", s->cfg->name, ipstr);
 
-                if(s->shutdown_time) {
-                    send_message_box(tmp, "%s\n\n%s\n%s",
-                                     __(tmp, "\tEShip is going down for shut"
-                                        "down"),
-                                     __(tmp, "Please try another ship."),
-                                     __(tmp, "Disconnecting."));
-                    it->flags |= CLIENT_FLAG_DISCONNECTED;
-                }
-            }
+                    if(!(tmp = client_create_connection(sock,
+                                                        CLIENT_VERSION_EP3,
+                                                        CLIENT_TYPE_SHIP,
+                                                        s->clients, s, NULL,
+                                                        addr_p, len))) {
+                        close(sock);
+                    }
 
-            if(FD_ISSET(s->ep3sock, &readfds)) {
-                len = sizeof(struct sockaddr_storage);
-                if((sock = accept(s->ep3sock, addr_p, &len)) < 0) {
-                    perror("accept");
-                }
-
-                my_ntop(&addr, ipstr);
-                debug(DBG_LOG, "%s: Accepted Episode 3 ship connection from "
-                      "%s\n", s->cfg->name, ipstr);
-
-                if(!(tmp = client_create_connection(sock, CLIENT_VERSION_EP3,
-                                                    CLIENT_TYPE_SHIP,
-                                                    s->clients, s, NULL, addr_p,
-                                                    len))) {
-                    close(sock);
-                }
-
-                if(s->shutdown_time) {
-                    send_message_box(tmp, "%s\n\n%s\n%s",
-                                     __(tmp, "\tEShip is going down for shut"
-                                        "down"),
-                                     __(tmp, "Please try another ship."),
-                                     __(tmp, "Disconnecting."));
-                    it->flags |= CLIENT_FLAG_DISCONNECTED;
+                    if(s->shutdown_time) {
+                        send_message_box(tmp, "%s\n\n%s\n%s",
+                                         __(tmp, "\tEShip is going down for "
+                                            "shutdown"),
+                                         __(tmp, "Please try another ship."),
+                                         __(tmp, "Disconnecting."));
+                        it->flags |= CLIENT_FLAG_DISCONNECTED;
+                    }
                 }
             }
 
@@ -419,10 +431,16 @@ static void *ship_thd(void *d) {
     clean_quests(s);
     close(s->pipes[0]);
     close(s->pipes[1]);
-    close(s->ep3sock);
-    close(s->gcsock);
-    close(s->pcsock);
-    close(s->dcsock);
+#ifdef ENABLE_IPV6
+    close(s->ep3sock[1]);
+    close(s->gcsock[1]);
+    close(s->pcsock[1]);
+    close(s->dcsock[1]);
+#endif
+    close(s->ep3sock[0]);
+    close(s->gcsock[0]);
+    close(s->pcsock[0]);
+    close(s->dcsock[0]);
     clean_shiplist(s);
     free(s->clients);
     free(s->blocks);
@@ -469,146 +487,62 @@ static void ship_read_motd(ship_t *s, const char *fn) {
 
 ship_t *ship_server_start(sylverant_ship_t *s) {
     ship_t *rv;
-    struct sockaddr_in addr;
-    int dcsock, pcsock, gcsock, ep3sock;
+    int dcsock[2] = { -1, -1 }, pcsock[2] = { -1, -1 };
+    int gcsock[2] = { -1, -1 }, ep3sock[2] = { -1, -1 };
     int i, j;
     char fn[512];
 
     debug(DBG_LOG, "Starting server for ship %s...\n", s->name);
 
     /* Create the sockets for listening for connections. */
-    dcsock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
-
-    if(dcsock < 0) {
-        perror("socket");
+    dcsock[0] = open_sock(AF_INET, s->base_port);
+    if(dcsock[0] < 0) {
         return NULL;
     }
 
-    /* Bind the socket */
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = INADDR_ANY;
-    addr.sin_port = htons(s->base_port);
-
-    if(bind(dcsock, (struct sockaddr *)&addr, sizeof(struct sockaddr_in)) < 0) {
-        perror("bind");
-        close(dcsock);
-        return NULL;
+    pcsock[0] = open_sock(AF_INET, s->base_port + 1);
+    if(pcsock[0] < 0) {
+        goto err_close_dc;
     }
 
-    /* Listen on the socket for connections. */
-    if(listen(dcsock, 10) < 0) {
-        perror("listen");
-        close(dcsock);
-        return NULL;
+    gcsock[0] = open_sock(AF_INET, s->base_port + 2);
+    if(gcsock[0] < 0) {
+        goto err_close_pc;
     }
 
-    pcsock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
-    
-    if(pcsock < 0) {
-        perror("socket");
-        close(dcsock);
-        return NULL;
+    ep3sock[0] = open_sock(AF_INET, s->base_port + 3);
+    if(ep3sock[0] < 0) {
+        goto err_close_gc;
+    }
+
+#ifdef ENABLE_IPV6
+    dcsock[1] = open_sock(AF_INET6, s->base_port);
+    if(dcsock[1] < 0) {
+        goto err_close_ep3;
+    }
+
+    pcsock[1] = open_sock(AF_INET6, s->base_port + 1);
+    if(pcsock[1] < 0) {
+        goto err_close_dc_6;
     }
     
-    /* Bind the socket */
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = INADDR_ANY;
-    addr.sin_port = htons(s->base_port + 1);
-    
-    if(bind(pcsock, (struct sockaddr *)&addr, sizeof(struct sockaddr_in)) < 0) {
-        perror("bind");
-        close(dcsock);
-        close(pcsock);
-        return NULL;
+    gcsock[1] = open_sock(AF_INET6, s->base_port + 2);
+    if(gcsock[1] < 0) {
+        goto err_close_pc_6;
     }
     
-    /* Listen on the socket for connections. */
-    if(listen(pcsock, 10) < 0) {
-        perror("listen");
-        close(dcsock);
-        close(pcsock);
-        return NULL;
+    ep3sock[1] = open_sock(AF_INET6, s->base_port + 3);
+    if(ep3sock[1] < 0) {
+        goto err_close_gc_6;
     }
-
-    gcsock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
-    
-    if(gcsock < 0) {
-        perror("socket");
-        close(pcsock);
-        close(dcsock);
-        return NULL;
-    }
-
-    /* Bind the socket */
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = INADDR_ANY;
-    addr.sin_port = htons(s->base_port + 2);
-    
-    if(bind(gcsock, (struct sockaddr *)&addr, sizeof(struct sockaddr_in)) < 0) {
-        perror("bind");
-        close(dcsock);
-        close(pcsock);
-        close(gcsock);
-        return NULL;
-    }
-    
-    /* Listen on the socket for connections. */
-    if(listen(gcsock, 10) < 0) {
-        perror("listen");
-        close(dcsock);
-        close(pcsock);
-        close(gcsock);
-        return NULL;
-    }
-
-    ep3sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
-
-    if(ep3sock < 0) {
-        perror("socket");
-        close(pcsock);
-        close(dcsock);
-        close(gcsock);
-        return NULL;
-    }
-
-    /* Bind the socket */
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = INADDR_ANY;
-    addr.sin_port = htons(s->base_port + 3);
-
-    if(bind(ep3sock, (struct sockaddr *)&addr, sizeof(struct sockaddr_in)) < 0) {
-        perror("bind");
-        close(dcsock);
-        close(pcsock);
-        close(gcsock);
-        close(ep3sock);
-        return NULL;
-    }
-
-    /* Listen on the socket for connections. */
-    if(listen(ep3sock, 10) < 0) {
-        perror("listen");
-        close(dcsock);
-        close(pcsock);
-        close(gcsock);
-        close(ep3sock);
-        return NULL;
-    }
+#endif
 
     /* Make space for the ship structure. */
     rv = (ship_t *)malloc(sizeof(ship_t));
 
     if(!rv) {
         debug(DBG_ERROR, "%s: Cannot allocate memory!\n", s->name);
-        close(ep3sock);
-        close(gcsock);
-        close(pcsock);
-        close(dcsock);
-        return NULL;
+        goto err_close_all;
     }
 
     /* Clear it out */
@@ -618,12 +552,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     /* Make the pipe */
     if(pipe(rv->pipes) == -1) {
         debug(DBG_ERROR, "%s: Cannot create pipe!\n", s->name);
-        free(rv);
-        close(ep3sock);
-        close(gcsock);
-        close(pcsock);
-        close(dcsock);
-        return NULL;
+        goto err_free;
     }
 
     /* Make room for the block structures. */
@@ -631,14 +560,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
 
     if(!rv->blocks) {
         debug(DBG_ERROR, "%s: Cannot allocate memory for blocks!\n", s->name);
-        close(rv->pipes[0]);
-        close(rv->pipes[1]);
-        free(rv);
-        close(ep3sock);
-        close(gcsock);
-        close(pcsock);
-        close(dcsock);
-        return NULL;
+        goto err_pipes;
     }
 
     /* Make room for the client list. */
@@ -646,31 +568,14 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
 
     if(!rv->clients) {
         debug(DBG_ERROR, "%s: Cannot allocate memory for clients!\n", s->name);
-        free(rv->blocks);
-        close(rv->pipes[0]);
-        close(rv->pipes[1]);
-        free(rv);
-        close(ep3sock);
-        close(gcsock);
-        close(pcsock);
-        close(dcsock);
-        return NULL;
+        goto err_blocks;
     }
 
     /* Attempt to read the quest list in. */
     if(s->quests_file && s->quests_file[0]) {
         if(sylverant_quests_read(s->quests_file, &rv->quests)) {
             debug(DBG_ERROR, "%s: Couldn't read quests file!\n", s->name);
-            free(rv->clients);
-            free(rv->blocks);
-            close(rv->pipes[0]);
-            close(rv->pipes[1]);
-            free(rv);
-            close(ep3sock);
-            close(gcsock);
-            close(pcsock);
-            close(dcsock);
-            return NULL;
+            goto err_clients;
         }
     }
 
@@ -700,18 +605,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
 
         if(gm_list_read(s->gm_file, rv)) {
             debug(DBG_ERROR, "%s: Couldn't read GM file!\n", s->name);
-            sylverant_quests_destroy(&rv->quests);
-            clean_quests(rv);
-            free(rv->clients);
-            free(rv->blocks);
-            close(rv->pipes[0]);
-            close(rv->pipes[1]);
-            free(rv);
-            close(ep3sock);
-            close(gcsock);
-            close(pcsock);
-            close(dcsock);
-            return NULL;
+            goto err_quests;
         }
 
         debug(DBG_LOG, "%s: Read %d Local GMs\n", s->name, rv->gm_count);
@@ -721,19 +615,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     if(s->limits_file) {
         if(sylverant_read_limits(s->limits_file, &rv->limits)) {
             debug(DBG_ERROR, "%s: Couldn't read limits file!\n", s->name);
-            free(rv->gm_list);
-            sylverant_quests_destroy(&rv->quests);
-            clean_quests(rv);
-            free(rv->clients);
-            free(rv->blocks);
-            close(rv->pipes[0]);
-            close(rv->pipes[1]);
-            free(rv);
-            close(ep3sock);
-            close(gcsock);
-            close(pcsock);
-            close(dcsock);
-            return NULL;
+            goto err_gms;
         }
     }
 
@@ -745,10 +627,14 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     TAILQ_INIT(&rv->ships);
     TAILQ_INIT(&rv->guildcard_bans);
     rv->cfg = s;
-    rv->dcsock = dcsock;
-    rv->pcsock = pcsock;
-    rv->gcsock = gcsock;
-    rv->ep3sock = ep3sock;
+    rv->dcsock[0] = dcsock[0];
+    rv->pcsock[0] = pcsock[0];
+    rv->gcsock[0] = gcsock[0];
+    rv->ep3sock[0] = ep3sock[0];
+    rv->dcsock[1] = dcsock[1];
+    rv->pcsock[1] = pcsock[1];
+    rv->gcsock[1] = gcsock[1];
+    rv->ep3sock[1] = ep3sock[1];
     rv->run = 1;
 
     /* Initialize scripting support */
@@ -764,50 +650,13 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     /* Connect to the shipgate. */
     if(shipgate_connect(rv, &rv->sg)) {
         debug(DBG_ERROR, "%s: Couldn't connect to shipgate!\n", s->name);
-        ban_list_clear(rv);
-        cleanup_scripts(rv);
-        pthread_rwlock_destroy(&rv->banlock);
-        pthread_rwlock_destroy(&rv->qlock);
-        pthread_rwlock_destroy(&rv->llock);
-        sylverant_free_limits(rv->limits);
-        free(rv->gm_list);
-        sylverant_quests_destroy(&rv->quests);
-        clean_quests(rv);
-        free(rv->clients);
-        free(rv->blocks);
-        close(rv->pipes[0]);
-        close(rv->pipes[1]);
-        free(rv);
-        close(ep3sock);
-        close(pcsock);
-        close(dcsock);
-        close(gcsock);
-        return NULL;
+        goto err_bans_locks;
     }
 
     /* Register with the shipgate. */
     if(shipgate_send_ship_info(&rv->sg, rv)) {
         debug(DBG_ERROR, "%s: Couldn't register with shipgate!\n", s->name);
-        ban_list_clear(rv);
-        cleanup_scripts(rv);
-        pthread_rwlock_destroy(&rv->banlock);
-        pthread_rwlock_destroy(&rv->qlock);
-        pthread_rwlock_destroy(&rv->llock);
-        shipgate_cleanup(&rv->sg);
-        sylverant_free_limits(rv->limits);
-        free(rv->gm_list);
-        sylverant_quests_destroy(&rv->quests);
-        clean_quests(rv);
-        free(rv->clients);
-        free(rv->blocks);
-        close(rv->pipes[0]);
-        close(rv->pipes[1]);
-        free(rv);
-        close(ep3sock);
-        close(pcsock);
-        close(dcsock);
-        close(gcsock);
-        return NULL;
+        goto err_shipgate;
     }
 
     /* If we have a message of the day, read it */
@@ -818,30 +667,55 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     /* Start up the thread for this ship. */
     if(pthread_create(&rv->thd, NULL, &ship_thd, rv)) {
         debug(DBG_ERROR, "%s: Cannot start ship thread!\n", s->name);
-        ban_list_clear(rv);
-        cleanup_scripts(rv);
-        pthread_rwlock_destroy(&rv->banlock);
-        pthread_rwlock_destroy(&rv->qlock);
-        pthread_rwlock_destroy(&rv->llock);
-        sylverant_free_limits(rv->limits);
-        shipgate_cleanup(&rv->sg);
-        free(rv->motd);
-        free(rv->gm_list);
-        sylverant_quests_destroy(&rv->quests);
-        clean_quests(rv);
-        free(rv->clients);
-        free(rv->blocks);
-        close(rv->pipes[0]);
-        close(rv->pipes[1]);
-        free(rv);
-        close(ep3sock);
-        close(pcsock);
-        close(dcsock);
-        close(gcsock);
-        return NULL;
+        goto err_motd;
     }
 
     return rv;
+
+err_motd:
+    free(rv->motd);
+err_shipgate:
+    shipgate_cleanup(&rv->sg);
+err_bans_locks:
+    ban_list_clear(rv);
+    pthread_rwlock_destroy(&rv->llock);
+    pthread_rwlock_destroy(&rv->banlock);
+    pthread_rwlock_destroy(&rv->qlock);
+    sylverant_free_limits(rv->limits);
+err_gms:
+    free(rv->gm_list);
+err_quests:
+    clean_quests(rv);
+    sylverant_quests_destroy(&rv->quests);
+err_clients:
+    free(rv->clients);
+err_blocks:
+    free(rv->blocks);
+err_pipes:
+    close(rv->pipes[0]);
+    close(rv->pipes[1]);
+err_free:
+    free(rv);
+err_close_all:
+#ifdef ENABLE_IPV6
+    close(ep3sock[1]);
+err_close_gc_6:
+    close(gcsock[1]);
+err_close_pc_6:
+    close(pcsock[1]);
+err_close_dc_6:
+    close(dcsock[1]);
+err_close_ep3:
+#endif
+    close(ep3sock[0]);
+err_close_gc:
+    close(gcsock[0]);
+err_close_pc:
+    close(pcsock[0]);
+err_close_dc:
+    close(dcsock[0]);
+
+    return NULL;
 }
 
 void ship_server_stop(ship_t *s) {

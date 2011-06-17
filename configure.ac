@@ -75,6 +75,14 @@ AC_CHECK_FUNCS([gethostname gettimeofday inet_ntoa memmove memset select socket 
 ADD_CFLAGS([-Wall])
 CFLAGS="$CFLAGS -DSVN_REVISION=\"\\\"\`svnversion\`\\\"\""
 
+AC_ARG_ENABLE([ipv6], [AS_HELP_STRING([--disable-ipv6],
+               [disable IPv6 support (enabled by default)])],
+               [enable_ipv6=$withval],
+               [enable_ipv6=yes])
+
+AS_IF([test "x$enable_ipv6" != xno],
+      [AC_DEFINE([ENABLE_IPV6], [1], [Define if you want IPv6 support])])
+
 AC_CONFIG_FILES([Makefile]
                 [l10n/Makefile])
 
