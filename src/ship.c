@@ -79,7 +79,9 @@ static void *ship_thd(void *d) {
     fd_set readfds, writefds;
     ship_client_t *it, *tmp;
     socklen_t len;
-    struct sockaddr_in addr;
+    struct sockaddr_storage addr;
+    struct sockaddr *addr_p = (struct sockaddr *)&addr;
+    char ipstr[INET6_ADDRSTRLEN];
     int sock, rv;
     ssize_t sent;
     time_t now;
@@ -194,19 +196,19 @@ static void *ship_thd(void *d) {
             }
 
             if(FD_ISSET(s->dcsock, &readfds)) {
-                len = sizeof(struct sockaddr_in);
-                if((sock = accept(s->dcsock, (struct sockaddr *)&addr,
-                                  &len)) < 0) {
+                len = sizeof(struct sockaddr_storage);
+                if((sock = accept(s->dcsock, addr_p, &len)) < 0) {
                     perror("accept");
                 }
 
+                my_ntop(&addr, ipstr);
                 debug(DBG_LOG, "%s: Accepted DC ship connection from %s\n",
-                      s->cfg->name, inet_ntoa(addr.sin_addr));
+                      s->cfg->name, ipstr);
 
                 if(!(tmp = client_create_connection(sock, CLIENT_VERSION_DCV1,
                                                     CLIENT_TYPE_SHIP,
-                                                    s->clients, s, NULL,
-                                                    addr.sin_addr.s_addr))) {
+                                                    s->clients, s, NULL, addr_p,
+                                                    len))) {
                     close(sock);
                 }
 
@@ -221,19 +223,19 @@ static void *ship_thd(void *d) {
             }
 
             if(FD_ISSET(s->pcsock, &readfds)) {
-                len = sizeof(struct sockaddr_in);
-                if((sock = accept(s->pcsock, (struct sockaddr *)&addr,
-                                  &len)) < 0) {
+                len = sizeof(struct sockaddr_storage);
+                if((sock = accept(s->pcsock, addr_p, &len)) < 0) {
                     perror("accept");
                 }
 
+                my_ntop(&addr, ipstr);
                 debug(DBG_LOG, "%s: Accepted PC ship connection from %s\n",
-                      s->cfg->name, inet_ntoa(addr.sin_addr));
+                      s->cfg->name, ipstr);
 
                 if(!(tmp = client_create_connection(sock, CLIENT_VERSION_PC,
                                                     CLIENT_TYPE_SHIP,
-                                                    s->clients, s, NULL,
-                                                    addr.sin_addr.s_addr))) {
+                                                    s->clients, s, NULL, addr_p,
+                                                    len))) {
                     close(sock);
                 }
 
@@ -248,19 +250,19 @@ static void *ship_thd(void *d) {
             }
 
             if(FD_ISSET(s->gcsock, &readfds)) {
-                len = sizeof(struct sockaddr_in);
-                if((sock = accept(s->gcsock, (struct sockaddr *)&addr,
-                                  &len)) < 0) {
+                len = sizeof(struct sockaddr_storage);
+                if((sock = accept(s->gcsock, addr_p, &len)) < 0) {
                     perror("accept");
                 }
 
+                my_ntop(&addr, ipstr);
                 debug(DBG_LOG, "%s: Accepted GC ship connection from %s\n",
-                      s->cfg->name, inet_ntoa(addr.sin_addr));
+                      s->cfg->name, ipstr);
 
                 if(!(tmp = client_create_connection(sock, CLIENT_VERSION_GC,
                                                     CLIENT_TYPE_SHIP,
-                                                    s->clients, s, NULL,
-                                                    addr.sin_addr.s_addr))) {
+                                                    s->clients, s, NULL, addr_p,
+                                                    len))) {
                     close(sock);
                 }
 
@@ -275,19 +277,19 @@ static void *ship_thd(void *d) {
             }
 
             if(FD_ISSET(s->ep3sock, &readfds)) {
-                len = sizeof(struct sockaddr_in);
-                if((sock = accept(s->ep3sock, (struct sockaddr *)&addr,
-                                  &len)) < 0) {
+                len = sizeof(struct sockaddr_storage);
+                if((sock = accept(s->ep3sock, addr_p, &len)) < 0) {
                     perror("accept");
                 }
 
+                my_ntop(&addr, ipstr);
                 debug(DBG_LOG, "%s: Accepted Episode 3 ship connection from "
-                      "%s\n", s->cfg->name, inet_ntoa(addr.sin_addr));
+                      "%s\n", s->cfg->name, ipstr);
 
                 if(!(tmp = client_create_connection(sock, CLIENT_VERSION_EP3,
                                                     CLIENT_TYPE_SHIP,
-                                                    s->clients, s, NULL,
-                                                    addr.sin_addr.s_addr))) {
+                                                    s->clients, s, NULL, addr_p,
+                                                    len))) {
                     close(sock);
                 }
 

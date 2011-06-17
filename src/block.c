@@ -50,7 +50,9 @@ static void *block_thd(void *d) {
     fd_set readfds, writefds;
     ship_client_t *it, *tmp;
     socklen_t len;
-    struct sockaddr_in addr;
+    struct sockaddr_storage addr;
+    struct sockaddr *addr_p = (struct sockaddr *)&addr;
+    char ipstr[INET6_ADDRSTRLEN];
     int sock;
     ssize_t sent;
     time_t now;
@@ -132,70 +134,69 @@ static void *block_thd(void *d) {
             }
 
             if(FD_ISSET(b->dcsock, &readfds)) {
-                len = sizeof(struct sockaddr_in);
-                if((sock = accept(b->dcsock, (struct sockaddr *)&addr,
-                                  &len)) < 0) {
+                len = sizeof(struct sockaddr_storage);
+                if((sock = accept(b->dcsock, addr_p, &len)) < 0) {
                     perror("accept");
                 }
 
+                my_ntop(&addr, ipstr);
                 debug(DBG_LOG, "%s(%d): Accepted DC block connection from %s\n",
-                      s->cfg->name, b->b, inet_ntoa(addr.sin_addr));
+                      s->cfg->name, b->b, ipstr);
 
                 if(!client_create_connection(sock, CLIENT_VERSION_DCV1,
                                              CLIENT_TYPE_BLOCK, b->clients, s,
-                                             b, addr.sin_addr.s_addr)) {
+                                             b, addr_p, len)) {
                     close(sock);
                 }
             }
 
             if(FD_ISSET(b->pcsock, &readfds)) {
-                len = sizeof(struct sockaddr_in);
-                if((sock = accept(b->pcsock, (struct sockaddr *)&addr,
-                                  &len)) < 0) {
+                len = sizeof(struct sockaddr_storage);
+                if((sock = accept(b->pcsock, addr_p, &len)) < 0) {
                     perror("accept");
                 }
 
+                my_ntop(&addr, ipstr);
                 debug(DBG_LOG, "%s(%d): Accepted PC block connection from %s\n",
-                      s->cfg->name, b->b, inet_ntoa(addr.sin_addr));
+                      s->cfg->name, b->b, ipstr);
 
                 if(!client_create_connection(sock, CLIENT_VERSION_PC,
                                              CLIENT_TYPE_BLOCK, b->clients, s,
-                                             b, addr.sin_addr.s_addr)) {
+                                             b, addr_p, len)) {
                     close(sock);
                 }
             }
 
             if(FD_ISSET(b->gcsock, &readfds)) {
-                len = sizeof(struct sockaddr_in);
-                if((sock = accept(b->gcsock, (struct sockaddr *)&addr,
-                                  &len)) < 0) {
+                len = sizeof(struct sockaddr_storage);
+                if((sock = accept(b->gcsock, addr_p, &len)) < 0) {
                     perror("accept");
                 }
 
+                my_ntop(&addr, ipstr);
                 debug(DBG_LOG, "%s(%d): Accepted GC block connection from %s\n",
-                      s->cfg->name, b->b, inet_ntoa(addr.sin_addr));
+                      s->cfg->name, b->b, ipstr);
 
                 if(!client_create_connection(sock, CLIENT_VERSION_GC,
                                              CLIENT_TYPE_BLOCK, b->clients, s,
-                                             b, addr.sin_addr.s_addr)) {
+                                             b, addr_p, len)) {
                     close(sock);
                 }
             }
 
             if(FD_ISSET(b->ep3sock, &readfds)) {
-                len = sizeof(struct sockaddr_in);
-                if((sock = accept(b->ep3sock, (struct sockaddr *)&addr,
-                                  &len)) < 0) {
+                len = sizeof(struct sockaddr_storage);
+                if((sock = accept(b->ep3sock, addr_p, &len)) < 0) {
                     perror("accept");
                 }
 
+                my_ntop(&addr, ipstr);
                 debug(DBG_LOG, "%s(%d): Accepted Episode 3 block connection "
-                      "from %s\n", s->cfg->name, b->b,
-                      inet_ntoa(addr.sin_addr));
+                      "from %s\n", s->cfg->name, b->b, ipstr);
 
                 if(!client_create_connection(sock, CLIENT_VERSION_EP3,
                                              CLIENT_TYPE_BLOCK, b->clients, s,
-                                             b, addr.sin_addr.s_addr)) {
+                                             b, addr_p, len)) {
                     close(sock);
                 }
             }

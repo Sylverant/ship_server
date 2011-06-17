@@ -43,7 +43,7 @@ static int pllist_ship(ship_client_t *c, const char *name, int first,
     int i, count = 0, len = 2;
     char str[512];
     regex_t re;
-    char ip[INET_ADDRSTRLEN];
+    char ip[INET6_ADDRSTRLEN];
 
     /* Compile the regular expression if the user asked to search by name */
     if(name) {
@@ -90,11 +90,11 @@ static int pllist_ship(ship_client_t *c, const char *name, int first,
 
             /* If we're on the right page, add the client to the message */
             if(count >= first) {
-                inet_ntop(AF_INET, &c2->addr, ip, INET_ADDRSTRLEN);
+                my_ntop(&c2->ip_addr, ip);
                 sprintf(&str[len], "%s  %s  Lv.%d  GC: %d\n"
                         "B: %d  IP: %s  Lobby: %s\n", c2->pl->v1.name,
                         classes[c2->pl->v1.ch_class], c2->pl->v1.level + 1,
-                        c2->guildcard, c2->cur_block->b,ip,
+                        c2->guildcard, c2->cur_block->b, ip,
                         c2->cur_lobby->name);
                 len = strlen(str);
             }
@@ -130,7 +130,7 @@ static int pllist_block(ship_client_t *c, const char *name, int first,
     int count = 0, len = 2;
     char str[512];
     regex_t re;
-    char ip[INET_ADDRSTRLEN];
+    char ip[INET6_ADDRSTRLEN];
 
     /* Compile the regular expression if the user asked to search by name */
     if(name) {
@@ -168,11 +168,11 @@ static int pllist_block(ship_client_t *c, const char *name, int first,
 
         /* If we're on the right page, add the client to the message */
         if(count >= first) {
-            inet_ntop(AF_INET, &c2->addr, ip, INET_ADDRSTRLEN);
+            my_ntop(&c2->ip_addr, ip);
             sprintf(&str[len], "%s  %s  Lv.%d  GC: %d\n"
                     "B: %d  IP: %s  Lobby: %s\n", c2->pl->v1.name,
                     classes[c2->pl->v1.ch_class], c2->pl->v1.level + 1,
-                    c2->guildcard, c2->cur_block->b,ip,
+                    c2->guildcard, c2->cur_block->b, ip,
                     c2->cur_lobby->name);
             len = strlen(str);
         }
@@ -205,7 +205,7 @@ static int pllist_lobby(ship_client_t *c, const char *name, int first,
     int i, count = 0, len = 2;
     char str[512];
     regex_t re;
-    char ip[INET_ADDRSTRLEN];
+    char ip[INET6_ADDRSTRLEN];
 
     /* Compile the regular expression if the user asked to search by name */
     if(name) {
@@ -245,11 +245,11 @@ static int pllist_lobby(ship_client_t *c, const char *name, int first,
 
             /* If we're on the right page, add the client to the message */
             if(count >= first) {
-                inet_ntop(AF_INET, &c2->addr, ip, INET_ADDRSTRLEN);
+                my_ntop(&c2->ip_addr, ip);
                 sprintf(&str[len], "%s  %s  Lv.%d  GC: %d\n"
                         "B: %d  IP: %s  Lobby: %s\n", c2->pl->v1.name,
                         classes[c2->pl->v1.ch_class], c2->pl->v1.level + 1,
-                        c2->guildcard, c2->cur_block->b,ip,
+                        c2->guildcard, c2->cur_block->b, ip,
                         c2->cur_lobby->name);
                 len = strlen(str);
             }

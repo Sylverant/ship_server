@@ -88,7 +88,8 @@ struct ship_client {
     float z;
     float w;
 
-    in_addr_t addr;
+    struct sockaddr_storage ip_addr;
+
     uint32_t guildcard;
     uint32_t flags;
     uint32_t arrow;
@@ -203,6 +204,7 @@ extern pthread_key_t sendbuf_key;
 #define CLIENT_FLAG_STFU            0x00000200
 #define CLIENT_FLAG_BURSTING        0x00000400
 #define CLIENT_FLAG_OVERRIDE_GAME   0x00000800
+#define CLIENT_FLAG_IPV6            0x00001000
 
 /* The list of language codes for the quest directories. */
 static const char language_codes[][3] __attribute__((unused)) = {
@@ -224,7 +226,7 @@ void client_shutdown(void);
 ship_client_t *client_create_connection(int sock, int version, int type,
                                         struct client_queue *clients,
                                         ship_t *ship, block_t *block,
-                                        in_addr_t addr);
+                                        struct sockaddr *ip, socklen_t size);
 
 /* Destroy a connection, closing the socket and removing it from the list. */
 void client_destroy_connection(ship_client_t *c, struct client_queue *clients);

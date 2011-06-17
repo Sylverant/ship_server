@@ -785,7 +785,7 @@ static int handle_clinfo(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     lobby_t *l = c->cur_lobby;
     int id, count;
     ship_client_t *cl;
-    char ip[INET_ADDRSTRLEN];
+    char ip[INET6_ADDRSTRLEN];
 
     /* Make sure the requester is a GM. */
     if(!LOCAL_GM(c)) {
@@ -805,7 +805,7 @@ static int handle_clinfo(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     }
 
     /* Fill in the client's info. */
-    inet_ntop(AF_INET, &cl->addr, ip, INET_ADDRSTRLEN);
+    my_ntop(&cl->ip_addr, ip);
     return send_txt(c, "\tE\tC7Name: %s\nIP: %s\nGC: %u\n%s Lv.%d",
                     cl->pl->v1.name, ip, cl->guildcard,
                     classes[cl->pl->v1.ch_class], cl->pl->v1.level + 1);
@@ -2539,7 +2539,7 @@ static int handle_override(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 
 /* Usage: /ver */
 static int handle_ver(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
-    return send_txt(c, "%s: %s", __(c, "\tE\tC7Ship Revision:"),
+    return send_txt(c, "%s: %s", __(c, "\tE\tC7Ship Revision"),
                     SVN_REVISION);
 }
 

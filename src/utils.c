@@ -248,11 +248,10 @@ int pkt_log_start(ship_client_t *i) {
                 (unsigned int)(rawtime.tv_usec / 1000), i->guildcard);
     }
     else {
-        sprintf(str, "logs/%u.%02u.%02u.%02u.%02u.%02u.%03u-",
+        sprintf(str, "logs/%u.%02u.%02u.%02u.%02u.%02u.%03u",
                 cooked.tm_year + 1900, cooked.tm_mon + 1, cooked.tm_mday,
                 cooked.tm_hour, cooked.tm_min, cooked.tm_sec,
                 (unsigned int)(rawtime.tv_usec / 1000));
-        inet_ntop(AF_INET, &i->addr, str + strlen(str), 128 - strlen(str));
     }
 
     fp = fopen(str, "wt");
@@ -351,6 +350,26 @@ void *xmalloc(size_t size) {
     }
 
     return rv;
+}
+
+const void *my_ntop(struct sockaddr_storage *addr, char str[INET6_ADDRSTRLEN]) {
+    int family = addr->ss_family;
+
+    switch(family) {
+        case AF_INET:
+        {
+            struct sockaddr_in *a = (struct sockaddr_in *)addr;
+            return inet_ntop(family, &a->sin_addr, str, INET6_ADDRSTRLEN);
+        }
+
+        case AF_INET6:
+        {
+            struct sockaddr_in6 *a = (struct sockaddr_in6 *)addr;
+            return inet_ntop(family, &a->sin6_addr, str, INET6_ADDRSTRLEN);
+        }
+    }
+
+    return NULL;
 }
 
 /* Initialize mini18n support. */

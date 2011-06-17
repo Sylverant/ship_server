@@ -86,7 +86,7 @@ void client_shutdown(void) {
 ship_client_t *client_create_connection(int sock, int version, int type,
                                         struct client_queue *clients,
                                         ship_t *ship, block_t *block,
-                                        in_addr_t addr) {
+                                        struct sockaddr *ip, socklen_t size) {
     ship_client_t *rv = (ship_client_t *)malloc(sizeof(ship_client_t));
     uint32_t client_seed_dc, server_seed_dc;
     pthread_mutexattr_t attr;
@@ -115,10 +115,15 @@ ship_client_t *client_create_connection(int sock, int version, int type,
     rv->sock = sock;
     rv->version = version;
     rv->cur_block = block;
-    rv->addr = addr;
     rv->arrow = 1;
     rv->last_message = time(NULL);
     rv->hdr_size = 4;
+
+    memcpy(&rv->ip_addr, ip, size);
+
+    if(ip->sa_family == AF_INET6) {
+        rv->flags |= CLIENT_FLAG_IPV6;
+    }
 
     /* Make sure any packets sent early bail... */
     rv->ckey.type = 0xFF;
@@ -601,11 +606,17 @@ static PyObject *Client_disconnect(ClientObject *self, PyObject *args UNUSED) {
 
 /* Get the user's IPv4 address */
 static PyObject *Client_addr(ClientObject *self, PyObject *args UNUSED) {
+    struct sockaddr_in *addr = (struct sockaddr_in *)&self->client->ip_addr;
+
     if(!self->client) {
         return NULL;
     }
 
-    return PyString_FromStringAndSize((const char *)&self->client->addr, 4);
+    if(addr->sin_family != AF_INET) {
+        Py_RETURN_NONE;
+    }
+
+    return PyString_FromStringAndSize((const char *)&addr->sin_addr.s_addr, 4);
 }
 
 /* Get the user's version */
