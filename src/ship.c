@@ -884,6 +884,7 @@ static int gc_process_login(ship_client_t *c, gc_login_9e_pkt *pkt) {
 
 static int dc_process_block_sel(ship_client_t *c, dc_select_pkt *pkt) {
     int block = LE32(pkt->item_id);
+    uint16_t port;
 
     /* See if the block selected is the "Ship Select" block */
     if(block == 0xFFFFFFFF) {
@@ -901,23 +902,38 @@ static int dc_process_block_sel(ship_client_t *c, dc_select_pkt *pkt) {
     }
 
     /* Redirect the client where we want them to go. */
-    if(c->version == CLIENT_VERSION_DCV1 ||
-       c->version == CLIENT_VERSION_DCV2) {
-        return send_redirect(c, ship->cfg->ship_ip,
-                             ship->blocks[block - 1]->dc_port);
+    switch(c->version) {
+        case CLIENT_VERSION_DCV1:
+        case CLIENT_VERSION_DCV2:
+            port = ship->blocks[block - 1]->dc_port;
+            break;
+
+        case CLIENT_VERSION_PC:
+            port = ship->blocks[block - 1]->pc_port;
+            break;
+
+        case CLIENT_VERSION_GC:
+            port = ship->blocks[block - 1]->gc_port;
+            break;
+
+        case CLIENT_VERSION_EP3:
+            port = ship->blocks[block - 1]->ep3_port;
+            break;
+
+        default:
+            return -3;
     }
-    else if(c->version == CLIENT_VERSION_PC) {
-        return send_redirect(c, ship->cfg->ship_ip,
-                             ship->blocks[block - 1]->pc_port);
-    }
-    else if(c->version == CLIENT_VERSION_GC) {
-        return send_redirect(c, ship->cfg->ship_ip,
-                             ship->blocks[block - 1]->gc_port);
+
+#ifdef ENABLE_IPV6
+    if(c->flags & CLIENT_FLAG_IPV6) {
+        return send_redirect6(c, ship->cfg->ship_ip6, port);
     }
     else {
-        return send_redirect(c, ship->cfg->ship_ip,
-                             ship->blocks[block - 1]->ep3_port);
+        return send_redirect(c, ship->cfg->ship_ip, port);
     }
+#else
+    return send_redirect(c, ship->cfg->ship_ip, port);
+#endif
 }
 
 static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
@@ -964,7 +980,18 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
                that the user has requested. */
             TAILQ_FOREACH(i, &ship->ships, qentry) {
                 if(i->ship_id == item_id) {
+#ifdef ENABLE_IPV6
+                    if(c->flags & CLIENT_FLAG_IPV6 && i->ship_addr6[0]) {
+                        return send_redirect6(c, i->ship_addr6,
+                                              i->ship_port + off);
+                    }
+                    else {
+                        return send_redirect(c, i->ship_addr,
+                                             i->ship_port + off);
+                    }
+#else
                     return send_redirect(c, i->ship_addr, i->ship_port + off);
+#endif
                 }
             }
 

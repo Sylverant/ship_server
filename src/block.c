@@ -45,7 +45,7 @@
 static void *block_thd(void *d) {
     block_t *b = (block_t *)d;
     ship_t *s = b->ship;
-    int nfds;
+    int nfds, i;
     struct timeval timeout;
     fd_set readfds, writefds;
     ship_client_t *it, *tmp;
@@ -56,6 +56,12 @@ static void *block_thd(void *d) {
     int sock;
     ssize_t sent;
     time_t now;
+
+#ifdef ENABLE_IPV6
+#define NUMSOCKS 2
+#else
+#define NUMSOCKS 1
+#endif
 
     debug(DBG_LOG, "%s(%d): Up and running\n", s->cfg->name, b->b);
 
@@ -111,14 +117,16 @@ static void *block_thd(void *d) {
         }
 
         /* Add the listening sockets to the read fd_set. */
-        FD_SET(b->dcsock, &readfds);
-        nfds = nfds > b->dcsock ? nfds : b->dcsock;
-        FD_SET(b->pcsock, &readfds);
-        nfds = nfds > b->pcsock ? nfds : b->pcsock;
-        FD_SET(b->gcsock, &readfds);
-        nfds = nfds > b->gcsock ? nfds : b->gcsock;
-        FD_SET(b->ep3sock, &readfds);
-        nfds = nfds > b->ep3sock ? nfds : b->ep3sock;
+        for(i = 0; i < NUMSOCKS; ++i) {
+            FD_SET(b->dcsock[i], &readfds);
+            nfds = nfds > b->dcsock[i] ? nfds : b->dcsock[i];
+            FD_SET(b->pcsock[i], &readfds);
+            nfds = nfds > b->pcsock[i] ? nfds : b->pcsock[i];
+            FD_SET(b->gcsock[i], &readfds);
+            nfds = nfds > b->gcsock[i] ? nfds : b->gcsock[i];
+            FD_SET(b->ep3sock[i], &readfds);
+            nfds = nfds > b->ep3sock[i] ? nfds : b->ep3sock[i];
+        }
 
         FD_SET(b->pipes[1], &readfds);
         nfds = nfds > b->pipes[1] ? nfds : b->pipes[1];
@@ -133,71 +141,73 @@ static void *block_thd(void *d) {
                 read(b->pipes[1], &len, 1);
             }
 
-            if(FD_ISSET(b->dcsock, &readfds)) {
-                len = sizeof(struct sockaddr_storage);
-                if((sock = accept(b->dcsock, addr_p, &len)) < 0) {
-                    perror("accept");
+            for(i = 0; i < NUMSOCKS; ++i) {
+                if(FD_ISSET(b->dcsock[i], &readfds)) {
+                    len = sizeof(struct sockaddr_storage);
+                    if((sock = accept(b->dcsock[i], addr_p, &len)) < 0) {
+                        perror("accept");
+                    }
+
+                    my_ntop(&addr, ipstr);
+                    debug(DBG_LOG, "%s(%d): Accepted DC block connection from "
+                          "%s\n", s->cfg->name, b->b, ipstr);
+
+                    if(!client_create_connection(sock, CLIENT_VERSION_DCV1,
+                                                 CLIENT_TYPE_BLOCK, b->clients,
+                                                 s, b, addr_p, len)) {
+                        close(sock);
+                    }
                 }
 
-                my_ntop(&addr, ipstr);
-                debug(DBG_LOG, "%s(%d): Accepted DC block connection from %s\n",
-                      s->cfg->name, b->b, ipstr);
+                if(FD_ISSET(b->pcsock[i], &readfds)) {
+                    len = sizeof(struct sockaddr_storage);
+                    if((sock = accept(b->pcsock[i], addr_p, &len)) < 0) {
+                        perror("accept");
+                    }
 
-                if(!client_create_connection(sock, CLIENT_VERSION_DCV1,
-                                             CLIENT_TYPE_BLOCK, b->clients, s,
-                                             b, addr_p, len)) {
-                    close(sock);
-                }
-            }
+                    my_ntop(&addr, ipstr);
+                    debug(DBG_LOG, "%s(%d): Accepted PC block connection from "
+                          "%s\n", s->cfg->name, b->b, ipstr);
 
-            if(FD_ISSET(b->pcsock, &readfds)) {
-                len = sizeof(struct sockaddr_storage);
-                if((sock = accept(b->pcsock, addr_p, &len)) < 0) {
-                    perror("accept");
-                }
-
-                my_ntop(&addr, ipstr);
-                debug(DBG_LOG, "%s(%d): Accepted PC block connection from %s\n",
-                      s->cfg->name, b->b, ipstr);
-
-                if(!client_create_connection(sock, CLIENT_VERSION_PC,
-                                             CLIENT_TYPE_BLOCK, b->clients, s,
-                                             b, addr_p, len)) {
-                    close(sock);
-                }
-            }
-
-            if(FD_ISSET(b->gcsock, &readfds)) {
-                len = sizeof(struct sockaddr_storage);
-                if((sock = accept(b->gcsock, addr_p, &len)) < 0) {
-                    perror("accept");
+                    if(!client_create_connection(sock, CLIENT_VERSION_PC,
+                                                 CLIENT_TYPE_BLOCK, b->clients,
+                                                 s, b, addr_p, len)) {
+                        close(sock);
+                    }
                 }
 
-                my_ntop(&addr, ipstr);
-                debug(DBG_LOG, "%s(%d): Accepted GC block connection from %s\n",
-                      s->cfg->name, b->b, ipstr);
+                if(FD_ISSET(b->gcsock[i], &readfds)) {
+                    len = sizeof(struct sockaddr_storage);
+                    if((sock = accept(b->gcsock[i], addr_p, &len)) < 0) {
+                        perror("accept");
+                    }
 
-                if(!client_create_connection(sock, CLIENT_VERSION_GC,
-                                             CLIENT_TYPE_BLOCK, b->clients, s,
-                                             b, addr_p, len)) {
-                    close(sock);
+                    my_ntop(&addr, ipstr);
+                    debug(DBG_LOG, "%s(%d): Accepted GC block connection from "
+                          "%s\n", s->cfg->name, b->b, ipstr);
+
+                    if(!client_create_connection(sock, CLIENT_VERSION_GC,
+                                                 CLIENT_TYPE_BLOCK, b->clients,
+                                                 s, b, addr_p, len)) {
+                        close(sock);
+                    }
                 }
-            }
 
-            if(FD_ISSET(b->ep3sock, &readfds)) {
-                len = sizeof(struct sockaddr_storage);
-                if((sock = accept(b->ep3sock, addr_p, &len)) < 0) {
-                    perror("accept");
-                }
+                if(FD_ISSET(b->ep3sock[i], &readfds)) {
+                    len = sizeof(struct sockaddr_storage);
+                    if((sock = accept(b->ep3sock[i], addr_p, &len)) < 0) {
+                        perror("accept");
+                    }
 
-                my_ntop(&addr, ipstr);
-                debug(DBG_LOG, "%s(%d): Accepted Episode 3 block connection "
-                      "from %s\n", s->cfg->name, b->b, ipstr);
+                    my_ntop(&addr, ipstr);
+                    debug(DBG_LOG, "%s(%d): Accepted Episode 3 block "
+                          "connection from %s\n", s->cfg->name, b->b, ipstr);
 
-                if(!client_create_connection(sock, CLIENT_VERSION_EP3,
-                                             CLIENT_TYPE_BLOCK, b->clients, s,
-                                             b, addr_p, len)) {
-                    close(sock);
+                    if(!client_create_connection(sock, CLIENT_VERSION_EP3,
+                                                 CLIENT_TYPE_BLOCK, b->clients,
+                                                 s, b, addr_p, len)) {
+                        close(sock);
+                    }
                 }
             }
 
@@ -281,145 +291,62 @@ static void *block_thd(void *d) {
 
 block_t *block_server_start(ship_t *s, int b, uint16_t port) {
     block_t *rv;
-    int dcsock, pcsock, gcsock, ep3sock, i;
-    struct sockaddr_in addr;
+    int dcsock[2] = { -1, -1 }, pcsock[2] = { -1, -1 };
+    int gcsock[2] = { -1, -1 }, ep3sock[2] = { -1, -1 }, i;
     lobby_t *l, *l2;
     pthread_mutexattr_t attr;
 
     debug(DBG_LOG, "%s: Starting server for block %d...\n", s->cfg->name, b);
 
     /* Create the sockets for listening for connections. */
-    dcsock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
-
-    if(dcsock < 0) {
-        perror("socket");
+    dcsock[0] = open_sock(AF_INET, port);
+    if(dcsock[0] < 0) {
         return NULL;
     }
 
-    /* Bind the socket. */
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = INADDR_ANY;
-    addr.sin_port = htons(port);
-
-    if(bind(dcsock, (struct sockaddr *)&addr, sizeof(struct sockaddr_in)) < 0) {
-        perror("bind");
-        close(dcsock);
-        return NULL;
+    pcsock[0] = open_sock(AF_INET, port + 1);
+    if(pcsock[0] < 0) {
+        goto err_close_dc;
     }
 
-    /* Listen on the socket for connections. */
-    if(listen(dcsock, 10) < 0) {
-        perror("listen");
-        close(dcsock);
-        return NULL;
+    gcsock[0] = open_sock(AF_INET, port + 2);
+    if(gcsock[0] < 0) {
+        goto err_close_pc;
     }
 
-    pcsock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
-
-    if(pcsock < 0) {
-        perror("socket");
-        close(dcsock);
-        return NULL;
+    ep3sock[0] = open_sock(AF_INET, port + 3);
+    if(ep3sock[0] < 0) {
+        goto err_close_gc;
     }
 
-    /* Bind the socket. */
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = INADDR_ANY;
-    addr.sin_port = htons(port + 1);
-
-    if(bind(pcsock, (struct sockaddr *)&addr, sizeof(struct sockaddr_in)) < 0) {
-        perror("bind");
-        close(dcsock);
-        close(pcsock);
-        return NULL;
+#ifdef ENABLE_IPV6
+    dcsock[1] = open_sock(AF_INET6, port);
+    if(dcsock[1] < 0) {
+        goto err_close_ep3;
     }
 
-    /* Listen on the socket for connections. */
-    if(listen(pcsock, 10) < 0) {
-        perror("listen");
-        close(pcsock);
-        close(dcsock);
-        return NULL;
+    pcsock[1] = open_sock(AF_INET6, port + 1);
+    if(pcsock[1] < 0) {
+        goto err_close_dc_6;
     }
 
-    gcsock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
-
-    if(gcsock < 0) {
-        perror("socket");
-        close(pcsock);
-        close(dcsock);
-        return NULL;
+    gcsock[1] = open_sock(AF_INET6, port + 2);
+    if(gcsock[1] < 0) {
+        goto err_close_pc_6;
     }
 
-    /* Bind the socket. */
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = INADDR_ANY;
-    addr.sin_port = htons(port + 2);
-
-    if(bind(gcsock, (struct sockaddr *)&addr, sizeof(struct sockaddr_in)) < 0) {
-        perror("bind");
-        close(dcsock);
-        close(pcsock);
-        close(gcsock);
-        return NULL;
+    ep3sock[1] = open_sock(AF_INET6, port + 3);
+    if(ep3sock[1] < 0) {
+        goto err_close_gc_6;
     }
-
-    /* Listen on the socket for connections. */
-    if(listen(gcsock, 10) < 0) {
-        perror("listen");
-        close(dcsock);
-        close(pcsock);
-        close(gcsock);
-        return NULL;
-    }
-
-    ep3sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
-    
-    if(ep3sock < 0) {
-        perror("socket");
-        close(pcsock);
-        close(dcsock);
-        return NULL;
-    }
-    
-    /* Bind the socket. */
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = INADDR_ANY;
-    addr.sin_port = htons(port + 3);
-    
-    if(bind(ep3sock, (struct sockaddr *)&addr, sizeof(struct sockaddr_in)) < 0) {
-        perror("bind");
-        close(dcsock);
-        close(pcsock);
-        close(gcsock);
-        close(ep3sock);
-        return NULL;
-    }
-    
-    /* Listen on the socket for connections. */
-    if(listen(ep3sock, 10) < 0) {
-        perror("listen");
-        close(dcsock);
-        close(pcsock);
-        close(gcsock);
-        close(ep3sock);
-        return NULL;
-    }
+#endif
 
     /* Make space for the block structure. */
     rv = (block_t *)malloc(sizeof(block_t));
 
     if(!rv) {
         debug(DBG_ERROR, "%s(%d): Cannot allocate memory!\n", s->cfg->name, b);
-        close(ep3sock);
-        close(gcsock);
-        close(pcsock);
-        close(dcsock);
-        return NULL;
+        goto err_close_all;
     }
 
     memset(rv, 0, sizeof(block_t));
@@ -427,12 +354,7 @@ block_t *block_server_start(ship_t *s, int b, uint16_t port) {
     /* Make our pipe */
     if(pipe(rv->pipes) == -1) {
         debug(DBG_ERROR, "%s(%d): Cannot create pipe!\n", s->cfg->name, b);
-        free(rv);
-        close(ep3sock);
-        close(gcsock);
-        close(pcsock);
-        close(dcsock);
-        return NULL;
+        goto err_free;
     }
 
     /* Make room for the client list. */
@@ -441,14 +363,7 @@ block_t *block_server_start(ship_t *s, int b, uint16_t port) {
     if(!rv->clients) {
         debug(DBG_ERROR, "%s(%d): Cannot allocate memory for clients!\n",
               s->cfg->name, b);
-        close(rv->pipes[0]);
-        close(rv->pipes[1]);
-        free(rv);
-        close(ep3sock);
-        close(gcsock);
-        close(pcsock);
-        close(dcsock);
-        return NULL;
+        goto err_pipes;
     }
 
     /* Fill in the structure. */
@@ -459,10 +374,14 @@ block_t *block_server_start(ship_t *s, int b, uint16_t port) {
     rv->pc_port = port + 1;
     rv->gc_port = port + 2;
     rv->ep3_port = port + 3;
-    rv->dcsock = dcsock;
-    rv->pcsock = pcsock;
-    rv->gcsock = gcsock;
-    rv->ep3sock = ep3sock;
+    rv->dcsock[0] = dcsock[0];
+    rv->pcsock[0] = pcsock[0];
+    rv->gcsock[0] = gcsock[0];
+    rv->ep3sock[0] = ep3sock[0];
+    rv->dcsock[1] = dcsock[1];
+    rv->pcsock[1] = pcsock[1];
+    rv->gcsock[1] = gcsock[1];
+    rv->ep3sock[1] = ep3sock[1];
     rv->run = 1;
 
     TAILQ_INIT(&rv->lobbies);
@@ -486,27 +405,46 @@ block_t *block_server_start(ship_t *s, int b, uint16_t port) {
     if(pthread_create(&rv->thd, NULL, &block_thd, rv)) {
         debug(DBG_ERROR, "%s(%d): Cannot start block thread!\n",
               s->cfg->name, b);
-        pthread_mutex_destroy(&rv->mutex);
-        close(rv->pipes[0]);
-        close(rv->pipes[1]);
-        close(ep3sock);
-        close(gcsock);
-        close(pcsock);
-        close(dcsock);
-
-        l2 = TAILQ_FIRST(&rv->lobbies);
-        while(l2) {
-            l = TAILQ_NEXT(l2, qentry);
-            lobby_destroy(l2);
-            l2 = l;
-        }
-
-        free(rv->clients);
-        free(rv);
-        return NULL;
+        goto err_lobbies;
     }
 
     return rv;
+
+err_lobbies:
+    l2 = TAILQ_FIRST(&rv->lobbies);
+    while(l2) {
+        l = TAILQ_NEXT(l2, qentry);
+        lobby_destroy(l2);
+        l2 = l;
+    }
+
+    pthread_mutex_destroy(&rv->mutex);
+    free(rv->clients);
+err_pipes:
+    close(rv->pipes[0]);
+    close(rv->pipes[1]);
+err_free:
+    free(rv);    
+err_close_all:
+#ifdef ENABLE_IPV6
+    close(ep3sock[1]);
+err_close_gc_6:
+    close(gcsock[1]);
+err_close_pc_6:
+    close(pcsock[1]);
+err_close_dc_6:
+    close(dcsock[1]);
+err_close_ep3:
+#endif
+    close(ep3sock[0]);
+err_close_gc:
+    close(gcsock[0]);
+err_close_pc:
+    close(pcsock[0]);
+err_close_dc:
+    close(dcsock[0]);
+
+    return NULL;
 }
 
 void block_server_stop(block_t *b) {
@@ -542,10 +480,16 @@ void block_server_stop(block_t *b) {
     pthread_mutex_destroy(&b->mutex);
     close(b->pipes[0]);
     close(b->pipes[1]);
-    close(b->dcsock);
-    close(b->pcsock);
-    close(b->gcsock);
-    close(b->ep3sock);
+    close(b->dcsock[0]);
+    close(b->pcsock[0]);
+    close(b->gcsock[0]);
+    close(b->ep3sock[0]);
+#ifdef ENABLE_IPV6
+    close(b->dcsock[1]);
+    close(b->pcsock[1]);
+    close(b->gcsock[1]);
+    close(b->ep3sock[1]);
+#endif
     free(b->clients);
     free(b);
 }
@@ -1610,7 +1554,16 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
             }
 
             /* Redirect the client where we want them to go. */
+#ifdef ENABLE_IPV6
+            if(c->flags & CLIENT_FLAG_IPV6) {
+                return send_redirect6(c, ship->cfg->ship_ip6, port);
+            }
+            else {
+                return send_redirect(c, ship->cfg->ship_ip, port);
+            }
+#else
             return send_redirect(c, ship->cfg->ship_ip, port);
+#endif
         }
 
         /* Game Selection */
@@ -1783,7 +1736,18 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
                that the user has requested. */
             TAILQ_FOREACH(i, &ship->ships, qentry) {
                 if(i->ship_id == item_id) {
+#ifdef ENABLE_IPV6
+                    if(c->flags & CLIENT_FLAG_IPV6 && i->ship_addr6[0]) {
+                        return send_redirect6(c, i->ship_addr6,
+                                              i->ship_port + off);
+                    }
+                    else {
+                        return send_redirect(c, i->ship_addr,
+                                             i->ship_port + off);
+                    }
+#else
                     return send_redirect(c, i->ship_addr, i->ship_port + off);
+#endif
                 }
             }
 

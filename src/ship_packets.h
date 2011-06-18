@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -66,6 +66,11 @@ int send_dc_security(ship_client_t *c, uint32_t gc, uint8_t *data,
 
 /* Send a redirect packet to the given client. */
 int send_redirect(ship_client_t *c, in_addr_t ip, uint16_t port);
+
+#ifdef ENABLE_IPV6
+/* Send a redirect packet (IPv6) to the given client. */
+int send_redirect6(ship_client_t *c, const uint8_t ip[16], uint16_t port);
+#endif
 
 /* Send a timestamp packet to the given client. */
 int send_timestamp(ship_client_t *c);

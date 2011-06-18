@@ -292,6 +292,57 @@ int send_redirect(ship_client_t *c, in_addr_t ip, uint16_t port) {
     return -1;
 }
 
+#ifdef ENABLE_IPV6
+/* Send a redirect packet (IPv6) to the given client. */
+static int send_redirect6_dc(ship_client_t *c, const uint8_t ip[16],
+                             uint16_t port) {
+    uint8_t *sendbuf = get_sendbuf();
+    dc_redirect6_pkt *pkt = (dc_redirect6_pkt *)sendbuf;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+    
+    /* Wipe the packet */
+    memset(pkt, 0, DC_REDIRECT6_LENGTH);
+
+    /* Fill in the header */
+    if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
+       c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3) {
+        pkt->hdr.dc.pkt_type = REDIRECT_TYPE;
+        pkt->hdr.dc.pkt_len = LE16(DC_REDIRECT6_LENGTH);
+        pkt->hdr.dc.flags = 6;
+    }
+    else {
+        pkt->hdr.pc.pkt_type = REDIRECT_TYPE;
+        pkt->hdr.pc.pkt_len = LE16(DC_REDIRECT6_LENGTH);
+        pkt->hdr.pc.flags = 6;
+    }
+
+    /* Fill in the IP and port */
+    memcpy(pkt->ip_addr, ip, 16);
+    pkt->port = LE16(port);
+
+    /* Send the packet away */
+    return crypt_send(c, DC_REDIRECT6_LENGTH, sendbuf);
+}
+
+int send_redirect6(ship_client_t *c, const uint8_t ip[16], uint16_t port) {
+    /* Call the appropriate function. */
+    switch(c->version) {
+        case CLIENT_VERSION_DCV1:
+        case CLIENT_VERSION_DCV2:
+        case CLIENT_VERSION_PC:
+        case CLIENT_VERSION_GC:
+        case CLIENT_VERSION_EP3:
+            return send_redirect6_dc(c, ip, port);
+    }
+
+    return -1;
+}
+#endif
+
 /* Send a timestamp packet to the given client. */
 static int send_dc_timestamp(ship_client_t *c) {
     uint8_t *sendbuf = get_sendbuf();

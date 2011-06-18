@@ -48,10 +48,10 @@ struct block {
 
     int b;
     int run;
-    int dcsock;
-    int pcsock;
-    int gcsock;
-    int ep3sock;
+    int dcsock[2];
+    int pcsock[2];
+    int gcsock[2];
+    int ep3sock[2];
 
     int pipes[2];
 
