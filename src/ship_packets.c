@@ -6168,22 +6168,163 @@ int send_choice_search(ship_client_t *c) {
 }
 
 /* Send a reply to a choice search to the client. */
-static int send_dc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
-                                int minlvl, int maxlvl, int cl, in_addr_t a) {
-    uint8_t *sendbuf = get_sendbuf();
-    dc_choice_reply_t *pkt = (dc_choice_reply_t *)sendbuf;
-    uint16_t len = 4;
-    uint8_t entries = 0;
-    int i;
+static int fill_one_choice_entry(uint8_t *sendbuf, int version,
+                                 ship_client_t *it, int entry, int port_off,
+                                 iconv_t *ic, iconv_t *ic2) {
+    block_t *b = it->cur_block;
+
+    switch(version) {
+        case CLIENT_VERSION_PC:
+        {
+            pc_choice_reply_pkt *pkt = (pc_choice_reply_pkt *)sendbuf;
+            char tmp[64];
+
+            memset(&pkt->entries[entry], 0, 0x154);
+            pkt->entries[entry].guildcard = LE32(it->guildcard);
+
+            /* All the text needs to be converted with iconv to UTF-16LE... */
+            istrncpy(ic, (char *)pkt->entries[entry].name,
+                     it->pl->v1.name, 0x20);
+
+            sprintf(tmp, "%s Lvl %d\n", classes[it->pl->v1.ch_class],
+                    it->pl->v1.level + 1);
+            istrncpy(ic, (char *)pkt->entries[entry].cl_lvl, tmp,
+                     0x40);
+
+            sprintf(tmp, "%s,BLOCK%02d,%s", it->cur_lobby->name, b->b,
+                    ship->cfg->name);
+
+            if(tmp[0] == '\t' && tmp[1] == 'J') {
+                istrncpy(ic2, (char *)pkt->entries[entry].location, tmp,
+                         0x60);
+            }
+            else {
+                istrncpy(ic, (char *)pkt->entries[entry].location, tmp,
+                         0x60);
+            }
+
+            pkt->entries[entry].ip = ship->cfg->ship_ip;
+            pkt->entries[entry].port = LE16(b->dc_port + port_off);
+            pkt->entries[entry].menu_id = LE32(MENU_ID_LOBBY);
+            pkt->entries[entry].item_id = LE32(it->cur_lobby->lobby_id);
+
+            return 0x154;
+        }
+
+        case CLIENT_VERSION_DCV2:
+        case CLIENT_VERSION_GC:
+        case CLIENT_VERSION_EP3:
+        {
+            dc_choice_reply_pkt *pkt = (dc_choice_reply_pkt *)sendbuf;
+
+            memset(&pkt->entries[entry], 0, 0xD4);
+            pkt->entries[entry].guildcard = LE32(it->guildcard);
+
+            /* Everything here is ISO-8859-1 already... so no need to
+               iconv anything in here */
+            strcpy(pkt->entries[entry].name, it->pl->v1.name);
+            sprintf(pkt->entries[entry].cl_lvl, "%s Lvl %d\n",
+                    classes[it->pl->v1.ch_class], it->pl->v1.level + 1);
+            sprintf(pkt->entries[entry].location, "%s,BLOCK%02d,%s",
+                    it->cur_lobby->name, b->b, ship->cfg->name);
+
+            pkt->entries[entry].ip = ship->cfg->ship_ip;
+            pkt->entries[entry].port = LE16(b->dc_port + port_off);
+            pkt->entries[entry].menu_id = LE32(MENU_ID_LOBBY);
+            pkt->entries[entry].item_id = LE32(it->cur_lobby->lobby_id);
+            
+            return 0xD4;
+        }
+    }
+
+    return 0;
+}
+
+#ifdef ENABLE_IPV6
+
+static int fill_one_choice6_entry(uint8_t *sendbuf, int version,
+                                  ship_client_t *it, int entry, int port_off,
+                                  iconv_t *ic, iconv_t *ic2) {
+    block_t *b = it->cur_block;
+
+    switch(version) {
+        case CLIENT_VERSION_PC:
+        {
+            pc_choice_reply6_pkt *pkt = (pc_choice_reply6_pkt *)sendbuf;
+            char tmp[64];
+
+            memset(&pkt->entries[entry], 0, 0x160);
+            pkt->entries[entry].guildcard = LE32(it->guildcard);
+
+            /* All the text needs to be converted with iconv to UTF-16LE... */
+            istrncpy(ic, (char *)pkt->entries[entry].name,
+                     it->pl->v1.name, 0x20);
+
+            sprintf(tmp, "%s Lvl %d\n", classes[it->pl->v1.ch_class],
+                    it->pl->v1.level + 1);
+            istrncpy(ic, (char *)pkt->entries[entry].cl_lvl, tmp,
+                     0x40);
+
+            sprintf(tmp, "%s,BLOCK%02d,%s", it->cur_lobby->name, b->b,
+                    ship->cfg->name);
+
+            if(tmp[0] == '\t' && tmp[1] == 'J') {
+                istrncpy(ic2, (char *)pkt->entries[entry].location, tmp,
+                         0x60);
+            }
+            else {
+                istrncpy(ic, (char *)pkt->entries[entry].location, tmp,
+                         0x60);
+            }
+
+            memcpy(pkt->entries[entry].ip, ship->cfg->ship_ip6, 16);
+            pkt->entries[entry].port = LE16(b->dc_port + port_off);
+            pkt->entries[entry].menu_id = LE32(MENU_ID_LOBBY);
+            pkt->entries[entry].item_id = LE32(it->cur_lobby->lobby_id);
+
+            return 0x160;
+        }
+
+        case CLIENT_VERSION_DCV2:
+        case CLIENT_VERSION_GC:
+        case CLIENT_VERSION_EP3:
+        {
+            dc_choice_reply6_pkt *pkt = (dc_choice_reply6_pkt *)sendbuf;
+
+            memset(&pkt->entries[entry], 0, 0xE0);
+            pkt->entries[entry].guildcard = LE32(it->guildcard);
+
+            /* Everything here is ISO-8859-1 already... so no need to
+               iconv anything in here */
+            strcpy(pkt->entries[entry].name, it->pl->v1.name);
+            sprintf(pkt->entries[entry].cl_lvl, "%s Lvl %d\n",
+                    classes[it->pl->v1.ch_class], it->pl->v1.level + 1);
+            sprintf(pkt->entries[entry].location, "%s,BLOCK%02d,%s",
+                    it->cur_lobby->name, b->b, ship->cfg->name);
+
+            memcpy(pkt->entries[entry].ip, ship->cfg->ship_ip6, 16);
+            pkt->entries[entry].port = LE16(b->dc_port + port_off);
+            pkt->entries[entry].menu_id = LE32(MENU_ID_LOBBY);
+            pkt->entries[entry].item_id = LE32(it->cur_lobby->lobby_id);
+
+            return 0xE0;
+        }
+    }
+
+    return 0;
+}
+
+#endif
+
+static int fill_choice_entries(ship_client_t *c, uint8_t *sendbuf,
+                               dc_choice_set_pkt *search, int minlvl,
+                               int maxlvl, int cl, int vmin, int vmax,
+                               int port_off, iconv_t *ic, iconv_t *ic2,
+                               uint16_t *lenp) {
+    int len = 0, entries = 0, i;
     block_t *b;
     ship_client_t *it;
 
-    /* Verify we got the sendbuf. */
-    if(!sendbuf) {
-        return -1;
-    }
-
-    /* Search the local ship. */
     for(i = 0; i < ship->cfg->blocks; ++i) {
         b = ship->blocks[i];
 
@@ -6209,39 +6350,75 @@ static int send_dc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
                 else if(it == c) {
                     continue;
                 }
-                else if(it->version > CLIENT_VERSION_PC) {
+                else if(it->version > vmax || it->version < vmin) {
                     continue;
                 }
 
                 /* If we get here, they match the search. Fill in the
                    entry. */
-                memset(&pkt->entries[entries], 0, 0xD4);
-                pkt->entries[entries].guildcard = LE32(it->guildcard);
+#ifdef ENABLE_IPV6
+                if((c->flags & CLIENT_FLAG_IPV6)) {
+                    len += fill_one_choice6_entry(sendbuf, c->version, it,
+                                                  entries++, port_off, ic, ic2);
+                }
+                else {
+                    len += fill_one_choice_entry(sendbuf, c->version, it,
+                                                 entries++, port_off, ic, ic2);
+                }
+#else
+                len += fill_one_choice_entry(sendbuf, c->version, it, entries++,
+                                             port_off, ic, ic2);
+#endif
 
-                /* Everything here is ISO-8859-1 already... so no need to
-                   iconv anything in here */
-                strcpy(pkt->entries[entries].name, it->pl->v1.name);
-                sprintf(pkt->entries[entries].cl_lvl, "%s Lvl %d\n",
-                        classes[it->pl->v1.ch_class], it->pl->v1.level + 1);
-                sprintf(pkt->entries[entries].location, "%s,BLOCK%02d,%s",
-                        it->cur_lobby->name, it->cur_block->b,
-                        ship->cfg->name);
-
-                pkt->entries[entries].ip = a;
-                pkt->entries[entries].port = LE16(b->dc_port);
-                pkt->entries[entries].menu_id = LE32(MENU_ID_LOBBY);
-                pkt->entries[entries].item_id =
-                    LE32(it->cur_lobby->lobby_id);
-
-                len += 0xD4;
-                ++entries;
+                /* Choice search is limited to 32 entries by the game... */
+                if(entries == 32) {
+                    *lenp = len;
+                    pthread_mutex_unlock(&b->mutex);
+                    return entries;
+                }
             }
 
             pthread_mutex_unlock(&b->mutex);
         }
     }
 
+    *lenp = len;
+    return entries;
+}
+
+static int send_dc_choice_reply(ship_client_t *c, dc_choice_set_pkt *search,
+                                int minlvl, int maxlvl, int cl) {
+    uint8_t *sendbuf = get_sendbuf();
+    dc_choice_reply_pkt *pkt = (dc_choice_reply_pkt *)sendbuf;
+    uint16_t len;
+    uint8_t entries;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Fill in the entries on the local ship */
+    entries = fill_choice_entries(c, sendbuf, search, minlvl, maxlvl, cl,
+                                  CLIENT_VERSION_DCV1, CLIENT_VERSION_PC, 0,
+                                  NULL, NULL, &len);
+    len += 4;
+
     /* Put in a blank entry at the end... */
+#ifdef ENABLE_IPV6
+    if((c->flags & CLIENT_FLAG_IPV6)) {
+        memset(&pkt->entries[entries], 0, 0xE0);
+        len += 0xE0;
+
+        /* Fill in the header. */
+        pkt->hdr.pkt_type = CHOICE_REPLY_TYPE;
+        pkt->hdr.pkt_len = LE16(len);
+        pkt->hdr.flags = entries | 0x80;
+
+        return crypt_send(c, len, sendbuf);
+    }
+#endif
+
     memset(&pkt->entries[entries], 0, 0xD4);
     len += 0xD4;
 
@@ -6253,17 +6430,13 @@ static int send_dc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
     return crypt_send(c, len, sendbuf);
 }
 
-static int send_pc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
-                                int minlvl, int maxlvl, int cl, in_addr_t a) {
+static int send_pc_choice_reply(ship_client_t *c, dc_choice_set_pkt *search,
+                                int minlvl, int maxlvl, int cl) {
     uint8_t *sendbuf = get_sendbuf();
-    pc_choice_reply_t *pkt = (pc_choice_reply_t *)sendbuf;
-    uint16_t len = 4;
-    uint8_t entries = 0;
-    int i;
+    pc_choice_reply_pkt *pkt = (pc_choice_reply_pkt *)sendbuf;
+    uint16_t len;
+    uint8_t entries;
     iconv_t ic, ic2;
-    block_t *b;
-    ship_client_t *it;
-    char tmp[64];
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -6286,81 +6459,31 @@ static int send_pc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
         return -1;
     }
 
-    /* Search the local ship. */
-    for(i = 0; i < ship->cfg->blocks; ++i) {
-        b = ship->blocks[i];
-
-        if(b && b->run) {
-            pthread_mutex_lock(&b->mutex);
-
-            /* Look through all clients on that block. */
-            TAILQ_FOREACH(it, b->clients, qentry) {
-                /* Look to see if they match the search. */
-                if(!it->pl) {
-                    continue;
-                }
-                else if(!it->cur_lobby) {
-                    continue;
-                }
-                else if(it->pl->v1.level < minlvl ||
-                        it->pl->v1.level > maxlvl) {
-                    continue;
-                }
-                else if(cl != 0 && it->pl->v1.ch_class != cl - 1) {
-                    continue;
-                }
-                else if(it == c) {
-                    continue;
-                }
-                else if(it->version > CLIENT_VERSION_PC) {
-                    continue;
-                }
-
-                /* If we get here, they match the search. Fill in the
-                   entry. */
-                memset(&pkt->entries[entries], 0, 0x154);
-                pkt->entries[entries].guildcard = LE32(it->guildcard);
-
-                istrncpy(ic, (char *)pkt->entries[entries].name,
-                         it->pl->v1.name, 0x20);
-
-                sprintf(tmp, "%s Lvl %d\n", classes[it->pl->v1.ch_class],
-                        it->pl->v1.level + 1);
-                istrncpy(ic, (char *)pkt->entries[entries].cl_lvl, tmp,
-                         0x40);
-
-                sprintf(tmp, "%s,BLOCK%02d,%s", it->cur_lobby->name,
-                        it->cur_block->b, ship->cfg->name);
-
-                if(tmp[0] == '\t' && tmp[1] == 'J') {
-                    istrncpy(ic2, (char *)pkt->entries[entries].location, tmp,
-                             0x60);
-                }
-                else {
-                    istrncpy(ic, (char *)pkt->entries[entries].location, tmp,
-                             0x60);
-                }
-
-                pkt->entries[entries].ip = a;
-                pkt->entries[entries].port = LE16(b->pc_port);
-                pkt->entries[entries].menu_id = LE32(MENU_ID_LOBBY);
-                pkt->entries[entries].item_id =
-                    LE32(it->cur_lobby->lobby_id);
-
-                len += 0x154;
-                ++entries;
-            }
-
-            pthread_mutex_unlock(&b->mutex);
-        }
-    }
-
-    /* Put in a blank entry at the end... */
-    memset(&pkt->entries[entries], 0, 0x154);
-    len += 0x154;
+    /* Fill in the entries on the local ship */
+    entries = fill_choice_entries(c, sendbuf, search, minlvl, maxlvl, cl,
+                                  CLIENT_VERSION_DCV1, CLIENT_VERSION_PC, 1, ic,
+                                  ic2, &len);
+    len += 4;
 
     iconv_close(ic2);
     iconv_close(ic);
+
+    /* Put in a blank entry at the end... */
+#ifdef ENABLE_IPV6
+    if((c->flags & CLIENT_FLAG_IPV6)) {
+        memset(&pkt->entries[entries], 0, 0x160);
+        len += 0x160;
+
+        pkt->hdr.pkt_type = CHOICE_REPLY_TYPE;
+        pkt->hdr.pkt_len = LE16(len);
+        pkt->hdr.flags = entries | 0x80;
+
+        return crypt_send(c, len, sendbuf);
+    }
+#endif
+
+    memset(&pkt->entries[entries], 0, 0x154);
+    len += 0x154;
 
     /* Fill in the header. */
     pkt->hdr.pkt_type = CHOICE_REPLY_TYPE;
@@ -6370,80 +6493,39 @@ static int send_pc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
     return crypt_send(c, len, sendbuf);
 }
 
-static int send_gc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
-                                int minlvl, int maxlvl, int cl, in_addr_t a) {
+static int send_gc_choice_reply(ship_client_t *c, dc_choice_set_pkt *search,
+                                int minlvl, int maxlvl, int cl) {
     uint8_t *sendbuf = get_sendbuf();
-    dc_choice_reply_t *pkt = (dc_choice_reply_t *)sendbuf;
-    uint16_t len = 4;
-    uint8_t entries = 0;
-    int i;
-    block_t *b;
-    ship_client_t *it;
+    dc_choice_reply_pkt *pkt = (dc_choice_reply_pkt *)sendbuf;
+    uint16_t len;
+    uint8_t entries;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
         return -1;
     }
 
-    /* Search the local ship. */
-    for(i = 0; i < ship->cfg->blocks; ++i) {
-        b = ship->blocks[i];
-
-        if(b && b->run) {
-            pthread_mutex_lock(&b->mutex);
-
-            /* Look through all clients on that block. */
-            TAILQ_FOREACH(it, b->clients, qentry) {
-                /* Look to see if they match the search. */
-                if(!it->pl) {
-                    continue;
-                }
-                else if(!it->cur_lobby) {
-                    continue;
-                }
-                else if(it->pl->v1.level < minlvl ||
-                        it->pl->v1.level > maxlvl) {
-                    continue;
-                }
-                else if(cl != 0 && it->pl->v1.ch_class != cl - 1) {
-                    continue;
-                }
-                else if(it == c) {
-                    continue;
-                }
-                else if(c->version != CLIENT_VERSION_GC) {
-                    continue;
-                }
-
-                /* If we get here, they match the search. Fill in the
-                   entry. */
-                memset(&pkt->entries[entries], 0, 0xD4);
-                pkt->entries[entries].guildcard = LE32(it->guildcard);
-
-                /* Everything here is ISO-8859-1 already, so no need to
-                   iconv */
-                strcpy(pkt->entries[entries].name, it->pl->v1.name);
-                sprintf(pkt->entries[entries].cl_lvl, "%s Lvl %d\n",
-                        classes[it->pl->v1.ch_class], it->pl->v1.level + 1);
-                sprintf(pkt->entries[entries].location, "%s,BLOCK%02d,%s",
-                        it->cur_lobby->name, it->cur_block->b,
-                        ship->cfg->name);
-
-                pkt->entries[entries].ip = a;
-                pkt->entries[entries].port = LE16(b->gc_port);
-                pkt->entries[entries].menu_id = LE32(MENU_ID_LOBBY);
-                pkt->entries[entries].item_id =
-                    LE32(it->cur_lobby->lobby_id);
-
-                len += 0xD4;
-                ++entries;
-            }
-
-            pthread_mutex_unlock(&b->mutex);
-        }
-    }
+    /* Fill in the entries on the local ship */
+    entries = fill_choice_entries(c, sendbuf, search, minlvl, maxlvl, cl,
+                                  CLIENT_VERSION_GC, CLIENT_VERSION_GC, 2, NULL,
+                                  NULL, &len);
+    len += 4;
 
     /* Put in a blank entry at the end... */
+#ifdef ENABLE_IPV6
+    if((c->flags & CLIENT_FLAG_IPV6)) {
+        memset(&pkt->entries[entries], 0, 0xE0);
+        len += 0xE0;
+
+        /* Fill in the header. */
+        pkt->hdr.pkt_type = CHOICE_REPLY_TYPE;
+        pkt->hdr.pkt_len = LE16(len);
+        pkt->hdr.flags = entries | 0x80;
+
+        return crypt_send(c, len, sendbuf);
+    }
+#endif
+
     memset(&pkt->entries[entries], 0, 0xD4);
     len += 0xD4;
 
@@ -6455,9 +6537,52 @@ static int send_gc_choice_reply(ship_client_t *c, dc_choice_set_t *search,
     return crypt_send(c, len, sendbuf);
 }
 
-int send_choice_reply(ship_client_t *c, dc_choice_set_t *search) {
+static int send_ep3_choice_reply(ship_client_t *c, dc_choice_set_pkt *search,
+                                 int minlvl, int maxlvl, int cl) {
+    uint8_t *sendbuf = get_sendbuf();
+    dc_choice_reply_pkt *pkt = (dc_choice_reply_pkt *)sendbuf;
+    uint16_t len;
+    uint8_t entries;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Fill in the entries on the local ship */
+    entries = fill_choice_entries(c, sendbuf, search, minlvl, maxlvl, cl,
+                                  CLIENT_VERSION_EP3, CLIENT_VERSION_EP3, 3,
+                                  NULL, NULL, &len);
+    len += 4;
+
+    /* Put in a blank entry at the end... */
+#ifdef ENABLE_IPV6
+    if((c->flags & CLIENT_FLAG_IPV6)) {
+        memset(&pkt->entries[entries], 0, 0xE0);
+        len += 0xE0;
+
+        /* Fill in the header. */
+        pkt->hdr.pkt_type = CHOICE_REPLY_TYPE;
+        pkt->hdr.pkt_len = LE16(len);
+        pkt->hdr.flags = entries | 0x80;
+
+        return crypt_send(c, len, sendbuf);
+    }
+#endif
+
+    memset(&pkt->entries[entries], 0, 0xD4);
+    len += 0xD4;
+
+    /* Fill in the header. */
+    pkt->hdr.pkt_type = CHOICE_REPLY_TYPE;
+    pkt->hdr.pkt_len = LE16(len);
+    pkt->hdr.flags = entries;
+
+    return crypt_send(c, len, sendbuf);
+}
+
+int send_choice_reply(ship_client_t *c, dc_choice_set_pkt *search) {
     int minlvl = 0, maxlvl = 199, cl;
-    in_addr_t addr = ship->cfg->ship_ip;
 
     /* Parse the packet for the minimum and maximum levels. */
     switch(LE16(search->entries[0].item_id)) {
@@ -6518,14 +6643,16 @@ int send_choice_reply(ship_client_t *c, dc_choice_set_t *search) {
     switch(c->version) {
         case CLIENT_VERSION_DCV1:
         case CLIENT_VERSION_DCV2:
-            return send_dc_choice_reply(c, search, minlvl, maxlvl, cl, addr);
+            return send_dc_choice_reply(c, search, minlvl, maxlvl, cl);
 
         case CLIENT_VERSION_PC:
-            return send_pc_choice_reply(c, search, minlvl, maxlvl, cl, addr);
+            return send_pc_choice_reply(c, search, minlvl, maxlvl, cl);
 
         case CLIENT_VERSION_GC:
+            return send_gc_choice_reply(c, search, minlvl, maxlvl, cl);
+
         case CLIENT_VERSION_EP3:
-            return send_gc_choice_reply(c, search, minlvl, maxlvl, cl, addr);
+            return send_ep3_choice_reply(c, search, minlvl, maxlvl, cl);
     }
 
     return -1;

@@ -189,7 +189,7 @@ int send_lobby_warp(lobby_t *l, uint8_t area);
 int send_choice_search(ship_client_t *c);
 
 /* Send a reply to a choice search to the client. */
-int send_choice_reply(ship_client_t *c, dc_choice_set_t *search);
+int send_choice_reply(ship_client_t *c, dc_choice_set_pkt *search);
 
 /* Send a premade guild card search reply to the specified client. */
 int send_guild_reply_sg(ship_client_t *c, dc_guild_reply_pkt *pkt);

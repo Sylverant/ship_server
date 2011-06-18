@@ -2105,7 +2105,7 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return 0;
 
         case CHOICE_SEARCH_TYPE:
-            return send_choice_reply(c, (dc_choice_set_t *)pkt);
+            return send_choice_reply(c, (dc_choice_set_pkt *)pkt);
 
         case LOGIN_9E_TYPE:
             return gc_process_login(c, (gc_login_9e_pkt *)pkt);

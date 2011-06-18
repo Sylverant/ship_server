@@ -248,7 +248,6 @@ typedef struct dc_redirect6 {
     uint8_t padding[2];
 } PACKED dc_redirect6_pkt;
 
-
 /* The packet sent as a timestamp */
 typedef struct dc_timestamp {
     union {
@@ -744,11 +743,11 @@ typedef struct dc_choice_set {
         uint16_t menu_id;
         uint16_t item_id;
     } entries[5];
-} PACKED dc_choice_set_t;
+} PACKED dc_choice_set_pkt;
 
 /* The packet sent as a reply to a choice search */
 typedef struct dc_choice_reply {
-    dc_pkt_hdr_t hdr;           /* The flags field says how many entries */
+    dc_pkt_hdr_t hdr;
     struct {
         uint32_t guildcard;
         char name[0x10];
@@ -762,11 +761,10 @@ typedef struct dc_choice_reply {
         uint32_t item_id;
         uint8_t padding3[0x5C];
     } entries[0];
-} PACKED dc_choice_reply_t;
+} PACKED dc_choice_reply_pkt;
 
-/* The packet sent as a reply to a choice search */
 typedef struct pc_choice_reply {
-    pc_pkt_hdr_t hdr;           /* The flags field says how many entries */
+    pc_pkt_hdr_t hdr;
     struct {
         uint32_t guildcard;
         uint16_t name[0x10];
@@ -780,7 +778,42 @@ typedef struct pc_choice_reply {
         uint32_t item_id;
         uint8_t padding3[0x7C];
     } entries[0];
-} PACKED pc_choice_reply_t;
+} PACKED pc_choice_reply_pkt;
+
+/* The packet sent as a reply to a choice search in IPv6 mode */
+typedef struct dc_choice_reply6 {
+    dc_pkt_hdr_t hdr;
+    struct {
+        uint32_t guildcard;
+        char name[0x10];
+        char cl_lvl[0x20];
+        char location[0x30];
+        uint32_t padding;
+        uint8_t ip[16];
+        uint16_t port;
+        uint16_t padding2;
+        uint32_t menu_id;
+        uint32_t item_id;
+        uint8_t padding3[0x5C];
+    } entries[0];
+} PACKED dc_choice_reply6_pkt;
+
+typedef struct pc_choice_reply6 {
+    pc_pkt_hdr_t hdr;
+    struct {
+        uint32_t guildcard;
+        uint16_t name[0x10];
+        uint16_t cl_lvl[0x20];
+        uint16_t location[0x30];
+        uint32_t padding;
+        uint8_t ip[16];
+        uint16_t port;
+        uint16_t padding2;
+        uint32_t menu_id;
+        uint32_t item_id;
+        uint8_t padding3[0x7C];
+    } entries[0];
+} PACKED pc_choice_reply6_pkt;
 
 /* The packet used to ask for a GBA file */
 typedef struct gc_gba_req {
