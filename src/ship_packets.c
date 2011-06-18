@@ -1654,6 +1654,144 @@ int send_guild_reply(ship_client_t *c, uint32_t gc, in_addr_t ip, uint16_t port,
     return -1;
 }
 
+#ifdef ENABLE_IPV6
+
+/* Send an IPv6 guild card search reply to the specified client. */
+static int send_dc_guild_reply6(ship_client_t *c, uint32_t gc,
+                                const uint8_t ip[16], uint16_t port,
+                                const char *game, int block, const char *ship,
+                                uint32_t lobby, const char *name) {
+    uint8_t *sendbuf = get_sendbuf();
+    dc_guild_reply6_pkt *pkt = (dc_guild_reply6_pkt *)sendbuf;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Clear it out first */
+    memset(pkt, 0, DC_GUILD_REPLY6_LENGTH);
+
+    /* Adjust the port properly... */
+    switch(c->version) {
+        case CLIENT_VERSION_DCV1:
+        case CLIENT_VERSION_DCV2:
+            break;
+
+        case CLIENT_VERSION_PC:
+            ++port;
+            break;
+
+        case CLIENT_VERSION_GC:
+            port += 2;
+            break;
+
+        case CLIENT_VERSION_EP3:
+            port += 3;
+            break;
+    }
+
+    /* Fill in the simple stuff */
+    pkt->hdr.pkt_type = GUILD_REPLY_TYPE;
+    pkt->hdr.flags = 6;
+    pkt->hdr.pkt_len = LE16(DC_GUILD_REPLY6_LENGTH);
+    pkt->tag = LE32(0x00010000);
+    pkt->gc_search = LE32(c->guildcard);
+    pkt->gc_target = LE32(gc);
+    memcpy(pkt->ip, ip, 16);
+    pkt->port = LE16(port);
+    pkt->menu_id = LE32(MENU_ID_LOBBY);
+    pkt->item_id = LE32(lobby);
+
+    /* No need to iconv, we're not doing anything fancy here */
+    strcpy(pkt->name, name);
+
+    /* Fill in the location string. Everything here is ASCII, so this is safe */
+    sprintf(pkt->location, "%s,BLOCK%02d,%s", game, block, ship);
+
+    /* Send it away */
+    return crypt_send(c, DC_GUILD_REPLY6_LENGTH, sendbuf);
+}
+
+static int send_pc_guild_reply6(ship_client_t *c, uint32_t gc,
+                                const uint8_t ip[16], uint16_t port,
+                                const char *game, int block, const char *ship,
+                                uint32_t lobby, const char *name) {
+    uint8_t *sendbuf = get_sendbuf();
+    pc_guild_reply6_pkt *pkt = (pc_guild_reply6_pkt *)sendbuf;
+    char tmp[0x44];
+    iconv_t ic;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* We'll be converting stuff from ISO-8859-1/Shift-JIS to UTF-16. */
+    if(game[0] == '\t' && game[1] == 'J') {
+        ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+    }
+    else {
+        ic = iconv_open("UTF-16LE", "ISO-8859-1");
+    }
+
+    if(ic == (iconv_t)-1) {
+        return -1;
+    }
+
+    /* Adjust the port properly... */
+    ++port;
+
+    /* Clear it out first */
+    memset(pkt, 0, PC_GUILD_REPLY6_LENGTH);
+
+    /* Fill in the simple stuff */
+    pkt->hdr.pkt_type = GUILD_REPLY_TYPE;
+    pkt->hdr.flags = 6;
+    pkt->hdr.pkt_len = LE16(PC_GUILD_REPLY6_LENGTH);
+    pkt->tag = LE32(0x00010000);
+    pkt->gc_search = LE32(c->guildcard);
+    pkt->gc_target = LE32(gc);
+    memcpy(pkt->ip, ip, 16);
+    pkt->port = LE16(port);
+    pkt->menu_id = LE32(MENU_ID_LOBBY);
+    pkt->item_id = LE32(lobby);
+
+    /* Fill in the location string... */
+    sprintf(tmp, "%s,BLOCK%02d,%s", game, block, ship);
+    istrncpy(ic, (char *)pkt->location, tmp, 0x88);
+
+    /* ...and the name. */
+    istrncpy(ic, (char *)pkt->name, name, 0x40);
+
+    iconv_close(ic);
+
+    /* Send it away */
+    return crypt_send(c, PC_GUILD_REPLY6_LENGTH, sendbuf);
+}
+
+int send_guild_reply6(ship_client_t *c, uint32_t gc, const uint8_t ip[16],
+                      uint16_t port, const char *game, int block,
+                      const char *ship, uint32_t lobby, const char *name) {
+    /* Call the appropriate function. */
+    switch(c->version) {
+        case CLIENT_VERSION_DCV1:
+        case CLIENT_VERSION_DCV2:
+        case CLIENT_VERSION_GC:
+        case CLIENT_VERSION_EP3:
+            return send_dc_guild_reply6(c, gc, ip, port, game, block, ship,
+                                        lobby, name);
+
+        case CLIENT_VERSION_PC:
+            return send_pc_guild_reply6(c, gc, ip, port, game, block, ship,
+                                        lobby, name);
+    }
+
+    return -1;
+}
+
+#endif
+
 /* Send a premade guild card search reply to the specified client. */
 static int send_dc_guild_reply_sg(ship_client_t *c, dc_guild_reply_pkt *pkt) {
     uint16_t port = LE16(pkt->port);

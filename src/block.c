@@ -1075,12 +1075,30 @@ static int dc_process_guild_search(ship_client_t *c, dc_guild_search_pkt *pkt) {
                data. */
             if(it->guildcard == gc && it->pl) {
                 pthread_mutex_lock(&it->mutex);
+#ifdef ENABLE_IPV6
+                if((c->flags & CLIENT_FLAG_IPV6)) {
+                    rv = send_guild_reply6(c, gc, ship->cfg->ship_ip6,
+                                           ship->blocks[i]->dc_port,
+                                           it->cur_lobby->name,
+                                           ship->blocks[i]->b, ship->cfg->name,
+                                           it->cur_lobby->lobby_id,
+                                           it->pl->v1.name);
+                }
+                else {
+                    rv = send_guild_reply(c, gc, ship->cfg->ship_ip,
+                                          ship->blocks[i]->dc_port,
+                                          it->cur_lobby->name,
+                                          ship->blocks[i]->b, ship->cfg->name,
+                                          it->cur_lobby->lobby_id,
+                                          it->pl->v1.name);
+                }
+#else
                 rv = send_guild_reply(c, gc, ship->cfg->ship_ip,
                                       ship->blocks[i]->dc_port,
-                                      it->cur_lobby->name,
-                                      ship->blocks[i]->b, ship->cfg->name,
-                                      it->cur_lobby->lobby_id,
+                                      it->cur_lobby->name, ship->blocks[i]->b,
+                                      ship->cfg->name, it->cur_lobby->lobby_id,
                                       it->pl->v1.name);
+#endif
                 done = 1;
                 pthread_mutex_unlock(&it->mutex);
             }

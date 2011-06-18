@@ -68,8 +68,10 @@ int send_dc_security(ship_client_t *c, uint32_t gc, uint8_t *data,
 int send_redirect(ship_client_t *c, in_addr_t ip, uint16_t port);
 
 #ifdef ENABLE_IPV6
+
 /* Send a redirect packet (IPv6) to the given client. */
 int send_redirect6(ship_client_t *c, const uint8_t ip[16], uint16_t port);
+
 #endif
 
 /* Send a timestamp packet to the given client. */
@@ -110,6 +112,15 @@ int send_lobby_wchat(lobby_t *l, ship_client_t *sender, uint16_t *msg,
 int send_guild_reply(ship_client_t *c, uint32_t gc, in_addr_t ip, uint16_t port,
                      char game[], int block, char ship[], uint32_t lobby,
                      char name[]);
+
+#ifdef ENABLE_IPV6
+
+/* Send an IPv6 guild card search reply to the specified client. */
+int send_guild_reply6(ship_client_t *c, uint32_t gc, const uint8_t ip[16],
+                      uint16_t port, const char *game, int block,
+                      const char *ship, uint32_t lobby, const char *name);
+
+#endif
 
 /* Send a message to the client. */
 int send_message1(ship_client_t *c, const char *fmt, ...) __printflike(2, 3);
