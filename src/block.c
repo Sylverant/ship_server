@@ -1060,7 +1060,9 @@ static int dc_process_guild_search(ship_client_t *c, dc_guild_search_pkt *pkt) {
     ship_client_t *it;
     uint32_t gc = LE32(pkt->gc_target);
     int done = 0, rv = -1;
+    uint32_t flags = 0;
 
+#if 0
     /* Search the local ship first. */
     for(i = 0; i < ship->cfg->blocks && !done; ++i) {
         if(!ship->blocks[i] || !ship->blocks[i]->run) {
@@ -1115,11 +1117,18 @@ static int dc_process_guild_search(ship_client_t *c, dc_guild_search_pkt *pkt) {
 
         pthread_mutex_unlock(&ship->blocks[i]->mutex);
     }
+#endif
 
     /* If we get here, we didn't find it locally. Send to the shipgate to
        continue searching. */
     if(!done) {
-        return shipgate_fw_dc(&ship->sg, pkt);
+#ifdef ENABLE_IPV6
+        if((c->flags & CLIENT_FLAG_IPV6)) {
+            flags |= FW_FLAG_PREFER_IPV6;
+        }
+#endif
+
+        return shipgate_fw_dc(&ship->sg, pkt, flags);
     }
 
     return rv;
@@ -1206,7 +1215,7 @@ static int dc_process_mail(ship_client_t *c, dc_simple_mail_pkt *pkt) {
     if(!done) {
         /* If we get here, we didn't find it locally. Send to the shipgate to
            continue searching. */
-        return shipgate_fw_dc(&ship->sg, pkt);
+        return shipgate_fw_dc(&ship->sg, pkt, 0);
     }
 
     return rv;
@@ -1292,7 +1301,7 @@ static int pc_process_mail(ship_client_t *c, pc_simple_mail_pkt *pkt) {
     if(!done) {
         /* If we get here, we didn't find it locally. Send to the shipgate to
            continue searching. */
-        return shipgate_fw_pc(&ship->sg, pkt);
+        return shipgate_fw_pc(&ship->sg, pkt, 0);
     }
 
     return rv;

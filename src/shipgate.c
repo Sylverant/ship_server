@@ -414,7 +414,13 @@ static int handle_dc_greply(shipgate_conn_t *conn, dc_guild_reply_pkt *pkt) {
                 pthread_mutex_lock(&c->mutex);
 
                 if(c->guildcard == dest) {
-                    send_guild_reply_sg(c, pkt);
+                    if(pkt->hdr.flags != 6) {
+                        send_guild_reply_sg(c, pkt);
+                    }
+                    else {
+                        send_guild_reply6_sg(c, (dc_guild_reply6_pkt *)pkt);
+                    }
+
                     done = 1;
                 }
 
@@ -474,7 +480,7 @@ static int handle_dc_mail(shipgate_conn_t *conn, dc_simple_mail_pkt *pkt) {
 
                         strcpy(rep.name, c->pl->v1.name);
                         strcpy(rep.stuff, c->autoreply);
-                        shipgate_fw_dc(&ship->sg, (dc_pkt_hdr_t *)&rep);
+                        shipgate_fw_dc(&ship->sg, (dc_pkt_hdr_t *)&rep, 0);
                     }
 
                     /* Forward the packet there. */
@@ -539,7 +545,7 @@ static int handle_pc_mail(shipgate_conn_t *conn, pc_simple_mail_pkt *pkt) {
 
                         strcpy(rep.name, c->pl->v1.name);
                         strcpy(rep.stuff, c->autoreply);
-                        shipgate_fw_dc(&ship->sg, (dc_pkt_hdr_t *)&rep);
+                        shipgate_fw_dc(&ship->sg, (dc_pkt_hdr_t *)&rep, 0);
                     }
 
                     /* Forward the packet there. */
@@ -1953,7 +1959,7 @@ int shipgate_send_cnt(shipgate_conn_t *c, uint16_t clients, uint16_t games) {
 }
 
 /* Forward a Dreamcast packet to the shipgate. */
-int shipgate_fw_dc(shipgate_conn_t *c, const void *dcp) {
+int shipgate_fw_dc(shipgate_conn_t *c, const void *dcp, uint32_t flags) {
     uint8_t *sendbuf = get_sendbuf();
     const dc_pkt_hdr_t *dc = (const dc_pkt_hdr_t *)dcp;
     shipgate_fw_pkt *pkt = (shipgate_fw_pkt *)sendbuf;
@@ -1977,13 +1983,14 @@ int shipgate_fw_dc(shipgate_conn_t *c, const void *dcp) {
     pkt->hdr.pkt_type = htons(SHDR_TYPE_DC);
     pkt->hdr.pkt_unc_len = htons(full_len);
     pkt->hdr.flags = htons(SHDR_NO_DEFLATE);
+    pkt->fw_flags = htonl(flags);
 
     /* Send the packet away */
     return send_crypt(c, full_len, sendbuf);
 }
 
 /* Forward a PC packet to the shipgate. */
-int shipgate_fw_pc(shipgate_conn_t *c, const void *pcp) {
+int shipgate_fw_pc(shipgate_conn_t *c, const void *pcp, uint32_t flags) {
     uint8_t *sendbuf = get_sendbuf();
     const dc_pkt_hdr_t *pc = (const dc_pkt_hdr_t *)pcp;
     shipgate_fw_pkt *pkt = (shipgate_fw_pkt *)sendbuf;
@@ -2007,6 +2014,7 @@ int shipgate_fw_pc(shipgate_conn_t *c, const void *pcp) {
     pkt->hdr.pkt_type = htons(SHDR_TYPE_PC);
     pkt->hdr.pkt_unc_len = htons(full_len);
     pkt->hdr.flags = htons(SHDR_NO_DEFLATE);
+    pkt->fw_flags = flags;
 
     /* Send the packet away */
     return send_crypt(c, full_len, sendbuf);

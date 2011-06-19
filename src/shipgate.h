@@ -475,10 +475,10 @@ int shipgate_send_ship_info(shipgate_conn_t *c, ship_t *ship);
 int shipgate_send_cnt(shipgate_conn_t *c, uint16_t clients, uint16_t games);
 
 /* Forward a Dreamcast packet to the shipgate. */
-int shipgate_fw_dc(shipgate_conn_t *c, const void *dcp);
+int shipgate_fw_dc(shipgate_conn_t *c, const void *dcp, uint32_t flags);
 
 /* Forward a PC packet to the shipgate. */
-int shipgate_fw_pc(shipgate_conn_t *c, const void *pcp);
+int shipgate_fw_pc(shipgate_conn_t *c, const void *pcp, uint32_t flags);
 
 /* Send a ping packet to the server. */
 int shipgate_send_ping(shipgate_conn_t *c, int reply);

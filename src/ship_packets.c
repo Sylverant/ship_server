@@ -1881,6 +1881,100 @@ int send_guild_reply_sg(ship_client_t *c, dc_guild_reply_pkt *pkt) {
     return -1;
 }
 
+#ifdef ENABLE_IPV6
+
+/* Send a premade IPv6 guild card search reply to the specified client. */
+static int send_dc_guild_reply6_sg(ship_client_t *c, dc_guild_reply6_pkt *pkt) {
+    uint16_t port = LE16(pkt->port);
+
+    /* Adjust the port properly... */
+    switch(c->version) {
+        case CLIENT_VERSION_DCV1:
+        case CLIENT_VERSION_DCV2:
+            break;
+
+        case CLIENT_VERSION_GC:
+            pkt->port = LE16((port + 2));
+            break;
+
+        case CLIENT_VERSION_EP3:
+            pkt->port += LE16((port + 3));
+            break;
+    }
+
+    /* Send it away */
+    return crypt_send(c, DC_GUILD_REPLY6_LENGTH, (uint8_t *)pkt);
+}
+
+static int send_pc_guild_reply6_sg(ship_client_t *c, dc_guild_reply6_pkt *dc) {
+    uint8_t *sendbuf = get_sendbuf();
+    pc_guild_reply6_pkt *pkt = (pc_guild_reply6_pkt *)sendbuf;
+    iconv_t ic;
+    uint16_t port = LE16(dc->port);
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* We'll be converting stuff from ISO-8859-1/Shift-JIS to UTF-16. */
+    if(dc->location[0] == '\t' && dc->location[1] == 'J') {
+        ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+    }
+    else {
+        ic = iconv_open("UTF-16LE", "ISO-8859-1");
+    }
+
+    if(ic == (iconv_t)-1) {
+        return -1;
+    }
+
+    /* Adjust the port properly... */
+    ++port;
+    
+    /* Clear it out first */
+    memset(pkt, 0, PC_GUILD_REPLY6_LENGTH);
+
+    /* Fill in the simple stuff */
+    pkt->hdr.pkt_type = GUILD_REPLY_TYPE;
+    pkt->hdr.flags = 6;
+    pkt->hdr.pkt_len = LE16(PC_GUILD_REPLY6_LENGTH);
+    pkt->tag = LE32(0x00010000);
+    pkt->gc_search = dc->gc_search;
+    pkt->gc_target = dc->gc_target;
+    memcpy(pkt->ip, dc->ip, 16);
+    pkt->port = LE16(port);
+    pkt->menu_id = dc->menu_id;
+    pkt->item_id = dc->item_id;
+
+    /* Fill in the location string and the name*/
+    istrncpy(ic, (char *)pkt->location, dc->location, 0x88);
+    istrncpy(ic, (char *)pkt->name, dc->name, 0x40);
+
+    iconv_close(ic);
+
+    /* Send it away */
+    return crypt_send(c, PC_GUILD_REPLY6_LENGTH, sendbuf);
+}
+
+int send_guild_reply6_sg(ship_client_t *c, dc_guild_reply6_pkt *pkt) {
+    /* Call the appropriate function. */
+    switch(c->version) {
+        case CLIENT_VERSION_DCV1:
+        case CLIENT_VERSION_DCV2:
+        case CLIENT_VERSION_GC:
+        case CLIENT_VERSION_EP3:
+            return send_dc_guild_reply6_sg(c, pkt);
+
+        case CLIENT_VERSION_PC:
+            return send_pc_guild_reply6_sg(c, pkt);
+    }
+
+    return -1;
+}
+
+#endif
+
 static int send_dc_message(ship_client_t *c, uint16_t type, const char *fmt,
                            va_list args) {
     uint8_t *sendbuf = get_sendbuf();

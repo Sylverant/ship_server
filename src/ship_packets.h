@@ -194,6 +194,13 @@ int send_choice_reply(ship_client_t *c, dc_choice_set_pkt *search);
 /* Send a premade guild card search reply to the specified client. */
 int send_guild_reply_sg(ship_client_t *c, dc_guild_reply_pkt *pkt);
 
+#ifdef ENABLE_IPV6
+
+/* Send a premade IPv6 guild card search reply to the specified client. */
+int send_guild_reply6_sg(ship_client_t *c, dc_guild_reply6_pkt *pkt);
+
+#endif
+
 /* Send a simple mail packet, doing any needed transformations. */
 int send_simple_mail(int version, ship_client_t *c, dc_pkt_hdr_t *pkt);
 
