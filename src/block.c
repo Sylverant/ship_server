@@ -1062,7 +1062,6 @@ static int dc_process_guild_search(ship_client_t *c, dc_guild_search_pkt *pkt) {
     int done = 0, rv = -1;
     uint32_t flags = 0;
 
-#if 0
     /* Search the local ship first. */
     for(i = 0; i < ship->cfg->blocks && !done; ++i) {
         if(!ship->blocks[i] || !ship->blocks[i]->run) {
@@ -1117,7 +1116,6 @@ static int dc_process_guild_search(ship_client_t *c, dc_guild_search_pkt *pkt) {
 
         pthread_mutex_unlock(&ship->blocks[i]->mutex);
     }
-#endif
 
     /* If we get here, we didn't find it locally. Send to the shipgate to
        continue searching. */
