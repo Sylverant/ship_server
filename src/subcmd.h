@@ -406,4 +406,7 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt);
 /* Handle an 0xC9/0xCB packet from Episode 3. */
 int subcmd_handle_ep3_bcast(ship_client_t *c, subcmd_pkt_t *pkt);
 
+int subcmd_send_lobby_item(lobby_t *l, subcmd_itemreq_t *req,
+                           const uint32_t item[4]);
+
 #endif /* !SUBCMD_H */

@@ -21,6 +21,7 @@
 
 #include <sylverant/mtwist.h>
 #include <sylverant/debug.h>
+#include <sylverant/checksum.h>
 
 #include "lobby.h"
 #include "utils.h"
@@ -30,6 +31,8 @@
 #include "subcmd.h"
 #include "ship.h"
 #include "shipgate.h"
+
+static int td(lobby_t *l, void *req);
 
 lobby_t *lobby_create_default(block_t *block, uint32_t lobby_id, uint8_t ev) {
     lobby_t *l = (lobby_t *)malloc(sizeof(lobby_t));
@@ -67,6 +70,14 @@ lobby_t *lobby_create_default(block_t *block, uint32_t lobby_id, uint8_t ev) {
     pthread_mutex_init(&l->mutex, NULL);
 
     return l;
+}
+
+static void lobby_setup_drops(lobby_t *l, uint32_t rs) {
+    l->next_item = 0xF0000001;  /* This aught to work, I suppose... */
+
+    if(rs == 0x9C350DD4) {
+        l->dropfunc = td;
+    }
 }
 
 /* This list of numbers was borrowed from newserv. Hopefully Fuzziqer won't
@@ -116,7 +127,6 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
     l->event = event;
     l->min_level = game_required_level[difficulty];
     l->max_level = 200;
-    l->rand_seed = genrand_int32();
     l->max_chal = 0xFF;
     l->create_time = time(NULL);
 
@@ -151,6 +161,10 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
         TAILQ_INSERT_TAIL(&block->lobbies, l, qentry);
         ship_inc_games(block->ship);
     }
+
+    l->rand_seed = genrand_int32();
+
+    lobby_setup_drops(l, crc32((uint8_t *)l->name, 16));
 
     return l;
 }
@@ -306,6 +320,44 @@ static uint8_t lobby_find_max_challenge(lobby_t *l) {
     }
 
     return (uint8_t)(min_lev + 1);
+}
+
+static int td(lobby_t *l, void *req) {
+    uint32_t r = genrand_int32();
+    uint32_t i[4] = { 4, 0, 0, 0 };
+
+    if((r & 3) == 2) {
+        return 0;
+    }
+
+    r = genrand_int32();
+
+    switch(l->difficulty) {
+        case 0:
+            i[3] = r & 0x1F;
+            break;
+
+        case 1:
+            i[3] = r & 0x3F;
+            break;
+
+        case 2:
+            i[3] = r & 0x7F;
+            break;
+
+        case 3:
+            i[3] = r & 0xFF;
+            break;
+
+        default:
+            return 0;
+    }
+
+    if(i[3]) {
+        return subcmd_send_lobby_item(l, (subcmd_itemreq_t *)req, i);
+    }
+
+    return 0;
 }
 
 static int lobby_add_client_locked(ship_client_t *c, lobby_t *l) {

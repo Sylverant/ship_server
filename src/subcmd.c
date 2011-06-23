@@ -1023,10 +1023,14 @@ int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
             break;
 
         case SUBCMD_ITEMREQ:
-            /* Only pay attention if an item has been set and we're not in
-               legit mode. */
+            /* There's only two ways we pay attention to this one: First, if the
+               lobby is not in legit mode and a GM has used /item. Second, if
+               the lobby has a drop function (for server-side drops). */
             if(c->next_item[0] && !(l->flags & LOBBY_FLAG_LEGIT_MODE)) {
                 rv = handle_itemreq(c, (subcmd_itemreq_t *)pkt);
+            }
+            else if(l->dropfunc) {
+                rv = l->dropfunc(l, (subcmd_itemreq_t *)pkt);
             }
             else {
                 rv = send_pkt_dc(dest, (dc_pkt_hdr_t *)pkt);
@@ -1168,4 +1172,43 @@ int subcmd_handle_ep3_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
 
     pthread_mutex_unlock(&l->mutex);
     return rv;
+}
+
+int subcmd_send_lobby_item(lobby_t *l, subcmd_itemreq_t *req,
+                           const uint32_t item[4]) {
+    subcmd_itemgen_t gen;
+    int i;
+    uint32_t tmp = LE32(req->unk2[0]) & 0x0000FFFF;
+
+    /* Fill in the packet we'll send out. */
+    gen.hdr.pkt_type = GAME_COMMAND0_TYPE;
+    gen.hdr.flags = 0;
+    gen.hdr.pkt_len = LE16(0x30);
+    gen.type = SUBCMD_ITEMDROP;
+    gen.size = 0x0B;
+    gen.unused = 0;
+    gen.area = req->area;
+    gen.what = 0x02;            /* 0x02 for boxes, 0x01 for monsters? */
+    gen.req = req->req;
+    gen.x = req->x;
+    gen.y = req->y;
+    gen.unk1 = LE32(tmp);       /* ??? */
+
+    gen.item[0] = LE32(item[0]);
+    gen.item[1] = LE32(item[1]);
+    gen.item[2] = LE32(item[2]);
+    gen.item2[0] = LE32(item[3]);
+    gen.item2[1] = LE32(0x00000002);
+
+    gen.item_id = LE32(l->next_item);
+    ++l->next_item;
+
+    /* Send the packet to every client in the lobby. */
+    for(i = 0; i < l->max_clients; ++i) {
+        if(l->clients[i]) {
+            send_pkt_dc(l->clients[i], (dc_pkt_hdr_t *)&gen);
+        }
+    }
+
+    return 0;
 }

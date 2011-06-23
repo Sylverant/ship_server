@@ -100,6 +100,9 @@ struct lobby {
 
     struct lobby_pkt_queue pkt_queue;
     time_t create_time;
+
+    int (*dropfunc)(struct lobby *l, void *req);
+    uint32_t next_item;
 };
 
 #ifndef LOBBY_DEFINED
