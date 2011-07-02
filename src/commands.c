@@ -693,6 +693,7 @@ static int handle_event(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 /* Usage: /passwd newpass */
 static int handle_passwd(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     lobby_t *l = c->cur_lobby;
+    int len = strlen(params), i;
 
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
     if(l->type == LOBBY_TYPE_DEFAULT) {
@@ -706,8 +707,16 @@ static int handle_passwd(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     }
 
     /* Check the length of the provided password. */
-    if(strlen(params) > 16) {
+    if(len > 16) {
         return send_txt(c, "%s", __(c, "\tE\tC7Password too long."));
+    }
+
+    /* Make sure the password only has ASCII characters */
+    for(i = 0; i < len; ++i) {
+        if(params[i] < 0x20 || params[i] >= 0x7F) {
+            return send_txt(c, "%s",
+                            __(c, "\tE\tC7Illegal character in password."));
+        }
     }
 
     pthread_mutex_lock(&l->mutex);
