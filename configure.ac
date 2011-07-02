@@ -75,6 +75,10 @@ AC_CHECK_FUNCS([gethostname gettimeofday inet_ntoa memmove memset select socket 
 ADD_CFLAGS([-Wall])
 CFLAGS="$CFLAGS -DSVN_REVISION=\"\\\"\`svnversion\`\\\"\""
 
+AC_ARG_ENABLE([debug], [AS_HELP_STRING([--enable-debug],
+              [enable debugging symbols in the binary])],
+              [enable_debug=$withval],
+              [enable_debug=no])
 AC_ARG_ENABLE([ipv6], [AS_HELP_STRING([--disable-ipv6],
                [disable IPv6 support (enabled by default)])],
                [enable_ipv6=$withval],
@@ -82,6 +86,10 @@ AC_ARG_ENABLE([ipv6], [AS_HELP_STRING([--disable-ipv6],
 
 AS_IF([test "x$enable_ipv6" != xno],
       [AC_DEFINE([ENABLE_IPV6], [1], [Define if you want IPv6 support])])
+
+AS_IF([test "x$enable_debug" != xno],
+      [AC_DEFINE([DEBUG], [1], [Define if you want debugging turned on])
+       CFLAGS="$CFLAGS -g -O0"])
 
 AC_CONFIG_FILES([Makefile]
                 [l10n/Makefile])

@@ -119,6 +119,12 @@ ship_client_t *client_create_connection(int sock, int version, int type,
     rv->last_message = time(NULL);
     rv->hdr_size = 4;
 
+    /* Create the mutex */
+    pthread_mutexattr_init(&attr);
+    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+    pthread_mutex_init(&rv->mutex, &attr);
+    pthread_mutexattr_destroy(&attr);
+
     memcpy(&rv->ip_addr, ip, size);
 
     if(ip->sa_family == AF_INET6) {
@@ -183,12 +189,6 @@ ship_client_t *client_create_connection(int sock, int version, int type,
             break;
     }
 
-    /* Create the mutex */
-    pthread_mutexattr_init(&attr);
-    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-    pthread_mutex_init(&rv->mutex, &attr);
-    pthread_mutexattr_destroy(&attr);
-
     /* Insert it at the end of our list, and we're done. */
     TAILQ_INSERT_TAIL(clients, rv, qentry);
     ship_inc_clients(ship);
@@ -206,6 +206,8 @@ err:
     client_pyobj_invalidate(rv);
     Py_XDECREF(rv->pyobj);
 #endif
+
+    pthread_mutex_destroy(&rv->mutex);
 
     free(rv);
     return NULL;
@@ -233,7 +235,6 @@ void client_destroy_connection(ship_client_t *c, struct client_queue *clients) {
                                   c->cur_block->b, c->pl->v1.name);
     }
 
-    pthread_mutex_destroy(&c->mutex);
     ship_dec_clients(ship);
 
     /* If the client has a lobby sitting around that was created but not added
@@ -242,7 +243,7 @@ void client_destroy_connection(ship_client_t *c, struct client_queue *clients) {
         lobby_destroy_noremove(c->create_lobby);
     }
     /* Otherwise, if they were bursting, clear the flag on the lobby... */
-    else if(c->flags & CLIENT_FLAG_BURSTING) {
+    else if((c->flags & CLIENT_FLAG_BURSTING) && c->cur_lobby) {
         pthread_mutex_lock(&c->cur_lobby->mutex);
         c->cur_lobby->flags &= ~LOBBY_FLAG_BURSTING;
         lobby_handle_done_burst(c->cur_lobby);
@@ -277,6 +278,8 @@ void client_destroy_connection(ship_client_t *c, struct client_queue *clients) {
     if(c->pl) {
         free(c->pl);
     }
+
+    pthread_mutex_destroy(&c->mutex);
 
 #ifdef HAVE_PYTHON
     client_pyobj_invalidate(c);
