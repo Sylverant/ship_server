@@ -43,6 +43,8 @@ void *xmalloc(size_t size);
 const void *my_ntop(struct sockaddr_storage *addr, char str[INET6_ADDRSTRLEN]);
 int open_sock(int family, uint16_t port);
 
+const char *skip_lang_code(const char *input);
+
 /* Actually implemented in list.c, not utils.c. */
 int send_player_list(ship_client_t *c, char *params);
 

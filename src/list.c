@@ -97,7 +97,7 @@ static int pllist_ship(ship_client_t *c, const char *name, int first,
                             "B: %d  IP: %s  Lobby: %s\n", c2->pl->v1.name,
                             classes[c2->pl->v1.ch_class], c2->pl->v1.level + 1,
                             c2->guildcard, c2->cur_block->b, ip,
-                            c2->cur_lobby->name);
+                            skip_lang_code(c2->cur_lobby->name));
                 }
                 else {
                     sprintf(&str[len], "%s  %s  Lv.%d  GC: %d\n"
@@ -185,7 +185,7 @@ static int pllist_block(ship_client_t *c, const char *name, int first,
                         "B: %d  IP: %s  Lobby: %s\n", c2->pl->v1.name,
                         classes[c2->pl->v1.ch_class], c2->pl->v1.level + 1,
                         c2->guildcard, c2->cur_block->b, ip,
-                        c2->cur_lobby->name);
+                        skip_lang_code(c2->cur_lobby->name));
             }
             else {
                 sprintf(&str[len], "%s  %s  Lv.%d  GC: %d\n"
@@ -272,7 +272,7 @@ static int pllist_lobby(ship_client_t *c, const char *name, int first,
                             "B: %d  IP: %s  Lobby: %s\n", c2->pl->v1.name,
                             classes[c2->pl->v1.ch_class], c2->pl->v1.level + 1,
                             c2->guildcard, c2->cur_block->b, ip,
-                            c2->cur_lobby->name);
+                            skip_lang_code(c2->cur_lobby->name));
                 }
                 else {
                     sprintf(&str[len], "%s  %s  Lv.%d  GC: %d\n"

@@ -449,6 +449,18 @@ int open_sock(int family, uint16_t port) {
     return sock;
 }
 
+const char *skip_lang_code(const char *input) {
+    if(!input || input[0] == '\0') {
+        return NULL;
+    }
+
+    if(input[0] == '\t' && (input[1] == 'E' || input[1] == 'J')) {
+        return input + 2;
+    }
+
+    return input;
+}
+
 /* Initialize mini18n support. */
 void init_i18n(void) {
 #ifdef HAVE_LIBMINI18N
