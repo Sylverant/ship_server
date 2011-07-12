@@ -52,6 +52,7 @@ struct block {
     int pcsock[2];
     int gcsock[2];
     int ep3sock[2];
+    int bbsock[2];
 
     int pipes[2];
 
@@ -59,6 +60,7 @@ struct block {
     uint16_t pc_port;
     uint16_t gc_port;
     uint16_t ep3_port;
+    uint16_t bb_port;
 
     struct lobby_queue lobbies;
 };

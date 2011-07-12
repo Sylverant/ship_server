@@ -848,6 +848,26 @@ int lobby_send_pkt_dc(lobby_t *l, ship_client_t *c, void *h, int igcheck) {
     return 0;
 }
 
+int lobby_send_pkt_bb(lobby_t *l, ship_client_t *c, void *h, int igcheck) {
+    bb_pkt_hdr_t *hdr = (bb_pkt_hdr_t *)h;
+    int i;
+
+    /* Send the packet to every connected client. */
+    for(i = 0; i < l->max_clients; ++i) {
+        if(l->clients[i] && l->clients[i] != c) {
+            /* If we're supposed to check the ignore list, and this client is on
+               it, don't send the packet. */
+            if(igcheck && client_has_ignored(l->clients[i], c->guildcard)) {
+                continue;
+            }
+
+            send_pkt_bb(l->clients[i], hdr);
+        }
+    }
+
+    return 0;
+}
+
 int lobby_send_pkt_ep3(lobby_t *l, ship_client_t *c, void *h) {
     dc_pkt_hdr_t *hdr = (dc_pkt_hdr_t *)h;
     int i;

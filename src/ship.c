@@ -87,7 +87,7 @@ static void *ship_thd(void *d) {
     time_t now;
     time_t last_ban_sweep = time(NULL);
 
-#ifdef ENABLE_IPV6
+#ifdef SYLVERANT_ENABLE_IPV6
 #define NUMSOCKS 2
 #else
 #define NUMSOCKS 1
@@ -96,7 +96,7 @@ static void *ship_thd(void *d) {
     /* Fire up the threads for each block. */
     for(i = 1; i <= s->cfg->blocks; ++i) {
         s->blocks[i - 1] = block_server_start(s, i, s->cfg->base_port +
-                                              (i * 4));
+                                              (i * 5));
     }
 
     /* While we're still supposed to run... do it. */
@@ -171,6 +171,8 @@ static void *ship_thd(void *d) {
             nfds = nfds > s->gcsock[i] ? nfds : s->gcsock[i];
             FD_SET(s->ep3sock[i], &readfds);
             nfds = nfds > s->ep3sock[i] ? nfds : s->ep3sock[i];
+            FD_SET(s->bbsock[i], &readfds);
+            nfds = nfds > s->bbsock[i] ? nfds : s->bbsock[i];
         }
 
         FD_SET(s->pipes[1], &readfds);
@@ -313,6 +315,34 @@ static void *ship_thd(void *d) {
                         it->flags |= CLIENT_FLAG_DISCONNECTED;
                     }
                 }
+
+                if(FD_ISSET(s->bbsock[i], &readfds)) {
+                    len = sizeof(struct sockaddr_storage);
+                    if((sock = accept(s->bbsock[i], addr_p, &len)) < 0) {
+                        perror("accept");
+                    }
+
+                    my_ntop(&addr, ipstr);
+                    debug(DBG_LOG, "%s: Accepted Blue Burst ship connection "
+                          "from %s\n", s->cfg->name, ipstr);
+
+                    if(!(tmp = client_create_connection(sock,
+                                                        CLIENT_VERSION_BB,
+                                                        CLIENT_TYPE_SHIP,
+                                                        s->clients, s, NULL,
+                                                        addr_p, len))) {
+                        close(sock);
+                    }
+
+                    if(s->shutdown_time) {
+                        send_message_box(tmp, "%s\n\n%s\n%s",
+                                         __(tmp, "\tEShip is going down for "
+                                            "shutdown"),
+                                         __(tmp, "Please try another ship."),
+                                         __(tmp, "Disconnecting."));
+                        it->flags |= CLIENT_FLAG_DISCONNECTED;
+                    }
+                }
             }
 
             /* Process the shipgate */
@@ -431,12 +461,14 @@ static void *ship_thd(void *d) {
     clean_quests(s);
     close(s->pipes[0]);
     close(s->pipes[1]);
-#ifdef ENABLE_IPV6
+#ifdef SYLVERANT_ENABLE_IPV6
+    close(s->bbsock[1]);
     close(s->ep3sock[1]);
     close(s->gcsock[1]);
     close(s->pcsock[1]);
     close(s->dcsock[1]);
 #endif
+    close(s->bbsock[0]);
     close(s->ep3sock[0]);
     close(s->gcsock[0]);
     close(s->pcsock[0]);
@@ -489,6 +521,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     ship_t *rv;
     int dcsock[2] = { -1, -1 }, pcsock[2] = { -1, -1 };
     int gcsock[2] = { -1, -1 }, ep3sock[2] = { -1, -1 };
+    int bbsock[2] = { -1, -1 };
     int i, j;
     char fn[512];
 
@@ -515,10 +548,15 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
         goto err_close_gc;
     }
 
-#ifdef ENABLE_IPV6
+    bbsock[0] = open_sock(AF_INET, s->base_port + 4);
+    if(bbsock[0] < 0) {
+        goto err_close_ep3;
+    }
+
+#ifdef SYLVERANT_ENABLE_IPV6
     dcsock[1] = open_sock(AF_INET6, s->base_port);
     if(dcsock[1] < 0) {
-        goto err_close_ep3;
+        goto err_close_bb;
     }
 
     pcsock[1] = open_sock(AF_INET6, s->base_port + 1);
@@ -534,6 +572,11 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     ep3sock[1] = open_sock(AF_INET6, s->base_port + 3);
     if(ep3sock[1] < 0) {
         goto err_close_gc_6;
+    }
+
+    bbsock[1] = open_sock(AF_INET6, s->base_port + 4);
+    if(bbsock[1] < 0) {
+        goto err_close_ep3_6;
     }
 #endif
 
@@ -631,10 +674,12 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     rv->pcsock[0] = pcsock[0];
     rv->gcsock[0] = gcsock[0];
     rv->ep3sock[0] = ep3sock[0];
+    rv->bbsock[0] = bbsock[0];
     rv->dcsock[1] = dcsock[1];
     rv->pcsock[1] = pcsock[1];
     rv->gcsock[1] = gcsock[1];
     rv->ep3sock[1] = ep3sock[1];
+    rv->bbsock[1] = bbsock[1];
     rv->run = 1;
 
     /* Initialize scripting support */
@@ -697,7 +742,9 @@ err_pipes:
 err_free:
     free(rv);
 err_close_all:
-#ifdef ENABLE_IPV6
+#ifdef SYLVERANT_ENABLE_IPV6
+    close(bbsock[1]);
+err_close_ep3_6:
     close(ep3sock[1]);
 err_close_gc_6:
     close(gcsock[1]);
@@ -705,8 +752,10 @@ err_close_pc_6:
     close(pcsock[1]);
 err_close_dc_6:
     close(dcsock[1]);
-err_close_ep3:
+err_close_bb:
 #endif
+    close(bbsock[0]);
+err_close_ep3:
     close(ep3sock[0]);
 err_close_gc:
     close(gcsock[0]);
@@ -882,6 +931,51 @@ static int gc_process_login(ship_client_t *c, gc_login_9e_pkt *pkt) {
     return 0;
 }
 
+static int bb_process_login(ship_client_t *c, bb_login_93_pkt *pkt) {
+    char *ban_reason;
+    time_t ban_end;
+    uint32_t team_id;
+
+    /* Make sure PSOBB is allowed on this ship. */
+    if((ship->cfg->shipgate_flags & LOGIN_FLAG_NOBB)) {
+        send_message_box(c, "%s", __(c, "\tEPSO Blue Burst is not "
+                                        "supported on\nthis ship.\n\n"
+                                        "Disconnecting."));
+        c->flags |= CLIENT_FLAG_DISCONNECTED;
+        return 0;
+    }
+
+    c->guildcard = LE32(pkt->guildcard);
+    team_id = LE32(pkt->team_id);
+
+    /* See if the user is banned */
+    if(is_guildcard_banned(ship, c->guildcard, &ban_reason, &ban_end)) {
+        send_ban_msg(c, ban_end, ban_reason);
+        c->flags |= CLIENT_FLAG_DISCONNECTED;
+        return 0;
+    }
+
+    /* Copy in the security data */
+    memcpy(&c->sec_data, pkt->security_data, sizeof(bb_security_data_t));
+
+    if(c->sec_data.magic != LE32(0xDEADBEEF)) {
+        send_bb_security(c, 0, LOGIN_93BB_FORCED_DISCONNECT, 0, NULL, 0);
+        return -1;
+    }
+
+    /* Send the security data packet */
+    if(send_bb_security(c, c->guildcard, LOGIN_93BB_OK, team_id,
+                        &c->sec_data, sizeof(bb_security_data_t))) {
+        return -2;
+    }
+
+    if(send_block_list(c, ship)) {
+        return -3;
+    }
+
+    return 0;
+}
+
 static int dc_process_block_sel(ship_client_t *c, dc_select_pkt *pkt) {
     int block = LE32(pkt->item_id);
     uint16_t port;
@@ -920,11 +1014,15 @@ static int dc_process_block_sel(ship_client_t *c, dc_select_pkt *pkt) {
             port = ship->blocks[block - 1]->ep3_port;
             break;
 
+        case CLIENT_VERSION_BB:
+            port = ship->blocks[block - 1]->bb_port;
+            break;
+
         default:
             return -3;
     }
 
-#ifdef ENABLE_IPV6
+#ifdef SYLVERANT_ENABLE_IPV6
     if(c->flags & CLIENT_FLAG_IPV6) {
         return send_redirect6(c, ship->cfg->ship_ip6, port);
     }
@@ -974,13 +1072,17 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
                 case CLIENT_VERSION_EP3:
                     off = 3;
                     break;
+
+                case CLIENT_VERSION_BB:
+                    off = 4;
+                    break;
             }
 
             /* Go through all the ships that we know about looking for the one
                that the user has requested. */
             TAILQ_FOREACH(i, &ship->ships, qentry) {
                 if(i->ship_id == item_id) {
-#ifdef ENABLE_IPV6
+#ifdef SYLVERANT_ENABLE_IPV6
                     if(c->flags & CLIENT_FLAG_IPV6 && i->ship_addr6[0]) {
                         return send_redirect6(c, i->ship_addr6,
                                               i->ship_port + off);
@@ -1002,6 +1104,16 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
     }
 
     return -1;
+}
+
+static int bb_process_menu(ship_client_t *c, bb_select_pkt *pkt) {
+    dc_select_pkt pkt2;
+
+    /* Do this the lazy way... */
+    pkt2.menu_id = pkt->menu_id;
+    pkt2.item_id = pkt->item_id;
+
+    return dc_process_menu(c, &pkt2);
 }
 
 static int dc_process_info_req(ship_client_t *c, dc_select_pkt *pkt) {
@@ -1040,6 +1152,16 @@ static int dc_process_info_req(ship_client_t *c, dc_select_pkt *pkt) {
         default:
             return -1;
     }
+}
+
+static int bb_process_info_req(ship_client_t *c, bb_select_pkt *pkt) {
+    dc_select_pkt pkt2;
+
+    /* Do this the lazy way... */
+    pkt2.menu_id = pkt->menu_id;
+    pkt2.item_id = pkt->item_id;
+
+    return dc_process_info_req(c, &pkt2);
 }
 
 static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
@@ -1101,6 +1223,32 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
     }
 }
 
+static int bb_process_pkt(ship_client_t *c, uint8_t *pkt) {
+    bb_pkt_hdr_t *hdr = (bb_pkt_hdr_t *)pkt;
+    uint16_t type = LE16(hdr->pkt_type);
+    uint16_t len = LE16(hdr->pkt_len);
+
+    switch(type) {
+        case PING_TYPE:
+            /* Ignore these. */
+            return 0;
+
+        case LOGIN_93_TYPE:
+            return bb_process_login(c, (bb_login_93_pkt *)pkt);
+
+        case MENU_SELECT_TYPE:
+            return bb_process_menu(c, (bb_select_pkt *)pkt);
+
+        case INFO_REQUEST_TYPE:
+            return bb_process_info_req(c, (bb_select_pkt *)pkt);
+
+        default:
+            debug(DBG_LOG, "Unknown packet!\n");
+            print_packet((unsigned char *)pkt, len);
+            return -3;
+    }
+}
+
 int ship_process_pkt(ship_client_t *c, uint8_t *pkt) {
     switch(c->version) {
         case CLIENT_VERSION_DCV1:
@@ -1109,6 +1257,9 @@ int ship_process_pkt(ship_client_t *c, uint8_t *pkt) {
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
             return dc_process_pkt(c, pkt);
+
+        case CLIENT_VERSION_BB:
+            return bb_process_pkt(c, pkt);
     }
 
     return -1;

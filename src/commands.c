@@ -403,6 +403,11 @@ static int handle_save(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
                                     "non-game lobby."));
     }
 
+    /* Not valid for Blue Burst clients */
+    if(c->version == CLIENT_VERSION_BB) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Not valid on Blue Burst."));
+    }
+
     /* Figure out the slot requested */
     errno = 0;
     slot = (uint32_t)strtoul(params, NULL, 10);
@@ -416,7 +421,7 @@ static int handle_save(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     slot += 4;
 
     /* Send the character data to the shipgate */
-    if(shipgate_send_cdata(&ship->sg, c->guildcard, slot, c->pl)) {
+    if(shipgate_send_cdata(&ship->sg, c->guildcard, slot, c->pl, 1052)) {
         /* Send a message saying we couldn't save */
         return send_txt(c, "%s", __(c, "\tE\tC7Couldn't save character data"));
     }
@@ -435,6 +440,11 @@ static int handle_restore(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     if(l->type != LOBBY_TYPE_DEFAULT) {
         return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a "
                                     "non-game lobby."));
+    }
+
+    /* Not valid for Blue Burst clients */
+    if(c->version == CLIENT_VERSION_BB) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Not valid on Blue Burst."));
     }
 
     /* Figure out the slot requested */
@@ -2675,6 +2685,38 @@ int wcommand_parse(ship_client_t *c, dc_chat_pkt *pkt) {
     /* Convert the text to UTF-8. */
     in = out = tlen;
     inptr = pkt->msg;
+    outptr = p2->msg;
+    iconv(ic, &inptr, &in, &outptr, &out);
+    iconv_close(ic);
+
+    /* Fill in the rest of the packet. */
+    p2->hdr.dc.pkt_type = CHAT_TYPE;
+    p2->hdr.dc.flags = 0;
+    p2->hdr.dc.pkt_len = LE16((12 + (tlen - out)));
+    p2->padding = 0;
+    p2->guildcard = pkt->guildcard;
+
+    /* Hand off to the normal command parsing code. */
+    return command_parse(c, p2);
+}
+
+int bbcommand_parse(ship_client_t *c, bb_chat_pkt *pkt) {
+    int len = LE16(pkt->hdr.pkt_len), tlen = len - 16;
+    iconv_t ic;
+    size_t in, out;
+    ICONV_CONST char *inptr;
+    char *outptr;
+    unsigned char buf[len];
+    dc_chat_pkt *p2 = (dc_chat_pkt *)buf;
+
+    ic = iconv_open("UTF-8", "UTF-16LE");
+    if(ic == (iconv_t)-1) {
+        return -1;
+    }
+
+    /* Convert the text to UTF-8. */
+    in = out = tlen;
+    inptr = (ICONV_CONST char *)pkt->msg;
     outptr = p2->msg;
     iconv(ic, &inptr, &in, &outptr, &out);
     iconv_close(ic);

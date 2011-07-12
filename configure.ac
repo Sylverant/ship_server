@@ -77,15 +77,16 @@ CFLAGS="$CFLAGS -DSVN_REVISION=\"\\\"\`svnversion\`\\\"\""
 
 AC_ARG_ENABLE([debug], [AS_HELP_STRING([--enable-debug],
               [enable debugging symbols in the binary])],
-              [enable_debug=$withval],
+              [enable_debug=$enableval],
               [enable_debug=no])
 AC_ARG_ENABLE([ipv6], [AS_HELP_STRING([--disable-ipv6],
                [disable IPv6 support (enabled by default)])],
-               [enable_ipv6=$withval],
+               [enable_ipv6=$enableval],
                [enable_ipv6=yes])
 
 AS_IF([test "x$enable_ipv6" != xno],
-      [AC_DEFINE([ENABLE_IPV6], [1], [Define if you want IPv6 support])])
+      [AC_DEFINE([SYLVERANT_ENABLE_IPV6], [1],
+                 [Define if you want IPv6 support])])
 
 AS_IF([test "x$enable_debug" != xno],
       [AC_DEFINE([DEBUG], [1], [Define if you want debugging turned on])

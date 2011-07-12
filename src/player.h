@@ -18,7 +18,8 @@
 #ifndef PLAYER_H
 #define PLAYER_H
 
-#include <inttypes.h>
+#include <stdint.h>
+#include <sylverant/characters.h>
 
 #ifdef PACKED
 #undef PACKED
@@ -43,35 +44,21 @@ typedef struct pc_player_hdr {
     uint16_t name[16];
 } PACKED pc_player_hdr_t;
 
-/* These structures heavily based on those in newserv. */
-typedef struct item {
-    uint16_t equipped;
-    uint16_t tech;
-    uint32_t flags;
+typedef struct bb_player_hdr {
+    uint32_t tag;
+    uint32_t guildcard;
+    uint32_t unk1[5];
+    uint32_t client_id;
+    uint16_t name[16];
+    uint32_t unk2;
+} PACKED bb_player_hdr_t;
 
-    union {
-        uint8_t data_b[12];
-        uint16_t data_w[6];
-        uint32_t data_l[3];
-    };
+/* Alias some stuff from its <sylverant/characters.h> versions to what was in
+   here before... */
+typedef sylverant_iitem_t item_t;
+typedef sylverant_inventory_t inventory_t;
 
-    uint32_t item_id;
-
-    union {
-        uint8_t data2_b[4];
-        uint16_t data2_w[2];
-        uint32_t data2_l;
-    };
-} PACKED item_t;
-
-typedef struct inventory {
-    uint8_t item_count;
-    uint8_t hpmats_used;
-    uint8_t tpmats_used;
-    uint8_t language;
-    item_t items[30];
-} PACKED inventory_t;
-
+/* Player data structures */
 typedef struct v1_player {
     inventory_t inv;
     uint16_t atp;
@@ -222,7 +209,8 @@ typedef struct pc_player {
     } c_rank;
     uint32_t unk4[6];
     uint32_t blacklist[30];
-    uint32_t unused2[2];                /* I think these are blank... maybe? */
+    uint32_t autoreply_enabled;
+    uint16_t autoreply[];               /* Always at least 4 bytes! */
 } PACKED pc_player_t;
 
 typedef struct v3_player {
@@ -277,8 +265,37 @@ typedef struct v3_player {
     uint32_t unk4[6];
     char infoboard[0xAC];
     uint32_t blacklist[30];
-    uint32_t unused2[2];                /* I think these are blank... maybe? */
+    uint32_t autoreply_enabled;
+    char autoreply[];                   /* Always at least 4 bytes! */
 } PACKED v3_player_t;
+
+typedef struct bb_guildcard_data {
+    uint8_t unk1[0x0114];
+    struct {
+        uint32_t guildcard;
+        uint16_t name[0x18];
+        uint16_t team[0x10];
+        uint16_t desc[0x58];
+        uint8_t reserved1;
+        uint8_t language;
+        uint8_t section;
+        uint8_t ch_class;
+    } blocked[29];
+    uint8_t unk2[0x78];
+    struct {
+        uint32_t guildcard;
+        uint16_t name[0x18];
+        uint16_t team[0x10];
+        uint16_t desc[0x58];
+        uint8_t reserved1;
+        uint8_t language;
+        uint8_t section;
+        uint8_t ch_class;
+        uint32_t padding;
+        uint16_t comment[0x58];
+    } entries[104];
+    uint8_t unk3[0x01BC];
+} bb_gc_data_t;
 
 #undef PACKED
 
@@ -287,6 +304,7 @@ typedef union {
     v2_player_t v2;
     pc_player_t pc;
     v3_player_t v3;
+    sylverant_bb_player_t bb;
 } player_t;
 
 #define PLAYER_T_DEFINED

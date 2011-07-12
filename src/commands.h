@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009 Lawrence Sebald
+    Copyright (C) 2009, 2011 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -22,5 +22,6 @@
 
 int command_parse(ship_client_t *c, dc_chat_pkt *pkt);
 int wcommand_parse(ship_client_t *c, dc_chat_pkt *pkt);
+int bbcommand_parse(ship_client_t *c, bb_chat_pkt *pkt);
 
 #endif /* COMMANDS_H */

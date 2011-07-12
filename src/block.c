@@ -57,7 +57,7 @@ static void *block_thd(void *d) {
     ssize_t sent;
     time_t now;
 
-#ifdef ENABLE_IPV6
+#ifdef SYLVERANT_ENABLE_IPV6
 #define NUMSOCKS 2
 #else
 #define NUMSOCKS 1
@@ -126,6 +126,8 @@ static void *block_thd(void *d) {
             nfds = nfds > b->gcsock[i] ? nfds : b->gcsock[i];
             FD_SET(b->ep3sock[i], &readfds);
             nfds = nfds > b->ep3sock[i] ? nfds : b->ep3sock[i];
+            FD_SET(b->bbsock[i], &readfds);
+            nfds = nfds > b->bbsock[i] ? nfds : b->bbsock[i];
         }
 
         FD_SET(b->pipes[1], &readfds);
@@ -209,6 +211,23 @@ static void *block_thd(void *d) {
                         close(sock);
                     }
                 }
+
+                if(FD_ISSET(b->bbsock[i], &readfds)) {
+                    len = sizeof(struct sockaddr_storage);
+                    if((sock = accept(b->bbsock[i], addr_p, &len)) < 0) {
+                        perror("accept");
+                    }
+
+                    my_ntop(&addr, ipstr);
+                    debug(DBG_LOG, "%s(%d): Accepted Blue Burst block "
+                          "connection from %s\n", s->cfg->name, b->b, ipstr);
+
+                    if(!client_create_connection(sock, CLIENT_VERSION_BB,
+                                                 CLIENT_TYPE_BLOCK, b->clients,
+                                                 s, b, addr_p, len)) {
+                        close(sock);
+                    }
+                }
             }
 
             /* Process client connections. */
@@ -270,6 +289,9 @@ static void *block_thd(void *d) {
                     debug(DBG_LOG, "Disconnecting %s(%d)\n", it->pl->v1.name,
                           it->guildcard);
                 }
+                else if(it->bb_pl) {
+                    debug(DBG_LOG, "Disconnecting (%d)\n", it->guildcard);
+                }
                 else {
                     debug(DBG_LOG, "Disconnecting something...\n");
                 }
@@ -292,7 +314,8 @@ static void *block_thd(void *d) {
 block_t *block_server_start(ship_t *s, int b, uint16_t port) {
     block_t *rv;
     int dcsock[2] = { -1, -1 }, pcsock[2] = { -1, -1 };
-    int gcsock[2] = { -1, -1 }, ep3sock[2] = { -1, -1 }, i;
+    int gcsock[2] = { -1, -1 }, ep3sock[2] = { -1, -1 };
+    int bbsock[2] = { -1, -1 }, i;
     lobby_t *l, *l2;
     pthread_mutexattr_t attr;
 
@@ -319,10 +342,15 @@ block_t *block_server_start(ship_t *s, int b, uint16_t port) {
         goto err_close_gc;
     }
 
-#ifdef ENABLE_IPV6
+    bbsock[0] = open_sock(AF_INET, port + 4);
+    if(bbsock[0] < 0) {
+        goto err_close_ep3;
+    }
+
+#ifdef SYLVERANT_ENABLE_IPV6
     dcsock[1] = open_sock(AF_INET6, port);
     if(dcsock[1] < 0) {
-        goto err_close_ep3;
+        goto err_close_bb;
     }
 
     pcsock[1] = open_sock(AF_INET6, port + 1);
@@ -338,6 +366,11 @@ block_t *block_server_start(ship_t *s, int b, uint16_t port) {
     ep3sock[1] = open_sock(AF_INET6, port + 3);
     if(ep3sock[1] < 0) {
         goto err_close_gc_6;
+    }
+
+    bbsock[1] = open_sock(AF_INET6, port + 4);
+    if(bbsock[1] < 0) {
+        goto err_close_ep3_6;
     }
 #endif
 
@@ -374,14 +407,17 @@ block_t *block_server_start(ship_t *s, int b, uint16_t port) {
     rv->pc_port = port + 1;
     rv->gc_port = port + 2;
     rv->ep3_port = port + 3;
+    rv->bb_port = port + 4;
     rv->dcsock[0] = dcsock[0];
     rv->pcsock[0] = pcsock[0];
     rv->gcsock[0] = gcsock[0];
     rv->ep3sock[0] = ep3sock[0];
+    rv->bbsock[0] = bbsock[0];
     rv->dcsock[1] = dcsock[1];
     rv->pcsock[1] = pcsock[1];
     rv->gcsock[1] = gcsock[1];
     rv->ep3sock[1] = ep3sock[1];
+    rv->bbsock[1] = bbsock[1];
     rv->run = 1;
 
     TAILQ_INIT(&rv->lobbies);
@@ -426,7 +462,9 @@ err_pipes:
 err_free:
     free(rv);    
 err_close_all:
-#ifdef ENABLE_IPV6
+#ifdef SYLVERANT_ENABLE_IPV6
+    close(bbsock[1]);
+err_close_ep3_6:
     close(ep3sock[1]);
 err_close_gc_6:
     close(gcsock[1]);
@@ -434,8 +472,10 @@ err_close_pc_6:
     close(pcsock[1]);
 err_close_dc_6:
     close(dcsock[1]);
-err_close_ep3:
+err_close_bb:
 #endif
+    close(bbsock[0]);
+err_close_ep3:
     close(ep3sock[0]);
 err_close_gc:
     close(gcsock[0]);
@@ -484,11 +524,13 @@ void block_server_stop(block_t *b) {
     close(b->pcsock[0]);
     close(b->gcsock[0]);
     close(b->ep3sock[0]);
-#ifdef ENABLE_IPV6
+    close(b->bbsock[0]);
+#ifdef SYLVERANT_ENABLE_IPV6
     close(b->dcsock[1]);
     close(b->pcsock[1]);
     close(b->gcsock[1]);
     close(b->ep3sock[1]);
+    close(b->bbsock[1]);
 #endif
     free(b->clients);
     free(b);
@@ -793,10 +835,53 @@ static int gc_process_login(ship_client_t *c, gc_login_9e_pkt *pkt) {
     return 0;
 }
 
+static int bb_process_login(ship_client_t *c, bb_login_93_pkt *pkt) {
+    uint32_t team_id;
+
+    /* Make sure PSOBB is allowed on this ship. */
+    if((ship->cfg->shipgate_flags & LOGIN_FLAG_NOBB)) {
+        send_message_box(c, "%s", __(c, "\tEPSO Blue Burst is not "
+                                        "supported on\nthis ship.\n\n"
+                                        "Disconnecting."));
+        c->flags |= CLIENT_FLAG_DISCONNECTED;
+        return 0;
+    }
+
+    c->guildcard = LE32(pkt->guildcard);
+    team_id = LE32(pkt->team_id);
+
+    /* Copy in the security data */
+    memcpy(&c->sec_data, pkt->security_data, sizeof(bb_security_data_t));
+
+    if(c->sec_data.magic != LE32(0xDEADBEEF)) {
+        send_bb_security(c, 0, LOGIN_93BB_FORCED_DISCONNECT, 0, NULL, 0);
+        return -1;
+    }
+
+    /* Send the security data packet */
+    if(send_bb_security(c, c->guildcard, LOGIN_93BB_OK, team_id,
+                        &c->sec_data, sizeof(bb_security_data_t))) {
+        return -2;
+    }
+
+    /* Request the character data from the shipgate */
+    if(shipgate_send_creq(&ship->sg, c->guildcard, c->sec_data.slot)) {
+        return -3;
+    }
+
+    /* Request the user options from the shipgate */
+    if(shipgate_send_bb_opt_req(&ship->sg, c->guildcard, c->cur_block->b)) {
+        return -4;
+    }
+
+    return 0;
+}
+
 /* Process incoming character data, and add to a lobby, if the character isn't
    currently in a lobby. */
 static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
     uint8_t type = pkt->hdr.dc.pkt_type;
+    uint16_t len = LE16(pkt->hdr.dc.pkt_len);
     uint8_t version = pkt->hdr.dc.flags;
     lobby_t *l = c->cur_lobby;
     uint32_t v;
@@ -865,12 +950,24 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
         c->blacklist = NULL;
     }
     else if(version == 2 && c->version == CLIENT_VERSION_PC) {
+        if(pkt->data.pc.autoreply[0]) {
+            /* Copy in the autoreply */
+            client_set_autoreply(c, pkt->data.pc.autoreply,
+                                 len - 4 - sizeof(pc_player_t));
+        }
+
         memcpy(c->pl, &pkt->data, sizeof(pc_player_t));
         c->infoboard = NULL;
         c->c_rank = c->pl->pc.c_rank.all;
         c->blacklist = c->pl->pc.blacklist;
     }
     else if(version == 3) {
+        if(pkt->data.v3.autoreply[0]) {
+            /* Copy in the autoreply */
+            client_set_autoreply(c, pkt->data.v3.autoreply,
+                                 len - 4 - sizeof(v3_player_t));
+        }
+
         memcpy(c->pl, &pkt->data, sizeof(v3_player_t));
         c->infoboard = c->pl->v3.infoboard;
         c->c_rank = c->pl->v3.c_rank.all;
@@ -951,13 +1048,85 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
     return 0;
 }
 
+static int bb_process_char(ship_client_t *c, bb_char_data_pkt *pkt) {
+    uint16_t type = LE32(pkt->hdr.pkt_type);
+    uint32_t v;
+    int i;
+
+    pthread_mutex_lock(&c->mutex);
+
+    /* Copy out the player data, and set up pointers. */
+    memcpy(c->pl, &pkt->data, sizeof(sylverant_bb_player_t));
+    c->infoboard = (char *)c->pl->bb.infoboard;
+    c->c_rank = c->pl->bb.c_rank;
+    c->blacklist = c->pl->bb.blacklist;
+
+    /* Copy out the inventory data */
+    memcpy(c->items, c->pl->bb.inv.items, sizeof(item_t) * 30);
+    c->item_count = (int)c->pl->bb.inv.item_count;
+
+    /* Renumber the inventory data so we know what's going on later */
+    for(i = 0; i < c->item_count; ++i) {
+        v = 0x00210000 | i;
+        c->items[i].item_id = LE32(v);
+    }
+
+    /* If this packet is coming after the client has left a game, then don't
+       do anything else here, they'll take care of it by sending an 0x84. */
+    if(type == LEAVE_GAME_PL_DATA_TYPE) {
+        /* Remove the client from the lobby they're in, which will force the
+           0x84 sent later to act like we're adding them to any lobby. */
+        pthread_mutex_unlock(&c->mutex);
+        return lobby_remove_player(c);
+    }
+
+    /* If the client isn't in a lobby already, then add them to the first
+       available default lobby. */
+    if(!c->cur_lobby) {
+        if(lobby_add_to_any(c)) {
+            pthread_mutex_unlock(&c->mutex);
+            return -1;
+        }
+
+        if(send_lobby_join(c, c->cur_lobby)) {
+            pthread_mutex_unlock(&c->mutex);
+            return -2;
+        }
+
+        if(send_lobby_add_player(c->cur_lobby, c)) {
+            pthread_mutex_unlock(&c->mutex);
+            return -3;
+        }
+
+        /* Do a few things that should only be done once per session... */
+        if(!(c->flags & CLIENT_FLAG_SENT_MOTD)) {
+            /* Notify the shipgate */
+            shipgate_send_block_login_bb(&ship->sg, 1, c->guildcard,
+                                         c->cur_block->b,
+                                         c->bb_pl->character.name);
+            shipgate_send_lobby_chg(&ship->sg, c->guildcard,
+                                    c->cur_lobby->lobby_id, c->cur_lobby->name);
+
+            c->flags |= CLIENT_FLAG_SENT_MOTD;
+        }
+        else {
+            shipgate_send_lobby_chg(&ship->sg, c->guildcard,
+                                    c->cur_lobby->lobby_id, c->cur_lobby->name);
+        }
+    }
+
+    pthread_mutex_unlock(&c->mutex);
+
+    return 0;
+}
+
 /* Process a change lobby packet. */
-static int dc_process_change_lobby(ship_client_t *c, dc_select_pkt *pkt) {
+static int process_change_lobby(ship_client_t *c, uint32_t item_id) {
     lobby_t *i, *req = NULL;
     int rv;
 
     TAILQ_FOREACH(i, &c->cur_block->lobbies, qentry) {
-        if(i->lobby_id == LE32(pkt->item_id)) {
+        if(i->lobby_id == item_id) {
             req = i;
             break;
         }
@@ -982,6 +1151,18 @@ static int dc_process_change_lobby(ship_client_t *c, dc_select_pkt *pkt) {
     else {
         return rv;
     }
+}
+
+static int dc_process_change_lobby(ship_client_t *c, dc_select_pkt *pkt) {
+    uint32_t item_id = LE32(pkt->item_id);
+
+    return process_change_lobby(c, item_id);
+}
+
+static int bb_process_change_lobby(ship_client_t *c, bb_select_pkt *pkt) {
+    uint32_t item_id = LE32(pkt->item_id);
+
+    return process_change_lobby(c, item_id);
 }
 
 /* Process a chat packet. */
@@ -1054,6 +1235,41 @@ static int pc_process_chat(ship_client_t *c, dc_chat_pkt *pkt) {
     return send_lobby_wchat(l, c, (uint16_t *)pkt->msg, len);
 }
 
+/* Process a chat packet from a Blue Burst client. */
+static int bb_process_chat(ship_client_t *c, bb_chat_pkt *pkt) {
+    lobby_t *l = c->cur_lobby;
+    size_t len = LE16(pkt->hdr.pkt_len) - 16;
+    int i;
+
+    /* Sanity check... this shouldn't happen. */
+    if(!l) {
+        return -1;
+    }
+
+    /* Fill in escapes for the color chat stuff */
+    if(c->cc_char) {
+        for(i = 0; i < len; i += 2) {
+            /* Only accept it if it has a C right after, since that means we
+               should have a color code... Also, make sure there's at least one
+               character after the C, or we get junk... */
+            if(pkt->msg[i] == LE16(c->cc_char) &&
+               pkt->msg[i + 2] == LE16('C')) {
+                pkt->msg[i] = '\t';
+            }
+        }
+    }
+
+#ifndef DISABLE_CHAT_COMMANDS
+    /* Check for commands. */
+    if(pkt->msg[2] == LE16('/')) {
+        return bbcommand_parse(c, pkt);
+    }
+#endif
+
+    /* Send the message to the lobby. */
+    return send_lobby_bbchat(l, c, (uint16_t *)pkt->msg, len);
+}
+
 /* Process a Guild Search request. */
 static int dc_process_guild_search(ship_client_t *c, dc_guild_search_pkt *pkt) {
     int i;
@@ -1076,29 +1292,15 @@ static int dc_process_guild_search(ship_client_t *c, dc_guild_search_pkt *pkt) {
                data. */
             if(it->guildcard == gc && it->pl) {
                 pthread_mutex_lock(&it->mutex);
-#ifdef ENABLE_IPV6
+#ifdef SYLVERANT_ENABLE_IPV6
                 if((c->flags & CLIENT_FLAG_IPV6)) {
-                    rv = send_guild_reply6(c, gc, ship->cfg->ship_ip6,
-                                           ship->blocks[i]->dc_port,
-                                           it->cur_lobby->name,
-                                           ship->blocks[i]->b, ship->cfg->name,
-                                           it->cur_lobby->lobby_id,
-                                           it->pl->v1.name);
+                    rv = send_guild_reply6(c, it);
                 }
                 else {
-                    rv = send_guild_reply(c, gc, ship->cfg->ship_ip,
-                                          ship->blocks[i]->dc_port,
-                                          it->cur_lobby->name,
-                                          ship->blocks[i]->b, ship->cfg->name,
-                                          it->cur_lobby->lobby_id,
-                                          it->pl->v1.name);
+                    rv = send_guild_reply(c, it);
                 }
 #else
-                rv = send_guild_reply(c, gc, ship->cfg->ship_ip,
-                                      ship->blocks[i]->dc_port,
-                                      it->cur_lobby->name, ship->blocks[i]->b,
-                                      ship->cfg->name, it->cur_lobby->lobby_id,
-                                      it->pl->v1.name);
+                rv = send_guild_reply(c, it);
 #endif
                 done = 1;
                 pthread_mutex_unlock(&it->mutex);
@@ -1120,13 +1322,76 @@ static int dc_process_guild_search(ship_client_t *c, dc_guild_search_pkt *pkt) {
     /* If we get here, we didn't find it locally. Send to the shipgate to
        continue searching. */
     if(!done) {
-#ifdef ENABLE_IPV6
+#ifdef SYLVERANT_ENABLE_IPV6
         if((c->flags & CLIENT_FLAG_IPV6)) {
             flags |= FW_FLAG_PREFER_IPV6;
         }
 #endif
 
-        return shipgate_fw_dc(&ship->sg, pkt, flags);
+        return shipgate_fw_dc(&ship->sg, pkt, flags, c);
+    }
+
+    return rv;
+}
+
+static int bb_process_guild_search(ship_client_t *c, bb_guild_search_pkt *pkt) {
+    int i;
+    ship_client_t *it;
+    uint32_t gc = LE32(pkt->gc_target);
+    int done = 0, rv = -1;
+    uint32_t flags = 0;
+
+    /* Search the local ship first. */
+    for(i = 0; i < ship->cfg->blocks && !done; ++i) {
+        if(!ship->blocks[i] || !ship->blocks[i]->run) {
+            continue;
+        }
+
+        pthread_mutex_lock(&ship->blocks[i]->mutex);
+
+        /* Look through all clients on that block. */
+        TAILQ_FOREACH(it, ship->blocks[i]->clients, qentry) {
+            /* Check if this is the target and the target has player
+               data. */
+            if(it->guildcard == gc && it->pl) {
+                pthread_mutex_lock(&it->mutex);
+#ifdef SYLVERANT_ENABLE_IPV6
+                if((c->flags & CLIENT_FLAG_IPV6)) {
+                    rv = send_guild_reply6(c, it);
+                }
+                else {
+                    rv = send_guild_reply(c, it);
+                }
+#else
+                rv = send_guild_reply(c, it);
+#endif
+                done = 1;
+                pthread_mutex_unlock(&it->mutex);
+            }
+            else if(it->guildcard == gc) {
+                /* If they're on but don't have data, we're not going to
+                   find them anywhere else, return success. */
+                rv = 0;
+                done = 1;
+            }
+
+            if(done)
+                break;
+        }
+
+        pthread_mutex_unlock(&ship->blocks[i]->mutex);
+    }
+
+    /* If we get here, we didn't find it locally. Send to the shipgate to
+       continue searching. */
+    if(!done) {
+#ifdef SYLVERANT_ENABLE_IPV6
+        if((c->flags & CLIENT_FLAG_IPV6)) {
+            flags |= FW_FLAG_PREFER_IPV6;
+        }
+#endif
+
+        return shipgate_fw_bb(&ship->sg, pkt, flags, c);
     }
 
     return rv;
@@ -1174,22 +1439,8 @@ static int dc_process_mail(ship_client_t *c, dc_simple_mail_pkt *pkt) {
                 }
 
                 /* Check if the user has an autoreply set. */
-                if(it->autoreply) {
-                    dc_simple_mail_pkt rep;
-                    memset(&rep, 0, sizeof(rep));
-
-                    rep.hdr.pkt_type = SIMPLE_MAIL_TYPE;
-                    rep.hdr.flags = 0;
-                    rep.hdr.pkt_len = LE16(DC_SIMPLE_MAIL_LENGTH);
-
-                    rep.tag = LE32(0x00010000);
-                    rep.gc_sender = pkt->gc_dest;
-                    rep.gc_dest = pkt->gc_sender;
-
-                    strcpy(rep.name, it->pl->v1.name);
-                    strcpy(rep.stuff, it->autoreply);
-                    send_simple_mail(CLIENT_VERSION_DCV1, c,
-                                     (dc_pkt_hdr_t *)&rep);
+                if(it->autoreply_on) {
+                    send_mail_autoreply(c, it);
                 }
 
                 /* Send the mail. */
@@ -1213,7 +1464,7 @@ static int dc_process_mail(ship_client_t *c, dc_simple_mail_pkt *pkt) {
     if(!done) {
         /* If we get here, we didn't find it locally. Send to the shipgate to
            continue searching. */
-        return shipgate_fw_dc(&ship->sg, pkt, 0);
+        return shipgate_fw_dc(&ship->sg, pkt, 0, c);
     }
 
     return rv;
@@ -1261,22 +1512,8 @@ static int pc_process_mail(ship_client_t *c, pc_simple_mail_pkt *pkt) {
                 }
 
                 /* Check if the user has an autoreply set. */
-                if(it->autoreply) {
-                    dc_simple_mail_pkt rep;
-                    memset(&rep, 0, sizeof(rep));
-
-                    rep.hdr.pkt_type = SIMPLE_MAIL_TYPE;
-                    rep.hdr.flags = 0;
-                    rep.hdr.pkt_len = LE16(DC_SIMPLE_MAIL_LENGTH);
-
-                    rep.tag = LE32(0x00010000);
-                    rep.gc_sender = pkt->gc_dest;
-                    rep.gc_dest = pkt->gc_sender;
-
-                    strcpy(rep.name, it->pl->v1.name);
-                    strcpy(rep.stuff, it->autoreply);
-                    send_simple_mail(CLIENT_VERSION_DCV1, c,
-                                     (dc_pkt_hdr_t *)&rep);
+                if(it->autoreply_on) {
+                    send_mail_autoreply(c, it);
                 }
 
                 rv = send_simple_mail(c->version, it, (dc_pkt_hdr_t *)pkt);
@@ -1299,7 +1536,79 @@ static int pc_process_mail(ship_client_t *c, pc_simple_mail_pkt *pkt) {
     if(!done) {
         /* If we get here, we didn't find it locally. Send to the shipgate to
            continue searching. */
-        return shipgate_fw_pc(&ship->sg, pkt, 0);
+        return shipgate_fw_pc(&ship->sg, pkt, 0, c);
+    }
+
+    return rv;
+}
+
+static int bb_process_mail(ship_client_t *c, bb_simple_mail_pkt *pkt) {
+    int i;
+    ship_client_t *it;
+    uint32_t gc = LE32(pkt->gc_dest);
+    int done = 0, rv = -1;
+
+    /* Don't send mail for a STFUed client. */
+    if((c->flags & CLIENT_FLAG_STFU)) {
+        return 0;
+    }
+
+    /* First check if this is to the bug report "character". */
+    if(gc == BUG_REPORT_GC) {
+        //pc_bug_report(c, pkt);
+        return 0;
+    }
+
+    /* Search the local ship first. */
+    for(i = 0; i < ship->cfg->blocks && !done; ++i) {
+        if(!ship->blocks[i] || !ship->blocks[i]->run) {
+            continue;
+        }
+
+        pthread_mutex_lock(&ship->blocks[i]->mutex);
+
+        /* Look through all clients on that block. */
+        TAILQ_FOREACH(it, ship->blocks[i]->clients, qentry) {
+            /* Check if this is the target and the target has player
+               data. */
+            if(it->guildcard == gc && it->pl) {
+                pthread_mutex_lock(&it->mutex);
+
+                /* Make sure the user hasn't blacklisted the sender. */
+                if(client_has_blacklisted(it, c->guildcard) ||
+                   client_has_ignored(it, c->guildcard)) {
+                    done = 1;
+                    pthread_mutex_unlock(&it->mutex);
+                    rv = 0;
+                    break;
+                }
+
+                /* Check if the user has an autoreply set. */
+                if(it->autoreply_on) {
+                    send_mail_autoreply(c, it);
+                }
+
+                rv = send_bb_simple_mail(it, pkt);
+                pthread_mutex_unlock(&it->mutex);
+                done = 1;
+                break;
+            }
+            else if(it->guildcard == gc) {
+                /* If they're on but don't have data, we're not going to
+                   find them anywhere else, return success. */
+                rv = 0;
+                done = 1;
+                break;
+            }
+        }
+
+        pthread_mutex_unlock(&ship->blocks[i]->mutex);
+    }
+
+    if(!done) {
+        /* If we get here, we didn't find it locally. Send to the shipgate to
+           continue searching. */
+        return shipgate_fw_bb(&ship->sg, pkt, 0, c);
     }
 
     return rv;
@@ -1485,10 +1794,8 @@ static int dc_process_done_burst(ship_client_t *c) {
     return rv;
 }
 
-static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
-    uint32_t menu_id = LE32(pkt->menu_id);
-    uint32_t item_id = LE32(pkt->item_id);
-
+static int process_menu(ship_client_t *c, uint32_t menu_id, uint32_t item_id,
+                        const uint8_t *passwd, uint16_t passwd_len) {
     /* Figure out what the client is selecting. */
     switch(menu_id & 0xFF) {
         /* Lobby Information Desk */
@@ -1574,12 +1881,16 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
                     port = ship->blocks[item_id - 1]->ep3_port;
                     break;
 
+                case CLIENT_VERSION_BB:
+                    port = ship->blocks[item_id - 1]->bb_port;
+                    break;
+
                 default:
                     return -1;
             }
 
             /* Redirect the client where we want them to go. */
-#ifdef ENABLE_IPV6
+#ifdef SYLVERANT_ENABLE_IPV6
             if(c->flags & CLIENT_FLAG_IPV6) {
                 return send_redirect6(c, ship->cfg->ship_ip6, port);
             }
@@ -1597,28 +1908,28 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
             char tmp[32];
             char passwd[17];
             lobby_t *l;
-            uint16_t len = LE16(pkt->hdr.dc.pkt_len);
             int override = c->flags & CLIENT_FLAG_OVERRIDE_GAME;
 
             /* Make sure the packets aren't too long */
-            if(c->version == CLIENT_VERSION_PC && len > 0x2C) {
-                return -1;
+            if(c->version == CLIENT_VERSION_PC ||
+               c->version == CLIENT_VERSION_BB) {
+                if(passwd_len > 0x20) {
+                    return -1;
+                }
             }
-            else if(c->version != CLIENT_VERSION_PC && len > 0x1C) {
+            else if(passwd_len > 0x10) {
                 return -1;
             }
 
             /* Read the password if the client provided one. */
             memset(tmp, 0, 32);
+            memcpy(tmp, passwd, passwd_len);
 
-            if(len > 0x0C) {
-                memcpy(tmp, ((uint8_t *)pkt) + 0x0C, len - 0x0C);
-            }
-
-            if(c->version == CLIENT_VERSION_PC) {
+            if(c->version == CLIENT_VERSION_PC ||
+               c->version == CLIENT_VERSION_BB) {
                 iconv_t ic;
 
-                ic = iconv_open("SHIFT_JIS", "UTF-16LE");
+                ic = iconv_open("ASCII", "UTF-16LE");
 
                 if(ic == (iconv_t)-1) {
                     perror("iconv_open");
@@ -1755,13 +2066,17 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
                 case CLIENT_VERSION_EP3:
                     off = 3;
                     break;
+
+                case CLIENT_VERSION_BB:
+                    off = 4;
+                    break;
             }
 
             /* Go through all the ships that we know about looking for the one
                that the user has requested. */
             TAILQ_FOREACH(i, &ship->ships, qentry) {
                 if(i->ship_id == item_id) {
-#ifdef ENABLE_IPV6
+#ifdef SYLVERANT_ENABLE_IPV6
                     if(c->flags & CLIENT_FLAG_IPV6 && i->ship_addr6[0]) {
                         return send_redirect6(c, i->ship_addr6,
                                               i->ship_port + off);
@@ -1818,14 +2133,26 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
     return -1;
 }
 
-static int dc_process_lobby_inf(ship_client_t *c) {
-    return send_info_list(c, ship);
-}
-
-static int dc_process_info_req(ship_client_t *c, dc_select_pkt *pkt) {
+static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
     uint32_t menu_id = LE32(pkt->menu_id);
     uint32_t item_id = LE32(pkt->item_id);
+    uint8_t *bp = (uint8_t *)pkt;
+    uint16_t len = LE16(pkt->hdr.dc.pkt_len) - 0x0C;
 
+    return process_menu(c, menu_id, item_id, bp + 0x0C, len);
+}
+
+static int bb_process_menu(ship_client_t *c, bb_select_pkt *pkt) {
+    uint32_t menu_id = LE32(pkt->menu_id);
+    uint32_t item_id = LE32(pkt->item_id);
+    uint8_t *bp = (uint8_t *)pkt;
+    uint16_t len = LE16(pkt->hdr.pkt_len) - 0x10;
+
+    return process_menu(c, menu_id, item_id, bp + 0x10, len);
+}
+
+static int process_info_req(ship_client_t *c, uint32_t menu_id,
+                            uint32_t item_id) {
     /* What kind of information do they want? */
     switch(menu_id & 0xFF) {
         /* Block */
@@ -1897,6 +2224,20 @@ static int dc_process_info_req(ship_client_t *c, dc_select_pkt *pkt) {
     }
 }
 
+static int dc_process_info_req(ship_client_t *c, dc_select_pkt *pkt) {
+    uint32_t menu_id = LE32(pkt->menu_id);
+    uint32_t item_id = LE32(pkt->item_id);
+
+    return process_info_req(c, menu_id, item_id);
+}
+
+static int bb_process_info_req(ship_client_t *c, bb_select_pkt *pkt) {
+    uint32_t menu_id = LE32(pkt->menu_id);
+    uint32_t item_id = LE32(pkt->item_id);
+
+    return process_info_req(c, menu_id, item_id);
+}
+
 /* Process a client's arrow update request. */
 static int dc_process_arrow(ship_client_t *c, uint8_t flag) {
     c->arrow = flag;
@@ -1918,18 +2259,46 @@ static int process_trade(ship_client_t *c, gc_trade_pkt *pkt) {
 }
 
 /* Process a blacklist update packet. */
-static int process_blacklist(ship_client_t *c, gc_blacklist_update_pkt *pkt) {
+static int gc_process_blacklist(ship_client_t *c,
+                                gc_blacklist_update_pkt *pkt) {
     memcpy(c->blacklist, pkt->list, 30 * sizeof(uint32_t));
+    return send_txt(c, "%s", __(c, "\tE\tC7Updated blacklist."));
+}
+
+static int bb_process_blacklist(ship_client_t *c,
+                                bb_blacklist_update_pkt *pkt) {
+    memcpy(c->blacklist, pkt->list, 28 * sizeof(uint32_t));
+    memcpy(c->bb_opts->blocked, pkt->list, 28 * sizeof(uint32_t));
     return send_txt(c, "%s", __(c, "\tE\tC7Updated blacklist."));
 }
 
 /* Process an infoboard update packet. */
 static int process_infoboard(ship_client_t *c, gc_write_info_pkt *pkt) {
-    if(!c->infoboard) {
+    uint16_t len = LE16(pkt->hdr.dc.pkt_len) - 4;
+
+    if(!c->infoboard || len > 0xAC) {
         return -1;
     }
 
-    memcpy(c->infoboard, pkt->msg, LE16(pkt->hdr.pkt_len) - c->hdr_size);
+    memcpy(c->infoboard, pkt->msg, len);
+    memset(c->infoboard + len, 0, 0xAC - len);
+    return 0;
+}
+
+static int process_bb_infoboard(ship_client_t *c, bb_write_info_pkt *pkt) {
+    uint16_t len = LE16(pkt->hdr.pkt_len) - 8;
+
+    if(!c->infoboard || len > 0x158) {
+        return -1;
+    }
+
+    /* BB has this in two places for now... */
+    memcpy(c->infoboard, pkt->msg, len);
+    memset(c->infoboard + len, 0, 0x158 - len);
+
+    memcpy(c->bb_pl->infoboard, pkt->msg, len);
+    memset(((uint8_t *)c->bb_pl->infoboard) + len, 0, 0x158 - len);
+
     return 0;
 }
 
@@ -1954,6 +2323,103 @@ static int process_ep3_command(ship_client_t *c, const uint8_t *pkt) {
             print_packet(pkt, len);
             return -1;
     }
+}
+
+/* Process a Blue Burst options update */
+static int bb_process_opt_flags(ship_client_t *c, bb_options_update_pkt *pkt) {
+    uint16_t len = LE16(pkt->hdr.pkt_len);
+
+    if(len != sizeof(bb_options_update_pkt) + 4) {
+        debug(DBG_LOG, "Invalid sized BB options flag update (%d)\n", len);
+        return -1;
+    }
+
+    memcpy(&c->bb_opts->option_flags, pkt->data, 4);
+    return 0;
+}
+
+static int bb_process_symbols(ship_client_t *c, bb_options_update_pkt *pkt) {
+    uint16_t len = LE16(pkt->hdr.pkt_len);
+
+    if(len != sizeof(bb_options_update_pkt) + 0x04E0) {
+        debug(DBG_LOG, "Invalid sized BB symbol chat update (%d)\n", len);
+        return -1;
+    }
+
+    memcpy(c->bb_opts->symbol_chats, pkt->data, 0x04E0);
+    return 0;
+}
+
+static int bb_process_shortcuts(ship_client_t *c, bb_options_update_pkt *pkt) {
+    uint16_t len = LE16(pkt->hdr.pkt_len);
+
+    if(len != sizeof(bb_options_update_pkt) + 0x0A40) {
+        debug(DBG_LOG, "Invalid sized BB chat shortcut update (%d)\n", len);
+        return -1;
+    }
+
+    memcpy(c->bb_opts->shortcuts, pkt->data, 0x0A40);
+    return 0;
+}
+
+static int bb_process_keys(ship_client_t *c, bb_options_update_pkt *pkt) {
+    uint16_t len = LE16(pkt->hdr.pkt_len);
+
+    if(len != sizeof(bb_options_update_pkt) + 0x016C) {
+        debug(DBG_LOG, "Invalid sized BB key config update (%d)\n", len);
+        return -1;
+    }
+
+    memcpy(c->bb_opts->key_config, pkt->data, 0x016C);
+    return 0;
+}
+
+static int bb_process_pad(ship_client_t *c, bb_options_update_pkt *pkt) {
+    uint16_t len = LE16(pkt->hdr.pkt_len);
+
+    if(len != sizeof(bb_options_update_pkt) + 0x0038) {
+        debug(DBG_LOG, "Invalid sized BB pad config update (%d)\n", len);
+        return -1;
+    }
+
+    memcpy(c->bb_opts->joystick_config, pkt->data, 0x0038);
+    return 0;
+}
+
+static int bb_process_techs(ship_client_t *c, bb_options_update_pkt *pkt) {
+    uint16_t len = LE16(pkt->hdr.pkt_len);
+
+    if(len != sizeof(bb_options_update_pkt) + 0x0028) {
+        debug(DBG_LOG, "Invalid sized BB tech menu update (%d)\n", len);
+        return -1;
+    }
+
+    memcpy(c->bb_pl->tech_menu, pkt->data, 0x0028);
+    return 0;
+}
+
+static int bb_set_guild_text(ship_client_t *c, bb_guildcard_set_txt_pkt *pkt) {
+    uint16_t len = LE16(pkt->hdr.pkt_len);
+
+    if(len != sizeof(bb_guildcard_set_txt_pkt)) {
+        debug(DBG_LOG, "Invalid sized BB guildcard text update (%d)\n", len);
+        return -1;
+    }
+
+    memcpy(c->bb_pl->guildcard_desc, pkt->text, 0x0110);
+    return 0;
+}
+
+static int bb_process_config(ship_client_t *c, bb_options_update_pkt *pkt) {
+    uint16_t len = LE16(pkt->hdr.pkt_len);
+
+    if(len != sizeof(bb_options_update_pkt) + 0x00E8) {
+        debug(DBG_LOG, "Invalid sized BB configuration update (%d)\n", len);
+        return -1;
+    }
+
+    memcpy(c->bb_pl->character.config, pkt->data, 0x00E8);
+    return 0;
 }
 
 /* Process block commands for a Dreamcast client. */
@@ -2061,7 +2527,7 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return dc_process_char(c, (dc_char_data_pkt *)pkt);
 
         case LOBBY_INFO_TYPE:
-            return dc_process_lobby_inf(c);
+            return send_info_list(c, ship);
 
         case BLOCK_LIST_REQ_TYPE:
             return send_block_list(c, ship);
@@ -2127,10 +2593,10 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             /* XXXX: This isn't right... we need to synchronize this. */
             return send_simple(c, QUEST_LOAD_DONE_TYPE, 0);
 
-        case GC_INFOBOARD_WRITE_TYPE:
+        case INFOBOARD_WRITE_TYPE:
             return process_infoboard(c, (gc_write_info_pkt *)pkt);
 
-        case GC_INFOBOARD_REQ_TYPE:
+        case INFOBOARD_TYPE:
             return send_infoboard(c, c->cur_lobby);
 
         case TRADE_0_TYPE:
@@ -2145,13 +2611,14 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return 0;
 
         case BLACKLIST_TYPE:
-            return process_blacklist(c, (gc_blacklist_update_pkt *)pkt);
+            return gc_process_blacklist(c, (gc_blacklist_update_pkt *)pkt);
 
         case AUTOREPLY_SET_TYPE:
-            return client_set_autoreply(c, dc);
+            return client_set_autoreply(c, ((autoreply_set_pkt *)dc)->msg,
+                                        len - 4);
 
         case AUTOREPLY_CLEAR_TYPE:
-            return client_clear_autoreply(c);
+            return client_disable_autoreply(c);
 
         case GAME_COMMAND_C9_TYPE:
         case GAME_COMMAND_CB_TYPE:
@@ -2188,6 +2655,121 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
     }
 }
 
+static int bb_process_pkt(ship_client_t *c, uint8_t *pkt) {
+    bb_pkt_hdr_t *hdr = (bb_pkt_hdr_t *)pkt;
+    uint16_t type = LE16(hdr->pkt_type);
+    uint16_t len = LE16(hdr->pkt_len);
+    uint32_t flags = LE32(hdr->flags);
+
+    switch(type) {
+        case PING_TYPE:
+            return 0;
+
+        case TYPE_05:
+            c->flags |= CLIENT_FLAG_DISCONNECTED;
+            return 0;
+
+        case LOGIN_93_TYPE:
+            return bb_process_login(c, (bb_login_93_pkt *)pkt);
+
+        case CHAR_DATA_TYPE:
+            return bb_process_char(c, (bb_char_data_pkt *)pkt);
+
+        case GAME_COMMAND0_TYPE:
+            return subcmd_bb_handle_bcast(c, (bb_subcmd_pkt_t *)pkt);
+
+        case GAME_COMMAND2_TYPE:
+        case GAME_COMMANDD_TYPE:
+            return subcmd_bb_handle_one(c, (bb_subcmd_pkt_t *)pkt);
+
+        case CHAT_TYPE:
+            return bb_process_chat(c, (bb_chat_pkt *)pkt);
+
+        case BLOCK_LIST_REQ_TYPE:
+            return send_block_list(c, ship);
+
+        case INFO_REQUEST_TYPE:
+            return bb_process_info_req(c, (bb_select_pkt *)pkt);
+
+        case MENU_SELECT_TYPE:
+            return bb_process_menu(c, (bb_select_pkt *)pkt);
+
+        case SHIP_LIST_TYPE:
+            return send_ship_list(c, ship, ship->cfg->menu_code);
+
+        case LOBBY_CHANGE_TYPE:
+            return bb_process_change_lobby(c, (bb_select_pkt *)pkt);
+
+        case BB_UPDATE_OPTION_FLAGS:
+            return bb_process_opt_flags(c, (bb_options_update_pkt *)pkt);
+
+        case BB_UPDATE_SYMBOL_CHAT:
+            return bb_process_symbols(c, (bb_options_update_pkt *)pkt);
+
+        case BB_UPDATE_SHORTCUTS:
+            return bb_process_shortcuts(c, (bb_options_update_pkt *)pkt);
+
+        case BB_UPDATE_KEY_CONFIG:
+            return bb_process_keys(c, (bb_options_update_pkt *)pkt);
+
+        case BB_UPDATE_PAD_CONFIG:
+            return bb_process_pad(c, (bb_options_update_pkt *)pkt);
+
+        case BB_UPDATE_TECH_MENU:
+            return bb_process_techs(c, (bb_options_update_pkt *)pkt);
+
+        case BB_UPDATE_CONFIG:
+            return bb_process_config(c, (bb_options_update_pkt *)pkt);
+
+        case LOBBY_ARROW_CHANGE_TYPE:
+            return dc_process_arrow(c, (uint8_t)flags);
+
+        case BB_ADD_GUILDCARD_TYPE:
+        case BB_DEL_GUILDCARD_TYPE:
+        case BB_SORT_GUILDCARD_TYPE:
+        case BB_ADD_BLOCKED_USER_TYPE:
+        case BB_DEL_BLOCKED_USER_TYPE:
+        case BB_SET_GUILDCARD_COMMENT_TYPE:
+            /* Let the shipgate deal with these... */
+            shipgate_fw_bb(&ship->sg, pkt, 0, c);
+            return 0;
+
+        case BLACKLIST_TYPE:
+            return bb_process_blacklist(c, (bb_blacklist_update_pkt *)pkt);
+
+        case SIMPLE_MAIL_TYPE:
+            return bb_process_mail(c, (bb_simple_mail_pkt *)pkt);
+
+        case AUTOREPLY_SET_TYPE:
+            return client_set_autoreply(c, ((bb_autoreply_set_pkt *)pkt)->msg,
+                                        len - 8);
+
+        case AUTOREPLY_CLEAR_TYPE:
+            return client_disable_autoreply(c);
+
+        case INFOBOARD_WRITE_TYPE:
+            return process_bb_infoboard(c, (bb_write_info_pkt *)pkt);
+
+        case INFOBOARD_TYPE:
+            return send_infoboard(c, c->cur_lobby);
+
+        case GUILD_SEARCH_TYPE:
+            return bb_process_guild_search(c, (bb_guild_search_pkt *)pkt);
+
+        case BB_SET_GUILDCARD_TEXT_TYPE:
+            return bb_set_guild_text(c, (bb_guildcard_set_txt_pkt *)pkt);
+
+        case BB_FULL_CHARACTER_TYPE:
+            /* Ignore for now... */
+            return 0;
+
+        default:
+            debug(DBG_LOG, "Unknown packet!\n");
+            print_packet((unsigned char *)pkt, len);
+            return -3;
+    }
+}
+
 /* Process any packet that comes into a block. */
 int block_process_pkt(ship_client_t *c, uint8_t *pkt) {
     switch(c->version) {
@@ -2197,6 +2779,9 @@ int block_process_pkt(ship_client_t *c, uint8_t *pkt) {
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
             return dc_process_pkt(c, pkt);
+
+        case CLIENT_VERSION_BB:
+            return bb_process_pkt(c, pkt);
     }
 
     return -1;

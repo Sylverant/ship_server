@@ -38,12 +38,16 @@ int pkt_log_stop(ship_client_t *i);
 char *istrncpy(iconv_t ic, char *outs, const char *ins, int out_len);
 size_t strlen16(const uint16_t *str);
 char *istrncpy16(iconv_t ic, char *outs, const uint16_t *ins, int out_len);
+uint16_t *strcpy16(uint16_t *d, const uint16_t *s);
+uint16_t *strcat16(uint16_t *d, const uint16_t *s);
 
 void *xmalloc(size_t size);
 const void *my_ntop(struct sockaddr_storage *addr, char str[INET6_ADDRSTRLEN]);
 int open_sock(int family, uint16_t port);
 
 const char *skip_lang_code(const char *input);
+
+void make_disp_data(ship_client_t *s, ship_client_t *d, void *buf);
 
 /* Actually implemented in list.c, not utils.c. */
 int send_player_list(ship_client_t *c, char *params);

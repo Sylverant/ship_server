@@ -120,6 +120,60 @@ int handle_dc_gcsend(ship_client_t *d, subcmd_dc_gcsend_t *pkt) {
 
             return send_pkt_dc(d, (dc_pkt_hdr_t *)&pc);
         }
+
+        case CLIENT_VERSION_BB:
+        {
+            subcmd_bb_gcsend_t bb;
+            iconv_t ic;
+            size_t in, out;
+            ICONV_CONST char *inptr;
+            char *outptr;
+
+            /* Convert from Shift-JIS/ISO-8859-1 to UTF-16. */
+            if(pkt->text[1] == 'J') {
+                ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+            }
+            else {
+                ic = iconv_open("UTF-16LE", "ISO-8859-1");
+            }
+
+            if(ic == (iconv_t)-1) {
+                return 0;
+            }
+
+            memset(&bb, 0, sizeof(subcmd_bb_gcsend_t));
+
+            /* First the name. */
+            bb.name[0] = LE16('\t');
+            bb.name[1] = LE16('J');
+            in = 24;
+            out = 44;
+            inptr = pkt->name;
+            outptr = (char *)&bb.name[2];
+            iconv(ic, &inptr, &in, &outptr, &out);
+
+            /* Then the text. */
+            in = 88;
+            out = 176;
+            inptr = pkt->text;
+            outptr = (char *)bb.text;
+            iconv(ic, &inptr, &in, &outptr, &out);
+            iconv_close(ic);
+
+            /* Copy the rest over. */
+            bb.hdr.pkt_len = LE16(0x0114);
+            bb.hdr.pkt_type = LE16(GAME_COMMAND2_TYPE);
+            bb.hdr.flags = LE32(d->client_id);
+            bb.type = SUBCMD_GUILDCARD;
+            bb.size = 0x43;
+            bb.guildcard = pkt->guildcard;
+            bb.one = 1;
+            bb.language = pkt->language;
+            bb.section = pkt->section;
+            bb.char_class = pkt->char_class;
+
+            return send_pkt_bb(d, (bb_pkt_hdr_t *)&bb);
+        }
     }
 
     return 0;
@@ -243,6 +297,30 @@ static int handle_pc_gcsend(ship_client_t *d, subcmd_pc_gcsend_t *pkt) {
 
             return send_pkt_dc(d, (dc_pkt_hdr_t *)&gc);
         }
+
+        case CLIENT_VERSION_BB:
+        {
+            subcmd_bb_gcsend_t bb;
+
+            /* Fill in the packet... */
+            memset(&bb, 0, sizeof(subcmd_bb_gcsend_t));
+            bb.hdr.pkt_len = LE16(0x0114);
+            bb.hdr.pkt_type = LE16(GAME_COMMAND2_TYPE);
+            bb.hdr.flags = LE32(d->client_id);
+            bb.type = SUBCMD_GUILDCARD;
+            bb.size = 0x43;
+            bb.guildcard = pkt->guildcard;
+            bb.name[0] = LE16('\t');
+            bb.name[1] = LE16('J');
+            memcpy(&bb.name[2], pkt->name, 28);
+            memcpy(bb.text, pkt->text, 176);
+            bb.one = 1;
+            bb.language = pkt->language;
+            bb.section = pkt->section;
+            bb.char_class = pkt->char_class;
+
+            return send_pkt_bb(d, (bb_pkt_hdr_t *)&bb);
+        }
     }
 
     return 0;
@@ -338,6 +416,220 @@ static int handle_gc_gcsend(ship_client_t *d, subcmd_gc_gcsend_t *pkt) {
             pc.char_class = pkt->char_class;
 
             return send_pkt_dc(d, (dc_pkt_hdr_t *)&pc);
+        }
+
+        case CLIENT_VERSION_BB:
+        {
+            subcmd_bb_gcsend_t bb;
+            iconv_t ic;
+            size_t in, out;
+            ICONV_CONST char *inptr;
+            char *outptr;
+
+            /* Convert from Shift-JIS/ISO-8859-1 to UTF-16. */
+            if(pkt->text[1] == 'J') {
+                ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+            }
+            else {
+                ic = iconv_open("UTF-16LE", "ISO-8859-1");
+            }
+
+            if(ic == (iconv_t)-1) {
+                return 0;
+            }
+
+            memset(&bb, 0, sizeof(subcmd_bb_gcsend_t));
+
+            /* First the name. */
+            bb.name[0] = LE16('\t');
+            bb.name[1] = LE16('J');
+            in = 24;
+            out = 44;
+            inptr = pkt->name;
+            outptr = (char *)&bb.name[2];
+            iconv(ic, &inptr, &in, &outptr, &out);
+
+            /* Then the text. */
+            in = 88;
+            out = 176;
+            inptr = pkt->text;
+            outptr = (char *)bb.text;
+            iconv(ic, &inptr, &in, &outptr, &out);
+            iconv_close(ic);
+
+            /* Copy the rest over. */
+            bb.hdr.pkt_len = LE16(0x0114);
+            bb.hdr.pkt_type = LE16(GAME_COMMAND2_TYPE);
+            bb.hdr.flags = LE32(d->client_id);
+            bb.type = SUBCMD_GUILDCARD;
+            bb.size = 0x43;
+            bb.guildcard = pkt->guildcard;
+            bb.one = 1;
+            bb.language = pkt->language;
+            bb.section = pkt->section;
+            bb.char_class = pkt->char_class;
+
+            return send_pkt_bb(d, (bb_pkt_hdr_t *)&bb);
+        }
+    }
+
+    return 0;
+}
+
+static int handle_bb_gcsend(ship_client_t *s, ship_client_t *d) {
+    iconv_t ic;
+    size_t in, out;
+    ICONV_CONST char *inptr;
+    char *outptr;
+
+    /* This differs based on the destination client's version. */
+    switch(d->version) {
+        case CLIENT_VERSION_DCV1:
+        case CLIENT_VERSION_DCV2:
+        {
+            subcmd_dc_gcsend_t dc;
+    
+            /* Convert from UTF-16 to Shift-JIS/ISO-8859-1. */
+            ic = iconv_open("ISO-8859-1", "UTF-16LE");
+
+            if(ic == (iconv_t)-1) {
+                return 0;
+            }
+
+            memset(&dc, 0, sizeof(dc));
+
+            /* First the name. */
+            memset(&dc.name, '-', 16);
+            in = 48;
+            out = 24;
+            inptr = (char *)&s->pl->bb.character.name[2];
+            outptr = dc.name;
+            iconv(ic, &inptr, &in, &outptr, &out);
+
+            /* Then the text. */
+            in = 176;
+            out = 88;
+            inptr = (char *)s->bb_pl->guildcard_desc;
+            outptr = dc.text;
+            iconv(ic, &inptr, &in, &outptr, &out);
+            iconv_close(ic);
+
+            /* Copy the rest over. */
+            dc.hdr.pkt_type = GAME_COMMAND2_TYPE;
+            dc.hdr.flags = (uint8_t)d->client_id;
+            dc.hdr.pkt_len = LE16(0x0088);
+            dc.type = SUBCMD_GUILDCARD;
+            dc.size = 0x21;
+            dc.unused = 0;
+            dc.tag = LE32(0x00010000);
+            dc.guildcard = LE32(s->guildcard);
+            dc.unused2 = 0;
+            dc.one = 1;
+            dc.language = s->language_code;
+            dc.section = s->pl->bb.character.section;
+            dc.char_class = s->pl->bb.character.ch_class;
+            dc.padding[0] = dc.padding[1] = dc.padding[2] = 0;
+
+            return send_pkt_dc(d, (dc_pkt_hdr_t *)&dc);
+        }
+
+        case CLIENT_VERSION_PC:
+        {
+            subcmd_pc_gcsend_t pc;
+
+            memset(&pc, 0, sizeof(pc));
+
+            /* First the name and text... */
+            memcpy(pc.name, &s->pl->bb.character.name[2], 28);
+            memcpy(pc.text, s->bb_pl->guildcard_desc, 176);
+
+            /* Copy the rest over. */
+            pc.hdr.pkt_type = GAME_COMMAND2_TYPE;
+            pc.hdr.flags = (uint8_t)d->client_id;
+            pc.hdr.pkt_len = LE16(0x00F8);
+            pc.type = SUBCMD_GUILDCARD;
+            pc.size = 0x3D;
+            pc.unused = 0;
+            pc.tag = LE32(0x00010000);
+            pc.guildcard = LE32(s->guildcard);
+            pc.padding = 0;
+            pc.one = 1;
+            pc.language = s->language_code;
+            pc.section = s->pl->bb.character.section;
+            pc.char_class = s->pl->bb.character.ch_class;
+
+            return send_pkt_dc(d, (dc_pkt_hdr_t *)&pc);
+        }
+
+        case CLIENT_VERSION_GC:
+        case CLIENT_VERSION_EP3:
+        {
+            subcmd_gc_gcsend_t gc;
+
+            /* Convert from UTF-16 to Shift-JIS/ISO-8859-1. */
+            ic = iconv_open("ISO-8859-1", "UTF-16LE");
+
+            if(ic == (iconv_t)-1) {
+                return 0;
+            }
+
+            memset(&gc, 0, sizeof(gc));
+
+            /* First the name. */
+            memset(&gc.name, '-', 16);
+            in = 48;
+            out = 24;
+            inptr = (char *)&s->pl->bb.character.name[2];
+            outptr = gc.name;
+            iconv(ic, &inptr, &in, &outptr, &out);
+
+            /* Then the text. */
+            in = 176;
+            out = 88;
+            inptr = (char *)s->bb_pl->guildcard_desc;
+            outptr = gc.text;
+            iconv(ic, &inptr, &in, &outptr, &out);
+            iconv_close(ic);
+
+            /* Copy the rest over. */
+            gc.hdr.pkt_type = GAME_COMMAND2_TYPE;
+            gc.hdr.flags = (uint8_t)d->client_id;
+            gc.hdr.pkt_len = LE16(0x0098);
+            gc.type = SUBCMD_GUILDCARD;
+            gc.size = 0x25;
+            gc.unused = 0;
+            gc.tag = LE32(0x00010000);
+            gc.guildcard = LE32(s->guildcard);
+            gc.padding = 0;
+            gc.one = 1;
+            gc.language = s->language_code;
+            gc.section = s->pl->bb.character.section;
+            gc.char_class = s->pl->bb.character.ch_class;
+
+            return send_pkt_dc(d, (dc_pkt_hdr_t *)&gc);
+        }
+
+        case CLIENT_VERSION_BB:
+        {
+            subcmd_bb_gcsend_t bb;
+
+            /* Fill in the packet... */
+            memset(&bb, 0, sizeof(subcmd_bb_gcsend_t));
+            bb.hdr.pkt_len = LE16(0x0114);
+            bb.hdr.pkt_type = LE16(GAME_COMMAND2_TYPE);
+            bb.hdr.flags = LE32(d->client_id);
+            bb.type = SUBCMD_GUILDCARD;
+            bb.size = 0x43;
+            bb.guildcard = LE32(s->guildcard);
+            memcpy(bb.name, s->pl->bb.character.name, 32);
+            memcpy(bb.team_name, s->bb_opts->team_name, 32);
+            memcpy(bb.text, s->bb_pl->guildcard_desc, 176);
+            bb.one = 1;
+            bb.language = s->language_code;
+            bb.section = s->pl->bb.character.section;
+            bb.char_class = s->pl->bb.character.ch_class;
+
+            return send_pkt_bb(d, (bb_pkt_hdr_t *)&bb);
         }
     }
 
@@ -1050,6 +1342,42 @@ int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
     return rv;
 }
 
+int subcmd_bb_handle_one(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+    ship_client_t *dest;
+    uint8_t type = pkt->type;
+    int rv = -1;
+    uint32_t dnum = LE32(pkt->hdr.flags);
+
+    pthread_mutex_lock(&l->mutex);
+
+    /* Find the destination. */
+    dest = l->clients[dnum];
+
+    /* The destination is now offline, don't bother sending it. */
+    if(!dest) {
+        pthread_mutex_unlock(&l->mutex);
+        return 0;
+    }
+
+    switch(type) {
+        case SUBCMD_GUILDCARD:
+            rv = handle_bb_gcsend(c, dest);
+            break;
+
+        default:
+#ifdef LOG_UNKNOWN_SUBS
+            debug(DBG_LOG, "Unknown 0x62/0x6D: 0x%02X\n", type);
+            print_packet((unsigned char *)pkt, LE16(pkt->hdr.pkt_len));
+#endif /* LOG_UNKNOWN_SUBS */
+            /* Forward the packet unchanged to the destination. */
+            rv = send_pkt_bb(dest, (bb_pkt_hdr_t *)pkt);
+    }
+
+    pthread_mutex_unlock(&l->mutex);
+    return rv;
+}
+
 /* Handle a 0x60 packet. */
 int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
     uint8_t type = pkt->type;
@@ -1154,6 +1482,31 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
     /* Broadcast anything we don't care to check anything about. */
     if(!sent) {
         rv = lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt, 0);
+    }
+
+    pthread_mutex_unlock(&l->mutex);
+    return rv;
+}
+
+int subcmd_bb_handle_bcast(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
+    uint8_t type = pkt->type;
+    lobby_t *l = c->cur_lobby;
+    int rv, sent = 1;
+
+    pthread_mutex_lock(&l->mutex);
+
+    switch(type) {
+        default:
+#ifdef LOG_UNKNOWN_SUBS
+            debug(DBG_LOG, "Unknown 0x60: 0x%02X\n", type);
+            print_packet((unsigned char *)pkt, LE16(pkt->hdr.pkt_len));
+#endif /* LOG_UNKNOWN_SUBS */
+            sent = 0;
+    }
+
+    /* Broadcast anything we don't care to check anything about. */
+    if(!sent) {
+        rv = lobby_send_pkt_bb(l, c, (bb_pkt_hdr_t *)pkt, 0);
     }
 
     pthread_mutex_unlock(&l->mutex);

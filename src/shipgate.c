@@ -340,7 +340,7 @@ int shipgate_reconnect(shipgate_conn_t *conn) {
 
 /* Send the shipgate a character data save request. */
 int shipgate_send_cdata(shipgate_conn_t *c, uint32_t gc, uint32_t slot,
-                        const void *cdata) {
+                        const void *cdata, int len) {
     uint8_t *sendbuf = get_sendbuf();
     shipgate_char_data_pkt *pkt = (shipgate_char_data_pkt *)sendbuf;
 
@@ -350,19 +350,19 @@ int shipgate_send_cdata(shipgate_conn_t *c, uint32_t gc, uint32_t slot,
     }
 
     /* Fill in the header. */
-    pkt->hdr.pkt_len = htons(sizeof(shipgate_char_data_pkt));
+    pkt->hdr.pkt_len = htons(sizeof(shipgate_char_data_pkt) + len);
     pkt->hdr.pkt_type = htons(SHDR_TYPE_CDATA);
-    pkt->hdr.pkt_unc_len = htons(sizeof(shipgate_char_data_pkt));
+    pkt->hdr.pkt_unc_len = htons(sizeof(shipgate_char_data_pkt) + len);
     pkt->hdr.flags = htons(SHDR_NO_DEFLATE);
 
     /* Fill in the body. */
     pkt->guildcard = htonl(gc);
     pkt->slot = htonl(slot);
     pkt->padding = 0;
-    memcpy(pkt->data, cdata, 1052); 
+    memcpy(pkt->data, cdata, len); 
 
     /* Send it away. */
-    return send_crypt(c, sizeof(shipgate_char_data_pkt), sendbuf);
+    return send_crypt(c, sizeof(shipgate_char_data_pkt) + len, sendbuf);
 }
 
 /* Send the shipgate a request for character data. */
@@ -414,12 +414,16 @@ static int handle_dc_greply(shipgate_conn_t *conn, dc_guild_reply_pkt *pkt) {
                 pthread_mutex_lock(&c->mutex);
 
                 if(c->guildcard == dest) {
+#ifdef SYLVERANT_ENABLE_IPV6
                     if(pkt->hdr.flags != 6) {
                         send_guild_reply_sg(c, pkt);
                     }
                     else {
                         send_guild_reply6_sg(c, (dc_guild_reply6_pkt *)pkt);
                     }
+#else
+                    send_guild_reply_sg(c, pkt);
+#endif
 
                     done = 1;
                 }
@@ -427,7 +431,6 @@ static int handle_dc_greply(shipgate_conn_t *conn, dc_guild_reply_pkt *pkt) {
                 pthread_mutex_unlock(&c->mutex);
 
                 if(done) {
-                    pthread_mutex_unlock(&b->mutex);
                     break;
                 }
             }
@@ -439,12 +442,123 @@ static int handle_dc_greply(shipgate_conn_t *conn, dc_guild_reply_pkt *pkt) {
     return rv;
 }
 
+static int handle_bb_greply(shipgate_conn_t *conn, bb_guild_reply_pkt *pkt,
+                            uint32_t block) {
+    block_t *b;
+    ship_client_t *c;
+    uint32_t dest = LE32(pkt->gc_search);
+
+    /* Make sure the block given is sane */
+    if(block > ship->cfg->blocks || !ship->blocks[block - 1]) {
+        return 0;
+    }
+
+    b = ship->blocks[block - 1];
+    pthread_mutex_lock(&b->mutex);
+
+    /* Look for the client */
+    TAILQ_FOREACH(c, b->clients, qentry) {
+        pthread_mutex_lock(&c->mutex);
+
+        if(c->guildcard == dest) {
+            send_pkt_bb(c, (bb_pkt_hdr_t *)pkt);
+            pthread_mutex_unlock(&c->mutex);
+            pthread_mutex_unlock(&b->mutex);
+            return 0;
+        }
+
+        pthread_mutex_unlock(&c->mutex);
+    }
+
+    pthread_mutex_unlock(&b->mutex);
+
+    return 0;
+}
+
+static void handle_mail_autoreply(shipgate_conn_t *c, ship_client_t *s,
+                                  uint32_t dest) {
+    int i;
+
+    switch(s->version) {
+        case CLIENT_VERSION_PC:
+        {
+            pc_simple_mail_pkt p;
+            dc_pkt_hdr_t *dc = (dc_pkt_hdr_t *)&p;
+
+            /* Build the packet up */
+            memset(&p, 0, sizeof(pc_simple_mail_pkt));
+            dc->pkt_type = SIMPLE_MAIL_TYPE;
+            dc->pkt_len = LE16(PC_SIMPLE_MAIL_LENGTH);
+            p.tag = LE32(0x00010000);
+            p.gc_sender = LE32(s->guildcard);
+            p.gc_dest = LE32(dest);
+
+            /* Copy the name */
+            for(i = 0; i < 16; ++i) {
+                p.name[i] = LE16(s->pl->v1.name[i]);
+            }
+
+            /* Copy the message */
+            memcpy(p.stuff, s->autoreply, s->autoreply_len);
+
+            /* Send it */
+            shipgate_fw_pc(c, dc, 0, s);
+            break;
+        }
+
+        case CLIENT_VERSION_GC:
+        case CLIENT_VERSION_EP3:
+        {
+            dc_simple_mail_pkt p;
+            dc_pkt_hdr_t *dc = (dc_pkt_hdr_t *)&p;
+
+            /* Build the packet up */
+            memset(&p, 0, sizeof(dc_simple_mail_pkt));
+            p.hdr.pkt_type = SIMPLE_MAIL_TYPE;
+            p.hdr.pkt_len = LE16(DC_SIMPLE_MAIL_LENGTH);
+            p.tag = LE32(0x00010000);
+            p.gc_sender = LE32(s->guildcard);
+            p.gc_dest = LE32(dest);
+
+            /* Copy the name and message */
+            memcpy(p.name, s->pl->v1.name, 16);
+            memcpy(p.stuff, s->autoreply, s->autoreply_len);
+
+            /* Send it */
+            shipgate_fw_dc(c, dc, 0, s);
+            break;
+        }
+
+        case CLIENT_VERSION_BB:
+        {
+            bb_simple_mail_pkt p;
+
+            /* Build the packet up */
+            memset(&p, 0, sizeof(bb_simple_mail_pkt));
+            p.hdr.pkt_type = LE16(SIMPLE_MAIL_TYPE);
+            p.hdr.pkt_len = LE16(BB_SIMPLE_MAIL_LENGTH);
+            p.tag = LE32(0x00010000);
+            p.gc_sender = LE32(s->guildcard);
+            p.gc_dest = LE32(dest);
+
+            /* Copy the name, date/time, and message */
+            memcpy(p.name, s->pl->bb.character.name, 32);
+            memcpy(p.message, s->autoreply, s->autoreply_len);
+
+            /* Send it */
+            shipgate_fw_bb(c, (bb_pkt_hdr_t *)&p, 0, s);
+            break;
+        }
+    }
+}
+
 static int handle_dc_mail(shipgate_conn_t *conn, dc_simple_mail_pkt *pkt) {
     int i;
     ship_t *s = conn->ship;
     block_t *b;
     ship_client_t *c;
     uint32_t dest = LE32(pkt->gc_dest);
+    uint32_t sender = LE32(pkt->gc_sender);
     int done = 0, rv = 0;
 
     for(i = 0; i < s->cfg->blocks && !done; ++i) {
@@ -457,8 +571,8 @@ static int handle_dc_mail(shipgate_conn_t *conn, dc_simple_mail_pkt *pkt) {
 
                 if(c->guildcard == dest && c->pl) {
                     /* Make sure the user hasn't blacklisted the sender. */
-                    if(client_has_blacklisted(c, LE32(pkt->gc_sender)) ||
-                       client_has_ignored(c, LE32(pkt->gc_sender))) {
+                    if(client_has_blacklisted(c, sender) ||
+                       client_has_ignored(c, sender)) {
                         done = 1;
                         pthread_mutex_unlock(&c->mutex);
                         rv = 0;
@@ -466,21 +580,8 @@ static int handle_dc_mail(shipgate_conn_t *conn, dc_simple_mail_pkt *pkt) {
                     }
 
                     /* Check if the user has an autoreply set. */
-                    if(c->autoreply) {
-                        dc_simple_mail_pkt rep;
-                        memset(&rep, 0, sizeof(rep));
-
-                        rep.hdr.pkt_type = SIMPLE_MAIL_TYPE;
-                        rep.hdr.flags = 0;
-                        rep.hdr.pkt_len = LE16(DC_SIMPLE_MAIL_LENGTH);
-
-                        rep.tag = LE32(0x00010000);
-                        rep.gc_sender = pkt->gc_dest;
-                        rep.gc_dest = pkt->gc_sender;
-
-                        strcpy(rep.name, c->pl->v1.name);
-                        strcpy(rep.stuff, c->autoreply);
-                        shipgate_fw_dc(&ship->sg, (dc_pkt_hdr_t *)&rep, 0);
+                    if(c->autoreply_on) {
+                        handle_mail_autoreply(conn, c, sender);
                     }
 
                     /* Forward the packet there. */
@@ -510,6 +611,7 @@ static int handle_pc_mail(shipgate_conn_t *conn, pc_simple_mail_pkt *pkt) {
     block_t *b;
     ship_client_t *c;
     uint32_t dest = LE32(pkt->gc_dest);
+    uint32_t sender = LE32(pkt->gc_sender);
     int done = 0, rv = 0;
 
     for(i = 0; i < s->cfg->blocks && !done; ++i) {
@@ -522,8 +624,8 @@ static int handle_pc_mail(shipgate_conn_t *conn, pc_simple_mail_pkt *pkt) {
 
                 if(c->guildcard == dest && c->pl) {
                     /* Make sure the user hasn't blacklisted the sender. */
-                    if(client_has_blacklisted(c, LE32(pkt->gc_sender)) ||
-                       client_has_ignored(c, LE32(pkt->gc_sender))) {
+                    if(client_has_blacklisted(c, sender) ||
+                       client_has_ignored(c, sender)) {
                         done = 1;
                         pthread_mutex_unlock(&c->mutex);
                         rv = 0;
@@ -532,25 +634,64 @@ static int handle_pc_mail(shipgate_conn_t *conn, pc_simple_mail_pkt *pkt) {
 
                     /* Check if the user has an autoreply set. */
                     if(c->autoreply) {
-                        dc_simple_mail_pkt rep;
-                        memset(&rep, 0, sizeof(rep));
-
-                        rep.hdr.pkt_type = SIMPLE_MAIL_TYPE;
-                        rep.hdr.flags = 0;
-                        rep.hdr.pkt_len = LE16(DC_SIMPLE_MAIL_LENGTH);
-
-                        rep.tag = LE32(0x00010000);
-                        rep.gc_sender = pkt->gc_dest;
-                        rep.gc_dest = pkt->gc_sender;
-
-                        strcpy(rep.name, c->pl->v1.name);
-                        strcpy(rep.stuff, c->autoreply);
-                        shipgate_fw_dc(&ship->sg, (dc_pkt_hdr_t *)&rep, 0);
+                        handle_mail_autoreply(conn, c, sender);
                     }
 
                     /* Forward the packet there. */
                     rv = send_simple_mail(CLIENT_VERSION_PC, c,
                                           (dc_pkt_hdr_t *)pkt);
+                    done = 1;
+                }
+
+                pthread_mutex_unlock(&c->mutex);
+
+                if(done) {
+                    pthread_mutex_unlock(&b->mutex);
+                    break;
+                }
+            }
+
+            pthread_mutex_unlock(&b->mutex);
+        }
+    }
+
+    return rv;
+}
+
+static int handle_bb_mail(shipgate_conn_t *conn, bb_simple_mail_pkt *pkt) {
+    int i;
+    ship_t *s = conn->ship;
+    block_t *b;
+    ship_client_t *c;
+    uint32_t dest = LE32(pkt->gc_dest);
+    uint32_t sender = LE32(pkt->gc_sender);
+    int done = 0, rv = 0;
+
+    for(i = 0; i < s->cfg->blocks && !done; ++i) {
+        if(s->blocks[i]) {
+            b = s->blocks[i];
+            pthread_mutex_lock(&b->mutex);
+
+            TAILQ_FOREACH(c, b->clients, qentry) {
+                pthread_mutex_lock(&c->mutex);
+
+                if(c->guildcard == dest && c->pl) {
+                    /* Make sure the user hasn't blacklisted the sender. */
+                    if(client_has_blacklisted(c, sender) ||
+                       client_has_ignored(c, sender)) {
+                        done = 1;
+                        pthread_mutex_unlock(&c->mutex);
+                        rv = 0;
+                        break;
+                    }
+
+                    /* Check if the user has an autoreply set. */
+                    if(c->autoreply) {
+                        handle_mail_autoreply(conn, c, sender);
+                    }
+
+                    /* Forward the packet there. */
+                    rv = send_bb_simple_mail(c, pkt);
                     done = 1;
                 }
 
@@ -617,7 +758,7 @@ static int handle_dc_gsearch(shipgate_conn_t *conn, dc_guild_search_pkt *pkt,
     return rv;
 }
 
-static int handle_dc(shipgate_conn_t *conn, shipgate_fw_pkt *pkt) {
+static int handle_dc(shipgate_conn_t *conn, shipgate_fw_9_pkt *pkt) {
     dc_pkt_hdr_t *dc = (dc_pkt_hdr_t *)pkt->pkt;
     uint8_t type = dc->pkt_type;
 
@@ -636,13 +777,29 @@ static int handle_dc(shipgate_conn_t *conn, shipgate_fw_pkt *pkt) {
     return -2;
 }
 
-static int handle_pc(shipgate_conn_t *conn, shipgate_fw_pkt *pkt) {
+static int handle_pc(shipgate_conn_t *conn, shipgate_fw_9_pkt *pkt) {
     dc_pkt_hdr_t *dc = (dc_pkt_hdr_t *)pkt->pkt;
     uint8_t type = dc->pkt_type;
 
     switch(type) {
         case SIMPLE_MAIL_TYPE:
             return handle_pc_mail(conn, (pc_simple_mail_pkt *)dc);
+    }
+
+    return -2;
+}
+
+static int handle_bb(shipgate_conn_t *conn, shipgate_fw_9_pkt *pkt) {
+    bb_pkt_hdr_t *bb = (bb_pkt_hdr_t *)pkt->pkt;
+    uint8_t type = LE16(bb->pkt_type);
+    uint32_t block = ntohl(pkt->block);
+
+    switch(type) {
+        case SIMPLE_MAIL_TYPE:
+            return handle_bb_mail(conn, (bb_simple_mail_pkt *)bb);
+
+        case GUILD_REPLY_TYPE:
+            return handle_bb_greply(conn, (bb_guild_reply_pkt *)bb, block);
     }
 
     return -2;
@@ -696,6 +853,7 @@ static int handle_sstatus(shipgate_conn_t *conn, shipgate_ship_status_pkt *p) {
     ship_t *s = conn->ship;
     miniship_t *i, *j, *k;
     uint16_t code = 0;
+    int ship_found = 0;
     void *tmp;
 
     /* Did a ship go down or come up? */
@@ -704,9 +862,15 @@ static int handle_sstatus(shipgate_conn_t *conn, shipgate_ship_status_pkt *p) {
         TAILQ_FOREACH(i, &s->ships, qentry) {
             /* Clear the ship from the list, if we've found the right one */
             if(sid == i->ship_id) {
-                TAILQ_REMOVE(&s->ships, i, qentry);                
+                TAILQ_REMOVE(&s->ships, i, qentry);  
+                ship_found = 1;
                 break;
             }
+        }
+
+        if(!ship_found) {
+            debug(DBG_WARN, "Shipgate attempted to close non-existant ship!\n");
+            return 0;
         }
 
         /* Figure out if the menu code is still in use */
@@ -813,6 +977,8 @@ static int handle_creq(shipgate_conn_t *conn, shipgate_char_data_pkt *pkt) {
     uint32_t dest = ntohl(pkt->guildcard);
     int done = 0;
     uint16_t flags = ntohs(pkt->hdr.flags);
+    uint16_t plen = ntohs(pkt->hdr.pkt_len);
+    int clen = plen - sizeof(shipgate_char_data_pkt);
 
     /* Make sure the packet looks sane */
     if(!(flags & SHDR_RESPONSE)) {
@@ -827,16 +993,17 @@ static int handle_creq(shipgate_conn_t *conn, shipgate_char_data_pkt *pkt) {
             TAILQ_FOREACH(c, b->clients, qentry) {
                 pthread_mutex_lock(&c->mutex);
 
-                if(c->guildcard == dest && c->pl) {
-                    /* We've found them, overwrite their data, and send the
-                       refresh packet. */
-                    memcpy(c->pl, pkt->data, 1052);
-                    send_lobby_join(c, c->cur_lobby);
-                    done = 1;
-                }
-                else if(c->guildcard == dest) {
-                    /* Act like they don't exist for right now (they don't
-                       really exist right now) */
+                if(c->guildcard == dest) {
+                    if(!c->bb_pl && c->pl) {
+                        /* We've found them, overwrite their data, and send the
+                           refresh packet. */
+                        memcpy(c->pl, pkt->data, clen);
+                        send_lobby_join(c, c->cur_lobby);
+                    }
+                    else if(c->bb_pl) {
+                        memcpy(c->bb_pl, pkt->data, clen);
+                    }
+
                     done = 1;
                 }
 
@@ -1645,6 +1812,43 @@ out:
     return 0;
 }
 
+static int handle_bbopts(shipgate_conn_t *c, shipgate_bb_opts_pkt *pkt) {
+    ship_t *s = c->ship;
+    block_t *b;
+    ship_client_t *i;
+    uint32_t gc = ntohl(pkt->guildcard), block = ntohl(pkt->block);
+
+    /* Check the block number first. */
+    if(block > s->cfg->blocks) {
+        return 0;
+    }
+
+    b = s->blocks[block - 1];
+    pthread_mutex_lock(&b->mutex);
+
+    /* Find the requested client. */
+    TAILQ_FOREACH(i, b->clients, qentry) {
+        if(i->guildcard == gc) {
+            pthread_mutex_lock(&i->mutex);
+
+            /* Copy the user's options */
+            memcpy(i->bb_opts, &pkt->opts, sizeof(sylverant_bb_db_opts_t));
+
+            /* Move the user on now that we have everything... */
+            send_lobby_list(i);
+            send_bb_full_char(i);
+            send_simple(i, CHAR_DATA_REQUEST_TYPE, 0);
+
+            pthread_mutex_unlock(&i->mutex);
+            goto out;
+        }
+    }
+
+out:
+    pthread_mutex_unlock(&b->mutex);
+    return 0;
+}
+
 static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
     uint16_t type = ntohs(pkt->pkt_type);
     uint16_t flags = ntohs(pkt->flags);
@@ -1671,6 +1875,7 @@ static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
         switch(type) {
             case SHDR_TYPE_DC:
             case SHDR_TYPE_PC:
+            case SHDR_TYPE_BB:
                 /* Ignore these for now, we shouldn't get them. */
                 return 0;
 
@@ -1705,10 +1910,13 @@ static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
     else {
         switch(type) {
             case SHDR_TYPE_DC:
-                return handle_dc(conn, (shipgate_fw_pkt *)pkt);
+                return handle_dc(conn, (shipgate_fw_9_pkt *)pkt);
 
             case SHDR_TYPE_PC:
-                return handle_pc(conn, (shipgate_fw_pkt *)pkt);
+                return handle_pc(conn, (shipgate_fw_9_pkt *)pkt);
+
+            case SHDR_TYPE_BB:
+                return handle_bb(conn, (shipgate_fw_9_pkt *)pkt);
 
             case SHDR_TYPE_SSTATUS:
                 return handle_sstatus(conn, (shipgate_ship_status_pkt *)pkt);
@@ -1764,6 +1972,9 @@ static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
                 }
 
                 return handle_useropt(conn, (shipgate_user_opt_pkt *)pkt);
+
+            case SHDR_TYPE_BBOPTS:
+                return handle_bbopts(conn, (shipgate_bb_opts_pkt *)pkt);
         }
     }
 
@@ -1959,12 +2170,13 @@ int shipgate_send_cnt(shipgate_conn_t *c, uint16_t clients, uint16_t games) {
 }
 
 /* Forward a Dreamcast packet to the shipgate. */
-int shipgate_fw_dc(shipgate_conn_t *c, const void *dcp, uint32_t flags) {
+int shipgate_fw_dc(shipgate_conn_t *c, const void *dcp, uint32_t flags,
+                   ship_client_t *req) {
     uint8_t *sendbuf = get_sendbuf();
     const dc_pkt_hdr_t *dc = (const dc_pkt_hdr_t *)dcp;
-    shipgate_fw_pkt *pkt = (shipgate_fw_pkt *)sendbuf;
+    shipgate_fw_9_pkt *pkt = (shipgate_fw_9_pkt *)sendbuf;
     int dc_len = LE16(dc->pkt_len);
-    int full_len = sizeof(shipgate_fw_pkt) + dc_len;
+    int full_len = sizeof(shipgate_fw_9_pkt) + dc_len;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -1975,8 +2187,9 @@ int shipgate_fw_dc(shipgate_conn_t *c, const void *dcp, uint32_t flags) {
     memmove(pkt->pkt, dc, dc_len);
 
     /* Round up the packet size, if needed. */
-    if(full_len & 0x07)
-        full_len = (full_len + 8) & 0xFFF8;
+    while(full_len & 0x07) {
+        sendbuf[full_len++] = 0;
+    }
 
     /* Fill in the shipgate header */
     pkt->hdr.pkt_len = htons(full_len);
@@ -1984,18 +2197,21 @@ int shipgate_fw_dc(shipgate_conn_t *c, const void *dcp, uint32_t flags) {
     pkt->hdr.pkt_unc_len = htons(full_len);
     pkt->hdr.flags = htons(SHDR_NO_DEFLATE);
     pkt->fw_flags = htonl(flags);
+    pkt->guildcard = htonl(req->guildcard);
+    pkt->block = htonl(req->cur_block->b);
 
     /* Send the packet away */
     return send_crypt(c, full_len, sendbuf);
 }
 
 /* Forward a PC packet to the shipgate. */
-int shipgate_fw_pc(shipgate_conn_t *c, const void *pcp, uint32_t flags) {
+int shipgate_fw_pc(shipgate_conn_t *c, const void *pcp, uint32_t flags,
+                   ship_client_t *req) {
     uint8_t *sendbuf = get_sendbuf();
     const dc_pkt_hdr_t *pc = (const dc_pkt_hdr_t *)pcp;
-    shipgate_fw_pkt *pkt = (shipgate_fw_pkt *)sendbuf;
+    shipgate_fw_9_pkt *pkt = (shipgate_fw_9_pkt *)sendbuf;
     int pc_len = LE16(pc->pkt_len);
-    int full_len = sizeof(shipgate_fw_pkt) + pc_len;
+    int full_len = sizeof(shipgate_fw_9_pkt) + pc_len;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -2006,8 +2222,9 @@ int shipgate_fw_pc(shipgate_conn_t *c, const void *pcp, uint32_t flags) {
     memmove(pkt->pkt, pc, pc_len);
 
     /* Round up the packet size, if needed. */
-    if(full_len & 0x07)
-        full_len = (full_len + 8) & 0xFFF8;
+    while(full_len & 0x07) {
+        sendbuf[full_len++] = 0;
+    }
 
     /* Fill in the shipgate header */
     pkt->hdr.pkt_len = htons(full_len);
@@ -2015,6 +2232,43 @@ int shipgate_fw_pc(shipgate_conn_t *c, const void *pcp, uint32_t flags) {
     pkt->hdr.pkt_unc_len = htons(full_len);
     pkt->hdr.flags = htons(SHDR_NO_DEFLATE);
     pkt->fw_flags = flags;
+    pkt->guildcard = htonl(req->guildcard);
+    pkt->block = htonl(req->cur_block->b);
+
+    /* Send the packet away */
+    return send_crypt(c, full_len, sendbuf);
+}
+
+/* Forward a Blue Burst packet to the shipgate. */
+int shipgate_fw_bb(shipgate_conn_t *c, const void *bbp, uint32_t flags,
+                   ship_client_t *req) {
+    uint8_t *sendbuf = get_sendbuf();
+    const bb_pkt_hdr_t *bb = (const bb_pkt_hdr_t *)bbp;
+    shipgate_fw_9_pkt *pkt = (shipgate_fw_9_pkt *)sendbuf;
+    int bb_len = LE16(bb->pkt_len);
+    int full_len = sizeof(shipgate_fw_9_pkt) + bb_len;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Copy the packet, unchanged */
+    memmove(pkt->pkt, bb, bb_len);
+
+    /* Round up the packet size, if needed. */
+    while(full_len & 0x07) {
+        sendbuf[full_len++] = 0;
+    }
+
+    /* Fill in the shipgate header */
+    pkt->hdr.pkt_len = htons(full_len);
+    pkt->hdr.pkt_type = htons(SHDR_TYPE_BB);
+    pkt->hdr.pkt_unc_len = htons(full_len);
+    pkt->hdr.flags = htons(SHDR_NO_DEFLATE);
+    pkt->fw_flags = flags;
+    pkt->guildcard = htonl(req->guildcard);
+    pkt->block = htonl(req->cur_block->b);
 
     /* Send the packet away */
     return send_crypt(c, full_len, sendbuf);
@@ -2217,6 +2471,34 @@ int shipgate_send_block_login(shipgate_conn_t *c, int on, uint32_t user,
     return send_crypt(c, sizeof(shipgate_block_login_pkt), sendbuf);
 }
 
+int shipgate_send_block_login_bb(shipgate_conn_t *c, int on, uint32_t user,
+                                 uint32_t block, const uint16_t *name) {
+    uint8_t *sendbuf = get_sendbuf();
+    shipgate_block_login_pkt *pkt = (shipgate_block_login_pkt *)sendbuf;
+    uint16_t type = on ? SHDR_TYPE_BLKLOGIN : SHDR_TYPE_BLKLOGOUT;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Scrub the buffer */
+    memset(pkt, 0, sizeof(shipgate_block_login_pkt));
+
+    /* Fill in the packet */
+    pkt->hdr.pkt_len = htons(sizeof(shipgate_block_login_pkt));
+    pkt->hdr.pkt_type = htons(type);
+    pkt->hdr.pkt_unc_len = pkt->hdr.pkt_len;
+    pkt->hdr.flags = htons(SHDR_NO_DEFLATE);
+
+    pkt->guildcard = htonl(user);
+    pkt->blocknum = htonl(block);
+    memcpy(pkt->ch_name, name, 32);
+
+    /* Send the packet away */
+    return send_crypt(c, sizeof(shipgate_block_login_pkt), sendbuf);
+}
+
 /* Send a lobby change packet */
 int shipgate_send_lobby_chg(shipgate_conn_t *c, uint32_t user, uint32_t lobby,
                             const char *lobby_name) {
@@ -2284,7 +2566,15 @@ int shipgate_send_clients(shipgate_conn_t *c) {
 
                     /* Fill in what we have */
                     pkt->entries[count].guildcard = htonl(cl->guildcard);
-                    strncpy(pkt->entries[count].ch_name, cl->pl->v1.name, 32);
+
+                    if(cl->version != CLIENT_VERSION_BB) {
+                        strncpy(pkt->entries[count].ch_name, cl->pl->v1.name,
+                                32);
+                    }
+                    else {
+                        memcpy(pkt->entries[count].ch_name,
+                               cl->bb_pl->character.name, 32);
+                    }
 
                     if(l) {
                         pkt->entries[count].lobby = htonl(l->lobby_id);
@@ -2452,4 +2742,50 @@ int shipgate_send_user_opt(shipgate_conn_t *c, uint32_t gc, uint32_t block,
 
     /* Send the packet away */
     return send_crypt(c, pkt_len, sendbuf);
+}
+
+int shipgate_send_bb_opt_req(shipgate_conn_t *c, uint32_t gc, uint32_t block) {
+    uint8_t *sendbuf = get_sendbuf();
+    shipgate_bb_opts_req_pkt *pkt = (shipgate_bb_opts_req_pkt *)sendbuf;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Fill in the packet */
+    pkt->hdr.pkt_len = htons(sizeof(shipgate_bb_opts_req_pkt));
+    pkt->hdr.pkt_type = htons(SHDR_TYPE_BBOPT_REQ);
+    pkt->hdr.pkt_unc_len = pkt->hdr.pkt_len;
+    pkt->hdr.flags = htons(SHDR_NO_DEFLATE);
+
+    pkt->guildcard = htonl(gc);
+    pkt->block = htonl(block);
+
+    /* Send the packet away */
+    return send_crypt(c, sizeof(shipgate_bb_opts_req_pkt), sendbuf);
+}
+
+/* Send the user's Blue Burst options to be stored */
+int shipgate_send_bb_opts(shipgate_conn_t *c, ship_client_t *cl) {
+    uint8_t *sendbuf = get_sendbuf();
+    shipgate_bb_opts_pkt *pkt = (shipgate_bb_opts_pkt *)sendbuf;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Fill in the packet */
+    pkt->hdr.pkt_len = htons(sizeof(shipgate_bb_opts_pkt));
+    pkt->hdr.pkt_type = htons(SHDR_TYPE_BBOPTS);
+    pkt->hdr.pkt_unc_len = pkt->hdr.pkt_len;
+    pkt->hdr.flags = htons(SHDR_NO_DEFLATE);
+
+    pkt->guildcard = htonl(cl->guildcard);
+    pkt->block = htonl(cl->cur_block->b);
+    memcpy(&pkt->opts, cl->bb_opts, sizeof(sylverant_bb_db_opts_t));
+
+    /* Send the packet away */
+    return send_crypt(c, sizeof(shipgate_bb_opts_pkt), sendbuf);
 }

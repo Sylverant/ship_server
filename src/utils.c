@@ -27,6 +27,7 @@
 
 #include "utils.h"
 #include "clients.h"
+#include "player.h"
 
 #ifdef HAVE_LIBMINI18N
 mini18n_t langs[CLIENT_LANG_COUNT];
@@ -61,6 +62,10 @@ void fprint_packet(FILE *fp, const unsigned char *pkt, int len, int rec) {
 
     /* Print the packet both in hex and ASCII. */
     while(pos < pkt + len) {
+        if(line == 0 && type == 0) {
+            fprintf(fp, "%04X ", (uint16_t)(pos - pkt));
+        }
+
         if(type == 0) {
             fprintf(fp, "%02X ", *pos);
         }
@@ -341,6 +346,24 @@ char *istrncpy16(iconv_t ic, char *outs, const uint16_t *ins, int out_len) {
     return outptr;
 }
 
+uint16_t *strcpy16(uint16_t *d, const uint16_t *s) {
+    uint16_t *rv = d;
+    while((*d++ = *s++)) ;
+    return rv;
+}
+
+uint16_t *strcat16(uint16_t *d, const uint16_t *s) {
+    uint16_t *rv = d;
+
+    /* Move to the end of the string */
+    while(*d++) ;
+
+    /* Tack on the new part */
+    --d;
+    while((*d++ = *s++)) ;
+    return rv;
+}
+
 void *xmalloc(size_t size) {
     void *rv = malloc(size);
 
@@ -459,6 +482,146 @@ const char *skip_lang_code(const char *input) {
     }
 
     return input;
+}
+
+static void convert_dcpcgc_to_bb(ship_client_t *s, uint8_t *buf) {
+    sylverant_bb_char_t *c;
+    v1_player_t *sp = &s->pl->v1;
+    int i;
+
+    /* Inventory doesn't change... */
+    memcpy(buf, &s->pl->v1.inv, sizeof(sylverant_inventory_t));
+
+    /* Copy the character data now... */
+    c = (sylverant_bb_char_t *)(buf + sizeof(sylverant_inventory_t));
+    memset(c, 0, sizeof(sylverant_bb_char_t));
+    c->atp = sp->atp;
+    c->mst = sp->mst;
+    c->evp = sp->evp;
+    c->hp = sp->hp;
+    c->dfp = sp->dfp;
+    c->ata = sp->ata;
+    c->lck = sp->lck;
+    c->unk1 = sp->unk1;
+    c->unk2[0] = sp->unk2[0];
+    c->unk2[1] = sp->unk2[1];
+    c->level = sp->level;
+    c->exp = sp->exp;
+    c->meseta = sp->meseta;
+    strcpy(c->guildcard_str, "         0");
+    c->unk3[0] = sp->unk3[0];
+    c->unk3[1] = sp->unk3[1];
+    c->name_color = sp->name_color;
+    c->model = sp->model;
+    memcpy(c->unused, sp->unused, 15);
+    c->name_color_checksum = sp->name_color_checksum;
+    c->section = sp->section;
+    c->ch_class = sp->ch_class;
+    c->v2flags = sp->v2flags;
+    c->version = sp->version;
+    c->v1flags = sp->v1flags;
+    c->costume = sp->costume;
+    c->skin = sp->skin;
+    c->face = sp->face;
+    c->head = sp->head;
+    c->hair = sp->hair;
+    c->hair_r = sp->hair_r;
+    c->hair_g = sp->hair_g;
+    c->hair_b = sp->hair_b;
+    c->prop_x = sp->prop_x;
+    c->prop_y = sp->prop_y;
+    memcpy(c->config, sp->config, 0x48);
+    memcpy(c->techniques, sp->techniques, 0x14);
+
+    /* Copy the name over */
+    c->name[0] = LE16('\t');
+    c->name[1] = LE16('J');
+
+    for(i = 2; i < 16; ++i) {
+        c->name[i] = LE16(sp->name[i - 2]);
+    }
+}
+
+static void convert_bb_to_dcpcgc(ship_client_t *s, uint8_t *buf) {
+    sylverant_bb_char_t *sp = &s->pl->bb.character;
+    v1_player_t *c = (v1_player_t *)buf;
+    iconv_t ic;
+
+    memset(c, 0, sizeof(v1_player_t));
+
+    ic = iconv_open("ISO-8859-1", "UTF-16LE");
+    if(ic == (iconv_t)-1) {
+        return;
+    }
+
+    /* Inventory doesn't change... */
+    memcpy(buf, &s->pl->bb.inv, sizeof(sylverant_inventory_t));
+
+    /* Copy the character data now... */
+    c->atp = sp->atp;
+    c->mst = sp->mst;
+    c->evp = sp->evp;
+    c->hp = sp->hp;
+    c->dfp = sp->dfp;
+    c->ata = sp->ata;
+    c->lck = sp->lck;
+    c->unk1 = sp->unk1;
+    c->unk2[0] = sp->unk2[0];
+    c->unk2[1] = sp->unk2[1];
+    c->level = sp->level;
+    c->exp = sp->exp;
+    c->meseta = sp->meseta;
+    strcpy(c->name, "--------");
+    c->unk3[0] = sp->unk3[0];
+    c->unk3[1] = sp->unk3[1];
+    c->name_color = sp->name_color;
+    c->model = sp->model;
+    memcpy(c->unused, sp->unused, 15);
+    c->name_color_checksum = sp->name_color_checksum;
+    c->section = sp->section;
+    c->ch_class = sp->ch_class;
+    c->v2flags = sp->v2flags;
+    c->version = sp->version;
+    c->v1flags = sp->v1flags;
+    c->costume = sp->costume;
+    c->skin = sp->skin;
+    c->face = sp->face;
+    c->head = sp->head;
+    c->hair = sp->hair;
+    c->hair_r = sp->hair_r;
+    c->hair_g = sp->hair_g;
+    c->hair_b = sp->hair_b;
+    c->prop_x = sp->prop_x;
+    c->prop_y = sp->prop_y;
+    memcpy(c->config, sp->config, 0x48);
+    memcpy(c->techniques, sp->techniques, 0x14);
+
+    /* Copy the name over */
+    istrncpy16(ic, c->name, &sp->name[2], 16);
+    iconv_close(ic);
+}
+
+void make_disp_data(ship_client_t *s, ship_client_t *d, void *buf) {
+    uint8_t *bp = (uint8_t *)buf;
+
+    if(s->version < CLIENT_VERSION_BB && d->version < CLIENT_VERSION_BB) {
+        /* Neither are Blue Burst -- trivial */
+        memcpy(buf, &s->pl->v1, sizeof(v1_player_t));
+    }
+    else if(s->version == d->version) {
+        /* Both are Blue Burst -- easy */
+        memcpy(bp, &s->pl->bb.inv, sizeof(sylverant_inventory_t));
+        bp += sizeof(sylverant_inventory_t);
+        memcpy(bp, &s->pl->bb.character, sizeof(sylverant_bb_char_t));
+    }
+    else if(s->version != CLIENT_VERSION_BB) {
+        /* The data we're copying is from an earlier version... */
+        convert_dcpcgc_to_bb(s, bp);
+    }
+    else if(d->version != CLIENT_VERSION_BB) {
+        /* The data we're copying is from Blue Burst... */
+        convert_bb_to_dcpcgc(s, bp);
+    }
 }
 
 /* Initialize mini18n support. */

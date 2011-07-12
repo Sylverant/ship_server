@@ -36,7 +36,7 @@ typedef struct ship ship_t;
 
 #define PACKED __attribute__((packed))
 
-#define SHIPGATE_PROTO_VER  8
+#define SHIPGATE_PROTO_VER  9
 
 /* The header that is prepended to any packets sent to the shipgate. */
 typedef struct shipgate_hdr {
@@ -188,6 +188,16 @@ typedef struct shipgate_fw {
     uint8_t pkt[0];
 } PACKED shipgate_fw_pkt;
 
+/* A forwarded player packet (updated in proto v9). */
+typedef struct shipgate_fw_9 {
+    shipgate_hdr_t hdr;
+    uint32_t ship_id;
+    uint32_t fw_flags;
+    uint32_t guildcard;
+    uint32_t block;
+    uint8_t pkt[0];
+} PACKED shipgate_fw_9_pkt;
+
 /* A packet telling clients that a ship has started or dropped. */
 typedef struct shipgate_ship_status {
     shipgate_hdr_t hdr;
@@ -211,7 +221,7 @@ typedef struct shipgate_char_data {
     uint32_t guildcard;
     uint32_t slot;
     uint32_t padding;
-    uint8_t data[1052];
+    uint8_t data[];
 } PACKED shipgate_char_data_pkt;
 
 /* A packet sent to request saved character data. */
@@ -366,6 +376,21 @@ typedef struct shipgate_user_options {
     shipgate_user_opt_t options[];
 } PACKED shipgate_user_opt_pkt;
 
+/* Packet used to request Blue Burst options */
+typedef struct shipgate_bb_opts_req {
+    shipgate_hdr_t hdr;
+    uint32_t guildcard;
+    uint32_t block;
+} PACKED shipgate_bb_opts_req_pkt;
+
+/* Packet used to send Blue Burst options to a user */
+typedef struct shipgate_bb_opts {
+    shipgate_hdr_t hdr;
+    uint32_t guildcard;
+    uint32_t block;
+    sylverant_bb_db_opts_t opts;
+} PACKED shipgate_bb_opts_pkt;
+
 #undef PACKED
 
 /* Size of the shipgate login packet. */
@@ -407,6 +432,8 @@ static const char shipgate_login_msg[] =
 #define SHDR_TYPE_GLOBALMSG 0x0023      /* A Global message packet */
 #define SHDR_TYPE_USEROPT   0x0024      /* A user's options -- sent on login */
 #define SHDR_TYPE_LOGIN6    0x0025      /* A ship login (potentially IPv6) */
+#define SHDR_TYPE_BBOPTS    0x0026      /* A user's Blue Burst options */
+#define SHDR_TYPE_BBOPT_REQ 0x0027      /* Request Blue Burst options */
 
 /* Flags that can be set in the login packet */
 #define LOGIN_FLAG_GMONLY   0x00000001  /* Only Global GMs are allowed */
@@ -416,6 +443,7 @@ static const char shipgate_login_msg[] =
 #define LOGIN_FLAG_NOPC     0x00000040  /* Do not allow PSOPC clients */
 #define LOGIN_FLAG_NOEP12   0x00000080  /* Do not allow PSO Ep1&2 clients */
 #define LOGIN_FLAG_NOEP3    0x00000100  /* Do not allow PSO Ep3 clients */
+#define LOGIN_FLAG_NOBB     0x00000200  /* Do not allow PSOBB clients */
 
 /* General error codes */
 #define ERR_NO_ERROR            0x00000000
@@ -475,17 +503,23 @@ int shipgate_send_ship_info(shipgate_conn_t *c, ship_t *ship);
 int shipgate_send_cnt(shipgate_conn_t *c, uint16_t clients, uint16_t games);
 
 /* Forward a Dreamcast packet to the shipgate. */
-int shipgate_fw_dc(shipgate_conn_t *c, const void *dcp, uint32_t flags);
+int shipgate_fw_dc(shipgate_conn_t *c, const void *dcp, uint32_t flags,
+                   ship_client_t *req);
 
 /* Forward a PC packet to the shipgate. */
-int shipgate_fw_pc(shipgate_conn_t *c, const void *pcp, uint32_t flags);
+int shipgate_fw_pc(shipgate_conn_t *c, const void *pcp, uint32_t flags,
+                   ship_client_t *req);
+
+/* Forward a Blue Burst packet to the shipgate. */
+int shipgate_fw_bb(shipgate_conn_t *c, const void *bbp, uint32_t flags,
+                   ship_client_t *req);
 
 /* Send a ping packet to the server. */
 int shipgate_send_ping(shipgate_conn_t *c, int reply);
 
 /* Send the shipgate a character data save request. */
 int shipgate_send_cdata(shipgate_conn_t *c, uint32_t gc, uint32_t slot,
-                        const void *cdata);
+                        const void *cdata, int len);
 
 /* Send the shipgate a request for character data. */
 int shipgate_send_creq(shipgate_conn_t *c, uint32_t gc, uint32_t slot);
@@ -507,6 +541,8 @@ int shipgate_send_friend_add(shipgate_conn_t *c, uint32_t user,
 /* Send a block login/logout */
 int shipgate_send_block_login(shipgate_conn_t *c, int on, uint32_t user,
                               uint32_t block, const char *name);
+int shipgate_send_block_login_bb(shipgate_conn_t *c, int on, uint32_t user,
+                                 uint32_t block, const uint16_t *name);
 
 /* Send a lobby change packet */
 int shipgate_send_lobby_chg(shipgate_conn_t *c, uint32_t user, uint32_t lobby,
@@ -530,5 +566,11 @@ int shipgate_send_global_msg(shipgate_conn_t *c, uint32_t gc,
 /* Send a user option update packet */
 int shipgate_send_user_opt(shipgate_conn_t *c, uint32_t gc, uint32_t block,
                            uint32_t opt, uint32_t len, const uint8_t *data);
+
+/* Send a request for the user's Blue Burst options */
+int shipgate_send_bb_opt_req(shipgate_conn_t *c, uint32_t gc, uint32_t block);
+
+/* Send the user's Blue Burst options to be stored */
+int shipgate_send_bb_opts(shipgate_conn_t *c, ship_client_t *cl);
 
 #endif /* !SHIPGATE_H */

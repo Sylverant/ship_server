@@ -54,20 +54,33 @@
 const static char dc_welcome_copyright[] =
     "DreamCast Lobby Server. Copyright SEGA Enterprises. 1999";
 
+/* This must be placed into the copyright field in the BB welcome packet. */
+const static char bb_welcome_copyright[] =
+    "Phantasy Star Online Blue Burst Game Server. Copyright 1999-2004 "
+    "SONICTEAM.";
+
 /* Retrieve the thread-specific sendbuf for the current thread. */
 uint8_t *get_sendbuf();
 
 /* Send a Dreamcast welcome packet to the given client. */
 int send_dc_welcome(ship_client_t *c, uint32_t svect, uint32_t cvect);
 
+/* Send a Blue Burst welcome packet to the given client. */
+int send_bb_welcome(ship_client_t *c, const uint8_t svect[48],
+                    const uint8_t cvect[48]);
+
 /* Send the Dreamcast security packet to the given client. */
 int send_dc_security(ship_client_t *c, uint32_t gc, uint8_t *data,
                      int data_len);
 
+/* Send a Blue Burst security packet to the given client. */
+int send_bb_security(ship_client_t *c, uint32_t gc, uint32_t err,
+                     uint32_t team, const void *data, int data_len);
+
 /* Send a redirect packet to the given client. */
 int send_redirect(ship_client_t *c, in_addr_t ip, uint16_t port);
 
-#ifdef ENABLE_IPV6
+#ifdef SYLVERANT_ENABLE_IPV6
 
 /* Send a redirect packet (IPv6) to the given client. */
 int send_redirect6(ship_client_t *c, const uint8_t ip[16], uint16_t port);
@@ -94,6 +107,7 @@ int send_lobby_join(ship_client_t *c, lobby_t *l);
 
 /* Send a prepared packet to the given client. */
 int send_pkt_dc(ship_client_t *c, dc_pkt_hdr_t *pkt);
+int send_pkt_bb(ship_client_t *c, bb_pkt_hdr_t *pkt);
 
 /* Send a packet to all clients in the lobby when a new player joins. */
 int send_lobby_add_player(lobby_t *l, ship_client_t *c);
@@ -108,17 +122,17 @@ int send_lobby_chat(lobby_t *l, ship_client_t *sender, char msg[]);
 int send_lobby_wchat(lobby_t *l, ship_client_t *sender, uint16_t *msg,
                      size_t len);
 
-/* Send a guild card search reply to the specified client. */
-int send_guild_reply(ship_client_t *c, uint32_t gc, in_addr_t ip, uint16_t port,
-                     char game[], int block, char ship[], uint32_t lobby,
-                     char name[]);
+/* Send a talk packet to the specified lobby (UTF-16 - Blue Burst). */
+int send_lobby_bbchat(lobby_t *l, ship_client_t *sender, uint16_t *msg,
+                      size_t len);
 
-#ifdef ENABLE_IPV6
+/* Send a guild card search reply to the specified client. */
+int send_guild_reply(ship_client_t *c, ship_client_t *s);
+
+#ifdef SYLVERANT_ENABLE_IPV6
 
 /* Send an IPv6 guild card search reply to the specified client. */
-int send_guild_reply6(ship_client_t *c, uint32_t gc, const uint8_t ip[16],
-                      uint16_t port, const char *game, int block,
-                      const char *ship, uint32_t lobby, const char *name);
+int send_guild_reply6(ship_client_t *c, ship_client_t *s);
 
 #endif
 
@@ -194,7 +208,7 @@ int send_choice_reply(ship_client_t *c, dc_choice_set_pkt *search);
 /* Send a premade guild card search reply to the specified client. */
 int send_guild_reply_sg(ship_client_t *c, dc_guild_reply_pkt *pkt);
 
-#ifdef ENABLE_IPV6
+#ifdef SYLVERANT_ENABLE_IPV6
 
 /* Send a premade IPv6 guild card search reply to the specified client. */
 int send_guild_reply6_sg(ship_client_t *c, dc_guild_reply6_pkt *pkt);
@@ -203,6 +217,8 @@ int send_guild_reply6_sg(ship_client_t *c, dc_guild_reply6_pkt *pkt);
 
 /* Send a simple mail packet, doing any needed transformations. */
 int send_simple_mail(int version, ship_client_t *c, dc_pkt_hdr_t *pkt);
+int send_bb_simple_mail(ship_client_t *c, bb_simple_mail_pkt *pkt);
+int send_mail_autoreply(ship_client_t *d, ship_client_t *s);
 
 /* Send the lobby's info board to the client. */
 int send_infoboard(ship_client_t *c, lobby_t *l);
@@ -221,6 +237,9 @@ int send_pc_game_type_sel(ship_client_t *c);
 int send_lobby_mod_stat(lobby_t *l, ship_client_t *c, int stat, int amt);
 
 /* Send an Episode 3 Jukebox music change packet to the lobby. */
-int send_lobby_ep3_jukebox(lobby_t *l, uint16_t music); 
+int send_lobby_ep3_jukebox(lobby_t *l, uint16_t music);
+
+/* Send a user the Blue Burst full character/option data packet. */
+int send_bb_full_char(ship_client_t *c);
 
 #endif /* !SHIP_PACKETS_H */

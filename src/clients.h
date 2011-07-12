@@ -18,7 +18,7 @@
 #ifndef CLIENTS_H_COUNTS
 #define CLIENTS_H_COUNTS
 
-#define CLIENT_VERSION_COUNT    5
+#define CLIENT_VERSION_COUNT    6
 #define CLIENT_LANG_COUNT       8
 
 #endif /* !CLIENTS_H_COUNTS */
@@ -58,6 +58,22 @@ typedef struct lobby lobby_t;
 
 #define CLIENT_IGNORE_LIST_SIZE     10
 
+#ifdef PACKED
+#undef PACKED
+#endif
+
+#define PACKED __attribute__((packed))
+
+/* Data that is set on the client via the 0xE6 packet */
+typedef struct bb_security_data {
+    uint32_t magic;                     /* Must be 0xDEADBEEF */
+    uint8_t slot;                       /* Selected character */
+    uint8_t sel_char;                   /* Have they selected a character? */
+    uint8_t reserved[34];               /* Set to 0 */
+} PACKED bb_security_data_t;
+
+#undef PACKED
+
 /* Ship server client structure. */
 struct ship_client {
     TAILQ_ENTRY(ship_client) qentry;
@@ -83,6 +99,8 @@ struct ship_client {
     int sendbuf_start;
     int item_count;
 
+    int autoreply_len;
+
     float x;
     float y;
     float z;
@@ -102,6 +120,7 @@ struct ship_client {
     uint8_t privilege;
     uint8_t cc_char;
     uint8_t q_lang;
+    uint8_t autoreply_on;
 
     item_t items[30];
 
@@ -111,7 +130,7 @@ struct ship_client {
 
     unsigned char *recvbuf;
     unsigned char *sendbuf;
-    char *autoreply;
+    void *autoreply;
     FILE *logfile;
 
     char *infoboard;                    /* Points into the player struct. */
@@ -122,6 +141,10 @@ struct ship_client {
     time_t last_message;
     time_t last_sent;
     time_t join_time;
+
+    bb_security_data_t sec_data;
+    sylverant_bb_db_char_t *bb_pl;
+    sylverant_bb_db_opts_t *bb_opts;
 
 #ifdef HAVE_PYTHON
     PyObject *pyobj;
@@ -181,6 +204,7 @@ extern pthread_key_t sendbuf_key;
 #define CLIENT_VERSION_PC       2
 #define CLIENT_VERSION_GC       3
 #define CLIENT_VERSION_EP3      4
+#define CLIENT_VERSION_BB       5
 
 /* Language codes. */
 #define CLIENT_LANG_JAPANESE        0
@@ -238,10 +262,10 @@ int client_process_pkt(ship_client_t *c);
 uint8_t *get_recvbuf(void);
 
 /* Set up a simple mail autoreply. */
-int client_set_autoreply(ship_client_t *c, dc_pkt_hdr_t *pkt);
+int client_set_autoreply(ship_client_t *c, void *buf, uint16_t len);
 
-/* Clear the simple mail autoreply from a client (if set). */
-int client_clear_autoreply(ship_client_t *c);
+/* Disable the user's simple mail autoreply (if set). */
+int client_disable_autoreply(ship_client_t *c);
 
 /* Check if a client has blacklisted someone. */
 int client_has_blacklisted(ship_client_t *c, uint32_t gc);

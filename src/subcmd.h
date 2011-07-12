@@ -37,6 +37,13 @@ typedef struct subcmd_pkt {
     uint8_t data[0];
 } PACKED subcmd_pkt_t;
 
+typedef struct bb_subcmd_pkt {
+    bb_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint8_t data[0];
+} PACKED bb_subcmd_pkt_t;
+
 /* Guild card send packet (Dreamcast). */
 typedef struct subcmd_dc_gcsend {
     dc_pkt_hdr_t hdr;
@@ -88,6 +95,22 @@ typedef struct subcmd_gc_gcsend {
     uint8_t section;
     uint8_t char_class;
 } PACKED subcmd_gc_gcsend_t;
+
+/* Guild card send packet (Blue Burst) */
+typedef struct subcmd_bb_gc_send {
+    bb_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint16_t unused;
+    uint32_t guildcard;
+    uint16_t name[24];
+    uint16_t team_name[16];
+    uint16_t text[88];
+    uint8_t one;
+    uint8_t language;
+    uint8_t section;
+    uint8_t char_class;
+} PACKED subcmd_bb_gcsend_t;
 
 typedef struct subcmd_itemreq {
     dc_pkt_hdr_t hdr;
@@ -399,9 +422,11 @@ typedef struct subcmd_pc_grave {
 
 /* Handle a 0x62/0x6D packet. */
 int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt);
+int subcmd_bb_handle_one(ship_client_t *c, bb_subcmd_pkt_t *pkt);
 
 /* Handle a 0x60 packet. */
 int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt);
+int subcmd_bb_handle_bcast(ship_client_t *c, bb_subcmd_pkt_t *pkt);
 
 /* Handle an 0xC9/0xCB packet from Episode 3. */
 int subcmd_handle_ep3_bcast(ship_client_t *c, subcmd_pkt_t *pkt);

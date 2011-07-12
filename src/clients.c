@@ -89,6 +89,8 @@ ship_client_t *client_create_connection(int sock, int version, int type,
                                         struct sockaddr *ip, socklen_t size) {
     ship_client_t *rv = (ship_client_t *)malloc(sizeof(ship_client_t));
     uint32_t client_seed_dc, server_seed_dc;
+    uint8_t client_seed_bb[48], server_seed_bb[48];
+    int i;
     pthread_mutexattr_t attr;
 
     if(!rv) {
@@ -109,6 +111,34 @@ ship_client_t *client_create_connection(int sock, int version, int type,
         }
 
         memset(rv->pl, 0, sizeof(player_t));
+
+        if(version == CLIENT_VERSION_BB) {
+            rv->bb_pl =
+                (sylverant_bb_db_char_t *)malloc(sizeof(sylverant_bb_db_char_t));
+
+            if(!rv->bb_pl) {
+                perror("malloc");
+                free(rv->pl);
+                free(rv);
+                close(sock);
+                return NULL;
+            }
+
+            rv->bb_opts =
+                (sylverant_bb_db_opts_t *)malloc(sizeof(sylverant_bb_db_opts_t));
+
+            if(!rv->bb_opts) {
+                perror("malloc");
+                free(rv->bb_pl);
+                free(rv->pl);
+                free(rv);
+                close(sock);
+                return NULL;
+            }
+
+            memset(rv->bb_pl, 0, sizeof(sylverant_bb_db_char_t));
+            memset(rv->bb_opts, 0, sizeof(sylverant_bb_db_opts_t));
+        }
     }
 
     /* Store basic parameters in the client structure. */
@@ -187,6 +217,33 @@ ship_client_t *client_create_connection(int sock, int version, int type,
             }
 
             break;
+
+        case CLIENT_VERSION_BB:
+            /* Generate the encryption keys for the client and server. */
+            for(i = 0; i < 48; i += 4) {
+                client_seed_dc = genrand_int32();
+                server_seed_dc = genrand_int32();
+
+                client_seed_bb[i + 0] = (uint8_t)(client_seed_dc >>  0);
+                client_seed_bb[i + 1] = (uint8_t)(client_seed_dc >>  8);
+                client_seed_bb[i + 2] = (uint8_t)(client_seed_dc >> 16);
+                client_seed_bb[i + 3] = (uint8_t)(client_seed_dc >> 24);
+                server_seed_bb[i + 0] = (uint8_t)(server_seed_dc >>  0);
+                server_seed_bb[i + 1] = (uint8_t)(server_seed_dc >>  8);
+                server_seed_bb[i + 2] = (uint8_t)(server_seed_dc >> 16);
+                server_seed_bb[i + 3] = (uint8_t)(server_seed_dc >> 24);
+            }
+
+            CRYPT_CreateKeys(&rv->skey, server_seed_bb, CRYPT_BLUEBURST);
+            CRYPT_CreateKeys(&rv->ckey, client_seed_bb, CRYPT_BLUEBURST);
+            rv->hdr_size = 8;
+
+            /* Send the client the welcome packet, or die trying. */
+            if(send_bb_welcome(rv, server_seed_bb, client_seed_bb)) {
+                goto err;
+            }
+
+            break;
     }
 
     /* Insert it at the end of our list, and we're done. */
@@ -214,11 +271,20 @@ err:
 }
 
 /* Destroy a connection, closing the socket and removing it from the list. */
-void client_destroy_connection(ship_client_t *c, struct client_queue *clients) {
+void client_destroy_connection(ship_client_t *c,
+                               struct client_queue *clients) {
     time_t now;
     char tstr[26];
 
     TAILQ_REMOVE(clients, c, qentry);
+
+    /* If the client was on Blue Burst, update their db character */
+    if(c->version == CLIENT_VERSION_BB &&
+       !(c->flags & CLIENT_FLAG_TYPE_SHIP)) {
+        shipgate_send_cdata(&ship->sg, c->guildcard, c->sec_data.slot,
+                            c->bb_pl, sizeof(sylverant_bb_db_char_t));
+        shipgate_send_bb_opts(&ship->sg, c);
+    }
 
 #ifdef HAVE_PYTHON
     if(c->flags & CLIENT_FLAG_TYPE_SHIP) {
@@ -230,9 +296,14 @@ void client_destroy_connection(ship_client_t *c, struct client_queue *clients) {
 #endif
 
     /* If the user was on a block, notify the shipgate */
-    if(!(c->flags & CLIENT_FLAG_TYPE_SHIP) && c->pl->v1.name[0]) {
+    if(c->version != CLIENT_VERSION_BB && c->pl && c->pl->v1.name[0]) {
         shipgate_send_block_login(&ship->sg, 0, c->guildcard,
                                   c->cur_block->b, c->pl->v1.name);
+    }
+    else if(c->version == CLIENT_VERSION_BB && c->bb_pl) {
+        shipgate_send_block_login_bb(&ship->sg, 0, c->guildcard,
+                                     c->cur_block->b,
+                                     c->bb_pl->character.name);
     }
 
     ship_dec_clients(ship);
@@ -277,6 +348,14 @@ void client_destroy_connection(ship_client_t *c, struct client_queue *clients) {
 
     if(c->pl) {
         free(c->pl);
+    }
+
+    if(c->bb_pl) {
+        free(c->bb_pl);
+    }
+
+    if(c->bb_opts) {
+        free(c->bb_opts);
     }
 
     pthread_mutex_destroy(&c->mutex);
@@ -345,6 +424,10 @@ int client_process_pkt(ship_client_t *c) {
 
             case CLIENT_VERSION_PC:
                 pkt_sz = LE16(c->pkt.pc.pkt_len);
+                break;
+
+            case CLIENT_VERSION_BB:
+                pkt_sz = LE16(c->pkt.bb.pkt_len);
                 break;
 
             default:
@@ -442,76 +525,64 @@ uint8_t *get_recvbuf(void) {
 }
 
 /* Set up a simple mail autoreply. */
-int client_set_autoreply(ship_client_t *c, dc_pkt_hdr_t *p) {
+int client_set_autoreply(ship_client_t *c, void *buf, uint16_t len) {
     char *tmp;
-    autoreply_set_pkt *pkt = (autoreply_set_pkt *)p;
 
-    if(c->version == CLIENT_VERSION_PC) {
-        int len = LE16(pkt->hdr.dc.pkt_len) - 4;
-        char str[len];
-        iconv_t ic;
-        size_t in, out;
-        ICONV_CONST char *inptr;
-        char *outptr;
-
-        /* Set up for converting the string. */
-        if(pkt->msg[2] == 'J') {
-            ic = iconv_open("SHIFT_JIS", "UTF-16LE");
-        }
-        else {
-            ic = iconv_open("ISO-8859-1", "UTF-16LE");
-        }
-
-        if(!ic) {
-            perror("iconv_open");
-            return -1;
-        }
-
-        /* Convert to the appropriate encoding. */
-        out = in = len;
-        inptr = pkt->msg;
-        outptr = str;
-        iconv(ic, &inptr, &in, &outptr, &out);
-        iconv_close(ic);
-
-        /* Allocate space for the new string. */
-        tmp = (char *)malloc(strlen(pkt->msg) + 1);
-
-        if(!tmp) {
-            perror("malloc");
-            return -1;
-        }
-
-        strcpy(tmp, str);
-    }
-    else {
-        /* Allocate space for the new string. */
-        tmp = (char *)malloc(strlen(pkt->msg) + 1);
-
-        if(!tmp) {
-            perror("malloc");
-            return -1;
-        }
-
-        strcpy(tmp, pkt->msg);
+    /* Make space for the new autoreply and copy it in. */
+    if(!(tmp = malloc(len))) {
+        debug(DBG_ERROR, "Cannot allocate memory for autoreply (%" PRIu32
+              "):\n%s\n", c->guildcard, strerror(errno));
+        return -1;
     }
 
-    /* Clean up any old autoreply we might have. */
-    if(c->autoreply) {
-        free(c->autoreply);
+    memcpy(tmp, buf, len);
+
+    switch(c->version) {
+        case CLIENT_VERSION_PC:
+            c->pl->pc.autoreply_enabled = LE32(1);
+            c->autoreply_on = 1;
+            break;
+
+        case CLIENT_VERSION_GC:
+        case CLIENT_VERSION_EP3:
+            c->pl->v3.autoreply_enabled = LE32(1);
+            c->autoreply_on = 1;
+            break;
+
+        case CLIENT_VERSION_BB:
+            c->pl->bb.autoreply_enabled = LE32(1);
+            c->autoreply_on = 1;
+            memcpy(c->bb_pl->autoreply, buf, len);
+            memset(((uint8_t *)c->bb_pl->autoreply) + len, 0, 0x158 - len);
+            break;
     }
 
-    /* Finish up by setting the new autoreply string. */
+    /* Clean up and set the new autoreply in place */
+    free(c->autoreply);
     c->autoreply = tmp;
+    c->autoreply_len = (int)len;
 
     return 0;
 }
 
-/* Clear the simple mail autoreply from a client (if set). */
-int client_clear_autoreply(ship_client_t *c) {
-    if(c->autoreply) {
-        free(c->autoreply);
-        c->autoreply = NULL;
+/* Disable the user's simple mail autoreply (if set). */
+int client_disable_autoreply(ship_client_t *c) {
+    switch(c->version) {
+        case CLIENT_VERSION_PC:
+            c->pl->pc.autoreply_enabled = 0;
+            c->autoreply_on = 0;
+            break;
+
+        case CLIENT_VERSION_GC:
+        case CLIENT_VERSION_EP3:
+            c->pl->v3.autoreply_enabled = 0;
+            c->autoreply_on = 0;
+            break;
+
+        case CLIENT_VERSION_BB:
+            c->pl->bb.autoreply_enabled = 0;
+            c->autoreply_on = 0;
+            break;
     }
 
     return 0;
@@ -556,10 +627,18 @@ int client_has_ignored(ship_client_t *c, uint32_t gc) {
 /* Send a message to a client telling them that a friend has logged on/off */
 void client_send_friendmsg(ship_client_t *c, int on, const char *fname,
                            const char *ship, uint32_t block, const char *nick) {
-    send_txt(c, "%s%s %s\n%s %s\n%s BLOCK%02d",
-             on ? __(c, "\tE\tC2") : __(c, "\tE\tC4"), nick,
-             on ? __(c, "online") : __(c, "offline"), __(c, "Character: "),
-             fname, ship, (int)block);
+    if(fname[0] != '\t') {
+        send_txt(c, "%s%s %s\n%s %s\n%s BLOCK%02d",
+                 on ? __(c, "\tE\tC2") : __(c, "\tE\tC4"), nick,
+                 on ? __(c, "online") : __(c, "offline"), __(c, "Character:"),
+                 fname, ship, (int)block);
+    }
+    else {
+        send_txt(c, "%s%s %s\n%s %s\n%s BLOCK%02d",
+                 on ? __(c, "\tE\tC2") : __(c, "\tE\tC4"), nick,
+                 on ? __(c, "online") : __(c, "offline"), __(c, "Character:"),
+                 fname + 2, ship, (int)block);
+    }
 }
 
 #ifdef HAVE_PYTHON
