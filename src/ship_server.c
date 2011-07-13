@@ -39,6 +39,7 @@
 /* The actual ship structures. */
 ship_t *ship;
 int enable_ipv6 = 1;
+int restart_on_shutdown = 0;
 static const char *config_file = NULL;
 static const char *custom_dir = NULL;
 static int dont_daemonize = 0;
@@ -222,9 +223,21 @@ static void install_signal_handlers() {
 int main(int argc, char *argv[]) {
     void *tmp;
     sylverant_ship_t *cfg;
+    char *initial_path;
+    long size;
 
     /* Parse the command line... */
     parse_command_line(argc, argv);
+
+    /* Save the initial path, so that if /restart is used we'll be starting from
+       the same directory. */
+    size = pathconf(".", _PC_PATH_MAX);
+    if(!(initial_path = (char *)malloc(size))) {
+        debug(DBG_WARN, "Out of memory, bailing out!\n");
+    }
+    else if(!getcwd(initial_path, size)) {
+        debug(DBG_WARN, "Cannot save initial path, /restart may not work!\n");
+    }
 
     cfg = load_config();
 
@@ -278,6 +291,17 @@ int main(int argc, char *argv[]) {
     cleanup_i18n();
     client_shutdown();
     sylverant_free_ship_config(cfg);
+
+    if(restart_on_shutdown) {
+        chdir(initial_path);
+        execvp(argv[0], argv);
+
+        /* This should never be reached, since execvp should replace us. If we
+           get here, there was a serious problem... */
+        debug(DBG_ERROR, "Restart failed: %s\n", strerror(errno));
+    }
+
+    free(initial_path);
 
     return 0;
 }

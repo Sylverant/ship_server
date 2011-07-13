@@ -2562,6 +2562,67 @@ static int handle_ver(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
                     SVN_REVISION);
 }
 
+/* Usage: /restart minutes */
+static int handle_restart(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+    int i;
+    ship_client_t *i2;
+    uint32_t when;
+    block_t *b;
+    extern int restart_on_shutdown;     /* in ship_server.c */
+
+    /* Make sure the requester is a local root. */
+    if(!LOCAL_ROOT(c)) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
+    }
+
+    /* Figure out when we're supposed to shut down. */
+    errno = 0;
+    when = (uint32_t)strtoul(params, NULL, 10);
+
+    if(errno != 0) {
+        /* Send a message saying invalid time */
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid time."));
+    }
+
+    /* Give everyone at least a minute */
+    if(when < 1) {
+        when = 1;
+    }
+
+    /* Go through each block and send a notification to everyone. */
+    for(i = 0; i < ship->cfg->blocks; ++i) {
+        b = ship->blocks[i];
+
+        if(b && b->run) {
+            pthread_mutex_lock(&b->mutex);
+
+            /* Send the message to each player. */
+            TAILQ_FOREACH(i2, b->clients, qentry) {
+                pthread_mutex_lock(&i2->mutex);
+
+                if(i2->pl) {
+                    send_txt(i2, "%s %lu %s",
+                             __(i2, "\tE\tC7Ship is going down for\n"
+                                "restart in"),
+                             (unsigned long)when, __(i2, "minutes."));
+                }
+
+                pthread_mutex_unlock(&i2->mutex);
+            }
+
+            pthread_mutex_unlock(&b->mutex);
+        }
+    }
+
+    /* Log the event to the log file */
+    debug(DBG_LOG, "Ship server restart scheduled for %d minutes by %u\n",
+          when, c->guildcard);
+
+    restart_on_shutdown = 1;
+    ship_server_shutdown(ship, time(NULL) + (when * 60));
+    return 0;
+}
+
 static command_t cmds[] = {
     { "warp"     , handle_warp      },
     { "kill"     , handle_kill      },
@@ -2627,6 +2688,7 @@ static command_t cmds[] = {
     { "logout"   , handle_logout    },
     { "override" , handle_override  },
     { "ver"      , handle_ver       },
+    { "restart"  , handle_restart   },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 
