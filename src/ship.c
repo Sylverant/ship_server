@@ -35,6 +35,8 @@
 #include "bans.h"
 #include "scripts.h"
 
+extern int enable_ipv6;
+
 miniship_t *ship_find_ship(ship_t *s, uint32_t sid) {
     miniship_t *i;
 
@@ -86,11 +88,12 @@ static void *ship_thd(void *d) {
     ssize_t sent;
     time_t now;
     time_t last_ban_sweep = time(NULL);
+    int numsocks = 1;
 
 #ifdef SYLVERANT_ENABLE_IPV6
-#define NUMSOCKS 2
-#else
-#define NUMSOCKS 1
+    if(enable_ipv6) {
+        numsocks = 2;
+    }
 #endif
 
     /* Fire up the threads for each block. */
@@ -162,7 +165,7 @@ static void *ship_thd(void *d) {
         }
 
         /* Add the listening sockets to the read fd_set. */
-        for(i = 0; i < NUMSOCKS; ++i) {
+        for(i = 0; i < numsocks; ++i) {
             FD_SET(s->dcsock[i], &readfds);
             nfds = nfds > s->dcsock[i] ? nfds : s->dcsock[i];
             FD_SET(s->pcsock[i], &readfds);
@@ -205,7 +208,7 @@ static void *ship_thd(void *d) {
                 read(s->pipes[1], &len, 1);
             }
 
-            for(i = 0; i < NUMSOCKS; ++i) {
+            for(i = 0; i < numsocks; ++i) {
                 if(FD_ISSET(s->dcsock[i], &readfds)) {
                     len = sizeof(struct sockaddr_storage);
                     if((sock = accept(s->dcsock[i], addr_p, &len)) < 0) {
@@ -462,11 +465,13 @@ static void *ship_thd(void *d) {
     close(s->pipes[0]);
     close(s->pipes[1]);
 #ifdef SYLVERANT_ENABLE_IPV6
-    close(s->bbsock[1]);
-    close(s->ep3sock[1]);
-    close(s->gcsock[1]);
-    close(s->pcsock[1]);
-    close(s->dcsock[1]);
+    if(enable_ipv6) {
+        close(s->bbsock[1]);
+        close(s->ep3sock[1]);
+        close(s->gcsock[1]);
+        close(s->pcsock[1]);
+        close(s->dcsock[1]);
+    }
 #endif
     close(s->bbsock[0]);
     close(s->ep3sock[0]);
@@ -554,29 +559,31 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     }
 
 #ifdef SYLVERANT_ENABLE_IPV6
-    dcsock[1] = open_sock(AF_INET6, s->base_port);
-    if(dcsock[1] < 0) {
-        goto err_close_bb;
-    }
+    if(enable_ipv6) {
+        dcsock[1] = open_sock(AF_INET6, s->base_port);
+        if(dcsock[1] < 0) {
+            goto err_close_bb;
+        }
 
-    pcsock[1] = open_sock(AF_INET6, s->base_port + 1);
-    if(pcsock[1] < 0) {
-        goto err_close_dc_6;
-    }
-    
-    gcsock[1] = open_sock(AF_INET6, s->base_port + 2);
-    if(gcsock[1] < 0) {
-        goto err_close_pc_6;
-    }
-    
-    ep3sock[1] = open_sock(AF_INET6, s->base_port + 3);
-    if(ep3sock[1] < 0) {
-        goto err_close_gc_6;
-    }
+        pcsock[1] = open_sock(AF_INET6, s->base_port + 1);
+        if(pcsock[1] < 0) {
+            goto err_close_dc_6;
+        }
+        
+        gcsock[1] = open_sock(AF_INET6, s->base_port + 2);
+        if(gcsock[1] < 0) {
+            goto err_close_pc_6;
+        }
+        
+        ep3sock[1] = open_sock(AF_INET6, s->base_port + 3);
+        if(ep3sock[1] < 0) {
+            goto err_close_gc_6;
+        }
 
-    bbsock[1] = open_sock(AF_INET6, s->base_port + 4);
-    if(bbsock[1] < 0) {
-        goto err_close_ep3_6;
+        bbsock[1] = open_sock(AF_INET6, s->base_port + 4);
+        if(bbsock[1] < 0) {
+            goto err_close_ep3_6;
+        }
     }
 #endif
 
@@ -743,15 +750,17 @@ err_free:
     free(rv);
 err_close_all:
 #ifdef SYLVERANT_ENABLE_IPV6
-    close(bbsock[1]);
+    if(enable_ipv6) {
+        close(bbsock[1]);
 err_close_ep3_6:
-    close(ep3sock[1]);
+        close(ep3sock[1]);
 err_close_gc_6:
-    close(gcsock[1]);
+        close(gcsock[1]);
 err_close_pc_6:
-    close(pcsock[1]);
+        close(pcsock[1]);
 err_close_dc_6:
-    close(dcsock[1]);
+        close(dcsock[1]);
+    }
 err_close_bb:
 #endif
     close(bbsock[0]);

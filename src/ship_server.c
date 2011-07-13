@@ -38,7 +38,8 @@
 
 /* The actual ship structures. */
 ship_t *ship;
-static char *config_file = NULL;
+int enable_ipv6 = 1;
+static const char *config_file = NULL;
 static const char *custom_dir = NULL;
 static int dont_daemonize = 0;
 
@@ -71,6 +72,9 @@ static void print_help(const char *bin) {
            "                default one.\n"
            "-D directory    Use the specified directory as the root\n"
            "--nodaemon      Don't daemonize\n"
+#ifdef SYLVERANT_ENABLE_IPV6
+           "--no-ipv6       Disable IPv6 support for incoming connections\n"
+#endif
            "--help          Print this help and exit\n\n"
            "Note that if more than one verbosity level is specified, the last\n"
            "one specified will be used. The default is --verbose.\n", bin);
@@ -105,6 +109,9 @@ static void parse_command_line(int argc, char *argv[]) {
         else if(!strcmp(argv[i], "--nodaemon")) {
             dont_daemonize = 1;
         }
+        else if(!strcmp(argv[i], "--no-ipv6")) {
+            enable_ipv6 = 0;
+        }
         else if(!strcmp(argv[i], "--help")) {
             print_help(argv[0]);
             exit(EXIT_SUCCESS);
@@ -124,6 +131,12 @@ static sylverant_ship_t *load_config(void) {
     if(sylverant_read_ship_config(config_file, &cfg)) {
         debug(DBG_ERROR, "Cannot load Sylverant Ship configuration file!\n");
         exit(EXIT_FAILURE);
+    }
+
+    /* If IPv6 support is disabled by the --no-ipv6 flag, clear this so that the
+       shipgate doesn't get confused later on. */
+    if(!enable_ipv6) {
+        memset(cfg->ship_ip6, 0, 16);
     }
 
     return cfg;
