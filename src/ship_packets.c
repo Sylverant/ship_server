@@ -423,6 +423,32 @@ static int send_redirect6_dc(ship_client_t *c, const uint8_t ip[16],
     return crypt_send(c, DC_REDIRECT6_LENGTH, sendbuf);
 }
 
+static int send_redirect6_bb(ship_client_t *c, const uint8_t ip[16],
+                             uint16_t port) {
+    uint8_t *sendbuf = get_sendbuf();
+    bb_redirect6_pkt *pkt = (bb_redirect6_pkt *)sendbuf;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Wipe the packet */
+    memset(pkt, 0, BB_REDIRECT6_LENGTH);
+
+    /* Fill in the header */
+    pkt->hdr.pkt_type = LE16(REDIRECT_TYPE);
+    pkt->hdr.pkt_len = LE16(BB_REDIRECT6_LENGTH);
+    pkt->hdr.flags = LE32(6);
+
+    /* Fill in the IP and port */
+    memcpy(pkt->ip_addr, ip, 16);
+    pkt->port = LE16(port);
+
+    /* Send the packet away */
+    return crypt_send(c, BB_REDIRECT6_LENGTH, sendbuf);
+}
+
 int send_redirect6(ship_client_t *c, const uint8_t ip[16], uint16_t port) {
     /* Call the appropriate function. */
     switch(c->version) {
@@ -432,6 +458,9 @@ int send_redirect6(ship_client_t *c, const uint8_t ip[16], uint16_t port) {
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
             return send_redirect6_dc(c, ip, port);
+
+        case CLIENT_VERSION_BB:
+            return send_redirect6_bb(c, ip, port);
     }
 
     return -1;
@@ -2749,6 +2778,66 @@ static int send_pc_guild_reply6(ship_client_t *c, ship_client_t *s) {
     return crypt_send(c, PC_GUILD_REPLY6_LENGTH, sendbuf);
 }
 
+static int send_bb_guild_reply6(ship_client_t *c, ship_client_t *s) {
+    uint8_t *sendbuf = get_sendbuf();
+    bb_guild_reply6_pkt *pkt = (bb_guild_reply6_pkt *)sendbuf;
+    char tmp[0x44];
+    iconv_t ic;
+    lobby_t *l = s->cur_lobby;
+    block_t *b = s->cur_block;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* We'll be converting stuff from ISO-8859-1/Shift-JIS to UTF-16. */
+    if(l->name[0] == '\t' && l->name[1] == 'J') {
+        ic = iconv_open("UTF-16LE", "SHIFT_JIS");
+    }
+    else {
+        ic = iconv_open("UTF-16LE", "ISO-8859-1");
+    }
+
+    if(ic == (iconv_t)-1) {
+        return -1;
+    }
+
+    /* Clear it out first */
+    memset(pkt, 0, BB_GUILD_REPLY6_LENGTH);
+
+    /* Fill in the simple stuff */
+    pkt->hdr.pkt_type = LE16(GUILD_REPLY_TYPE);
+    pkt->hdr.pkt_len = LE16(BB_GUILD_REPLY6_LENGTH);
+    pkt->hdr.flags = LE32(6);
+    pkt->tag = LE32(0x00010000);
+    pkt->gc_search = LE32(c->guildcard);
+    pkt->gc_target = LE32(s->guildcard);
+    memcpy(pkt->ip, ship->cfg->ship_ip6, 16);
+    pkt->port = LE16(b->bb_port);
+    pkt->menu_id = LE32(MENU_ID_LOBBY);
+    pkt->item_id = LE32(l->lobby_id);
+
+    /* Fill in the location string... */
+    sprintf(tmp, "%s,BLOCK%02d,%s", l->name, b->b, ship->cfg->name);
+    istrncpy(ic, (char *)pkt->location, tmp, 0x88);
+
+    /* ...and the name. */
+    if(s->version == CLIENT_VERSION_BB) {
+        memcpy(pkt->name, s->bb_pl->character.name, 32);
+    }
+    else {
+        pkt->name[0] = LE16('\t');
+        pkt->name[1] = LE16('J');
+        istrncpy(ic, (char *)&pkt->name[2], s->pl->v1.name, 0x3C);
+    }
+
+    iconv_close(ic);
+
+    /* Send it away */
+    return crypt_send(c, BB_GUILD_REPLY6_LENGTH, sendbuf);
+}
+
 int send_guild_reply6(ship_client_t *c, ship_client_t *s) {
     /* Call the appropriate function. */
     switch(c->version) {
@@ -2760,6 +2849,9 @@ int send_guild_reply6(ship_client_t *c, ship_client_t *s) {
 
         case CLIENT_VERSION_PC:
             return send_pc_guild_reply6(c, s);
+
+        case CLIENT_VERSION_BB:
+            return send_bb_guild_reply6(c, s);
     }
 
     return -1;
@@ -2851,6 +2943,9 @@ int send_guild_reply_sg(ship_client_t *c, dc_guild_reply_pkt *pkt) {
 
         case CLIENT_VERSION_PC:
             return send_pc_guild_reply_sg(c, pkt);
+
+        /* We should never get one of these for a Blue Burst client. They're
+           handled separately. */
     }
 
     return -1;
@@ -2943,6 +3038,9 @@ int send_guild_reply6_sg(ship_client_t *c, dc_guild_reply6_pkt *pkt) {
 
         case CLIENT_VERSION_PC:
             return send_pc_guild_reply6_sg(c, pkt);
+
+        /* We should never get one of these for a Blue Burst client. They're
+           handled separately. */
     }
 
     return -1;
@@ -7962,6 +8060,8 @@ int send_choice_reply(ship_client_t *c, dc_choice_set_pkt *search) {
 
         case CLIENT_VERSION_EP3:
             return send_ep3_choice_reply(c, search, minlvl, maxlvl, cl);
+
+        /* Blue Burst does not support Choice Search. */
     }
 
     return -1;

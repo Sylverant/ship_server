@@ -290,6 +290,13 @@ typedef struct dc_redirect6 {
     uint8_t padding[2];
 } PACKED dc_redirect6_pkt;
 
+typedef struct bb_redirect6 {
+    bb_pkt_hdr_t hdr;
+    uint8_t ip_addr[16];
+    uint16_t port;          /* Little-endian */
+    uint8_t padding[2];
+} PACKED bb_redirect6_pkt;
+
 /* The packet sent as a timestamp */
 typedef struct dc_timestamp {
     union {
@@ -593,6 +600,23 @@ typedef struct pc_guild_reply6 {
     uint8_t padding3[0x3C];
     uint16_t name[0x20];
 } PACKED pc_guild_reply6_pkt;
+
+typedef struct bb_guild_reply6 {
+    bb_pkt_hdr_t hdr;
+    uint32_t tag;
+    uint32_t gc_search;
+    uint32_t gc_target;
+    uint32_t padding1;
+    uint32_t padding2;
+    uint8_t ip[16];
+    uint16_t port;
+    uint16_t padding3;
+    uint16_t location[0x44];
+    uint32_t menu_id;
+    uint32_t item_id;
+    uint8_t padding4[0x3C];
+    uint16_t name[0x20];
+} PACKED bb_guild_reply6_pkt;
 
 /* The packet sent to send/deliver simple mail */
 typedef struct dc_simple_mail {
@@ -1448,6 +1472,7 @@ typedef struct bb_guildcard_comment {
 #define DC_REDIRECT_LENGTH              0x000C
 #define BB_REDIRECT_LENGTH              0x0010
 #define DC_REDIRECT6_LENGTH             0x0018
+#define BB_REDIRECT6_LENGTH             0x001C
 #define DC_TIMESTAMP_LENGTH             0x0020
 #define BB_TIMESTAMP_LENGTH             0x0024
 #define DC_LOBBY_LIST_LENGTH            0x00C4
@@ -1456,11 +1481,12 @@ typedef struct bb_guildcard_comment {
 #define DC_CHAR_DATA_LENGTH             0x0420
 #define DC_LOBBY_LEAVE_LENGTH           0x0008
 #define BB_LOBBY_LEAVE_LENGTH           0x000C
+#define DC_GUILD_REPLY_LENGTH           0x00C4
 #define PC_GUILD_REPLY_LENGTH           0x0128
 #define BB_GUILD_REPLY_LENGTH           0x0130
-#define DC_GUILD_REPLY_LENGTH           0x00C4
-#define PC_GUILD_REPLY6_LENGTH          0x0134
 #define DC_GUILD_REPLY6_LENGTH          0x00D0
+#define PC_GUILD_REPLY6_LENGTH          0x0134
+#define BB_GUILD_REPLY6_LENGTH          0x013C
 #define DC_GAME_JOIN_LENGTH             0x0114
 #define GC_GAME_JOIN_LENGTH             0x0114
 #define EP3_GAME_JOIN_LENGTH            0x1184
