@@ -302,15 +302,17 @@ static int pllist_lobby(ship_client_t *c, const char *name, int first,
     return send_message_box(c, "%s", str);
 }
 
-int send_player_list(ship_client_t *c, char *params) {
+int send_player_list(ship_client_t *c, const char *params) {
     char *lasts = NULL, *tok, *name = NULL;
     int dom, first = 0, minlvl = 0, maxlvl = 200, ch_class = -1;
+    char *tmp = strdup(params);
 
     /* Set up for string tokenization... */
-    tok = strtok_r(params, " ", &lasts);
+    tok = strtok_r(tmp, " ", &lasts);
 
     /* Figure out what domain we're looking in first. */
     if(!tok) {
+        free(tmp);
         return send_txt(c, "%s", __(c, "\tE\tC7Missing search domain"));
     }
     else if(!strcmp(tok, "s")) {
@@ -323,6 +325,7 @@ int send_player_list(ship_client_t *c, char *params) {
         dom = DOMAIN_LOBBY;
     }
     else {
+        free(tmp);
         return send_txt(c, "%s",
                         __(c, "\tE\tC7Invalid or missing search domain"));
     }
@@ -336,6 +339,7 @@ int send_player_list(ship_client_t *c, char *params) {
             errno = 0;
             first = (int)strtol(tok, NULL, 0);
             if(errno) {
+                free(tmp);
                 return send_txt(c, "%s", __(c, "\tE\tC7Invalid page given"));
             }
 
@@ -345,6 +349,7 @@ int send_player_list(ship_client_t *c, char *params) {
             name = strtok_r(NULL, " ", &lasts);
 
             if(!name) {
+                free(tmp);
                 return send_txt(c, "%s",
                                 __(c, "\tE\tC7Name requires an argument"));
             }
@@ -355,6 +360,7 @@ int send_player_list(ship_client_t *c, char *params) {
             errno = 0;
             minlvl = (int)strtol(tok, NULL, 0) - 1;
             if(errno) {
+                free(tmp);
                 return send_txt(c, "%s",
                                 __(c, "\tE\tC7Invalid min level given"));
             }
@@ -365,6 +371,7 @@ int send_player_list(ship_client_t *c, char *params) {
             errno = 0;
             maxlvl = (int)strtol(tok, NULL, 0) - 1;
             if(errno) {
+                free(tmp);
                 return send_txt(c, "%s",
                                 __(c, "\tE\tC7Invalid max level given"));
             }
@@ -375,6 +382,7 @@ int send_player_list(ship_client_t *c, char *params) {
             errno = 0;
             minlvl = maxlvl = (int)strtol(tok, NULL, 0) - 1;
             if(errno) {
+                free(tmp);
                 return send_txt(c, "%s", __(c, "\tE\tC7Invalid level given"));
             }
         }
@@ -384,6 +392,7 @@ int send_player_list(ship_client_t *c, char *params) {
             tok = strtok_r(NULL, " ", &lasts);
 
             if(!tok) {
+                free(tmp);
                 return send_txt(c, "%s",
                                 __(c, "\tE\tC7Class requires an argument"));
             }
@@ -392,6 +401,7 @@ int send_player_list(ship_client_t *c, char *params) {
             len = strlen(tok);
 
             if(len < 5) {
+                free(tmp);
                 return send_txt(c, "%s", __(c, "\tE\tC7Invalid class"));
             }
 
@@ -412,6 +422,7 @@ int send_player_list(ship_client_t *c, char *params) {
 
             /* Make sure its valid */
             if(ch_class == 12) {
+                free(tmp);
                 return send_txt(c, "%s", __(c, "\tE\tC7Invalid class"));
             }
         }
@@ -421,6 +432,8 @@ int send_player_list(ship_client_t *c, char *params) {
             tok = strtok_r(NULL, " ", &lasts);
         }
     }
+
+    free(tmp);
 
     /* Do the search */
     switch(dom) {

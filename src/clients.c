@@ -26,7 +26,6 @@
 #include <unistd.h>
 #include <time.h>
 #include <sys/socket.h>
-#include <iconv.h>
 
 #include <sylverant/encryption.h>
 #include <sylverant/mtwist.h>

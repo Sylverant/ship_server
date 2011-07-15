@@ -22,7 +22,6 @@
 #include <unistd.h>
 #include <errno.h>
 #include <time.h>
-#include <iconv.h>
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <arpa/inet.h>
@@ -1662,24 +1661,10 @@ static int pc_process_game_create(ship_client_t *c, pc_game_create_pkt *pkt) {
     lobby_t *l = NULL;
     uint8_t event = ship->cfg->game_event;
     char name[16], password[16];
-    iconv_t ic;
 
     /* Convert the name/password to the appropriate encoding. */
-    if(LE16(pkt->name[1]) == (uint16_t)('J')) {
-        ic = iconv_open("SHIFT_JIS", "UTF-16LE");
-    }
-    else {
-        ic = iconv_open("ISO-8859-1", "UTF-16LE");
-    }
-
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
-        return -1;
-    }
-
-    istrncpy16(ic, name, pkt->name, 16);
-    istrncpy16(ic, password, pkt->password, 16);
-    iconv_close(ic);
+    istrncpy16(ic_utf16_to_utf8, name, pkt->name, 16);
+    istrncpy16(ic_utf16_to_ascii, password, pkt->password, 16);
 
     /* Check the user's ability to create a game of that difficulty. */
     if((LE32(c->pl->v1.level) + 1) < game_required_level[pkt->difficulty]) {
@@ -1936,17 +1921,7 @@ static int process_menu(ship_client_t *c, uint32_t menu_id, uint32_t item_id,
 
             if(c->version == CLIENT_VERSION_PC ||
                c->version == CLIENT_VERSION_BB) {
-                iconv_t ic;
-
-                ic = iconv_open("ASCII", "UTF-16LE");
-
-                if(ic == (iconv_t)-1) {
-                    perror("iconv_open");
-                    return send_message1(c, "%s", __(c, "\tE\tC4Try again."));
-                }
-
-                istrncpy16(ic, passwd, (uint16_t *)tmp, 16);
-                iconv_close(ic);
+                istrncpy16(ic_utf16_to_ascii, passwd, (uint16_t *)tmp, 16);
                 passwd[16] = 0;
             }
             else {

@@ -266,6 +266,11 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
+    /* Initialize all the iconv contexts we'll need */
+    if(init_iconv()) {
+        exit(EXIT_FAILURE);
+    }
+
     /* Init mini18n if we have it */
     init_i18n();
 
@@ -289,6 +294,7 @@ int main(int argc, char *argv[]) {
     }
 
     cleanup_i18n();
+    cleanup_iconv();
     client_shutdown();
     sylverant_free_ship_config(cfg);
 

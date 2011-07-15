@@ -50,7 +50,23 @@ const char *skip_lang_code(const char *input);
 void make_disp_data(ship_client_t *s, ship_client_t *d, void *buf);
 
 /* Actually implemented in list.c, not utils.c. */
-int send_player_list(ship_client_t *c, char *params);
+int send_player_list(ship_client_t *c, const char *params);
+
+/* Various iconv contexts that we'll use... */
+extern iconv_t ic_utf8_to_utf16;
+extern iconv_t ic_utf16_to_utf8;
+extern iconv_t ic_8859_to_utf8;
+extern iconv_t ic_utf8_to_8859;
+extern iconv_t ic_sjis_to_utf8;
+extern iconv_t ic_utf8_to_sjis;
+extern iconv_t ic_utf16_to_ascii;
+extern iconv_t ic_8859_to_utf16;
+extern iconv_t ic_sjis_to_utf16;
+extern iconv_t ic_utf16_to_8859;
+extern iconv_t ic_utf16_to_sjis;
+
+int init_iconv(void);
+void cleanup_iconv(void);
 
 /* Internationalization support */
 #ifdef HAVE_LIBMINI18N

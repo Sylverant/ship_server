@@ -56,11 +56,11 @@ extern int handle_dc_gcsend(ship_client_t *d, subcmd_dc_gcsend_t *pkt);
 
 typedef struct command {
     char trigger[10];
-    int (*hnd)(ship_client_t *c, dc_chat_pkt *pkt, char *params);
+    int (*hnd)(ship_client_t *c, const char *params);
 } command_t;
 
 /* Usage: /warp area */
-static int handle_warp(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_warp(ship_client_t *c, const char *params) {
     unsigned long area;
     lobby_t *l = c->cur_lobby;
 
@@ -93,7 +93,7 @@ static int handle_warp(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /warpall area */
-static int handle_warpall(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_warpall(ship_client_t *c, const char *params) {
     unsigned long area;
     lobby_t *l = c->cur_lobby;
 
@@ -126,7 +126,7 @@ static int handle_warpall(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /kill guildcard reason */
-static int handle_kill(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_kill(ship_client_t *c, const char *params) {
     uint32_t gc;
     block_t *b = c->cur_block;
     ship_client_t *i;
@@ -187,7 +187,7 @@ static int handle_kill(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /minlvl level */
-static int handle_min_level(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_min_level(ship_client_t *c, const char *params) {
     int lvl;
     lobby_t *l = c->cur_lobby;
 
@@ -232,7 +232,7 @@ static int handle_min_level(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /maxlvl level */
-static int handle_max_level(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_max_level(ship_client_t *c, const char *params) {
     int lvl;
     lobby_t *l = c->cur_lobby;
 
@@ -270,7 +270,7 @@ static int handle_max_level(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /refresh [quests, gms, or limits] */
-static int handle_refresh(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_refresh(ship_client_t *c, const char *params) {
     sylverant_quest_list_t quests;
     sylverant_quest_list_t qlist[CLIENT_VERSION_COUNT][CLIENT_LANG_COUNT];
     quest_map_t qmap;
@@ -393,7 +393,7 @@ static int handle_refresh(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /save slot */
-static int handle_save(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_save(ship_client_t *c, const char *params) {
     lobby_t *l = c->cur_lobby;
     uint32_t slot;
 
@@ -432,7 +432,7 @@ static int handle_save(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /restore slot */
-static int handle_restore(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_restore(ship_client_t *c, const char *params) {
     lobby_t *l = c->cur_lobby;
     uint32_t slot;
 
@@ -470,7 +470,7 @@ static int handle_restore(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /bstat */
-static int handle_bstat(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_bstat(ship_client_t *c, const char *params) {
     block_t *b = c->cur_block;
     lobby_t *i;
     ship_client_t *i2;
@@ -508,7 +508,7 @@ static int handle_bstat(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage /bcast message */
-static int handle_bcast(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_bcast(ship_client_t *c, const char *params) {
     block_t *b;
     int i;
     ship_client_t *i2;
@@ -545,7 +545,7 @@ static int handle_bcast(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage /arrow color_number */
-static int handle_arrow(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_arrow(ship_client_t *c, const char *params) {
     int i;
 
     /* Set the arrow color and send the packet to the lobby. */
@@ -558,10 +558,10 @@ static int handle_arrow(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage /login username password */
-static int handle_login(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_login(ship_client_t *c, const char *params) {
     char username[32], password[32];
     int len = 0;
-    char *ch = params;
+    const char *ch = params;
 
     /* Copy over the username/password. */
     while(*ch != ' ' && len < 32) {
@@ -593,7 +593,7 @@ static int handle_login(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage /item item1,item2,item3,item4 */
-static int handle_item(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_item(ship_client_t *c, const char *params) {
     uint32_t item[4] = { 0, 0, 0, 0 };
     int count;
 
@@ -619,7 +619,7 @@ static int handle_item(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage /item4 item4 */
-static int handle_item4(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_item4(ship_client_t *c, const char *params) {
     uint32_t item;
     int count;
 
@@ -641,7 +641,7 @@ static int handle_item4(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /event number */
-static int handle_event(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_event(ship_client_t *c, const char *params) {
     lobby_t *l;
     ship_client_t *c2;
     block_t *b;
@@ -701,7 +701,7 @@ static int handle_event(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /passwd newpass */
-static int handle_passwd(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_passwd(ship_client_t *c, const char *params) {
     lobby_t *l = c->cur_lobby;
     int len = strlen(params), i;
 
@@ -740,7 +740,7 @@ static int handle_passwd(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /lname newname */
-static int handle_lname(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_lname(ship_client_t *c, const char *params) {
     lobby_t *l = c->cur_lobby;
 
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
@@ -770,7 +770,7 @@ static int handle_lname(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /bug */
-static int handle_bug(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_bug(ship_client_t *c, const char *params) {
     subcmd_dc_gcsend_t gcpkt;
 
     /* Forge a guildcard send packet. */
@@ -800,7 +800,7 @@ static int handle_bug(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage /clinfo client_id */
-static int handle_clinfo(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_clinfo(ship_client_t *c, const char *params) {
     lobby_t *l = c->cur_lobby;
     int id, count;
     ship_client_t *cl;
@@ -831,7 +831,7 @@ static int handle_clinfo(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /gban:d guildcard reason */
-static int handle_gban_d(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_gban_d(ship_client_t *c, const char *params) {
     uint32_t gc;
     block_t *b = c->cur_block;
     ship_client_t *i;
@@ -884,7 +884,7 @@ static int handle_gban_d(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /gban:w guildcard reason */
-static int handle_gban_w(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_gban_w(ship_client_t *c, const char *params) {
     uint32_t gc;
     block_t *b = c->cur_block;
     ship_client_t *i;
@@ -937,7 +937,7 @@ static int handle_gban_w(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /gban:m guildcard reason */
-static int handle_gban_m(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_gban_m(ship_client_t *c, const char *params) {
     uint32_t gc;
     block_t *b = c->cur_block;
     ship_client_t *i;
@@ -990,7 +990,7 @@ static int handle_gban_m(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /gban:p guildcard reason */
-static int handle_gban_p(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_gban_p(ship_client_t *c, const char *params) {
     uint32_t gc;
     block_t *b = c->cur_block;
     ship_client_t *i;
@@ -1047,7 +1047,7 @@ static int handle_gban_p(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /list parameters (there's too much to put here) */
-static int handle_list(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_list(ship_client_t *c, const char *params) {
     /* Make sure the requester is a local GM. */
     if(!LOCAL_GM(c)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
@@ -1058,7 +1058,7 @@ static int handle_list(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /legit */
-static int handle_legit(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_legit(ship_client_t *c, const char *params) {
     lobby_t *l = c->cur_lobby;
     int i;
 
@@ -1114,7 +1114,7 @@ static int handle_legit(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /normal */
-static int handle_normal(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_normal(ship_client_t *c, const char *params) {
     lobby_t *l = c->cur_lobby;
     int i;
 
@@ -1165,7 +1165,7 @@ static int handle_normal(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /shutdown minutes */
-static int handle_shutdown(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_shutdown(ship_client_t *c, const char *params) {
     int i;
     ship_client_t *i2;
     uint32_t when;
@@ -1224,7 +1224,7 @@ static int handle_shutdown(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /log guildcard */
-static int handle_log(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_log(ship_client_t *c, const char *params) {
     uint32_t gc;
     block_t *b = c->cur_block;
     ship_client_t *i;
@@ -1269,7 +1269,7 @@ static int handle_log(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /endlog guildcard */
-static int handle_endlog(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_endlog(ship_client_t *c, const char *params) {
     uint32_t gc;
     block_t *b = c->cur_block;
     ship_client_t *i;
@@ -1310,12 +1310,12 @@ static int handle_endlog(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /motd */
-static int handle_motd(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_motd(ship_client_t *c, const char *params) {
     return send_message_box(c, "%s", ship->motd);
 }
 
 /* Usage: /friendadd guildcard nickname */
-static int handle_friendadd(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_friendadd(ship_client_t *c, const char *params) {
     uint32_t gc;
     char *nick;
 
@@ -1341,7 +1341,7 @@ static int handle_friendadd(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /frienddel guildcard */
-static int handle_frienddel(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_frienddel(ship_client_t *c, const char *params) {
     uint32_t gc;
 
     /* Figure out the user requested */
@@ -1361,7 +1361,7 @@ static int handle_frienddel(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /dconly [off] */
-static int handle_dconly(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_dconly(ship_client_t *c, const char *params) {
     lobby_t *l = c->cur_lobby;
     int i;
 
@@ -1410,7 +1410,7 @@ static int handle_dconly(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /v1only [off] */
-static int handle_v1only(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_v1only(ship_client_t *c, const char *params) {
     lobby_t *l = c->cur_lobby;
     int i;
 
@@ -1458,7 +1458,7 @@ static int handle_v1only(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /forgegc guildcard name */
-static int handle_forgegc(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_forgegc(ship_client_t *c, const char *params) {
     uint32_t gc;
     char *name = NULL;
     subcmd_dc_gcsend_t gcpkt;
@@ -1506,7 +1506,7 @@ static int handle_forgegc(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /invuln [off] */
-static int handle_invuln(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_invuln(ship_client_t *c, const char *params) {
     pthread_mutex_lock(&c->mutex);
 
     /* Make sure the requester is a GM. */
@@ -1531,7 +1531,7 @@ static int handle_invuln(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /inftp [off] */
-static int handle_inftp(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_inftp(ship_client_t *c, const char *params) {
     pthread_mutex_lock(&c->mutex);
 
     /* Make sure the requester is a GM. */
@@ -1556,7 +1556,7 @@ static int handle_inftp(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /smite clientid hp tp */
-static int handle_smite(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_smite(ship_client_t *c, const char *params) {
     lobby_t *l = c->cur_lobby;
     int count, id, hp, tp;
     ship_client_t *cl;
@@ -1613,7 +1613,7 @@ static int handle_smite(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /makeitem */
-static int handle_makeitem(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_makeitem(ship_client_t *c, const char *params) {
     lobby_t *l = c->cur_lobby;
     subcmd_drop_stack_t p2;
     static uint32_t itid = 0xF0000001;  /* ID of the next item generated */
@@ -1666,7 +1666,7 @@ static int handle_makeitem(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /teleport client */
-static int handle_teleport(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_teleport(ship_client_t *c, const char *params) {
     int client;
     lobby_t *l = c->cur_lobby;
     ship_client_t *c2;
@@ -1725,7 +1725,7 @@ static int handle_teleport(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
     }
 }
 
-static int handle_dumpinv(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_dumpinv(ship_client_t *c, const char *params) {
     int i;
 
     /* Make sure the requester is a GM. */
@@ -1747,7 +1747,7 @@ static int handle_dumpinv(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /showdcpc [off] */
-static int handle_showdcpc(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_showdcpc(ship_client_t *c, const char *params) {
     /* Check if the client is on PSOGC */
     if(c->version != CLIENT_VERSION_GC) {
         return send_txt(c, "%s", __(c, "\tE\tC7Only valid on Gamecube."));
@@ -1765,7 +1765,7 @@ static int handle_showdcpc(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /allowgc [off] */
-static int handle_allowgc(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_allowgc(ship_client_t *c, const char *params) {
     lobby_t *l = c->cur_lobby;
 
     /* Lock the lobby mutex... we've got some work to do. */
@@ -1807,7 +1807,7 @@ static int handle_allowgc(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage /ws item1,item2,item3,item4 */
-static int handle_ws(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_ws(ship_client_t *c, const char *params) {
     uint32_t ws[4] = { 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF };
     int count;
     uint8_t tmp[0x24];
@@ -1857,7 +1857,7 @@ static int handle_ws(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /ll */
-static int handle_ll(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_ll(ship_client_t *c, const char *params) {
     char str[512];
     lobby_t *l = c->cur_lobby;
     int i;
@@ -1915,7 +1915,7 @@ static int handle_ll(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage /npc number,client_id,follow_id */
-static int handle_npc(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_npc(ship_client_t *c, const char *params) {
     int count, npcnum, client_id, follow;
     uint8_t tmp[0x10];
     subcmd_pkt_t *p = (subcmd_pkt_t *)tmp;
@@ -2027,7 +2027,7 @@ static int handle_npc(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /stfu guildcard */
-static int handle_stfu(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_stfu(ship_client_t *c, const char *params) {
     uint32_t gc;
     block_t *b = c->cur_block;
     ship_client_t *i;
@@ -2059,7 +2059,7 @@ static int handle_stfu(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /unstfu guildcard */
-static int handle_unstfu(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_unstfu(ship_client_t *c, const char *params) {
     uint32_t gc;
     block_t *b = c->cur_block;
     ship_client_t *i;
@@ -2091,7 +2091,7 @@ static int handle_unstfu(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /ignore client_id */
-static int handle_ignore(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_ignore(ship_client_t *c, const char *params) {
     lobby_t *l = c->cur_lobby;
     int id, i;
     ship_client_t *cl;
@@ -2128,7 +2128,7 @@ static int handle_ignore(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /unignore entry_number */
-static int handle_unignore(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_unignore(ship_client_t *c, const char *params) {
     int id, i;
 
     /* Copy over the ID */
@@ -2145,13 +2145,13 @@ static int handle_unignore(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /quit */
-static int handle_quit(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_quit(ship_client_t *c, const char *params) {
     c->flags |= CLIENT_FLAG_DISCONNECTED;
     return 0;
 }
 
 /* Usage: /gameevent number */
-static int handle_gameevent(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_gameevent(ship_client_t *c, const char *params) {
     int event;
 
     /* Make sure the requester is a GM. */
@@ -2172,7 +2172,7 @@ static int handle_gameevent(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /ban:d guildcard reason */
-static int handle_ban_d(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_ban_d(ship_client_t *c, const char *params) {
     uint32_t gc;
     block_t *b;
     ship_client_t *i;
@@ -2232,7 +2232,7 @@ static int handle_ban_d(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /ban:w guildcard reason */
-static int handle_ban_w(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_ban_w(ship_client_t *c, const char *params) {
     uint32_t gc;
     block_t *b;
     ship_client_t *i;
@@ -2292,7 +2292,7 @@ static int handle_ban_w(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /ban:m guildcard reason */
-static int handle_ban_m(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_ban_m(ship_client_t *c, const char *params) {
     uint32_t gc;
     block_t *b;
     ship_client_t *i;
@@ -2353,7 +2353,7 @@ static int handle_ban_m(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /ban:p guildcard reason */
-static int handle_ban_p(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_ban_p(ship_client_t *c, const char *params) {
     uint32_t gc;
     block_t *b;
     ship_client_t *i;
@@ -2413,7 +2413,7 @@ static int handle_ban_p(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /unban guildcard */
-static int handle_unban(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_unban(ship_client_t *c, const char *params) {
     uint32_t gc;
     int rv;
 
@@ -2447,7 +2447,7 @@ static int handle_unban(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /cc [any ascii char] or /cc off */
-static int handle_cc(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_cc(ship_client_t *c, const char *params) {
     /* Are we turning it off? */
     if(!strcmp(params, "off")) {
         c->cc_char = 0;
@@ -2465,7 +2465,7 @@ static int handle_cc(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /qlang [2 character language code] */
-static int handle_qlang(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_qlang(ship_client_t *c, const char *params) {
     int i;
 
     /* Make sure they only gave one character */
@@ -2489,7 +2489,7 @@ static int handle_qlang(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /friends page */
-static int handle_friends(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_friends(ship_client_t *c, const char *params) {
     block_t *b = c->cur_block;
     uint32_t page;
 
@@ -2507,7 +2507,7 @@ static int handle_friends(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /gbc message */
-static int handle_gbc(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_gbc(ship_client_t *c, const char *params) {
     /* Make sure the requester is a Global GM. */
     if(!GLOBAL_GM(c)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
@@ -2522,7 +2522,7 @@ static int handle_gbc(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /logout */
-static int handle_logout(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_logout(ship_client_t *c, const char *params) {
     /* See if they're logged in first */
     if(!(c->flags & CLIENT_FLAG_LOGGED_IN)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Not logged in."));
@@ -2536,7 +2536,7 @@ static int handle_logout(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /override */
-static int handle_override(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_override(ship_client_t *c, const char *params) {
     lobby_t *l = c->cur_lobby;
 
     /* Make sure the requester is a GM */
@@ -2557,13 +2557,13 @@ static int handle_override(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
 }
 
 /* Usage: /ver */
-static int handle_ver(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_ver(ship_client_t *c, const char *params) {
     return send_txt(c, "%s: %s", __(c, "\tE\tC7Ship Revision"),
                     SVN_REVISION);
 }
 
 /* Usage: /restart minutes */
-static int handle_restart(ship_client_t *c, dc_chat_pkt *pkt, char *params) {
+static int handle_restart(ship_client_t *c, const char *params) {
     int i;
     ship_client_t *i2;
     uint32_t when;
@@ -2692,25 +2692,22 @@ static command_t cmds[] = {
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 
-int command_parse(ship_client_t *c, dc_chat_pkt *pkt) {
+static int command_call(ship_client_t *c, const char *txt, size_t len) {
     command_t *i = &cmds[0];
-    int plen = LE16(pkt->hdr.dc.pkt_len);
-    char cmd[10], params[plen];
-    char *ch;
-    int len = 0;
+    char cmd[10], params[len];
+    const char *ch = txt + 3;           /* Skip the language code and '/'. */
+    int clen = 0;
 
     /* Figure out what the command the user has requested is */
-    ch = pkt->msg + 3;
-
-    while(*ch != ' ' && len < 9 && *ch) {
-        cmd[len++] = *ch++;
+    while(*ch != ' ' && clen < 9 && *ch) {
+        cmd[clen++] = *ch++;
     }
 
-    cmd[len] = '\0';
+    cmd[clen] = '\0';
 
     /* Copy the params out for safety... */
     if(!*ch) {
-        memset(params, 0, plen);
+        memset(params, 0, len);
     }
     else {
         strcpy(params, ch + 1);
@@ -2720,7 +2717,7 @@ int command_parse(ship_client_t *c, dc_chat_pkt *pkt) {
     while(i->hnd) {
         /* If this is it, go ahead and handle it */
         if(!strcmp(cmd, i->trigger)) {
-            return i->hnd(c, pkt, params);
+            return i->hnd(c, params);
         }
 
         i++;
@@ -2730,66 +2727,62 @@ int command_parse(ship_client_t *c, dc_chat_pkt *pkt) {
     return send_txt(c, "%s", __(c, "\tE\tC7Invalid Command!"));
 }
 
-int wcommand_parse(ship_client_t *c, dc_chat_pkt *pkt) {
+int command_parse(ship_client_t *c, dc_chat_pkt *pkt) {
     int len = LE16(pkt->hdr.dc.pkt_len), tlen = len - 12;
-    iconv_t ic;
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
-    unsigned char buf[len];
-    dc_chat_pkt *p2 = (dc_chat_pkt *)buf;
-
-    ic = iconv_open("UTF-8", "UTF-16LE");
-    if(ic == (iconv_t)-1) {
-        return -1;
-    }
+    char buf[tlen * 2];
 
     /* Convert the text to UTF-8. */
-    in = out = tlen;
-    inptr = pkt->msg;
-    outptr = p2->msg;
-    iconv(ic, &inptr, &in, &outptr, &out);
-    iconv_close(ic);
+    in = tlen;
+    out = tlen * 2;
+    inptr = (ICONV_CONST char *)pkt->msg;
+    outptr = buf;
 
-    /* Fill in the rest of the packet. */
-    p2->hdr.dc.pkt_type = CHAT_TYPE;
-    p2->hdr.dc.flags = 0;
-    p2->hdr.dc.pkt_len = LE16((12 + (tlen - out)));
-    p2->padding = 0;
-    p2->guildcard = pkt->guildcard;
+    if(pkt->msg[0] == '\t' && pkt->msg[1] == 'J') {
+        iconv(ic_sjis_to_utf8, &inptr, &in, &outptr, &out);
+    }
+    else {
+        iconv(ic_8859_to_utf8, &inptr, &in, &outptr, &out);
+    }
 
-    /* Hand off to the normal command parsing code. */
-    return command_parse(c, p2);
+    /* Handle the command... */
+    return command_call(c, buf, (tlen * 2) - out);
+}
+
+int wcommand_parse(ship_client_t *c, dc_chat_pkt *pkt) {
+    int len = LE16(pkt->hdr.dc.pkt_len), tlen = len - 12;
+    size_t in, out;
+    ICONV_CONST char *inptr;
+    char *outptr;
+    char buf[tlen * 2];
+
+    /* Convert the text to UTF-8. */
+    in = tlen;
+    out = tlen * 2;
+    inptr = (ICONV_CONST char *)pkt->msg;
+    outptr = buf;
+    iconv(ic_utf16_to_utf8, &inptr, &in, &outptr, &out);
+
+    /* Handle the command... */
+    return command_call(c, buf, (tlen * 2) - out);
 }
 
 int bbcommand_parse(ship_client_t *c, bb_chat_pkt *pkt) {
     int len = LE16(pkt->hdr.pkt_len), tlen = len - 16;
-    iconv_t ic;
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
-    unsigned char buf[len];
-    dc_chat_pkt *p2 = (dc_chat_pkt *)buf;
-
-    ic = iconv_open("UTF-8", "UTF-16LE");
-    if(ic == (iconv_t)-1) {
-        return -1;
-    }
+    char buf[tlen * 2];
 
     /* Convert the text to UTF-8. */
-    in = out = tlen;
+    in = tlen;
+    out = tlen * 2;
     inptr = (ICONV_CONST char *)pkt->msg;
-    outptr = p2->msg;
-    iconv(ic, &inptr, &in, &outptr, &out);
-    iconv_close(ic);
+    outptr = buf;
+    iconv(ic_utf16_to_utf8, &inptr, &in, &outptr, &out);
 
-    /* Fill in the rest of the packet. */
-    p2->hdr.dc.pkt_type = CHAT_TYPE;
-    p2->hdr.dc.flags = 0;
-    p2->hdr.dc.pkt_len = LE16((12 + (tlen - out)));
-    p2->padding = 0;
-    p2->guildcard = pkt->guildcard;
-
-    /* Hand off to the normal command parsing code. */
-    return command_parse(c, p2);
+    /* Handle the command... */
+    return command_call(c, buf, (tlen * 2) - out);
 }

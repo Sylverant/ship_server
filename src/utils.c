@@ -33,6 +33,19 @@
 mini18n_t langs[CLIENT_LANG_COUNT];
 #endif
 
+/* iconv contexts that are used throughout the code */
+iconv_t ic_utf8_to_utf16;
+iconv_t ic_utf16_to_utf8;
+iconv_t ic_8859_to_utf8;
+iconv_t ic_utf8_to_8859;
+iconv_t ic_sjis_to_utf8;
+iconv_t ic_utf8_to_sjis;
+iconv_t ic_utf16_to_ascii;
+iconv_t ic_8859_to_utf16;
+iconv_t ic_sjis_to_utf16;
+iconv_t ic_utf16_to_8859;
+iconv_t ic_utf16_to_sjis;
+
 void print_packet(const unsigned char *pkt, int len) {
     /* With NULL, this will simply grab the current output for the debug log.
        It won't try to set the file to NULL. */
@@ -174,14 +187,9 @@ int pc_bug_report(ship_client_t *c, pc_simple_mail_pkt *pkt) {
     char filename[64];
     char text[0x91];
     FILE *fp;
-    iconv_t ic = iconv_open("SHIFT_JIS", "UTF-16LE");
     ICONV_CONST char *inptr;
     char *outptr;
     size_t in, out;
-
-    if(ic == (iconv_t)-1) {
-        return -1;
-    }
 
     /* Get the timestamp */
     gettimeofday(&rawtime, NULL);
@@ -199,8 +207,7 @@ int pc_bug_report(ship_client_t *c, pc_simple_mail_pkt *pkt) {
     out = 0x90;
     inptr = pkt->stuff;
     outptr = text;
-    iconv(ic, &inptr, &in, &outptr, &out);
-    iconv_close(ic);
+    iconv(ic_utf16_to_utf8, &inptr, &in, &outptr, &out);
 
     text[0x90] = '\0';
 
@@ -545,14 +552,8 @@ static void convert_dcpcgc_to_bb(ship_client_t *s, uint8_t *buf) {
 static void convert_bb_to_dcpcgc(ship_client_t *s, uint8_t *buf) {
     sylverant_bb_char_t *sp = &s->pl->bb.character;
     v1_player_t *c = (v1_player_t *)buf;
-    iconv_t ic;
 
     memset(c, 0, sizeof(v1_player_t));
-
-    ic = iconv_open("ISO-8859-1", "UTF-16LE");
-    if(ic == (iconv_t)-1) {
-        return;
-    }
 
     /* Inventory doesn't change... */
     memcpy(buf, &s->pl->bb.inv, sizeof(sylverant_inventory_t));
@@ -571,7 +572,7 @@ static void convert_bb_to_dcpcgc(ship_client_t *s, uint8_t *buf) {
     c->level = sp->level;
     c->exp = sp->exp;
     c->meseta = sp->meseta;
-    strcpy(c->name, "--------");
+    strcpy(c->name, "---");
     c->unk3[0] = sp->unk3[0];
     c->unk3[1] = sp->unk3[1];
     c->name_color = sp->name_color;
@@ -597,8 +598,7 @@ static void convert_bb_to_dcpcgc(ship_client_t *s, uint8_t *buf) {
     memcpy(c->techniques, sp->techniques, 0x14);
 
     /* Copy the name over */
-    istrncpy16(ic, c->name, &sp->name[2], 16);
-    iconv_close(ic);
+    istrncpy16(ic_utf16_to_ascii, c->name, &sp->name[2], 16);
 }
 
 void make_disp_data(ship_client_t *s, ship_client_t *d, void *buf) {
@@ -622,6 +622,112 @@ void make_disp_data(ship_client_t *s, ship_client_t *d, void *buf) {
         /* The data we're copying is from Blue Burst... */
         convert_bb_to_dcpcgc(s, bp);
     }
+}
+
+int init_iconv(void) {
+    ic_utf8_to_utf16 = iconv_open("UTF-16LE", "UTF-8");
+
+    if(ic_utf8_to_utf16 == (iconv_t)-1) {
+        return -1;
+    }
+
+    ic_utf16_to_utf8 = iconv_open("UTF-8", "UTF-16LE");
+
+    if(ic_utf16_to_utf8 == (iconv_t)-1) {
+        goto out1;
+    }
+        
+    ic_8859_to_utf8 = iconv_open("UTF-8", "ISO-8859-1");
+    
+    if(ic_8859_to_utf8 == (iconv_t)-1) {
+        goto out2;
+    }
+    
+    ic_utf8_to_8859 = iconv_open("ISO-8859-1", "UTF-8");
+
+    if(ic_utf8_to_8859 == (iconv_t)-1) {
+        goto out3;
+    }
+
+    ic_sjis_to_utf8 = iconv_open("UTF-8", "SHIFT_JIS");
+
+    if(ic_sjis_to_utf8 == (iconv_t)-1) {
+        goto out4;
+    }
+
+    ic_utf8_to_sjis = iconv_open("SHIFT_JIS", "UTF-8");
+
+    if(ic_utf8_to_sjis == (iconv_t)-1) {
+        goto out5;
+    }
+
+    ic_utf16_to_ascii = iconv_open("ASCII", "UTF-16LE");
+
+    if(ic_utf16_to_ascii == (iconv_t)-1) {
+        goto out6;
+    }
+
+    ic_utf16_to_sjis = iconv_open("SHIFT_JIS", "UTF-16LE");
+
+    if(ic_utf16_to_sjis == (iconv_t)-1) {
+        goto out7;
+    }
+
+    ic_utf16_to_8859 = iconv_open("ISO-8859-1", "UTF-16LE");
+
+    if(ic_utf16_to_8859 == (iconv_t)-1) {
+        goto out8;
+    }
+
+    ic_sjis_to_utf16 = iconv_open("UTF-16LE", "SHIFT_JIS");
+
+    if(ic_sjis_to_utf16 == (iconv_t)-1) {
+        goto out9;
+    }
+
+    ic_8859_to_utf16 = iconv_open("UTF-16LE", "ISO-8859-1");
+
+    if(ic_8859_to_utf16 == (iconv_t)-1) {
+        goto out10;
+    }
+
+    return 0;
+
+out10:
+    iconv_close(ic_sjis_to_utf16);
+out9:
+    iconv_close(ic_utf16_to_8859);
+out8:
+    iconv_close(ic_utf16_to_sjis);
+out7:
+    iconv_close(ic_utf16_to_ascii);
+out6:
+    iconv_close(ic_utf8_to_sjis);
+out5:
+    iconv_close(ic_sjis_to_utf8);
+out4:
+    iconv_close(ic_utf8_to_8859);
+out3:
+    iconv_close(ic_8859_to_utf8);
+out2:
+    iconv_close(ic_utf16_to_utf8);
+out1:
+    iconv_close(ic_utf8_to_utf16);
+    return -1;
+}
+
+void cleanup_iconv(void) {
+    iconv_close(ic_8859_to_utf16);
+    iconv_close(ic_sjis_to_utf16);
+    iconv_close(ic_utf16_to_8859);
+    iconv_close(ic_utf16_to_sjis);
+    iconv_close(ic_utf16_to_ascii);
+    iconv_close(ic_utf8_to_sjis);
+    iconv_close(ic_sjis_to_utf8);
+    iconv_close(ic_utf8_to_8859);
+    iconv_close(ic_8859_to_utf8);
+    iconv_close(ic_utf16_to_utf8);
+    iconv_close(ic_utf8_to_utf16);
 }
 
 /* Initialize mini18n support. */

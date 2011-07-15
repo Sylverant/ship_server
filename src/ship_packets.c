@@ -794,19 +794,14 @@ static int send_dc_info_reply(ship_client_t *c, const char *msg) {
     if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
        c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3) {
         if(msg[1] == 'J') {
-            ic = iconv_open("SHIFT_JIS", "UTF-8");
+            ic = ic_utf8_to_sjis;
         }
         else {
-            ic = iconv_open("ISO-8859-1", "UTF-8");
+            ic = ic_utf8_to_8859;
         }
     }
     else {
-        ic = iconv_open("UTF-16LE", "UTF-8");
-    }
-
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
-        return -1;
+        ic = ic_utf8_to_utf16;
     }
 
     /* Convert the message to the appropriate encoding. */
@@ -815,7 +810,6 @@ static int send_dc_info_reply(ship_client_t *c, const char *msg) {
     inptr = (ICONV_CONST char *)msg;
     outptr = pkt->msg;
     iconv(ic, &inptr, &in, &outptr, &out);
-    iconv_close(ic);
 
     /* Figure out how long the new string is. */
     out = 65524 - out + 12;
@@ -849,7 +843,6 @@ static int send_dc_info_reply(ship_client_t *c, const char *msg) {
 static int send_bb_info_reply(ship_client_t *c, const char *msg) {
     uint8_t *sendbuf = get_sendbuf();
     bb_info_reply_pkt *pkt = (bb_info_reply_pkt *)sendbuf;
-    iconv_t ic;
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
@@ -859,20 +852,12 @@ static int send_bb_info_reply(ship_client_t *c, const char *msg) {
         return -1;
     }
 
-    ic = iconv_open("UTF-16LE", "UTF-8");
-
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
-        return -1;
-    }
-
     /* Convert the message to the appropriate encoding. */
     in = strlen(msg) + 1;
     out = 65520;
     inptr = (ICONV_CONST char *)msg;
     outptr = (char *)pkt->msg;
-    iconv(ic, &inptr, &in, &outptr, &out);
-    iconv_close(ic);
+    iconv(ic_utf8_to_utf16, &inptr, &in, &outptr, &out);
 
     /* Figure out how long the new string is. */
     out = 65520 - out + 16;
@@ -1091,18 +1076,9 @@ static int send_dc_lobby_join(ship_client_t *c, lobby_t *l) {
     uint8_t event = l->event;
     uint16_t costume;
     uint8_t ch_class;
-    iconv_t ic;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
-        return -1;
-    }
-
-    /* We might need to convert a Blue Burst name... */
-    ic = iconv_open("ISO-8859-1", "UTF-16LE");
-
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
         return -1;
     }
 
@@ -1141,7 +1117,7 @@ static int send_dc_lobby_join(ship_client_t *c, lobby_t *l) {
 
         /* If its a Blue Burst client, iconv it. */
         if(l->clients[i]->version == CLIENT_VERSION_BB) {
-            istrncpy16(ic, pkt->entries[pls].hdr.name,
+            istrncpy16(ic_utf16_to_ascii, pkt->entries[pls].hdr.name,
                        l->clients[i]->pl->bb.character.name, 16);
         }
         else {
@@ -1186,8 +1162,6 @@ static int send_dc_lobby_join(ship_client_t *c, lobby_t *l) {
     pkt->hdr.flags = (uint8_t)pls;
     pkt->hdr.pkt_len = LE16(pkt_size);
 
-    iconv_close(ic);
-
     /* Send it away */
     return crypt_send(c, pkt_size, sendbuf);
 }
@@ -1197,20 +1171,11 @@ static int send_pc_lobby_join(ship_client_t *c, lobby_t *l) {
     pc_lobby_join_pkt *pkt = (pc_lobby_join_pkt *)sendbuf;
     int i, pls = 0;
     uint16_t pkt_size = 0x10;
-    iconv_t ic;
     uint16_t costume;
     uint8_t ch_class;
     
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
-        return -1;
-    }
-
-    /* Names are always ISO-8859-1 for non-Blue Burst versions of PSO */
-    ic = iconv_open("UTF-16LE", "ISO-8859-1");
-
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
         return -1;
     }
 
@@ -1248,7 +1213,7 @@ static int send_pc_lobby_join(ship_client_t *c, lobby_t *l) {
             pkt->entries[pls].hdr.name[15] = 0;
         }
         else {
-            istrncpy(ic, (char *)pkt->entries[pls].hdr.name,
+            istrncpy(ic_8859_to_utf16, (char *)pkt->entries[pls].hdr.name,
                      l->clients[i]->pl->v1.name, 32);
         }
 
@@ -1285,8 +1250,6 @@ static int send_pc_lobby_join(ship_client_t *c, lobby_t *l) {
         pkt_size += 1100;
     }
 
-    iconv_close(ic);
-
     /* Fill in the rest of it. */
     pkt->hdr.flags = (uint8_t)pls;
     pkt->hdr.pkt_len = LE16(pkt_size);
@@ -1300,18 +1263,9 @@ static int send_bb_lobby_join(ship_client_t *c, lobby_t *l) {
     bb_lobby_join_pkt *pkt = (bb_lobby_join_pkt *)sendbuf;
     int i, pls = 0;
     uint16_t pkt_size = 0x14;
-    iconv_t ic;
     
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
-        return -1;
-    }
-
-    /* Names are always either ISO-8859-1 or UTF-16LE */
-    ic = iconv_open("UTF-16LE", "ISO-8859-1");
-
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
         return -1;
     }
 
@@ -1348,7 +1302,7 @@ static int send_bb_lobby_join(ship_client_t *c, lobby_t *l) {
                    l->clients[i]->pl->bb.character.name, 32);
         }
         else {
-            istrncpy(ic, (char *)pkt->entries[pls].hdr.name,
+            istrncpy(ic_8859_to_utf16, (char *)pkt->entries[pls].hdr.name,
                      l->clients[i]->pl->v1.name, 32);
         }
 
@@ -1358,8 +1312,6 @@ static int send_bb_lobby_join(ship_client_t *c, lobby_t *l) {
         pkt_size += sizeof(bb_player_hdr_t) + sizeof(sylverant_inventory_t) +
             sizeof(sylverant_bb_char_t);
     }
-
-    iconv_close(ic);
 
     /* Fill in the rest of it. */
     pkt->hdr.flags = LE32(pls);
@@ -1500,18 +1452,9 @@ static int send_dc_lobby_add_player(lobby_t *l, ship_client_t *c,
     dc_lobby_join_pkt *pkt = (dc_lobby_join_pkt *)sendbuf;
     uint16_t costume;
     uint8_t ch_class;
-    iconv_t ic;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
-        return -1;
-    }
-
-    /* We might need to convert a Blue Burst name... */
-    ic = iconv_open("ISO-8859-1", "UTF-16LE");
-
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
         return -1;
     }
 
@@ -1544,7 +1487,7 @@ static int send_dc_lobby_add_player(lobby_t *l, ship_client_t *c,
 
     /* If its a Blue Burst client, iconv it. */
     if(nc->version == CLIENT_VERSION_BB) {
-        istrncpy16(ic, pkt->entries[0].hdr.name,
+        istrncpy16(ic_utf16_to_ascii, pkt->entries[0].hdr.name,
                    &nc->pl->bb.character.name[2], 16);
     }
     else {
@@ -1584,8 +1527,6 @@ static int send_dc_lobby_add_player(lobby_t *l, ship_client_t *c,
         pkt->entries[0].data.ch_class = ch_class;
     }
 
-    iconv_close(ic);
-
     /* Send it away */
     return crypt_send(c, 0x044C, sendbuf);
 }
@@ -1594,20 +1535,11 @@ static int send_pc_lobby_add_player(lobby_t *l, ship_client_t *c,
                                     ship_client_t *nc) {
     uint8_t *sendbuf = get_sendbuf();
     pc_lobby_join_pkt *pkt = (pc_lobby_join_pkt *)sendbuf;
-    iconv_t ic;
     uint16_t costume;
     uint8_t ch_class;
     
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
-        return -1;
-    }
-
-    /* Names stored in character data are ISO-8859-1 */
-    ic = iconv_open("UTF-16LE", "ISO-8859-1");
-
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
         return -1;
     }
 
@@ -1646,7 +1578,8 @@ static int send_pc_lobby_add_player(lobby_t *l, ship_client_t *c,
         pkt->entries[0].hdr.name[15] = 0;
     }
     else {
-        istrncpy(ic, (char *)pkt->entries[0].hdr.name, nc->pl->v1.name, 32);
+        istrncpy(ic_8859_to_utf16, (char *)pkt->entries[0].hdr.name,
+                 nc->pl->v1.name, 32);
     }
 
     make_disp_data(nc, c, &pkt->entries[0].data);
@@ -1690,19 +1623,10 @@ static int send_bb_lobby_add_player(lobby_t *l, ship_client_t *c,
                                     ship_client_t *nc) {
     uint8_t *sendbuf = get_sendbuf();
     bb_lobby_join_pkt *pkt = (bb_lobby_join_pkt *)sendbuf;
-    iconv_t ic;
     uint16_t pkt_size = 0x14;
     
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
-        return -1;
-    }
-
-    /* Names are always either ISO-8859-1 or UTF-16LE */
-    ic = iconv_open("UTF-16LE", "ISO-8859-1");
-
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
         return -1;
     }
 
@@ -1739,7 +1663,7 @@ static int send_bb_lobby_add_player(lobby_t *l, ship_client_t *c,
     else {
         pkt->entries[0].hdr.name[0] = '\t';
         pkt->entries[0].hdr.name[0] = 'J';
-        istrncpy(ic, (char *)&pkt->entries[0].hdr.name[2],
+        istrncpy(ic_8859_to_utf16, (char *)&pkt->entries[0].hdr.name[2],
                  nc->pl->v1.name, 32);
     }
 
@@ -1874,38 +1798,47 @@ int send_lobby_leave(lobby_t *l, ship_client_t *c, int client_id) {
 }
 
 static int send_dc_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
-                              char msg[]) {
+                              const char *msg) {
     uint8_t *sendbuf = get_sendbuf();
     dc_chat_pkt *pkt = (dc_chat_pkt *)sendbuf;
-    iconv_t ic;
+    size_t len;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Clear the packet header */
+    memset(pkt, 0, sizeof(dc_chat_pkt));
+
+    /* Fill in the packet... */
+    pkt->guildcard = LE32(s->guildcard);
+    len = sprintf(pkt->msg, "%s\t%s", s->pl->v1.name, msg) + 1;
+
+    /* Add any padding needed */
+    while(len & 0x03) {
+        pkt->msg[len++] = 0;
+    }
+
+    /* Fill in the length */
+    len += 0x0C;
+
+    pkt->hdr.dc.pkt_type = CHAT_TYPE;
+    pkt->hdr.dc.flags = 0;
+    pkt->hdr.dc.pkt_len = LE16(len);
+
+    /* Send it away */
+    return crypt_send(c, len, sendbuf);
+}
+
+static int send_pc_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
+                              const char *msg) {
+    uint8_t *sendbuf = get_sendbuf();
+    dc_chat_pkt *pkt = (dc_chat_pkt *)sendbuf;
     char tm[strlen(msg) + 32];
     size_t in, out, len;
     ICONV_CONST char *inptr;
     char *outptr;
-
-    if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
-       c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3) {
-        /* Yes, these are both dummy transformations */
-        if(msg[1] == 'J') {
-            ic = iconv_open("SHIFT_JIS", "SHIFT_JIS");
-        }
-        else {
-            ic = iconv_open("ISO-8859-1", "ISO-8859-1");
-        }
-    }
-    else {
-        if(msg[1] == 'J') {
-            ic = iconv_open("UTF-16LE", "SHIFT_JIS");
-        }
-        else {
-            ic = iconv_open("UTF-16LE", "ISO-8859-1");
-        }
-    }
-
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
-        return -1;
-    }
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -1925,8 +1858,13 @@ static int send_dc_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
     out = 65520;
     inptr = tm;
     outptr = pkt->msg;
-    iconv(ic, &inptr, &in, &outptr, &out);
-    iconv_close(ic);
+
+    if(msg[1] == 'J') {
+        iconv(ic_sjis_to_utf16, &inptr, &in, &outptr, &out);
+    }
+    else {
+        iconv(ic_8859_to_utf16, &inptr, &in, &outptr, &out);
+    }
 
     /* Figure out how long the new string is. */
     len = 65520 - out;
@@ -1939,44 +1877,22 @@ static int send_dc_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
     /* Fill in the length */
     len += 0x0C;
 
-    if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
-       c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3) {
-        pkt->hdr.dc.pkt_type = CHAT_TYPE;
-        pkt->hdr.dc.flags = 0;
-        pkt->hdr.dc.pkt_len = LE16(len);
-    }
-    else {
-        pkt->hdr.pc.pkt_type = CHAT_TYPE;
-        pkt->hdr.pc.flags = 0;
-        pkt->hdr.pc.pkt_len = LE16(len);
-    }
+    pkt->hdr.pc.pkt_type = CHAT_TYPE;
+    pkt->hdr.pc.flags = 0;
+    pkt->hdr.pc.pkt_len = LE16(len);
 
     /* Send it away */
     return crypt_send(c, len, sendbuf);
 }
 
 static int send_bb_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
-                              char msg[]) {
+                              const char *msg) {
     uint8_t *sendbuf = get_sendbuf();
     bb_chat_pkt *pkt = (bb_chat_pkt *)sendbuf;
-    iconv_t ic;
     char tm[strlen(msg) + 32];
     size_t in, out, len;
     ICONV_CONST char *inptr;
     char *outptr;
-
-    /* Set up the iconv stuff */
-    if(msg[1] == 'J') {
-        ic = iconv_open("UTF-16LE", "SHIFT_JIS");
-    }
-    else {
-        ic = iconv_open("UTF-16LE", "ISO-8859-1");
-    }
-
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
-        return -1;
-    }
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -1990,17 +1906,22 @@ static int send_bb_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
     pkt->guildcard = LE32(s->guildcard);
 
     /* Fill in the message */
-    in = sprintf(tm, "\tJ%s\t%s", s->pl->v1.name, msg) + 1;
+    in = sprintf(tm, "\tE%s\t%s", s->pl->v1.name, msg) + 1;
 
     /* Convert the message to the appropriate encoding. */
     out = 65520;
     inptr = tm;
     outptr = (char *)pkt->msg;
-    iconv(ic, &inptr, &in, &outptr, &out);
-    iconv_close(ic);
+
+    if(msg[1] == 'J') {
+        iconv(ic_sjis_to_utf16, &inptr, &in, &outptr, &out);
+    }
+    else {
+        iconv(ic_8859_to_utf16, &inptr, &in, &outptr, &out);
+    }
 
     /* Figure out how long the new string is. */
-    len = (strlen16(pkt->msg) << 1) + 0x12;
+    len = (strlen16(pkt->msg) << 1) + 0x10;
 
     /* Add any padding needed */
     while(len & 0x07) {
@@ -2017,7 +1938,7 @@ static int send_bb_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
 }
 
 /* Send a talk packet to the specified lobby. */
-int send_lobby_chat(lobby_t *l, ship_client_t *sender, char msg[]) {
+int send_lobby_chat(lobby_t *l, ship_client_t *sender, const char *msg) {
     int i;
 
     if((sender->flags & CLIENT_FLAG_STFU)) {
@@ -2032,12 +1953,18 @@ int send_lobby_chat(lobby_t *l, ship_client_t *sender, char msg[]) {
             switch(l->clients[i]->version) {
                 case CLIENT_VERSION_DCV1:
                 case CLIENT_VERSION_DCV2:
-                case CLIENT_VERSION_PC:
                 case CLIENT_VERSION_GC:
                 case CLIENT_VERSION_EP3:
                     /* Only send if they're not being /ignore'd */
                     if(!client_has_ignored(l->clients[i], sender->guildcard)) {
                         send_dc_lobby_chat(l, l->clients[i], sender, msg);
+                    }
+                    break;
+
+                case CLIENT_VERSION_PC:
+                    /* Only send if they're not being /ignore'd */
+                    if(!client_has_ignored(l->clients[i], sender->guildcard)) {
+                        send_pc_lobby_chat(l, l->clients[i], sender, msg);
                     }
                     break;
 
@@ -2057,11 +1984,9 @@ int send_lobby_chat(lobby_t *l, ship_client_t *sender, char msg[]) {
 }
 
 static int send_dc_lobby_wchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
-                               uint16_t *msg, size_t len) {
+                               const uint16_t *msg, size_t len) {
     uint8_t *sendbuf = get_sendbuf();
     dc_chat_pkt *pkt = (dc_chat_pkt *)sendbuf;
-    iconv_t ic, ic2;
-    char tmp[32];
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
@@ -2071,64 +1996,28 @@ static int send_dc_lobby_wchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
         return -1;
     }
 
-    /* Create everything we need for converting stuff. */
-    if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
-       c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3) {
-        if(LE16(msg[1]) == ((uint16_t)'J')) {
-            ic = iconv_open("SHIFT_JIS", "UTF-16LE");
-        }
-        else {
-            ic = iconv_open("ISO-8859-1", "UTF-16LE");
-        }
-
-        if(ic == (iconv_t)-1) {
-            perror("iconv_open");
-            return -1;
-        }
-
-        ic2 = iconv_open("ISO-8859-1", "ISO-8859-1");
-        if(ic2 == (iconv_t)-1) {
-            perror("iconv_open");
-            iconv_close(ic);
-            return -1;
-        }
-    }
-    else {
-        ic = iconv_open("UTF-16LE", "UTF-16LE");
-        if(ic == (iconv_t)-1) {
-            perror("iconv_open");
-            return -1;
-        }
-
-        ic2 = iconv_open("UTF-16LE", "ISO-8859-1");
-        if(ic2 == (iconv_t)-1) {
-            perror("iconv_open");
-            iconv_close(ic);
-            return -1;
-        }
-    }
-
     /* Clear the packet header */
     memset(pkt, 0, sizeof(dc_chat_pkt));
 
     /* Fill in the basics */
     pkt->guildcard = LE32(s->guildcard);
 
-    /* Convert the name string first. */
-    in = sprintf(tmp, "%s\t", s->pl->v1.name);
-    out = 65520;
-    inptr = tmp;
-    outptr = pkt->msg;
-    iconv(ic2, &inptr, &in, &outptr, &out);
-    iconv_close(ic2);
+    /* Create the name string first. */
+    sprintf(pkt->msg, "%s\t", s->pl->v1.name);
 
     /* Fill in the message */
     in = len;
     inptr = (char *)msg;
+    out = 65520 - strlen(pkt->msg);
+    outptr = pkt->msg + strlen(pkt->msg);
 
     /* Convert the message to the appropriate encoding. */
-    iconv(ic, &inptr, &in, &outptr, &out);
-    iconv_close(ic);
+    if(msg[1] == LE16('J')) {
+        iconv(ic_utf16_to_sjis, &inptr, &in, &outptr, &out);
+    }
+    else {
+        iconv(ic_utf16_to_8859, &inptr, &in, &outptr, &out);
+    }
 
     /* Figure out how long the new string is. */
     len = 65520 - out;
@@ -2141,27 +2030,63 @@ static int send_dc_lobby_wchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
     /* Fill in the length */
     len += 0x0C;
 
-    if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
-       c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3) {
-        pkt->hdr.dc.pkt_type = CHAT_TYPE;
-        pkt->hdr.dc.flags = 0;
-        pkt->hdr.dc.pkt_len = LE16(len);
+    pkt->hdr.dc.pkt_type = CHAT_TYPE;
+    pkt->hdr.dc.flags = 0;
+    pkt->hdr.dc.pkt_len = LE16(len);
+
+    /* Send it away */
+    return crypt_send(c, len, sendbuf);
+}
+
+static int send_pc_lobby_wchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
+                               const uint16_t *msg, size_t len) {
+    uint8_t *sendbuf = get_sendbuf();
+    dc_chat_pkt *pkt = (dc_chat_pkt *)sendbuf;
+    char tmp[32];
+    size_t in, out;
+    ICONV_CONST char *inptr;
+    char *outptr;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
     }
-    else {
-        pkt->hdr.pc.pkt_type = CHAT_TYPE;
-        pkt->hdr.pc.flags = 0;
-        pkt->hdr.pc.pkt_len = LE16(len);
+
+    /* Clear the packet header */
+    memset(pkt, 0, sizeof(dc_chat_pkt));
+
+    /* Fill in the basics */
+    pkt->guildcard = LE32(s->guildcard);
+
+    /* Convert the name string first. */
+    in = sprintf(tmp, "%s\t", s->pl->v1.name) + 1;
+    out = 65520;
+    inptr = tmp;
+    outptr = pkt->msg;
+    iconv(ic_8859_to_utf16, &inptr, &in, &outptr, &out);
+
+    /* Fill in the message */
+    strcat16((uint16_t *)pkt->msg, msg);
+    len = (strlen16((uint16_t *)pkt->msg) << 1) + 0x0E;
+
+    /* Add any padding needed */
+    while(len & 0x03) {
+        sendbuf[len++] = 0;
     }
+
+    /* Fill in the header */
+    pkt->hdr.pc.pkt_type = CHAT_TYPE;
+    pkt->hdr.pc.flags = 0;
+    pkt->hdr.pc.pkt_len = LE16(len);
 
     /* Send it away */
     return crypt_send(c, len, sendbuf);
 }
 
 static int send_bb_lobby_wchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
-                               uint16_t *msg, size_t len) {
+                               const uint16_t *msg, size_t len) {
     uint8_t *sendbuf = get_sendbuf();
     bb_chat_pkt *pkt = (bb_chat_pkt *)sendbuf;
-    iconv_t ic;
     char tmp[64];
     size_t in, out;
     ICONV_CONST char *inptr;
@@ -2172,13 +2097,6 @@ static int send_bb_lobby_wchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
         return -1;
     }
 
-    /* Create everything we need for converting stuff. */
-    ic = iconv_open("UTF-16LE", "ISO-8859-1");
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
-        return -1;
-    }
-
     /* Clear the packet header */
     memset(pkt, 0, sizeof(bb_chat_pkt));
 
@@ -2186,12 +2104,11 @@ static int send_bb_lobby_wchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
     pkt->guildcard = LE32(s->guildcard);
 
     /* Convert the name string first. */
-    in = sprintf(tmp, "\tJ%s\t", s->pl->v1.name) + 1;
+    in = sprintf(tmp, "\tE%s\t", s->pl->v1.name) + 1;
     out = 65520;
     inptr = tmp;
     outptr = (char *)pkt->msg;
-    iconv(ic, &inptr, &in, &outptr, &out);
-    iconv_close(ic);
+    iconv(ic_8859_to_utf16, &inptr, &in, &outptr, &out);
 
     /* Fill in the message */
     strcat16(pkt->msg, msg);
@@ -2211,7 +2128,7 @@ static int send_bb_lobby_wchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
 }
 
 /* Send a talk packet to the specified lobby (UTF-16). */
-int send_lobby_wchat(lobby_t *l, ship_client_t *sender, uint16_t *msg,
+int send_lobby_wchat(lobby_t *l, ship_client_t *sender, const uint16_t *msg,
                      size_t len) {
     int i;
 
@@ -2227,12 +2144,19 @@ int send_lobby_wchat(lobby_t *l, ship_client_t *sender, uint16_t *msg,
             switch(l->clients[i]->version) {
                 case CLIENT_VERSION_DCV1:
                 case CLIENT_VERSION_DCV2:
-                case CLIENT_VERSION_PC:
                 case CLIENT_VERSION_GC:
                 case CLIENT_VERSION_EP3:
                     /* Only send if they're not being /ignore'd */
                     if(!client_has_ignored(l->clients[i], sender->guildcard)) {
                         send_dc_lobby_wchat(l, l->clients[i], sender, msg,
+                                            len);
+                    }
+                    break;
+
+                case CLIENT_VERSION_PC:
+                    /* Only send if they're not being /ignore'd */
+                    if(!client_has_ignored(l->clients[i], sender->guildcard)) {
+                        send_pc_lobby_wchat(l, l->clients[i], sender, msg,
                                             len);
                     }
                     break;
@@ -2254,10 +2178,9 @@ int send_lobby_wchat(lobby_t *l, ship_client_t *sender, uint16_t *msg,
 }
 
 static int send_dc_lobby_bbchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
-                                uint16_t *msg, size_t len) {
+                                const uint16_t *msg, size_t len) {
     uint8_t *sendbuf = get_sendbuf();
     dc_chat_pkt *pkt = (dc_chat_pkt *)sendbuf;
-    iconv_t ic, ic2;
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
@@ -2265,43 +2188,6 @@ static int send_dc_lobby_bbchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
         return -1;
-    }
-
-    /* Create everything we need for converting stuff. */
-    if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
-       c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3) {
-        if(LE16(msg[1]) == ((uint16_t)'J')) {
-            ic = iconv_open("SHIFT_JIS", "UTF-16LE");
-        }
-        else {
-            ic = iconv_open("ISO-8859-1", "UTF-16LE");
-        }
-
-        if(ic == (iconv_t)-1) {
-            perror("iconv_open");
-            return -1;
-        }
-
-        ic2 = iconv_open("ISO-8859-1", "UTF-16LE");
-        if(ic2 == (iconv_t)-1) {
-            perror("iconv_open");
-            iconv_close(ic);
-            return -1;
-        }
-    }
-    else {
-        ic = iconv_open("UTF-16LE", "UTF-16LE");
-        if(ic == (iconv_t)-1) {
-            perror("iconv_open");
-            return -1;
-        }
-
-        ic2 = iconv_open("UTF-16LE", "UTF-16LE");
-        if(ic2 == (iconv_t)-1) {
-            perror("iconv_open");
-            iconv_close(ic);
-            return -1;
-        }
     }
 
     /* Clear the packet header */
@@ -2315,25 +2201,23 @@ static int send_dc_lobby_bbchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
     out = 65520;
     inptr = (char *)&s->pl->bb.character.name[2];
     outptr = pkt->msg;
-    iconv(ic2, &inptr, &in, &outptr, &out);
-    iconv_close(ic2);
+    iconv(ic_utf16_to_ascii, &inptr, &in, &outptr, &out);
 
     /* Add the separator */
-    *outptr++ = LE16('\t');
+    *outptr++ = '\t';
     --out;
-
-    if(c->version == CLIENT_VERSION_PC) {
-        *outptr++ = 0;
-        --out;
-    }
 
     /* Fill in the message */
     in = len;
     inptr = (char *)msg;
 
     /* Convert the message to the appropriate encoding. */
-    iconv(ic, &inptr, &in, &outptr, &out);
-    iconv_close(ic);
+    if(msg[1] == LE16('J')) {
+        iconv(ic_utf16_to_sjis, &inptr, &in, &outptr, &out);
+    }
+    else {
+        iconv(ic_utf16_to_8859, &inptr, &in, &outptr, &out);
+    }
 
     /* Figure out how long the new string is. */
     len = 65520 - out;
@@ -2346,24 +2230,51 @@ static int send_dc_lobby_bbchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
     /* Fill in the length */
     len += 0x0C;
 
-    if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
-       c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3) {
-        pkt->hdr.dc.pkt_type = CHAT_TYPE;
-        pkt->hdr.dc.flags = 0;
-        pkt->hdr.dc.pkt_len = LE16(len);
+    pkt->hdr.dc.pkt_type = CHAT_TYPE;
+    pkt->hdr.dc.flags = 0;
+    pkt->hdr.dc.pkt_len = LE16(len);
+
+    /* Send it away */
+    return crypt_send(c, len, sendbuf);
+}
+
+static int send_pc_lobby_bbchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
+                                const uint16_t *msg, size_t len) {
+    uint8_t *sendbuf = get_sendbuf();
+    dc_chat_pkt *pkt = (dc_chat_pkt *)sendbuf;
+    uint16_t tmp[2] = { LE16('\t'), 0 };
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
     }
-    else {
-        pkt->hdr.pc.pkt_type = CHAT_TYPE;
-        pkt->hdr.pc.flags = 0;
-        pkt->hdr.pc.pkt_len = LE16(len);
+
+    /* Clear the packet header */
+    memset(pkt, 0, sizeof(dc_chat_pkt));
+
+    /* Fill in the packet */
+    pkt->guildcard = LE32(s->guildcard);
+    strcpy16((uint16_t *)pkt->msg, s->pl->bb.character.name);
+    strcat16((uint16_t *)pkt->msg, tmp);
+    strcat16((uint16_t *)pkt->msg, msg);
+    len = (strlen16((uint16_t *)pkt->msg) << 1) + 0x0E;
+
+    /* Add any padding needed */
+    while(len & 0x03) {
+        sendbuf[len++] = 0;
     }
+
+    /* Fill in the header */
+    pkt->hdr.pc.pkt_len = LE16(len);
+    pkt->hdr.pc.pkt_type = CHAT_TYPE;
+    pkt->hdr.pc.flags = 0;
 
     /* Send it away */
     return crypt_send(c, len, sendbuf);
 }
 
 static int send_bb_lobby_bbchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
-                                uint16_t *msg, size_t len) {
+                                const uint16_t *msg, size_t len) {
     uint8_t *sendbuf = get_sendbuf();
     bb_chat_pkt *pkt = (bb_chat_pkt *)sendbuf;
     uint16_t tmp[2] = { LE16('\t'), 0 };
@@ -2398,7 +2309,7 @@ static int send_bb_lobby_bbchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
 }
 
 /* Send a talk packet to the specified lobby (UTF-16 - Blue Burst). */
-int send_lobby_bbchat(lobby_t *l, ship_client_t *sender, uint16_t *msg,
+int send_lobby_bbchat(lobby_t *l, ship_client_t *sender, const uint16_t *msg,
                       size_t len) {
     int i;
 
@@ -2414,12 +2325,19 @@ int send_lobby_bbchat(lobby_t *l, ship_client_t *sender, uint16_t *msg,
             switch(l->clients[i]->version) {
                 case CLIENT_VERSION_DCV1:
                 case CLIENT_VERSION_DCV2:
-                case CLIENT_VERSION_PC:
                 case CLIENT_VERSION_GC:
                 case CLIENT_VERSION_EP3:
                     /* Only send if they're not being /ignore'd */
                     if(!client_has_ignored(l->clients[i], sender->guildcard)) {
                         send_dc_lobby_bbchat(l, l->clients[i], sender, msg,
+                                             len);
+                    }
+                    break;
+
+                case CLIENT_VERSION_PC:
+                    /* Only send if they're not being /ignore'd */
+                    if(!client_has_ignored(l->clients[i], sender->guildcard)) {
+                        send_pc_lobby_bbchat(l, l->clients[i], sender, msg,
                                              len);
                     }
                     break;
@@ -2447,7 +2365,6 @@ static int send_dc_guild_reply(ship_client_t *c, ship_client_t *s) {
     lobby_t *l = s->cur_lobby;
     block_t *b = s->cur_block;
     uint16_t port = 0;
-    iconv_t ic;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -2486,19 +2403,8 @@ static int send_dc_guild_reply(ship_client_t *c, ship_client_t *s) {
 
     /* iconv the name, if needed... */
     if(s->version == CLIENT_VERSION_BB) {
-        if(s->bb_pl->character.name[1] == LE16('J')) {
-            ic = iconv_open("SHIFT_JIS", "UTF-16LE");
-        }
-        else {
-            ic = iconv_open("ISO-8859-1", "UTF-16LE");
-        }
-
-        if(ic == (iconv_t)-1) {
-            return -1;
-        }
-
-        istrncpy16(ic, pkt->name, &s->bb_pl->character.name[2], 0x20);
-        iconv_close(ic);
+        istrncpy16(ic_utf16_to_ascii, pkt->name, &s->bb_pl->character.name[2],
+                   0x20);
     }
     else {
         strcpy(pkt->name, s->pl->v1.name);
@@ -2515,24 +2421,11 @@ static int send_pc_guild_reply(ship_client_t *c, ship_client_t *s) {
     uint8_t *sendbuf = get_sendbuf();
     pc_guild_reply_pkt *pkt = (pc_guild_reply_pkt *)sendbuf;
     char tmp[0x44];
-    iconv_t ic;
     lobby_t *l = s->cur_lobby;
     block_t *b = s->cur_block;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
-        return -1;
-    }
-
-    /* We'll be converting stuff from ISO-8859-1/Shift-JIS to UTF-16. */
-    if(l->name[0] == '\t' && l->name[1] == 'J') {
-        ic = iconv_open("UTF-16LE", "SHIFT_JIS");
-    }
-    else {
-        ic = iconv_open("UTF-16LE", "ISO-8859-1");
-    }
-
-    if(ic == (iconv_t)-1) {
         return -1;
     }
 
@@ -2552,17 +2445,21 @@ static int send_pc_guild_reply(ship_client_t *c, ship_client_t *s) {
 
     /* Fill in the location string... */
     sprintf(tmp, "%s,BLOCK%02d,%s", l->name, b->b, ship->cfg->name);
-    istrncpy(ic, (char *)pkt->location, tmp, 0x88);
+
+    if(l->name[0] == '\t' && l->name[1] == 'J') {
+        istrncpy(ic_sjis_to_utf16, (char *)pkt->location, tmp, 0x88);
+    }
+    else {
+        istrncpy(ic_8859_to_utf16, (char *)pkt->location, tmp, 0x88);
+    }
 
     /* ...and the name. */
     if(s->version == CLIENT_VERSION_BB) {
         memcpy(pkt->name, &s->bb_pl->character.name[2], 28);
     }
     else {
-        istrncpy(ic, (char *)pkt->name, s->pl->v1.name, 0x40);
+        istrncpy(ic_8859_to_utf16, (char *)pkt->name, s->pl->v1.name, 0x40);
     }
-
-    iconv_close(ic);
 
     /* Send it away */
     return crypt_send(c, PC_GUILD_REPLY_LENGTH, sendbuf);
@@ -2572,24 +2469,11 @@ static int send_bb_guild_reply(ship_client_t *c, ship_client_t *s) {
     uint8_t *sendbuf = get_sendbuf();
     bb_guild_reply_pkt *pkt = (bb_guild_reply_pkt *)sendbuf;
     char tmp[0x44];
-    iconv_t ic;
     lobby_t *l = s->cur_lobby;
     block_t *b = s->cur_block;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
-        return -1;
-    }
-
-    /* We'll be converting stuff from ISO-8859-1/Shift-JIS to UTF-16. */
-    if(l->name[0] == '\t' && l->name[1] == 'J') {
-        ic = iconv_open("UTF-16LE", "SHIFT_JIS");
-    }
-    else {
-        ic = iconv_open("UTF-16LE", "ISO-8859-1");
-    }
-
-    if(ic == (iconv_t)-1) {
         return -1;
     }
 
@@ -2609,7 +2493,13 @@ static int send_bb_guild_reply(ship_client_t *c, ship_client_t *s) {
 
     /* Fill in the location string... */
     sprintf(tmp, "%s,BLOCK%02d,%s", l->name, b->b, ship->cfg->name);
-    istrncpy(ic, (char *)pkt->location, tmp, 0x88);
+
+    if(l->name[0] == '\t' && l->name[1] == 'J') {
+        istrncpy(ic_sjis_to_utf16, (char *)pkt->location, tmp, 0x88);
+    }
+    else {
+        istrncpy(ic_8859_to_utf16, (char *)pkt->location, tmp, 0x88);
+    }
 
     /* ...and the name. */
     if(s->version == CLIENT_VERSION_BB) {
@@ -2617,11 +2507,9 @@ static int send_bb_guild_reply(ship_client_t *c, ship_client_t *s) {
     }
     else {
         pkt->name[0] = LE16('\t');
-        pkt->name[1] = LE16('J');
-        istrncpy(ic, (char *)&pkt->name[2], s->pl->v1.name, 0x3C);
+        pkt->name[1] = LE16('E');
+        istrncpy(ic_8859_to_utf16, (char *)&pkt->name[2], s->pl->v1.name, 0x3C);
     }
-
-    iconv_close(ic);
 
     /* Send it away */
     return crypt_send(c, BB_GUILD_REPLY_LENGTH, sendbuf);
@@ -2655,7 +2543,6 @@ static int send_dc_guild_reply6(ship_client_t *c, ship_client_t *s) {
     lobby_t *l = s->cur_lobby;
     block_t *b = s->cur_block;
     uint16_t port = 0;
-    iconv_t ic;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -2695,19 +2582,8 @@ static int send_dc_guild_reply6(ship_client_t *c, ship_client_t *s) {
 
     /* iconv the name, if needed... */
     if(s->version == CLIENT_VERSION_BB) {
-        if(s->bb_pl->character.name[1] == LE16('J')) {
-            ic = iconv_open("SHIFT_JIS", "UTF-16LE");
-        }
-        else {
-            ic = iconv_open("ISO-8859-1", "UTF-16LE");
-        }
-
-        if(ic == (iconv_t)-1) {
-            return -1;
-        }
-
-        istrncpy16(ic, pkt->name, &s->bb_pl->character.name[2], 0x20);
-        iconv_close(ic);
+        istrncpy16(ic_utf16_to_ascii, pkt->name, &s->bb_pl->character.name[2],
+                   0x20);
     }
     else {
         strcpy(pkt->name, s->pl->v1.name);
@@ -2724,24 +2600,11 @@ static int send_pc_guild_reply6(ship_client_t *c, ship_client_t *s) {
     uint8_t *sendbuf = get_sendbuf();
     pc_guild_reply6_pkt *pkt = (pc_guild_reply6_pkt *)sendbuf;
     char tmp[0x44];
-    iconv_t ic;
     lobby_t *l = s->cur_lobby;
     block_t *b = s->cur_block;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
-        return -1;
-    }
-
-    /* We'll be converting stuff from ISO-8859-1/Shift-JIS to UTF-16. */
-    if(l->name[0] == '\t' && l->name[1] == 'J') {
-        ic = iconv_open("UTF-16LE", "SHIFT_JIS");
-    }
-    else {
-        ic = iconv_open("UTF-16LE", "ISO-8859-1");
-    }
-
-    if(ic == (iconv_t)-1) {
         return -1;
     }
 
@@ -2762,17 +2625,22 @@ static int send_pc_guild_reply6(ship_client_t *c, ship_client_t *s) {
 
     /* Fill in the location string... */
     sprintf(tmp, "%s,BLOCK%02d,%s", l->name, b->b, ship->cfg->name);
-    istrncpy(ic, (char *)pkt->location, tmp, 0x88);
+
+    if(l->name[0] == '\t' && l->name[1] == 'J') {
+        istrncpy(ic_sjis_to_utf16, (char *)pkt->location, tmp, 0x88);
+    }
+    else {
+        istrncpy(ic_8859_to_utf16, (char *)pkt->location, tmp, 0x88);
+    }
 
     /* ...and the name. */
     if(s->version == CLIENT_VERSION_BB) {
         memcpy(pkt->name, &s->bb_pl->character.name[2], 28);
     }
     else {
-        istrncpy(ic, (char *)pkt->name, s->pl->v1.name, 0x40);
+        istrncpy(ic_8859_to_utf16, (char *)pkt->name, s->pl->v1.name, 0x40);
     }
 
-    iconv_close(ic);
 
     /* Send it away */
     return crypt_send(c, PC_GUILD_REPLY6_LENGTH, sendbuf);
@@ -2782,24 +2650,11 @@ static int send_bb_guild_reply6(ship_client_t *c, ship_client_t *s) {
     uint8_t *sendbuf = get_sendbuf();
     bb_guild_reply6_pkt *pkt = (bb_guild_reply6_pkt *)sendbuf;
     char tmp[0x44];
-    iconv_t ic;
     lobby_t *l = s->cur_lobby;
     block_t *b = s->cur_block;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
-        return -1;
-    }
-
-    /* We'll be converting stuff from ISO-8859-1/Shift-JIS to UTF-16. */
-    if(l->name[0] == '\t' && l->name[1] == 'J') {
-        ic = iconv_open("UTF-16LE", "SHIFT_JIS");
-    }
-    else {
-        ic = iconv_open("UTF-16LE", "ISO-8859-1");
-    }
-
-    if(ic == (iconv_t)-1) {
         return -1;
     }
 
@@ -2820,7 +2675,13 @@ static int send_bb_guild_reply6(ship_client_t *c, ship_client_t *s) {
 
     /* Fill in the location string... */
     sprintf(tmp, "%s,BLOCK%02d,%s", l->name, b->b, ship->cfg->name);
-    istrncpy(ic, (char *)pkt->location, tmp, 0x88);
+
+    if(l->name[0] == '\t' && l->name[1] == 'J') {
+        istrncpy(ic_sjis_to_utf16, (char *)pkt->location, tmp, 0x88);
+    }
+    else {
+        istrncpy(ic_8859_to_utf16, (char *)pkt->location, tmp, 0x88);
+    }
 
     /* ...and the name. */
     if(s->version == CLIENT_VERSION_BB) {
@@ -2828,11 +2689,9 @@ static int send_bb_guild_reply6(ship_client_t *c, ship_client_t *s) {
     }
     else {
         pkt->name[0] = LE16('\t');
-        pkt->name[1] = LE16('J');
-        istrncpy(ic, (char *)&pkt->name[2], s->pl->v1.name, 0x3C);
+        pkt->name[1] = LE16('E');
+        istrncpy(ic_8859_to_utf16, (char *)&pkt->name[2], s->pl->v1.name, 0x3C);
     }
-
-    iconv_close(ic);
 
     /* Send it away */
     return crypt_send(c, BB_GUILD_REPLY6_LENGTH, sendbuf);
@@ -2885,23 +2744,10 @@ static int send_dc_guild_reply_sg(ship_client_t *c, dc_guild_reply_pkt *pkt) {
 static int send_pc_guild_reply_sg(ship_client_t *c, dc_guild_reply_pkt *dc) {
     uint8_t *sendbuf = get_sendbuf();
     pc_guild_reply_pkt *pkt = (pc_guild_reply_pkt *)sendbuf;
-    iconv_t ic;
     uint16_t port = LE16(dc->port);
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
-        return -1;
-    }
-
-    /* We'll be converting stuff from ISO-8859-1/Shift-JIS to UTF-16. */
-    if(dc->location[0] == '\t' && dc->location[1] == 'J') {
-        ic = iconv_open("UTF-16LE", "SHIFT_JIS");
-    }
-    else {
-        ic = iconv_open("UTF-16LE", "ISO-8859-1");
-    }
-
-    if(ic == (iconv_t)-1) {
         return -1;
     }
 
@@ -2922,11 +2768,15 @@ static int send_pc_guild_reply_sg(ship_client_t *c, dc_guild_reply_pkt *dc) {
     pkt->menu_id = dc->menu_id;
     pkt->item_id = dc->item_id;
 
-    /* Fill in the location string and the name*/
-    istrncpy(ic, (char *)pkt->location, dc->location, 0x88);
-    istrncpy(ic, (char *)pkt->name, dc->name, 0x40);
+    /* Fill in the location string and the name */
+    if(dc->location[0] == '\t' && dc->location[0] == 'J') {
+        istrncpy(ic_sjis_to_utf16, (char *)pkt->location, dc->location, 0x88);
+    }
+    else {
+        istrncpy(ic_8859_to_utf16, (char *)pkt->location, dc->location, 0x88);
+    }
 
-    iconv_close(ic);
+    istrncpy(ic_8859_to_utf16, (char *)pkt->name, dc->name, 0x40);
 
     /* Send it away */
     return crypt_send(c, PC_GUILD_REPLY_LENGTH, sendbuf);
@@ -2979,23 +2829,10 @@ static int send_dc_guild_reply6_sg(ship_client_t *c, dc_guild_reply6_pkt *pkt) {
 static int send_pc_guild_reply6_sg(ship_client_t *c, dc_guild_reply6_pkt *dc) {
     uint8_t *sendbuf = get_sendbuf();
     pc_guild_reply6_pkt *pkt = (pc_guild_reply6_pkt *)sendbuf;
-    iconv_t ic;
     uint16_t port = LE16(dc->port);
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
-        return -1;
-    }
-
-    /* We'll be converting stuff from ISO-8859-1/Shift-JIS to UTF-16. */
-    if(dc->location[0] == '\t' && dc->location[1] == 'J') {
-        ic = iconv_open("UTF-16LE", "SHIFT_JIS");
-    }
-    else {
-        ic = iconv_open("UTF-16LE", "ISO-8859-1");
-    }
-
-    if(ic == (iconv_t)-1) {
         return -1;
     }
 
@@ -3017,11 +2854,15 @@ static int send_pc_guild_reply6_sg(ship_client_t *c, dc_guild_reply6_pkt *dc) {
     pkt->menu_id = dc->menu_id;
     pkt->item_id = dc->item_id;
 
-    /* Fill in the location string and the name*/
-    istrncpy(ic, (char *)pkt->location, dc->location, 0x88);
-    istrncpy(ic, (char *)pkt->name, dc->name, 0x40);
+    /* Fill in the location string and the name */
+    if(dc->location[0] == '\t' && dc->location[0] == 'J') {
+        istrncpy(ic_sjis_to_utf16, (char *)pkt->location, dc->location, 0x88);
+    }
+    else {
+        istrncpy(ic_8859_to_utf16, (char *)pkt->location, dc->location, 0x88);
+    }
 
-    iconv_close(ic);
+    istrncpy(ic_8859_to_utf16, (char *)pkt->name, dc->name, 0x40);
 
     /* Send it away */
     return crypt_send(c, PC_GUILD_REPLY6_LENGTH, sendbuf);
@@ -3085,19 +2926,14 @@ static int send_dc_message(ship_client_t *c, uint16_t type, const char *fmt,
     if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
        c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3) {
         if(tm[1] != 'J') {
-            ic = iconv_open("ISO-8859-1", "UTF-8");
+            ic = ic_utf8_to_8859;
         }
         else {
-            ic = iconv_open("SHIFT_JIS", "UTF-8");
+            ic = ic_utf8_to_sjis;
         }
     }
     else {
-        ic = iconv_open("UTF-16LE", "UTF-8");
-    }
-
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
-        return -1;
+        ic = ic_utf8_to_utf16;
     }
 
     in = strlen(tm) + 1;
@@ -3107,7 +2943,6 @@ static int send_dc_message(ship_client_t *c, uint16_t type, const char *fmt,
     inptr = tm;
     outptr = pkt->msg;
     iconv(ic, &inptr, &in, &outptr, &out);
-    iconv_close(ic);
     
     /* Figure out how long the new string is. */
     len = 65520 - out;
@@ -3141,7 +2976,6 @@ static int send_bb_message(ship_client_t *c, uint16_t type, const char *fmt,
     uint8_t *sendbuf = get_sendbuf();
     bb_chat_pkt *pkt = (bb_chat_pkt *)sendbuf;
     int len;
-    iconv_t ic;
     char tm[512];
     size_t in, out;
     ICONV_CONST char *inptr;
@@ -3169,21 +3003,12 @@ static int send_bb_message(ship_client_t *c, uint16_t type, const char *fmt,
         in += 2;
     }
 
-    /* Set up to convert between encodings */
-    ic = iconv_open("UTF-16LE", "UTF-8");
-
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
-        return -1;
-    }
-
     /* Convert the message to the appropriate encoding. */
     in = strlen(tm) + 1;
     out = 65520;
     inptr = tm;
     outptr = (char *)pkt->msg;
-    iconv(ic, &inptr, &in, &outptr, &out);
-    iconv_close(ic);
+    iconv(ic_utf8_to_utf16, &inptr, &in, &outptr, &out);
     
     /* Figure out how long the new string is. */
     len = 65520 - out + 0x10;
@@ -3313,19 +3138,9 @@ static int send_pc_game_join(ship_client_t *c, lobby_t *l) {
     uint8_t *sendbuf = get_sendbuf();
     pc_game_join_pkt *pkt = (pc_game_join_pkt *)sendbuf;
     int clients = 0, i;
-    iconv_t ic;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
-        return -1;
-    }
-
-    /* Names are sent in the player packets in ISO-8859-1, so that's what we
-       have sitting around */
-    ic = iconv_open("UTF-16LE", "ISO-8859-1");
-
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
         return -1;
     }
 
@@ -3359,13 +3174,11 @@ static int send_pc_game_join(ship_client_t *c, lobby_t *l) {
             pkt->players[i].client_id = LE32(i);
 
             /* Convert the name to UTF-16. */
-            istrncpy(ic, (char *)pkt->players[i].name,
+            istrncpy(ic_8859_to_utf16, (char *)pkt->players[i].name,
                      l->clients[i]->pl->v1.name, 32);
             ++clients;
         }
     }
-
-    iconv_close(ic);
 
     /* Copy the client count over. */
     pkt->hdr.flags = (uint8_t)clients;
@@ -3576,25 +3389,9 @@ static int send_pc_game_list(ship_client_t *c, block_t *b) {
     pc_game_list_pkt *pkt = (pc_game_list_pkt *)sendbuf;
     int entries = 1, len = 0x30;
     lobby_t *l;
-    iconv_t ic, ic2;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
-        return -1;
-    }
-
-    ic = iconv_open("UTF-16LE", "SHIFT_JIS");
-
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
-        return -1;
-    }
-
-    ic2 = iconv_open("UTF-16LE", "ISO-8859-1");
-
-    if(ic2 == (iconv_t)-1) {
-        perror("iconv_open");
-        iconv_close(ic);
         return -1;
     }
 
@@ -3609,7 +3406,8 @@ static int send_pc_game_list(ship_client_t *c, block_t *b) {
     pkt->entries[0].item_id = 0xFFFFFFFF;
     pkt->entries[0].flags = 0x04;
 
-    istrncpy(ic2, (char *)pkt->entries[0].name, b->ship->cfg->name, 0x20);
+    istrncpy(ic_8859_to_utf16, (char *)pkt->entries[0].name, ship->cfg->name,
+             0x20);
 
     TAILQ_FOREACH(l, &b->lobbies, qentry) {
         /* Ignore default lobbies and Gamecube games */
@@ -3635,10 +3433,12 @@ static int send_pc_game_list(ship_client_t *c, block_t *b) {
 
         /* Copy the name */
         if(l->name[1] == 'J') {
-            istrncpy(ic, (char *)pkt->entries[entries].name, l->name, 0x20);
+            istrncpy(ic_sjis_to_utf16, (char *)pkt->entries[entries].name,
+                     l->name, 0x20);
         }
         else {
-            istrncpy(ic2, (char *)pkt->entries[entries].name, l->name, 0x20);
+            istrncpy(ic_8859_to_utf16, (char *)pkt->entries[entries].name,
+                     l->name, 0x20);
         }
 
         /* Unlock the lobby */
@@ -3648,9 +3448,6 @@ static int send_pc_game_list(ship_client_t *c, block_t *b) {
         ++entries;
         len += 0x2C;
     }
-
-    iconv_close(ic);
-    iconv_close(ic2);
 
     /* Fill in the rest of the header */
     pkt->hdr.flags = entries - 1;
@@ -3871,17 +3668,9 @@ static int send_pc_info_list(ship_client_t *c, ship_t *s) {
     uint8_t *sendbuf = get_sendbuf();
     pc_block_list_pkt *pkt = (pc_block_list_pkt *)sendbuf;
     int i, len = 0x30;
-    iconv_t ic;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
-        return -1;
-    }
-
-    ic = iconv_open("UTF-16LE", "ISO-8859-1");
-
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
         return -1;
     }
 
@@ -3897,7 +3686,8 @@ static int send_pc_info_list(ship_client_t *c, ship_t *s) {
     pkt->entries[0].item_id = 0;
     pkt->entries[0].flags = 0;
 
-    istrncpy(ic, (char *)pkt->entries[0].name, s->cfg->name, 0x20);
+    istrncpy(ic_8859_to_utf16, (char *)pkt->entries[0].name, s->cfg->name,
+             0x20);
 
     /* Add each info item to the list. */
     for(i = 1; i <= s->cfg->info_file_count; ++i) {
@@ -3909,13 +3699,11 @@ static int send_pc_info_list(ship_client_t *c, ship_t *s) {
         pkt->entries[i].item_id = LE32((i - 1));
         pkt->entries[i].flags = LE16(0x0000);
 
-        istrncpy(ic, (char *)pkt->entries[i].name,
+        istrncpy(ic_8859_to_utf16, (char *)pkt->entries[i].name,
                  s->cfg->info_files_desc[i - 1], 0x20);
 
         len += 0x2C;
     }
-
-    iconv_close(ic);
 
     /* Fill in the rest of the header */
     pkt->hdr.pkt_len = LE16(len);
@@ -3949,17 +3737,9 @@ int send_pc_game_type_sel(ship_client_t *c) {
     const char str1[16] = "Allow PSOv1";
     const char str2[16] = "PSOv2 Only";
     const char str3[16] = "PSOPC Only";
-    iconv_t ic;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
-        return -1;
-    }
-
-    ic = iconv_open("UTF-16LE", "ASCII");
-
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
         return -1;
     }
 
@@ -3971,27 +3751,26 @@ int send_pc_game_type_sel(ship_client_t *c) {
     pkt->entries[0].item_id = 0;
     pkt->entries[0].flags = 0;
 
-    istrncpy(ic, (char *)pkt->entries[0].name, ship->cfg->name, 0x20);
+    istrncpy(ic_8859_to_utf16, (char *)pkt->entries[0].name, ship->cfg->name,
+             0x20);
 
     /* Add the "Allow PSOv1" entry */
     pkt->entries[1].menu_id = LE32(MENU_ID_GAME_TYPE);
     pkt->entries[1].item_id = LE32(0);
     pkt->entries[1].flags = 0;
-    istrncpy(ic, (char *)pkt->entries[1].name, str1, 0x20);
+    istrncpy(ic_8859_to_utf16, (char *)pkt->entries[1].name, str1, 0x20);
 
     /* Add the "PSOv2 Only" entry */
     pkt->entries[2].menu_id = LE32(MENU_ID_GAME_TYPE);
     pkt->entries[2].item_id = LE32(1);
     pkt->entries[2].flags = 0;
-    istrncpy(ic, (char *)pkt->entries[2].name, str2, 0x20);
+    istrncpy(ic_8859_to_utf16, (char *)pkt->entries[2].name, str2, 0x20);
 
     /* Add the "PSOPC Only" entry */
     pkt->entries[3].menu_id = LE32(MENU_ID_GAME_TYPE);
     pkt->entries[3].item_id = LE32(2);
     pkt->entries[3].flags = 0;
-    istrncpy(ic, (char *)pkt->entries[3].name, str3, 0x20);
-
-    iconv_close(ic);
+    istrncpy(ic_8859_to_utf16, (char *)pkt->entries[3].name, str3, 0x20);
 
     /* Fill in some basic stuff */
     pkt->hdr.pkt_type = LOBBY_INFO_TYPE;
@@ -4045,19 +3824,14 @@ static int send_dc_message_box(ship_client_t *c, const char *fmt,
     if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
        c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3) {
         if(tm[1] == 'J') {
-            ic = iconv_open("SHIFT_JIS", "UTF-8");
+            ic = ic_utf8_to_sjis;
         }
         else {
-            ic = iconv_open("ISO-8859-1", "UTF-8");
+            ic = ic_utf8_to_8859;
         }
     }
     else {
-        ic = iconv_open("UTF-16LE", "UTF-8");
-    }
-
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
-        return -1;
+        ic = ic_utf8_to_utf16;
     }
 
     /* Convert the message to the appropriate encoding. */
@@ -4066,7 +3840,6 @@ static int send_dc_message_box(ship_client_t *c, const char *fmt,
     outptr = (char *)pkt->msg;
     iconv(ic, &inptr, &in, &outptr, &out);
     len = 65500 - out;
-    iconv_close(ic);
 
     /* Add any padding needed */
     while(len & 0x03) {
@@ -4120,30 +3893,12 @@ static int send_dc_quest_categories(ship_client_t *c,
     dc_quest_list_pkt *pkt = (dc_quest_list_pkt *)sendbuf;
     int i, len = 0x04, entries = 0;
     uint32_t type = SYLVERANT_QUEST_NORMAL;
-    iconv_t ic, ic2;
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
-        return -1;
-    }
-
-    /* Quest stuff is stored internally as UTF-8, set up for converting to the
-       right encoding */
-    ic = iconv_open("ISO-8859-1", "UTF-8");
-
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
-        return -1;
-    }
-
-    ic2 = iconv_open("SHIFT_JIS", "UTF-8");
-
-    if(ic2 == (iconv_t)-1) {
-        perror("iconv_open");
-        iconv_close(ic);
         return -1;
     }
 
@@ -4179,20 +3934,17 @@ static int send_dc_quest_categories(ship_client_t *c,
         out = 32;
         inptr = l->cats[i].name;
         outptr = (char *)pkt->entries[entries].name;
-        iconv(ic, &inptr, &in, &outptr, &out);
+        iconv(ic_utf8_to_8859, &inptr, &in, &outptr, &out);
 
         in = 112;
         out = 112;
         inptr = l->cats[i].desc;
         outptr = (char *)pkt->entries[entries].desc;
-        iconv(ic, &inptr, &in, &outptr, &out);
+        iconv(ic_utf8_to_8859, &inptr, &in, &outptr, &out);
 
         ++entries;
         len += 0x98;
     }
-
-    iconv_close(ic2);
-    iconv_close(ic);
 
     /* Fill in the rest of the header */
     pkt->hdr.flags = entries;
@@ -4207,7 +3959,6 @@ static int send_pc_quest_categories(ship_client_t *c,
     uint8_t *sendbuf = get_sendbuf();
     pc_quest_list_pkt *pkt = (pc_quest_list_pkt *)sendbuf;
     int i, len = 0x04, entries = 0;
-    iconv_t ic;
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
@@ -4215,14 +3966,6 @@ static int send_pc_quest_categories(ship_client_t *c,
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
-        return -1;
-    }
-
-    /* Quest names are stored internally as UTF-8, convert to UTF-16. */
-    ic = iconv_open("UTF-16LE", "UTF-8");
-
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
         return -1;
     }
 
@@ -4257,19 +4000,17 @@ static int send_pc_quest_categories(ship_client_t *c,
         out = 64;
         inptr = l->cats[i].name;
         outptr = (char *)pkt->entries[entries].name;
-        iconv(ic, &inptr, &in, &outptr, &out);
+        iconv(ic_utf8_to_utf16, &inptr, &in, &outptr, &out);
 
         in = 112;
         out = 224;
         inptr = l->cats[i].desc;
         outptr = (char *)pkt->entries[entries].desc;
-        iconv(ic, &inptr, &in, &outptr, &out);
+        iconv(ic_utf8_to_utf16, &inptr, &in, &outptr, &out);
 
         ++entries;
         len += 0x128;
     }
-
-    iconv_close(ic);
 
     /* Fill in the rest of the header */
     pkt->hdr.flags = entries;
@@ -4301,7 +4042,6 @@ static int send_dc_quest_categories_new(ship_client_t *c, int lang) {
     dc_quest_list_pkt *pkt = (dc_quest_list_pkt *)sendbuf;
     int i, len = 0x04, entries = 0;
     uint32_t type = SYLVERANT_QUEST_NORMAL;
-    iconv_t ic;
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
@@ -4321,25 +4061,6 @@ static int send_dc_quest_categories_new(ship_client_t *c, int lang) {
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
         return -1;
-    }
-
-    /* Quest stuff is stored internally as UTF-8, set up for converting to the
-       right encoding */
-    if(lang != CLIENT_LANG_JAPANESE) {
-        ic = iconv_open("ISO-8859-1", "UTF-8");
-
-        if(ic == (iconv_t)-1) {
-            perror("iconv_open");
-            return -1;
-        }
-    }
-    else {
-        ic = iconv_open("SHIFT_JIS", "UTF-8");
-
-        if(ic == (iconv_t)-1) {
-            perror("iconv_open");
-            return -1;
-        }
     }
 
     if(c->cur_lobby->battle) {
@@ -4374,19 +4095,29 @@ static int send_dc_quest_categories_new(ship_client_t *c, int lang) {
         out = 32;
         inptr = qlist->cats[i].name;
         outptr = (char *)pkt->entries[entries].name;
-        iconv(ic, &inptr, &in, &outptr, &out);
+
+        if(lang == CLIENT_LANG_JAPANESE) {
+            iconv(ic_utf8_to_sjis, &inptr, &in, &outptr, &out);
+        }
+        else {
+            iconv(ic_utf8_to_8859, &inptr, &in, &outptr, &out);
+        }
 
         in = 112;
         out = 112;
         inptr = qlist->cats[i].desc;
         outptr = (char *)pkt->entries[entries].desc;
-        iconv(ic, &inptr, &in, &outptr, &out);
+
+        if(lang == CLIENT_LANG_JAPANESE) {
+            iconv(ic_utf8_to_sjis, &inptr, &in, &outptr, &out);
+        }
+        else {
+            iconv(ic_utf8_to_8859, &inptr, &in, &outptr, &out);
+        }
 
         ++entries;
         len += 0x98;
     }
-
-    iconv_close(ic);
 
     /* Fill in the rest of the header */
     pkt->hdr.flags = entries;
@@ -4400,7 +4131,6 @@ static int send_pc_quest_categories_new(ship_client_t *c, int lang) {
     uint8_t *sendbuf = get_sendbuf();
     pc_quest_list_pkt *pkt = (pc_quest_list_pkt *)sendbuf;
     int i, len = 0x04, entries = 0;
-    iconv_t ic;
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
@@ -4417,14 +4147,6 @@ static int send_pc_quest_categories_new(ship_client_t *c, int lang) {
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
-        return -1;
-    }
-
-    /* Quest names are stored internally as UTF-8, convert to UTF-16. */
-    ic = iconv_open("UTF-16LE", "UTF-8");
-
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
         return -1;
     }
 
@@ -4460,19 +4182,17 @@ static int send_pc_quest_categories_new(ship_client_t *c, int lang) {
         out = 64;
         inptr = qlist->cats[i].name;
         outptr = (char *)pkt->entries[entries].name;
-        iconv(ic, &inptr, &in, &outptr, &out);
+        iconv(ic_utf8_to_utf16, &inptr, &in, &outptr, &out);
 
         in = 112;
         out = 224;
         inptr = qlist->cats[i].desc;
         outptr = (char *)pkt->entries[entries].desc;
-        iconv(ic, &inptr, &in, &outptr, &out);
+        iconv(ic_utf8_to_utf16, &inptr, &in, &outptr, &out);
 
         ++entries;
         len += 0x128;
     }
-
-    iconv_close(ic);
 
     /* Fill in the rest of the header */
     pkt->hdr.flags = entries;
@@ -4508,30 +4228,12 @@ static int send_dc_quest_list(ship_client_t *c, int cat,
     uint8_t *sendbuf = get_sendbuf();
     dc_quest_list_pkt *pkt = (dc_quest_list_pkt *)sendbuf;
     int i, len = 0x04, entries = 0, max = INT_MAX;
-    iconv_t ic, ic2;
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
-        return -1;
-    }
-
-    /* Quest stuff is stored internally as UTF-8, set up for converting to the
-       right encoding */
-    ic = iconv_open("ISO-8859-1", "UTF-8");
-
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
-        return -1;
-    }
-
-    ic2 = iconv_open("SHIFT_JIS", "UTF-8");
-
-    if(ic2 == (iconv_t)-1) {
-        perror("iconv_open");
-        iconv_close(ic);
         return -1;
     }
 
@@ -4568,20 +4270,17 @@ static int send_dc_quest_list(ship_client_t *c, int cat,
         out = 32;
         inptr = l->quests[i].name;
         outptr = (char *)pkt->entries[entries].name;
-        iconv(ic, &inptr, &in, &outptr, &out);
+        iconv(ic_utf8_to_8859, &inptr, &in, &outptr, &out);
 
         in = 112;
         out = 112;
         inptr = l->quests[i].desc;
         outptr = (char *)pkt->entries[entries].desc;
-        iconv(ic, &inptr, &in, &outptr, &out);
+        iconv(ic_utf8_to_8859, &inptr, &in, &outptr, &out);
 
         ++entries;
         len += 0x98;
     }
-
-    iconv_close(ic2);
-    iconv_close(ic);
 
     /* Fill in the rest of the header */
     pkt->hdr.flags = entries;
@@ -4596,21 +4295,12 @@ static int send_pc_quest_list(ship_client_t *c, int cat,
     uint8_t *sendbuf = get_sendbuf();
     pc_quest_list_pkt *pkt = (pc_quest_list_pkt *)sendbuf;
     int i, len = 0x04, entries = 0, max = INT_MAX;
-    iconv_t ic;
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
-        return -1;
-    }
-
-    /* Quest names are stored internally as UTF-8, convert to UTF-16. */
-    ic = iconv_open("UTF-16LE", "UTF-8");
-
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
         return -1;
     }
 
@@ -4646,19 +4336,17 @@ static int send_pc_quest_list(ship_client_t *c, int cat,
         out = 64;
         inptr = l->quests[i].name;
         outptr = (char *)pkt->entries[entries].name;
-        iconv(ic, &inptr, &in, &outptr, &out);
+        iconv(ic_utf8_to_utf16, &inptr, &in, &outptr, &out);
 
         in = 112;
         out = 224;
         inptr = l->quests[i].desc;
         outptr = (char *)pkt->entries[entries].desc;
-        iconv(ic, &inptr, &in, &outptr, &out);
+        iconv(ic_utf8_to_utf16, &inptr, &in, &outptr, &out);
 
         ++entries;
         len += 0x128;
     }
-
-    iconv_close(ic);
 
     /* Fill in the rest of the header */
     pkt->hdr.flags = entries;
@@ -4673,30 +4361,12 @@ static int send_gc_quest_list(ship_client_t *c, int cat,
     uint8_t *sendbuf = get_sendbuf();
     dc_quest_list_pkt *pkt = (dc_quest_list_pkt *)sendbuf;
     int i, len = 0x04, entries = 0, max = INT_MAX;
-    iconv_t ic, ic2;
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
-        return -1;
-    }
-
-    /* Quest stuff is stored internally as UTF-8, set up for converting to the
-       right encoding */
-    ic = iconv_open("ISO-8859-1", "UTF-8");
-
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
-        return -1;
-    }
-
-    ic2 = iconv_open("SHIFT_JIS", "UTF-8");
-
-    if(ic2 == (iconv_t)-1) {
-        perror("iconv_open");
-        iconv_close(ic);
         return -1;
     }
 
@@ -4734,20 +4404,17 @@ static int send_gc_quest_list(ship_client_t *c, int cat,
         out = 32;
         inptr = l->quests[i].name;
         outptr = (char *)pkt->entries[entries].name;
-        iconv(ic, &inptr, &in, &outptr, &out);
+        iconv(ic_utf8_to_8859, &inptr, &in, &outptr, &out);
 
         in = 112;
         out = 112;
         inptr = l->quests[i].desc;
         outptr = (char *)pkt->entries[entries].desc;
-        iconv(ic, &inptr, &in, &outptr, &out);
+        iconv(ic_utf8_to_8859, &inptr, &in, &outptr, &out);
 
         ++entries;
         len += 0x98;
     }
-
-    iconv_close(ic2);
-    iconv_close(ic);
 
     /* Fill in the rest of the header */
     pkt->hdr.flags = entries;
@@ -4790,7 +4457,6 @@ static int send_dc_quest_list_new(ship_client_t *c, int cn, int lang) {
     uint8_t *sendbuf = get_sendbuf();
     dc_quest_list_pkt *pkt = (dc_quest_list_pkt *)sendbuf;
     int i, len = 0x04, entries = 0, max = INT_MAX, j;
-    iconv_t ic;
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
@@ -4819,25 +4485,6 @@ static int send_dc_quest_list_new(ship_client_t *c, int cn, int lang) {
     }
 
     cat = &qlist->cats[cn];
-
-    /* Quest stuff is stored internally as UTF-8, set up for converting to the
-       right encoding */
-    if(lang != CLIENT_LANG_JAPANESE) {
-        ic = iconv_open("ISO-8859-1", "UTF-8");
-
-        if(ic == (iconv_t)-1) {
-            perror("iconv_open");
-            return -1;
-        }
-    }
-    else {
-        ic = iconv_open("SHIFT_JIS", "UTF-8");
-
-        if(ic == (iconv_t)-1) {
-            perror("iconv_open");
-            return -1;
-        }
-    }
 
     /* Clear out the header */
     memset(pkt, 0, 0x04);
@@ -4897,19 +4544,29 @@ static int send_dc_quest_list_new(ship_client_t *c, int cn, int lang) {
         out = 32;
         inptr = quest->name;
         outptr = (char *)pkt->entries[entries].name;
-        iconv(ic, &inptr, &in, &outptr, &out);
+
+        if(lang == CLIENT_LANG_JAPANESE) {
+            iconv(ic_utf8_to_sjis, &inptr, &in, &outptr, &out);
+        }
+        else {
+            iconv(ic_utf8_to_8859, &inptr, &in, &outptr, &out);
+        }
 
         in = 112;
         out = 112;
         inptr = quest->desc;
         outptr = (char *)pkt->entries[entries].desc;
-        iconv(ic, &inptr, &in, &outptr, &out);
+
+        if(lang == CLIENT_LANG_JAPANESE) {
+            iconv(ic_utf8_to_sjis, &inptr, &in, &outptr, &out);
+        }
+        else {
+            iconv(ic_utf8_to_8859, &inptr, &in, &outptr, &out);
+        }
 
         ++entries;
         len += 0x98;
     }
-
-    iconv_close(ic);
 
     /* Fill in the rest of the header */
     pkt->hdr.flags = entries;
@@ -4923,7 +4580,6 @@ static int send_pc_quest_list_new(ship_client_t *c, int cn, int lang) {
     uint8_t *sendbuf = get_sendbuf();
     pc_quest_list_pkt *pkt = (pc_quest_list_pkt *)sendbuf;
     int i, len = 0x04, entries = 0, max = INT_MAX, j;
-    iconv_t ic;
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
@@ -4952,14 +4608,6 @@ static int send_pc_quest_list_new(ship_client_t *c, int cn, int lang) {
     }
     
     cat = &qlist->cats[cn];
-
-    /* Quest names are stored internally as UTF-8, convert to UTF-16. */
-    ic = iconv_open("UTF-16LE", "UTF-8");
-
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
-        return -1;
-    }
 
     /* Clear out the header */
     memset(pkt, 0, 0x04);
@@ -5019,19 +4667,17 @@ static int send_pc_quest_list_new(ship_client_t *c, int cn, int lang) {
         out = 64;
         inptr = quest->name;
         outptr = (char *)pkt->entries[entries].name;
-        iconv(ic, &inptr, &in, &outptr, &out);
+        iconv(ic_utf8_to_utf16, &inptr, &in, &outptr, &out);
 
         in = 112;
         out = 224;
         inptr = quest->desc;
         outptr = (char *)pkt->entries[entries].desc;
-        iconv(ic, &inptr, &in, &outptr, &out);
+        iconv(ic_utf8_to_utf16, &inptr, &in, &outptr, &out);
 
         ++entries;
         len += 0x128;
     }
-
-    iconv_close(ic);
 
     /* Fill in the rest of the header */
     pkt->hdr.flags = entries;
@@ -5045,7 +4691,6 @@ static int send_gc_quest_list_new(ship_client_t *c, int cn, int lang) {
     uint8_t *sendbuf = get_sendbuf();
     dc_quest_list_pkt *pkt = (dc_quest_list_pkt *)sendbuf;
     int i, len = 0x04, entries = 0, max = INT_MAX, j;
-    iconv_t ic;
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
@@ -5077,25 +4722,6 @@ static int send_gc_quest_list_new(ship_client_t *c, int cn, int lang) {
     }
 
     cat = &qlist->cats[cn];
-
-    /* Quest stuff is stored internally as UTF-8, set up for converting to the
-       right encoding */
-    if(lang != CLIENT_LANG_JAPANESE) {
-        ic = iconv_open("ISO-8859-1", "UTF-8");
-
-        if(ic == (iconv_t)-1) {
-            perror("iconv_open");
-            return -1;
-        }
-    }
-    else {
-        ic = iconv_open("SHIFT_JIS", "UTF-8");
-
-        if(ic == (iconv_t)-1) {
-            perror("iconv_open");
-            return -1;
-        }
-    }
 
     /* Clear out the header */
     memset(pkt, 0, 0x04);
@@ -5160,19 +4786,29 @@ static int send_gc_quest_list_new(ship_client_t *c, int cn, int lang) {
         out = 32;
         inptr = quest->name;
         outptr = (char *)pkt->entries[entries].name;
-        iconv(ic, &inptr, &in, &outptr, &out);
+
+        if(lang == CLIENT_LANG_JAPANESE) {
+            iconv(ic_utf8_to_sjis, &inptr, &in, &outptr, &out);
+        }
+        else {
+            iconv(ic_utf8_to_8859, &inptr, &in, &outptr, &out);
+        }
 
         in = 112;
         out = 112;
         inptr = quest->desc;
         outptr = (char *)pkt->entries[entries].desc;
-        iconv(ic, &inptr, &in, &outptr, &out);
+
+        if(lang == CLIENT_LANG_JAPANESE) {
+            iconv(ic_utf8_to_sjis, &inptr, &in, &outptr, &out);
+        }
+        else {
+            iconv(ic_utf8_to_8859, &inptr, &in, &outptr, &out);
+        }
 
         ++entries;
         len += 0x98;
     }
-
-    iconv_close(ic);
 
     /* Fill in the rest of the header */
     pkt->hdr.flags = entries;
@@ -5222,19 +4858,14 @@ static int send_dc_quest_info(ship_client_t *c, sylverant_quest_t *q) {
     if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
        c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3) {
         if(c->language_code != CLIENT_LANG_JAPANESE) {
-            ic = iconv_open("ISO-8859-1", "UTF-8");
+            ic = ic_utf8_to_8859;
         }
         else {
-            ic = iconv_open("SHIFT_JIS", "UTF-8");
+            ic = ic_utf8_to_sjis;
         }
     }
     else {
-        ic = iconv_open("UTF-16LE", "UTF-8");
-    }
-
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
-        return -1;
+        ic = ic_utf8_to_utf16;
     }
 
     /* Clear the packet header */
@@ -5263,7 +4894,6 @@ static int send_dc_quest_info(ship_client_t *c, sylverant_quest_t *q) {
     inptr = q->long_desc;
     outptr = pkt->msg;
     iconv(ic, &inptr, &in, &outptr, &out);
-    iconv_close(ic);
 
     /* Send it away */
     return crypt_send(c, len, sendbuf);
@@ -6829,7 +6459,6 @@ static int send_pc_lobby_name(ship_client_t *c, lobby_t *l) {
     uint8_t *sendbuf = get_sendbuf();
     dc_msg_box_pkt *pkt = (dc_msg_box_pkt *)sendbuf;
     uint16_t len;
-    iconv_t ic;
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
@@ -6839,27 +6468,18 @@ static int send_pc_lobby_name(ship_client_t *c, lobby_t *l) {
         return -1;
     }
 
-    /* Lobby names are stored internally as Shift-JIS or ISO-8859-1, convert to
-       UTF-16. */
-    if(l->name[1] == 'J') {
-        ic = iconv_open("UTF-16LE", "SHIFT_JIS");
-    }
-    else {
-        ic = iconv_open("UTF-16LE", "ISO-8859-1");
-    }
-
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
-        return -1;
-    }
-
     /* Convert the message to the appropriate encoding. */
     in = strlen(l->name) + 1;
     out = 65532;
     inptr = l->name;
     outptr = pkt->msg;
-    iconv(ic, &inptr, &in, &outptr, &out);
-    iconv_close(ic);
+
+    if(l->name[1] == 'J') {
+        iconv(ic_sjis_to_utf16, &inptr, &in, &outptr, &out);
+    }
+    else {
+        iconv(ic_8859_to_utf16, &inptr, &in, &outptr, &out);
+    }
 
     /* Figure out how long the new string is. */
     len = 65532 - out;
@@ -7147,17 +6767,11 @@ static int send_pc_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
     uint8_t *sendbuf = get_sendbuf();
     pc_ship_list_pkt *pkt = (pc_ship_list_pkt *)sendbuf;
     int len = 0x30, entries = 0, j;
-    iconv_t ic = iconv_open("UTF-16LE", "ASCII");
     miniship_t *i;
     char tmp[18], tmp2[3];
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
-        return -1;
-    }
-
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
         return -1;
     }
 
@@ -7202,7 +6816,8 @@ static int send_pc_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
                     tmp2[0] ? "/" : "", i->name);
 
             /* Convert the name to UTF-16 */
-            istrncpy(ic, (char *)pkt->entries[entries].name, tmp, 0x22);
+            istrncpy(ic_8859_to_utf16, (char *)pkt->entries[entries].name, tmp,
+                     0x22);
 
             ++entries;
             len += 0x2C;
@@ -7240,15 +6855,14 @@ static int send_pc_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
             }
 
             /* And convert to UTF-16 */
-            istrncpy(ic, (char *)pkt->entries[entries].name, tmp, 0x22);
+            istrncpy(ic_8859_to_utf16, (char *)pkt->entries[entries].name, tmp,
+                     0x22);
 
             /* We're done with this "ship", increment the counter */
             ++entries;
             len += 0x2C;
         }
     }
-
-    iconv_close(ic);
 
     /* We'll definitely have at least one ship (ourselves), so just fill in the
        rest of it */
@@ -7263,17 +6877,11 @@ static int send_bb_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
     uint8_t *sendbuf = get_sendbuf();
     bb_ship_list_pkt *pkt = (bb_ship_list_pkt *)sendbuf;
     int len = 0x34, entries = 0, j;
-    iconv_t ic = iconv_open("UTF-16LE", "ASCII");
     miniship_t *i;
     char tmp[18], tmp2[3];
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
-        return -1;
-    }
-
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
         return -1;
     }
 
@@ -7318,7 +6926,8 @@ static int send_bb_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
                     tmp2[0] ? "/" : "", i->name);
 
             /* Convert the name to UTF-16 */
-            istrncpy(ic, (char *)pkt->entries[entries].name, tmp, 0x22);
+            istrncpy(ic_8859_to_utf16, (char *)pkt->entries[entries].name, tmp,
+                     0x22);
 
             ++entries;
             len += 0x2C;
@@ -7356,15 +6965,14 @@ static int send_bb_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
             }
 
             /* And convert to UTF-16 */
-            istrncpy(ic, (char *)pkt->entries[entries].name, tmp, 0x22);
+            istrncpy(ic_8859_to_utf16, (char *)pkt->entries[entries].name, tmp,
+                     0x22);
 
             /* We're done with this "ship", increment the counter */
             ++entries;
             len += 0x2C;
         }
     }
-
-    iconv_close(ic);
 
     /* We'll definitely have at least one ship (ourselves), so just fill in the
        rest of it */
@@ -7524,18 +7132,9 @@ static int send_pc_choice_search(ship_client_t *c) {
     pc_choice_search_pkt *pkt = (pc_choice_search_pkt *)sendbuf;
     uint16_t len = 4 + 0x3C * CS_OPTIONS_COUNT;
     uint16_t i;
-    iconv_t ic;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
-        return -1;
-    }
-
-    /* Set up the converting stuff. */
-    ic = iconv_open("UTF-16LE", "ASCII");
-
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
         return -1;
     }
 
@@ -7550,10 +7149,9 @@ static int send_pc_choice_search(ship_client_t *c) {
         pkt->entries[i].item_id = LE16(cs_options[i].item_id);
 
         /* Convert the text to UTF-16 */
-        istrncpy(ic, (char *)pkt->entries[i].text, cs_options[i].text, 0x38);
+        istrncpy(ic_8859_to_utf16, (char *)pkt->entries[i].text,
+                 cs_options[i].text, 0x38);
     }
-
-    iconv_close(ic);
 
     return crypt_send(c, len, sendbuf);
 }
@@ -7576,8 +7174,7 @@ int send_choice_search(ship_client_t *c) {
 
 /* Send a reply to a choice search to the client. */
 static int fill_one_choice_entry(uint8_t *sendbuf, int version,
-                                 ship_client_t *it, int entry, int port_off,
-                                 iconv_t *ic, iconv_t *ic2) {
+                                 ship_client_t *it, int entry, int port_off) {
     block_t *b = it->cur_block;
 
     switch(version) {
@@ -7590,24 +7187,24 @@ static int fill_one_choice_entry(uint8_t *sendbuf, int version,
             pkt->entries[entry].guildcard = LE32(it->guildcard);
 
             /* All the text needs to be converted with iconv to UTF-16LE... */
-            istrncpy(ic, (char *)pkt->entries[entry].name,
+            istrncpy(ic_8859_to_utf16, (char *)pkt->entries[entry].name,
                      it->pl->v1.name, 0x20);
 
             sprintf(tmp, "%s Lvl %d\n", classes[it->pl->v1.ch_class],
                     it->pl->v1.level + 1);
-            istrncpy(ic, (char *)pkt->entries[entry].cl_lvl, tmp,
+            istrncpy(ic_8859_to_utf16, (char *)pkt->entries[entry].cl_lvl, tmp,
                      0x40);
 
             sprintf(tmp, "%s,BLOCK%02d,%s", it->cur_lobby->name, b->b,
                     ship->cfg->name);
 
             if(tmp[0] == '\t' && tmp[1] == 'J') {
-                istrncpy(ic2, (char *)pkt->entries[entry].location, tmp,
-                         0x60);
+                istrncpy(ic_sjis_to_utf16, (char *)pkt->entries[entry].location,
+                         tmp, 0x60);
             }
             else {
-                istrncpy(ic, (char *)pkt->entries[entry].location, tmp,
-                         0x60);
+                istrncpy(ic_8859_to_utf16, (char *)pkt->entries[entry].location,
+                         tmp, 0x60);
             }
 
             pkt->entries[entry].ip = ship->cfg->ship_ip;
@@ -7650,8 +7247,7 @@ static int fill_one_choice_entry(uint8_t *sendbuf, int version,
 #ifdef SYLVERANT_ENABLE_IPV6
 
 static int fill_one_choice6_entry(uint8_t *sendbuf, int version,
-                                  ship_client_t *it, int entry, int port_off,
-                                  iconv_t *ic, iconv_t *ic2) {
+                                  ship_client_t *it, int entry, int port_off) {
     block_t *b = it->cur_block;
 
     switch(version) {
@@ -7664,24 +7260,24 @@ static int fill_one_choice6_entry(uint8_t *sendbuf, int version,
             pkt->entries[entry].guildcard = LE32(it->guildcard);
 
             /* All the text needs to be converted with iconv to UTF-16LE... */
-            istrncpy(ic, (char *)pkt->entries[entry].name,
+            istrncpy(ic_8859_to_utf16, (char *)pkt->entries[entry].name,
                      it->pl->v1.name, 0x20);
 
             sprintf(tmp, "%s Lvl %d\n", classes[it->pl->v1.ch_class],
                     it->pl->v1.level + 1);
-            istrncpy(ic, (char *)pkt->entries[entry].cl_lvl, tmp,
+            istrncpy(ic_8859_to_utf16, (char *)pkt->entries[entry].cl_lvl, tmp,
                      0x40);
 
             sprintf(tmp, "%s,BLOCK%02d,%s", it->cur_lobby->name, b->b,
                     ship->cfg->name);
 
             if(tmp[0] == '\t' && tmp[1] == 'J') {
-                istrncpy(ic2, (char *)pkt->entries[entry].location, tmp,
-                         0x60);
+                istrncpy(ic_sjis_to_utf16, (char *)pkt->entries[entry].location,
+                         tmp, 0x60);
             }
             else {
-                istrncpy(ic, (char *)pkt->entries[entry].location, tmp,
-                         0x60);
+                istrncpy(ic_8859_to_utf16, (char *)pkt->entries[entry].location,
+                         tmp, 0x60);
             }
 
             memcpy(pkt->entries[entry].ip, ship->cfg->ship_ip6, 16);
@@ -7726,8 +7322,7 @@ static int fill_one_choice6_entry(uint8_t *sendbuf, int version,
 static int fill_choice_entries(ship_client_t *c, uint8_t *sendbuf,
                                dc_choice_set_pkt *search, int minlvl,
                                int maxlvl, int cl, int vmin, int vmax,
-                               int port_off, iconv_t *ic, iconv_t *ic2,
-                               uint16_t *lenp) {
+                               int port_off, uint16_t *lenp) {
     int len = 0, entries = 0, i;
     block_t *b;
     ship_client_t *it;
@@ -7766,15 +7361,15 @@ static int fill_choice_entries(ship_client_t *c, uint8_t *sendbuf,
 #ifdef SYLVERANT_ENABLE_IPV6
                 if((c->flags & CLIENT_FLAG_IPV6)) {
                     len += fill_one_choice6_entry(sendbuf, c->version, it,
-                                                  entries++, port_off, ic, ic2);
+                                                  entries++, port_off);
                 }
                 else {
                     len += fill_one_choice_entry(sendbuf, c->version, it,
-                                                 entries++, port_off, ic, ic2);
+                                                 entries++, port_off);
                 }
 #else
                 len += fill_one_choice_entry(sendbuf, c->version, it, entries++,
-                                             port_off, ic, ic2);
+                                             port_off);
 #endif
 
                 /* Choice search is limited to 32 entries by the game... */
@@ -7808,7 +7403,7 @@ static int send_dc_choice_reply(ship_client_t *c, dc_choice_set_pkt *search,
     /* Fill in the entries on the local ship */
     entries = fill_choice_entries(c, sendbuf, search, minlvl, maxlvl, cl,
                                   CLIENT_VERSION_DCV1, CLIENT_VERSION_PC, 0,
-                                  NULL, NULL, &len);
+                                  &len);
     len += 4;
 
     /* Put in a blank entry at the end... */
@@ -7843,37 +7438,17 @@ static int send_pc_choice_reply(ship_client_t *c, dc_choice_set_pkt *search,
     pc_choice_reply_pkt *pkt = (pc_choice_reply_pkt *)sendbuf;
     uint16_t len;
     uint8_t entries;
-    iconv_t ic, ic2;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
         return -1;
     }
 
-    /* Set up the converting stuff. */
-    ic = iconv_open("UTF-16LE", "ISO-8859-1");
-
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
-        return -1;
-    }
-
-    ic2 = iconv_open("UTF-16LE", "SHIFT_JIS");
-
-    if(ic2 == (iconv_t)-1) {
-        perror("iconv_open");
-        iconv_close(ic);
-        return -1;
-    }
-
     /* Fill in the entries on the local ship */
     entries = fill_choice_entries(c, sendbuf, search, minlvl, maxlvl, cl,
-                                  CLIENT_VERSION_DCV1, CLIENT_VERSION_PC, 1, ic,
-                                  ic2, &len);
+                                  CLIENT_VERSION_DCV1, CLIENT_VERSION_PC, 1,
+                                  &len);
     len += 4;
-
-    iconv_close(ic2);
-    iconv_close(ic);
 
     /* Put in a blank entry at the end... */
 #ifdef SYLVERANT_ENABLE_IPV6
@@ -7914,8 +7489,8 @@ static int send_gc_choice_reply(ship_client_t *c, dc_choice_set_pkt *search,
 
     /* Fill in the entries on the local ship */
     entries = fill_choice_entries(c, sendbuf, search, minlvl, maxlvl, cl,
-                                  CLIENT_VERSION_GC, CLIENT_VERSION_GC, 2, NULL,
-                                  NULL, &len);
+                                  CLIENT_VERSION_GC, CLIENT_VERSION_GC, 2,
+                                  &len);
     len += 4;
 
     /* Put in a blank entry at the end... */
@@ -7959,7 +7534,7 @@ static int send_ep3_choice_reply(ship_client_t *c, dc_choice_set_pkt *search,
     /* Fill in the entries on the local ship */
     entries = fill_choice_entries(c, sendbuf, search, minlvl, maxlvl, cl,
                                   CLIENT_VERSION_EP3, CLIENT_VERSION_EP3, 3,
-                                  NULL, NULL, &len);
+                                  &len);
     len += 4;
 
     /* Put in a blank entry at the end... */
@@ -8070,7 +7645,6 @@ int send_choice_reply(ship_client_t *c, dc_choice_set_pkt *search) {
 static int send_pc_simple_mail_dc(ship_client_t *c, dc_simple_mail_pkt *p) {
     uint8_t *sendbuf = get_sendbuf();
     pc_simple_mail_pkt *pkt = (pc_simple_mail_pkt *)sendbuf;
-    iconv_t ic;
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
@@ -8078,19 +7652,6 @@ static int send_pc_simple_mail_dc(ship_client_t *c, dc_simple_mail_pkt *p) {
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
-        return -1;
-    }
-
-    /* Set up the converting stuff. */
-    if(p->stuff[1] == 'J') {
-        ic = iconv_open("UTF-16LE", "SHIFT_JIS");
-    }
-    else {
-        ic = iconv_open("UTF-16LE", "ISO-8859-1");
-    }
-
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
         return -1;
     }
 
@@ -8112,21 +7673,25 @@ static int send_pc_simple_mail_dc(ship_client_t *c, dc_simple_mail_pkt *p) {
     out = 0x20;
     inptr = p->name;
     outptr = (char *)pkt->name;
-    iconv(ic, &inptr, &in, &outptr, &out);
+    iconv(ic_8859_to_utf16, &inptr, &in, &outptr, &out);
 
     in = 0x90;
     out = 0x120;
     inptr = p->stuff;
     outptr = pkt->stuff;
-    iconv(ic, &inptr, &in, &outptr, &out);
+
+    if(p->stuff[1] == 'J') {
+        iconv(ic_sjis_to_utf16, &inptr, &in, &outptr, &out);
+    }
+    else {
+        iconv(ic_8859_to_utf16, &inptr, &in, &outptr, &out);
+    }
 
     /* This is a BIT hackish (just a bit...). */
     for(i = 0; i < 0x150; ++i) {
         pkt->stuff[(i << 1) + 0x150] = p->stuff[i + 0xB0];
         pkt->stuff[(i << 1) + 0x151] = 0;
     }
-
-    iconv_close(ic);
 
     /* Send it away. */
     return crypt_send(c, PC_SIMPLE_MAIL_LENGTH, sendbuf);
@@ -8135,7 +7700,6 @@ static int send_pc_simple_mail_dc(ship_client_t *c, dc_simple_mail_pkt *p) {
 static int send_dc_simple_mail_pc(ship_client_t *c, pc_simple_mail_pkt *p) {
     uint8_t *sendbuf = get_sendbuf();
     dc_simple_mail_pkt *pkt = (dc_simple_mail_pkt *)sendbuf;
-    iconv_t ic;
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
@@ -8143,19 +7707,6 @@ static int send_dc_simple_mail_pc(ship_client_t *c, pc_simple_mail_pkt *p) {
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
-        return -1;
-    }
-
-    /* Set up the converting stuff. */
-    if(p->stuff[2] == 'J') {
-        ic = iconv_open("SHIFT_JIS", "UTF-16LE");
-    }
-    else {
-        ic = iconv_open("ISO-8859-1", "UTF-16LE");
-    }
-
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
         return -1;
     }
 
@@ -8177,21 +7728,25 @@ static int send_dc_simple_mail_pc(ship_client_t *c, pc_simple_mail_pkt *p) {
     out = 0x10;
     inptr = (char *)p->name;
     outptr = pkt->name;
-    iconv(ic, &inptr, &in, &outptr, &out);
+    iconv(ic_utf16_to_ascii, &inptr, &in, &outptr, &out);
 
     /* Convert the first instance of text. */
     in = 0x120;
     out = 0x90;
     inptr = p->stuff;
     outptr = pkt->stuff;
-    iconv(ic, &inptr, &in, &outptr, &out);
+
+    if(p->stuff[2] == 'J') {
+        iconv(ic_utf16_to_sjis, &inptr, &in, &outptr, &out);
+    }
+    else {
+        iconv(ic_utf16_to_8859, &inptr, &in, &outptr, &out);
+    }
 
     /* This is a BIT hackish (just a bit...). */
     for(i = 0; i < 0x150; ++i) {
         pkt->stuff[i + 0xB0] = p->stuff[(i << 1) + 0x150];
     }
-
-    iconv_close(ic);
 
     /* Send it away. */
     return crypt_send(c, DC_SIMPLE_MAIL_LENGTH, sendbuf);
@@ -8230,26 +7785,12 @@ static int send_pc_simple_mail_bb(ship_client_t *c, bb_simple_mail_pkt *p) {
 static int send_dc_simple_mail_bb(ship_client_t *c, bb_simple_mail_pkt *p) {
     uint8_t *sendbuf = get_sendbuf();
     dc_simple_mail_pkt *pkt = (dc_simple_mail_pkt *)sendbuf;
-    iconv_t ic;
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
-        return -1;
-    }
-
-    /* Set up the converting stuff. */
-    if(p->message[1] == LE16('J')) {
-        ic = iconv_open("SHIFT_JIS", "UTF-16LE");
-    }
-    else {
-        ic = iconv_open("ISO-8859-1", "UTF-16LE");
-    }
-
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
         return -1;
     }
 
@@ -8271,16 +7812,20 @@ static int send_dc_simple_mail_bb(ship_client_t *c, bb_simple_mail_pkt *p) {
     out = 0x10;
     inptr = (char *)&p->name[2];
     outptr = pkt->name;
-    iconv(ic, &inptr, &in, &outptr, &out);
+    iconv(ic_utf16_to_ascii, &inptr, &in, &outptr, &out);
 
-    /* Convert the first instance of text. */
+    /* Convert the text. */
     in = 0x158;
     out = 0x90;
     inptr = (char *)p->message;
     outptr = pkt->stuff;
-    iconv(ic, &inptr, &in, &outptr, &out);
 
-    iconv_close(ic);
+    if(p->message[1] == LE16('J')) {
+        iconv(ic_utf16_to_sjis, &inptr, &in, &outptr, &out);
+    }
+    else {
+        iconv(ic_utf16_to_8859, &inptr, &in, &outptr, &out);
+    }
 
     /* Send it away. */
     return crypt_send(c, DC_SIMPLE_MAIL_LENGTH, sendbuf);
@@ -8289,7 +7834,6 @@ static int send_dc_simple_mail_bb(ship_client_t *c, bb_simple_mail_pkt *p) {
 static int send_bb_simple_mail_dc(ship_client_t *c, dc_simple_mail_pkt *p) {
     uint8_t *sendbuf = get_sendbuf();
     bb_simple_mail_pkt *pkt = (bb_simple_mail_pkt *)sendbuf;
-    iconv_t ic;
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
@@ -8299,19 +7843,6 @@ static int send_bb_simple_mail_dc(ship_client_t *c, dc_simple_mail_pkt *p) {
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
-        return -1;
-    }
-
-    /* Set up the converting stuff. */
-    if(p->stuff[1] == 'J') {
-        ic = iconv_open("UTF-16LE", "SHIFT_JIS");
-    }
-    else {
-        ic = iconv_open("UTF-16LE", "ISO-8859-1");
-    }
-
-    if(ic == (iconv_t)-1) {
-        perror("iconv_open");
         return -1;
     }
 
@@ -8329,18 +7860,24 @@ static int send_bb_simple_mail_dc(ship_client_t *c, dc_simple_mail_pkt *p) {
 
     /* Convert the name and the text. */
     pkt->name[0] = LE16('\t');
-    pkt->name[1] = LE16('J');
+    pkt->name[1] = LE16('E');
     in = 0x10;
     out = 0x1C;
     inptr = p->name;
     outptr = (char *)&pkt->name[2];
-    iconv(ic, &inptr, &in, &outptr, &out);
+    iconv(ic_8859_to_utf16, &inptr, &in, &outptr, &out);
 
     in = 0x90;
     out = 0x158;
     inptr = p->stuff;
     outptr = (char *)pkt->message;
-    iconv(ic, &inptr, &in, &outptr, &out);
+
+    if(p->stuff[1] == 'J') {
+        iconv(ic_sjis_to_utf16, &inptr, &in, &outptr, &out);
+    }
+    else {
+        iconv(ic_8859_to_utf16, &inptr, &in, &outptr, &out);
+    }
 
     /* Fill in the date/time */
     rawtime = time(NULL);
@@ -8352,9 +7889,7 @@ static int send_bb_simple_mail_dc(ship_client_t *c, dc_simple_mail_pkt *p) {
     out = 40;
     inptr = timestamp;
     outptr = (char *)pkt->timestamp;
-    iconv(ic, &inptr, &in, &outptr, &out);
-
-    iconv_close(ic);
+    iconv(ic_8859_to_utf16, &inptr, &in, &outptr, &out);
 
     /* Send it away. */
     return crypt_send(c, BB_SIMPLE_MAIL_LENGTH, sendbuf);
@@ -8387,7 +7922,7 @@ static int send_bb_simple_mail_pc(ship_client_t *c, pc_simple_mail_pkt *p) {
 
     /* Copy the name and the text. */
     pkt->name[0] = LE16('\t');
-    pkt->name[1] = LE16('J');
+    pkt->name[1] = LE16('E');
     memcpy(&pkt->name[2], p->name, 0x1C);
     memcpy(pkt->message, p->stuff, 0x0180);
 
@@ -8587,26 +8122,12 @@ static int send_gc_infoboard(ship_client_t *c, lobby_t *l) {
     gc_read_info_pkt *pkt = (gc_read_info_pkt *)sendbuf;
     int entries = 0, size = 4;
     ship_client_t *c2;
-    iconv_t ic, ic2;
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
-        return -1;
-    }
-
-    ic = iconv_open("SHIFT_JIS", "UTF-16LE");
-
-    if(ic == (iconv_t)-1) {
-        return -1;
-    }
-
-    ic2 = iconv_open("ISO-8859-1", "UTF-16LE");
-
-    if(ic2 == (iconv_t)-1) {
-        iconv_close(ic2);
         return -1;
     }
 
@@ -8638,13 +8159,7 @@ static int send_gc_infoboard(ship_client_t *c, lobby_t *l) {
                         out = 16;
                         inptr = (char *)&c2->pl->bb.character.name[2];
                         outptr = pkt->entries[entries].name;
-
-                        if(c2->pl->bb.character.name[1] == LE16('J')) {
-                            iconv(ic, &inptr, &in, &outptr, &out);
-                        }
-                        else {
-                            iconv(ic2, &inptr, &in, &outptr, &out);
-                        }
+                        iconv(ic_utf16_to_ascii, &inptr, &in, &outptr, &out);
 
                         /* Convert the info */
                         in = 0x158;
@@ -8653,10 +8168,10 @@ static int send_gc_infoboard(ship_client_t *c, lobby_t *l) {
                         outptr = pkt->entries[entries].msg;
 
                         if(c2->pl->bb.infoboard[1] == LE16('J')) {
-                            iconv(ic, &inptr, &in, &outptr, &out);
+                            iconv(ic_utf16_to_sjis, &inptr, &in, &outptr, &out);
                         }
                         else {
-                            iconv(ic2, &inptr, &in, &outptr, &out);
+                            iconv(ic_utf16_to_8859, &inptr, &in, &outptr, &out);
                         }
 
                         break;
@@ -8676,9 +8191,6 @@ next:
         }
     }
 
-    iconv_close(ic2);
-    iconv_close(ic);
-
     /* Fill in the header. */
     pkt->hdr.pkt_type = INFOBOARD_TYPE;
     pkt->hdr.flags = entries;
@@ -8693,26 +8205,12 @@ static int send_bb_infoboard(ship_client_t *c, lobby_t *l) {
     bb_read_info_pkt *pkt = (bb_read_info_pkt *)sendbuf;
     int entries = 0, size = 8;
     ship_client_t *c2;
-    iconv_t ic, ic2;
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
-        return -1;
-    }
-
-    ic = iconv_open("UTF-16LE", "SHIFT_JIS");
-
-    if(ic == (iconv_t)-1) {
-        return -1;
-    }
-
-    ic2 = iconv_open("UTF-16LE", "ISO-8859-1");
-
-    if(ic2 == (iconv_t)-1) {
-        iconv_close(ic2);
         return -1;
     }
 
@@ -8731,13 +8229,13 @@ static int send_bb_infoboard(ship_client_t *c, lobby_t *l) {
 
                         /* Convert the name */
                         pkt->entries[entries].name[0] = LE16('\t');
-                        pkt->entries[entries].name[1] = LE16('J');
+                        pkt->entries[entries].name[1] = LE16('E');
                         in = 16;
                         out = 28;
                         inptr = c2->pl->v1.name;
                         outptr = (char *)&pkt->entries[entries].name[2];
 
-                        iconv(ic, &inptr, &in, &outptr, &out);
+                        iconv(ic_8859_to_utf16, &inptr, &in, &outptr, &out);
 
                         /* Convert the info */
                         in = 0xAC;
@@ -8745,11 +8243,11 @@ static int send_bb_infoboard(ship_client_t *c, lobby_t *l) {
                         inptr = c2->infoboard;
                         outptr = (char *)pkt->entries[entries].msg;
 
-                        if(c2->infoboard[1] == LE16('J')) {
-                            iconv(ic, &inptr, &in, &outptr, &out);
+                        if(c2->infoboard[1] == 'J') {
+                            iconv(ic_sjis_to_utf16, &inptr, &in, &outptr, &out);
                         }
                         else {
-                            iconv(ic2, &inptr, &in, &outptr, &out);
+                            iconv(ic_8859_to_utf16, &inptr, &in, &outptr, &out);
                         }
                         break;
                     }
@@ -8779,9 +8277,6 @@ next:
             pthread_mutex_unlock(&c2->mutex);
         }
     }
-
-    iconv_close(ic2);
-    iconv_close(ic);
 
     /* Fill in the header. */
     pkt->hdr.pkt_type = LE16(INFOBOARD_TYPE);
@@ -8863,7 +8358,6 @@ static void copy_c_rank_gc(gc_c_rank_update_pkt *pkt, int entry,
 static void copy_c_rank_dc(dc_c_rank_update_pkt *pkt, int entry,
                            ship_client_t *s) {
     int j;
-    iconv_t ic, ic2;
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
@@ -8896,20 +8390,6 @@ static void copy_c_rank_dc(dc_c_rank_update_pkt *pkt, int entry,
                    7 * sizeof(uint32_t));
 
             /* Deal with the grave data... */
-            if(s->pl->pc.c_rank.part.grave_team[1] == (uint16_t)'J') {
-                ic = iconv_open("SHIFT_JIS", "UTF-16LE");
-            }
-            else {
-                ic = iconv_open("ISO-8859-1", "UTF-16LE");
-            }
-
-            if(s->pl->pc.c_rank.part.grave_message[1] == (uint16_t)'J') {
-                ic2 = iconv_open("SHIFT_JIS", "UTF-16LE");
-            }
-            else {
-                ic2 = iconv_open("ISO-8859-1", "UTF-16LE");
-            }
-
             /* Copy over the simple stuff... */
             memcpy(&pkt->entries[entry].grave_unk4,
                    &s->pl->pc.c_rank.part.grave_unk4, 24);
@@ -8919,18 +8399,27 @@ static void copy_c_rank_dc(dc_c_rank_update_pkt *pkt, int entry,
             out = 20;
             inptr = (char *)s->pl->pc.c_rank.part.grave_team;
             outptr = pkt->entries[entry].grave_team;
-            iconv(ic, &inptr, &in, &outptr, &out);
+            
+            if(s->pl->pc.c_rank.part.grave_team[1] == LE16('J')) {
+                iconv(ic_utf16_to_sjis, &inptr, &in, &outptr, &out);
+            }
+            else {
+                iconv(ic_utf16_to_8859, &inptr, &in, &outptr, &out);
+            }
 
             /* Convert the message */
             in = 48;
             out = 24;
             inptr = (char *)s->pl->pc.c_rank.part.grave_message;
             outptr = pkt->entries[entry].grave_message;
-            iconv(ic2, &inptr, &in, &outptr, &out);
 
-            /* Clean up the iconv stuff */
-            iconv_close(ic);
-            iconv_close(ic2);
+            if(s->pl->pc.c_rank.part.grave_message[1] == LE16('J')) {
+                iconv(ic_utf16_to_sjis, &inptr, &in, &outptr, &out);
+            }
+            else {
+                iconv(ic_utf16_to_8859, &inptr, &in, &outptr, &out);
+            }
+
             break;
 
         case CLIENT_VERSION_GC:
@@ -8962,7 +8451,6 @@ static void copy_c_rank_dc(dc_c_rank_update_pkt *pkt, int entry,
 static void copy_c_rank_pc(pc_c_rank_update_pkt *pkt, int entry,
                            ship_client_t *s) {
     int j;
-    iconv_t ic, ic2;
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
@@ -8995,20 +8483,6 @@ static void copy_c_rank_pc(pc_c_rank_update_pkt *pkt, int entry,
                    7 * sizeof(uint32_t));
 
             /* Deal with the grave data... */
-            if(s->pl->v2.c_rank.part.grave_team[1] == 'J') {
-                ic = iconv_open("UTF-16LE", "SHIFT_JIS");
-            }
-            else {
-                ic = iconv_open("UTF-16LE", "ISO-8859-1");
-            }
-
-            if(s->pl->v2.c_rank.part.grave_message[1] == 'J') {
-                ic2 = iconv_open("UTF-16LE", "SHIFT_JIS");
-            }
-            else {
-                ic2 = iconv_open("UTF-16LE", "ISO-8859-1");
-            }
-
             /* Copy over the simple stuff... */
             memcpy(&pkt->entries[entry].grave_unk4,
                    &s->pl->v2.c_rank.part.grave_unk4, 24);
@@ -9018,18 +8492,27 @@ static void copy_c_rank_pc(pc_c_rank_update_pkt *pkt, int entry,
             out = 40;
             inptr = s->pl->v2.c_rank.part.grave_team;
             outptr = (char *)pkt->entries[entry].grave_team;
-            iconv(ic, &inptr, &in, &outptr, &out);
+
+            if(s->pl->v2.c_rank.part.grave_team[1] == 'J') {
+                iconv(ic_sjis_to_utf16, &inptr, &in, &outptr, &out);
+            }
+            else {
+                iconv(ic_8859_to_utf16, &inptr, &in, &outptr, &out);
+            }
 
             /* Convert the message */
             in = 24;
             out = 48;
             inptr = s->pl->v2.c_rank.part.grave_message;
             outptr = (char *)pkt->entries[entry].grave_message;
-            iconv(ic2, &inptr, &in, &outptr, &out);
 
-            /* Clean up the iconv stuff */
-            iconv_close(ic);
-            iconv_close(ic2);
+            if(s->pl->v2.c_rank.part.grave_message[1] == 'J') {
+                iconv(ic_sjis_to_utf16, &inptr, &in, &outptr, &out);
+            }
+            else {
+                iconv(ic_8859_to_utf16, &inptr, &in, &outptr, &out);
+            }
+
             break;
 
         case CLIENT_VERSION_GC:

@@ -69,39 +69,31 @@ int handle_dc_gcsend(ship_client_t *d, subcmd_dc_gcsend_t *pkt) {
         case CLIENT_VERSION_PC:
         {
             subcmd_pc_gcsend_t pc;
-            iconv_t ic;
             size_t in, out;
             ICONV_CONST char *inptr;
             char *outptr;
 
-            /* Convert from Shift-JIS/ISO-8859-1 to UTF-16. */
-            if(pkt->text[1] == 'J') {
-                ic = iconv_open("UTF-16LE", "SHIFT_JIS");
-            }
-            else {
-                ic = iconv_open("UTF-16LE", "ISO-8859-1");
-            }
-
-            if(ic == (iconv_t)-1) {
-                return 0;
-            }
-
             memset(&pc, 0, sizeof(pc));
 
-            /* First the name. */
+            /* Convert the name (ASCII -> UTF-16). */
             in = 24;
             out = 48;
             inptr = pkt->name;
             outptr = (char *)pc.name;
-            iconv(ic, &inptr, &in, &outptr, &out);
+            iconv(ic_8859_to_utf16, &inptr, &in, &outptr, &out);
 
-            /* Then the text. */
+            /* Convert the text (ISO-8859-1 or SHIFT-JIS -> UTF-16). */
             in = 88;
             out = 176;
             inptr = pkt->text;
             outptr = (char *)pc.text;
-            iconv(ic, &inptr, &in, &outptr, &out);
-            iconv_close(ic);
+
+            if(pkt->text[1] == 'J') {
+                iconv(ic_sjis_to_utf16, &inptr, &in, &outptr, &out);
+            }
+            else {
+                iconv(ic_8859_to_utf16, &inptr, &in, &outptr, &out);
+            }
 
             /* Copy the rest over. */
             pc.hdr.pkt_type = pkt->hdr.pkt_type;
@@ -124,41 +116,33 @@ int handle_dc_gcsend(ship_client_t *d, subcmd_dc_gcsend_t *pkt) {
         case CLIENT_VERSION_BB:
         {
             subcmd_bb_gcsend_t bb;
-            iconv_t ic;
             size_t in, out;
             ICONV_CONST char *inptr;
             char *outptr;
 
-            /* Convert from Shift-JIS/ISO-8859-1 to UTF-16. */
-            if(pkt->text[1] == 'J') {
-                ic = iconv_open("UTF-16LE", "SHIFT_JIS");
-            }
-            else {
-                ic = iconv_open("UTF-16LE", "ISO-8859-1");
-            }
-
-            if(ic == (iconv_t)-1) {
-                return 0;
-            }
-
             memset(&bb, 0, sizeof(subcmd_bb_gcsend_t));
 
-            /* First the name. */
+            /* Convert the name (ASCII -> UTF-16). */
             bb.name[0] = LE16('\t');
-            bb.name[1] = LE16('J');
+            bb.name[1] = LE16('E');
             in = 24;
             out = 44;
             inptr = pkt->name;
             outptr = (char *)&bb.name[2];
-            iconv(ic, &inptr, &in, &outptr, &out);
+            iconv(ic_8859_to_utf16, &inptr, &in, &outptr, &out);
 
-            /* Then the text. */
+            /* Convert the text (ISO-8859-1 or SHIFT-JIS -> UTF-16). */
             in = 88;
             out = 176;
             inptr = pkt->text;
             outptr = (char *)bb.text;
-            iconv(ic, &inptr, &in, &outptr, &out);
-            iconv_close(ic);
+
+            if(pkt->text[1] == 'J') {
+                iconv(ic_sjis_to_utf16, &inptr, &in, &outptr, &out);
+            }
+            else {
+                iconv(ic_8859_to_utf16, &inptr, &in, &outptr, &out);
+            }
 
             /* Copy the rest over. */
             bb.hdr.pkt_len = LE16(0x0114);
@@ -189,39 +173,31 @@ static int handle_pc_gcsend(ship_client_t *d, subcmd_pc_gcsend_t *pkt) {
         case CLIENT_VERSION_DCV2:
         {
             subcmd_dc_gcsend_t dc;
-            iconv_t ic;
             size_t in, out;
             ICONV_CONST char *inptr;
             char *outptr;
-    
-            /* Convert from UTF-16 to Shift-JIS/ISO-8859-1. */
-            if(LE16(pkt->text[1]) == (uint16_t)('J')) {
-                ic = iconv_open("SHIFT_JIS", "UTF-16LE");
-            }
-            else {
-                ic = iconv_open("ISO-8859-1", "UTF-16LE");
-            }
-
-            if(ic == (iconv_t)-1) {
-                return 0;
-            }
 
             memset(&dc, 0, sizeof(dc));
 
-            /* First the name. */
+            /* Convert the name (UTF-16 -> ASCII). */
             in = 48;
             out = 24;
             inptr = (char *)pkt->name;
             outptr = dc.name;
-            iconv(ic, &inptr, &in, &outptr, &out);
+            iconv(ic_utf16_to_ascii, &inptr, &in, &outptr, &out);
 
-            /* Then the text. */
+            /* Convert the text (UTF-16 -> ISO-8859-1 or SHIFT-JIS). */
             in = 176;
             out = 88;
             inptr = (char *)pkt->text;
             outptr = dc.text;
-            iconv(ic, &inptr, &in, &outptr, &out);
-            iconv_close(ic);
+
+            if(pkt->text[1] == LE16('J')) {
+                iconv(ic_utf16_to_sjis, &inptr, &in, &outptr, &out);
+            }
+            else {
+                iconv(ic_utf16_to_8859, &inptr, &in, &outptr, &out);
+            }
 
             /* Copy the rest over. */
             dc.hdr.pkt_type = pkt->hdr.pkt_type;
@@ -246,39 +222,31 @@ static int handle_pc_gcsend(ship_client_t *d, subcmd_pc_gcsend_t *pkt) {
         case CLIENT_VERSION_EP3:
         {
             subcmd_gc_gcsend_t gc;
-            iconv_t ic;
             size_t in, out;
             ICONV_CONST char *inptr;
             char *outptr;
 
-            /* Convert from UTF-16 to Shift-JIS/ISO-8859-1. */
-            if(LE16(pkt->text[1]) == (uint16_t)('J')) {
-                ic = iconv_open("SHIFT_JIS", "UTF-16LE");
-            }
-            else {
-                ic = iconv_open("ISO-8859-1", "UTF-16LE");
-            }
-
-            if(ic == (iconv_t)-1) {
-                return 0;
-            }
-
             memset(&gc, 0, sizeof(gc));
 
-            /* First the name. */
+            /* Convert the name (UTF-16 -> ASCII). */
             in = 48;
             out = 24;
             inptr = (char *)pkt->name;
             outptr = gc.name;
-            iconv(ic, &inptr, &in, &outptr, &out);
+            iconv(ic_utf16_to_ascii, &inptr, &in, &outptr, &out);
 
-            /* Then the text. */
+            /* Convert the text (UTF-16 -> ISO-8859-1 or SHIFT-JIS). */
             in = 176;
             out = 88;
             inptr = (char *)pkt->text;
             outptr = gc.text;
-            iconv(ic, &inptr, &in, &outptr, &out);
-            iconv_close(ic);
+
+            if(pkt->text[1] == LE16('J')) {
+                iconv(ic_utf16_to_sjis, &inptr, &in, &outptr, &out);
+            }
+            else {
+                iconv(ic_utf16_to_8859, &inptr, &in, &outptr, &out);
+            }
 
             /* Copy the rest over. */
             gc.hdr.pkt_type = pkt->hdr.pkt_type;
@@ -311,7 +279,7 @@ static int handle_pc_gcsend(ship_client_t *d, subcmd_pc_gcsend_t *pkt) {
             bb.size = 0x43;
             bb.guildcard = pkt->guildcard;
             bb.name[0] = LE16('\t');
-            bb.name[1] = LE16('J');
+            bb.name[1] = LE16('E');
             memcpy(&bb.name[2], pkt->name, 28);
             memcpy(bb.text, pkt->text, 176);
             bb.one = 1;
@@ -366,40 +334,32 @@ static int handle_gc_gcsend(ship_client_t *d, subcmd_gc_gcsend_t *pkt) {
         case CLIENT_VERSION_PC:
         {
             subcmd_pc_gcsend_t pc;
-            iconv_t ic;
             size_t in, out;
             ICONV_CONST char *inptr;
             char *outptr;
 
-            /* Convert from Shift-JIS/ISO-8859-1 to UTF-16. */
-            if(pkt->text[1] == 'J') {
-                ic = iconv_open("UTF-16LE", "SHIFT_JIS");
-            }
-            else {
-                ic = iconv_open("UTF-16LE", "ISO-8859-1");
-            }
-
-            if(ic == (iconv_t)-1) {
-                return 0;
-            }
-
             memset(&pc, 0, sizeof(pc));
 
-            /* First the name. */
+            /* Convert the name (ASCII -> UTF-16). */
             in = 24;
             out = 48;
             inptr = pkt->name;
             outptr = (char *)pc.name;
-            iconv(ic, &inptr, &in, &outptr, &out);
+            iconv(ic_8859_to_utf16, &inptr, &in, &outptr, &out);
 
-            /* Then the text. */
+            /* Convert the text (ISO-8859-1 or SHIFT-JIS -> UTF-16). */
             in = 88;
             out = 176;
             inptr = pkt->text;
             outptr = (char *)pc.text;
-            iconv(ic, &inptr, &in, &outptr, &out);
-            iconv_close(ic);
 
+            if(pkt->text[1] == 'J') {
+                iconv(ic_sjis_to_utf16, &inptr, &in, &outptr, &out);
+            }
+            else {
+                iconv(ic_8859_to_utf16, &inptr, &in, &outptr, &out);
+            }
+    
             /* Copy the rest over. */
             pc.hdr.pkt_type = pkt->hdr.pkt_type;
             pc.hdr.flags = pkt->hdr.flags;
@@ -421,41 +381,33 @@ static int handle_gc_gcsend(ship_client_t *d, subcmd_gc_gcsend_t *pkt) {
         case CLIENT_VERSION_BB:
         {
             subcmd_bb_gcsend_t bb;
-            iconv_t ic;
             size_t in, out;
             ICONV_CONST char *inptr;
             char *outptr;
 
-            /* Convert from Shift-JIS/ISO-8859-1 to UTF-16. */
-            if(pkt->text[1] == 'J') {
-                ic = iconv_open("UTF-16LE", "SHIFT_JIS");
-            }
-            else {
-                ic = iconv_open("UTF-16LE", "ISO-8859-1");
-            }
-
-            if(ic == (iconv_t)-1) {
-                return 0;
-            }
-
             memset(&bb, 0, sizeof(subcmd_bb_gcsend_t));
 
-            /* First the name. */
+            /* Convert the name (ASCII -> UTF-16). */
             bb.name[0] = LE16('\t');
-            bb.name[1] = LE16('J');
+            bb.name[1] = LE16('E');
             in = 24;
             out = 44;
             inptr = pkt->name;
             outptr = (char *)&bb.name[2];
-            iconv(ic, &inptr, &in, &outptr, &out);
+            iconv(ic_8859_to_utf16, &inptr, &in, &outptr, &out);
 
-            /* Then the text. */
+            /* Convert the text (ISO-8859-1 or SHIFT-JIS -> UTF-16). */
             in = 88;
             out = 176;
             inptr = pkt->text;
             outptr = (char *)bb.text;
-            iconv(ic, &inptr, &in, &outptr, &out);
-            iconv_close(ic);
+
+            if(pkt->text[1] == 'J') {
+                iconv(ic_sjis_to_utf16, &inptr, &in, &outptr, &out);
+            }
+            else {
+                iconv(ic_8859_to_utf16, &inptr, &in, &outptr, &out);
+            }
 
             /* Copy the rest over. */
             bb.hdr.pkt_len = LE16(0x0114);
@@ -477,7 +429,6 @@ static int handle_gc_gcsend(ship_client_t *d, subcmd_gc_gcsend_t *pkt) {
 }
 
 static int handle_bb_gcsend(ship_client_t *s, ship_client_t *d) {
-    iconv_t ic;
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
@@ -488,31 +439,29 @@ static int handle_bb_gcsend(ship_client_t *s, ship_client_t *d) {
         case CLIENT_VERSION_DCV2:
         {
             subcmd_dc_gcsend_t dc;
-    
-            /* Convert from UTF-16 to Shift-JIS/ISO-8859-1. */
-            ic = iconv_open("ISO-8859-1", "UTF-16LE");
-
-            if(ic == (iconv_t)-1) {
-                return 0;
-            }
 
             memset(&dc, 0, sizeof(dc));
 
-            /* First the name. */
+            /* Convert the name (UTF-16 -> ASCII). */
             memset(&dc.name, '-', 16);
             in = 48;
             out = 24;
             inptr = (char *)&s->pl->bb.character.name[2];
             outptr = dc.name;
-            iconv(ic, &inptr, &in, &outptr, &out);
+            iconv(ic_utf16_to_ascii, &inptr, &in, &outptr, &out);
 
-            /* Then the text. */
+            /* Convert the text (UTF-16 -> ISO-8859-1 or SHIFT-JIS). */
             in = 176;
             out = 88;
             inptr = (char *)s->bb_pl->guildcard_desc;
             outptr = dc.text;
-            iconv(ic, &inptr, &in, &outptr, &out);
-            iconv_close(ic);
+
+            if(s->bb_pl->guildcard_desc[1] == LE16('J')) {
+                iconv(ic_utf16_to_sjis, &inptr, &in, &outptr, &out);
+            }
+            else {
+                iconv(ic_utf16_to_8859, &inptr, &in, &outptr, &out);
+            }
 
             /* Copy the rest over. */
             dc.hdr.pkt_type = GAME_COMMAND2_TYPE;
@@ -566,30 +515,28 @@ static int handle_bb_gcsend(ship_client_t *s, ship_client_t *d) {
         {
             subcmd_gc_gcsend_t gc;
 
-            /* Convert from UTF-16 to Shift-JIS/ISO-8859-1. */
-            ic = iconv_open("ISO-8859-1", "UTF-16LE");
-
-            if(ic == (iconv_t)-1) {
-                return 0;
-            }
-
             memset(&gc, 0, sizeof(gc));
 
-            /* First the name. */
+            /* Convert the name (UTF-16 -> ASCII). */
             memset(&gc.name, '-', 16);
             in = 48;
             out = 24;
             inptr = (char *)&s->pl->bb.character.name[2];
             outptr = gc.name;
-            iconv(ic, &inptr, &in, &outptr, &out);
+            iconv(ic_utf16_to_ascii, &inptr, &in, &outptr, &out);
 
-            /* Then the text. */
+            /* Convert the text (UTF-16 -> ISO-8859-1 or SHIFT-JIS). */
             in = 176;
             out = 88;
             inptr = (char *)s->bb_pl->guildcard_desc;
             outptr = gc.text;
-            iconv(ic, &inptr, &in, &outptr, &out);
-            iconv_close(ic);
+
+            if(s->bb_pl->guildcard_desc[1] == LE16('J')) {
+                iconv(ic_utf16_to_sjis, &inptr, &in, &outptr, &out);
+            }
+            else {
+                iconv(ic_utf16_to_8859, &inptr, &in, &outptr, &out);
+            }
 
             /* Copy the rest over. */
             gc.hdr.pkt_type = GAME_COMMAND2_TYPE;
@@ -1127,7 +1074,6 @@ static int handle_cmode_grave(ship_client_t *c, subcmd_pkt_t *pkt) {
     lobby_t *l = c->cur_lobby;
     subcmd_pc_grave_t pc = { { 0 } };
     subcmd_dc_grave_t dc = { { 0 } };
-    iconv_t ic, ic2;
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
@@ -1138,20 +1084,6 @@ static int handle_cmode_grave(ship_client_t *c, subcmd_pkt_t *pkt) {
             memcpy(&dc, pkt, sizeof(subcmd_dc_grave_t));
 
             /* Make a copy to send to PC players... */
-            if(dc.team[1] == 'J') {
-                ic = iconv_open("UTF-16LE", "SHIFT_JIS");
-            }
-            else {
-                ic = iconv_open("UTF-16LE", "ISO-8859-1");
-            }
-
-            if(dc.message[1] == 'J') {
-                ic2 = iconv_open("UTF-16LE", "SHIFT_JIS");
-            }
-            else {
-                ic2 = iconv_open("UTF-16LE", "ISO-8859-1");
-            }
-
             memcpy(&pc, &dc, 64);
             pc.unk4 = dc.unk4;
             pc.deaths = dc.deaths;
@@ -1166,39 +1098,34 @@ static int handle_cmode_grave(ship_client_t *c, subcmd_pkt_t *pkt) {
             out = 40;
             inptr = dc.team;
             outptr = (char *)pc.team;
-            iconv(ic, &inptr, &in, &outptr, &out);
+
+            if(dc.team[1] == 'J') {
+                iconv(ic_sjis_to_utf16, &inptr, &in, &outptr, &out);
+            }
+            else {
+                iconv(ic_8859_to_utf16, &inptr, &in, &outptr, &out);
+            }
 
             /* Convert the message */
             in = 24;
             out = 48;
             inptr = dc.message;
             outptr = (char *)pc.message;
-            iconv(ic2, &inptr, &in, &outptr, &out);
+
+            if(dc.message[1] == 'J') {
+                iconv(ic_sjis_to_utf16, &inptr, &in, &outptr, &out);
+            }
+            else {
+                iconv(ic_8859_to_utf16, &inptr, &in, &outptr, &out);
+            }
 
             memcpy(pc.unk5, dc.unk5, 40);
-
-            iconv_close(ic);
-            iconv_close(ic2);
             break;
 
         case CLIENT_VERSION_PC:
             memcpy(&pc, pkt, sizeof(subcmd_pc_grave_t));
 
             /* Make a copy to send to DC players... */
-            if(pc.team[1] == (uint16_t)'J') {
-                ic = iconv_open("SHIFT_JIS", "UTF-16LE");
-            }
-            else {
-                ic = iconv_open("ISO-8859-1", "UTF-16LE");
-            }
-
-            if(pc.message[1] == (uint16_t)'J') {
-                ic2 = iconv_open("SHIFT_JIS", "UTF-16LE");
-            }
-            else {
-                ic2 = iconv_open("ISO-8859-1", "UTF-16LE");
-            }
-
             memcpy(&dc, &pc, 64);
             dc.unk4 = pc.unk4;
             dc.deaths = pc.deaths;
@@ -1213,19 +1140,28 @@ static int handle_cmode_grave(ship_client_t *c, subcmd_pkt_t *pkt) {
             out = 20;
             inptr = (char *)pc.team;
             outptr = dc.team;
-            iconv(ic, &inptr, &in, &outptr, &out);
+
+            if(pc.team[1] == LE16('J')) {
+                iconv(ic_utf16_to_sjis, &inptr, &in, &outptr, &out);
+            }
+            else {
+                iconv(ic_utf16_to_8859, &inptr, &in, &outptr, &out);
+            }
 
             /* Convert the message */
             in = 48;
             out = 24;
             inptr = (char *)pc.message;
             outptr = dc.message;
-            iconv(ic2, &inptr, &in, &outptr, &out);
+
+            if(pc.message[1] == LE16('J')) {
+                iconv(ic_utf16_to_sjis, &inptr, &in, &outptr, &out);
+            }
+            else {
+                iconv(ic_utf16_to_8859, &inptr, &in, &outptr, &out);
+            }
 
             memcpy(dc.unk5, pc.unk5, 40);
-
-            iconv_close(ic);
-            iconv_close(ic2);
             break;
 
         default:
