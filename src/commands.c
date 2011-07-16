@@ -2623,6 +2623,54 @@ static int handle_restart(ship_client_t *c, const char *params) {
     return 0;
 }
 
+/* Usage: /search guildcard */
+static int handle_search(ship_client_t *c, const char *params) {
+    uint32_t gc;
+    dc_guild_search_pkt dc;
+    bb_guild_search_pkt bb;
+
+    /* Figure out the user requested */
+    errno = 0;
+    gc = (uint32_t)strtoul(params, NULL, 10);
+
+    if(errno != 0) {
+        /* Send a message saying invalid guildcard number */
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card"));
+    }
+
+    /* Hacky? Maybe a bit, but this will work just fine. */
+    if(c->version == CLIENT_VERSION_BB) {
+        bb.hdr.pkt_len = LE16(0x14);
+        bb.hdr.pkt_type = LE16(GUILD_SEARCH_TYPE);
+        bb.hdr.flags = 0;
+        bb.tag = LE32(0x00010000);
+        bb.gc_search = LE32(c->guildcard);
+        bb.gc_target = LE32(gc);
+
+        return block_process_pkt(c, (uint8_t *)&bb);
+    }
+    else if(c->version == CLIENT_VERSION_PC) {
+        dc.hdr.pc.pkt_len = LE16(0x10);
+        dc.hdr.pc.pkt_type = GUILD_SEARCH_TYPE;
+        dc.hdr.pc.flags = 0;
+        dc.tag = LE32(0x00010000);
+        dc.gc_search = LE32(c->guildcard);
+        dc.gc_target = LE32(gc);
+
+        return block_process_pkt(c, (uint8_t *)&dc);
+    }
+    else {
+        dc.hdr.dc.pkt_len = LE16(0x10);
+        dc.hdr.dc.pkt_type = GUILD_SEARCH_TYPE;
+        dc.hdr.dc.flags = 0;
+        dc.tag = LE32(0x00010000);
+        dc.gc_search = LE32(c->guildcard);
+        dc.gc_target = LE32(gc);
+
+        return block_process_pkt(c, (uint8_t *)&dc);
+    }
+}
+
 static command_t cmds[] = {
     { "warp"     , handle_warp      },
     { "kill"     , handle_kill      },
@@ -2689,6 +2737,7 @@ static command_t cmds[] = {
     { "override" , handle_override  },
     { "ver"      , handle_ver       },
     { "restart"  , handle_restart   },
+    { "search"   , handle_search    },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

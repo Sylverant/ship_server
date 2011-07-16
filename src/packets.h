@@ -505,7 +505,10 @@ typedef struct bb_chat {
 
 /* The packet sent to search for a player */
 typedef struct dc_guild_search {
-    dc_pkt_hdr_t hdr;
+    union {
+        dc_pkt_hdr_t dc;
+        pc_pkt_hdr_t pc;
+    } hdr;
     uint32_t tag;
     uint32_t gc_search;
     uint32_t gc_target;
