@@ -4092,27 +4092,35 @@ static int send_dc_quest_categories_new(ship_client_t *c, int lang) {
 
         /* Convert the name and the description to the appropriate encoding */
         in = 32;
-        out = 32;
+        out = 30;
         inptr = qlist->cats[i].name;
-        outptr = (char *)pkt->entries[entries].name;
+        outptr = &pkt->entries[entries].name[2];
 
         if(lang == CLIENT_LANG_JAPANESE) {
             iconv(ic_utf8_to_sjis, &inptr, &in, &outptr, &out);
+            pkt->entries[entries].name[0] = '\t';
+            pkt->entries[entries].name[1] = 'J';
         }
         else {
             iconv(ic_utf8_to_8859, &inptr, &in, &outptr, &out);
+            pkt->entries[entries].name[0] = '\t';
+            pkt->entries[entries].name[1] = 'E';
         }
 
         in = 112;
-        out = 112;
+        out = 110;
         inptr = qlist->cats[i].desc;
-        outptr = (char *)pkt->entries[entries].desc;
+        outptr = &pkt->entries[entries].desc[2];
 
         if(lang == CLIENT_LANG_JAPANESE) {
             iconv(ic_utf8_to_sjis, &inptr, &in, &outptr, &out);
+            pkt->entries[entries].desc[0] = '\t';
+            pkt->entries[entries].desc[1] = 'J';
         }
         else {
             iconv(ic_utf8_to_8859, &inptr, &in, &outptr, &out);
+            pkt->entries[entries].desc[0] = '\t';
+            pkt->entries[entries].desc[1] = 'E';
         }
 
         ++entries;
@@ -4541,27 +4549,35 @@ static int send_dc_quest_list_new(ship_client_t *c, int cn, int lang) {
 
         /* Convert the name and the description to the appropriate encoding */
         in = 32;
-        out = 32;
+        out = 30;
         inptr = quest->name;
-        outptr = (char *)pkt->entries[entries].name;
+        outptr = &pkt->entries[entries].name[2];
 
         if(lang == CLIENT_LANG_JAPANESE) {
             iconv(ic_utf8_to_sjis, &inptr, &in, &outptr, &out);
+            pkt->entries[entries].name[0] = '\t';
+            pkt->entries[entries].name[1] = 'J';
         }
         else {
             iconv(ic_utf8_to_8859, &inptr, &in, &outptr, &out);
+            pkt->entries[entries].name[0] = '\t';
+            pkt->entries[entries].name[1] = 'E';
         }
 
         in = 112;
-        out = 112;
+        out = 110;
         inptr = quest->desc;
-        outptr = (char *)pkt->entries[entries].desc;
+        outptr = &pkt->entries[entries].desc[2];
 
         if(lang == CLIENT_LANG_JAPANESE) {
             iconv(ic_utf8_to_sjis, &inptr, &in, &outptr, &out);
+            pkt->entries[entries].desc[0] = '\t';
+            pkt->entries[entries].desc[1] = 'J';
         }
         else {
             iconv(ic_utf8_to_8859, &inptr, &in, &outptr, &out);
+            pkt->entries[entries].desc[0] = '\t';
+            pkt->entries[entries].desc[1] = 'E';
         }
 
         ++entries;
@@ -4783,27 +4799,35 @@ static int send_gc_quest_list_new(ship_client_t *c, int cn, int lang) {
 
         /* Convert the name and the description to the appropriate encoding */
         in = 32;
-        out = 32;
+        out = 30;
         inptr = quest->name;
-        outptr = (char *)pkt->entries[entries].name;
+        outptr = &pkt->entries[entries].name[2];
 
         if(lang == CLIENT_LANG_JAPANESE) {
             iconv(ic_utf8_to_sjis, &inptr, &in, &outptr, &out);
+            pkt->entries[entries].name[0] = '\t';
+            pkt->entries[entries].name[1] = 'J';
         }
         else {
             iconv(ic_utf8_to_8859, &inptr, &in, &outptr, &out);
+            pkt->entries[entries].name[0] = '\t';
+            pkt->entries[entries].name[1] = 'E';
         }
 
         in = 112;
-        out = 112;
+        out = 110;
         inptr = quest->desc;
-        outptr = (char *)pkt->entries[entries].desc;
+        outptr = &pkt->entries[entries].desc[2];
 
         if(lang == CLIENT_LANG_JAPANESE) {
             iconv(ic_utf8_to_sjis, &inptr, &in, &outptr, &out);
+            pkt->entries[entries].desc[0] = '\t';
+            pkt->entries[entries].desc[1] = 'J';
         }
         else {
             iconv(ic_utf8_to_8859, &inptr, &in, &outptr, &out);
+            pkt->entries[entries].desc[0] = '\t';
+            pkt->entries[entries].desc[1] = 'E';
         }
 
         ++entries;
@@ -4841,62 +4865,76 @@ int send_quest_list_new(ship_client_t *c, int cat, int lang) {
 }
 
 /* Send information about a quest to the lobby. */
-static int send_dc_quest_info(ship_client_t *c, sylverant_quest_t *q) {
+static int send_dc_quest_info(ship_client_t *c, sylverant_quest_t *q, int l) {
     uint8_t *sendbuf = get_sendbuf();
     dc_msg_box_pkt *pkt = (dc_msg_box_pkt *)sendbuf;
-    iconv_t ic;
-    size_t in, out, outt;
+    size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
-    int len;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
         return -1;
     }
 
-    if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
-       c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3) {
-        if(c->language_code != CLIENT_LANG_JAPANESE) {
-            ic = ic_utf8_to_8859;
-        }
-        else {
-            ic = ic_utf8_to_sjis;
-        }
-    }
-    else {
-        ic = ic_utf8_to_utf16;
-    }
-
     /* Clear the packet header */
     memset(pkt, 0, DC_QUEST_INFO_LENGTH);
 
     /* Fill in the basics */
-    if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
-       c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3) {
-        pkt->hdr.dc.pkt_type = QUEST_INFO_TYPE;
-        pkt->hdr.dc.flags = 0;
-        pkt->hdr.dc.pkt_len = LE16(DC_QUEST_INFO_LENGTH);
-        len = DC_QUEST_INFO_LENGTH;
-        outt = 0x124;
-    }
-    else {
-        pkt->hdr.pc.pkt_type = QUEST_INFO_TYPE;
-        pkt->hdr.pc.flags = 0;
-        pkt->hdr.pc.pkt_len = LE16(PC_QUEST_INFO_LENGTH);
-        len = PC_QUEST_INFO_LENGTH;
-        outt = 0x248;
-    }
+    pkt->hdr.dc.pkt_type = QUEST_INFO_TYPE;
+    pkt->hdr.dc.flags = 0;
+    pkt->hdr.dc.pkt_len = LE16(DC_QUEST_INFO_LENGTH);
 
     /* Convert to the right encoding */
     in = 0x124;
-    out = outt;
     inptr = q->long_desc;
-    outptr = pkt->msg;
-    iconv(ic, &inptr, &in, &outptr, &out);
+    out = 0x122;
+    outptr = &pkt->msg[2];
+
+    if(l == CLIENT_LANG_JAPANESE) {
+        iconv(ic_utf8_to_sjis, &inptr, &in, &outptr, &out);
+        pkt->msg[0] = '\t';
+        pkt->msg[1] = 'J';
+    }
+    else {
+        iconv(ic_utf8_to_8859, &inptr, &in, &outptr, &out);
+        pkt->msg[0] = '\t';
+        pkt->msg[1] = 'E';
+    }
 
     /* Send it away */
-    return crypt_send(c, len, sendbuf);
+    return crypt_send(c, DC_QUEST_INFO_LENGTH, sendbuf);
+}
+
+static int send_pc_quest_info(ship_client_t *c, sylverant_quest_t *q, int l) {
+    uint8_t *sendbuf = get_sendbuf();
+    dc_msg_box_pkt *pkt = (dc_msg_box_pkt *)sendbuf;
+    size_t in, out;
+    ICONV_CONST char *inptr;
+    char *outptr;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Clear the packet header */
+    memset(pkt, 0, PC_QUEST_INFO_LENGTH);
+
+    /* Fill in the basics */
+    pkt->hdr.pc.pkt_type = QUEST_INFO_TYPE;
+    pkt->hdr.pc.flags = 0;
+    pkt->hdr.pc.pkt_len = LE16(PC_QUEST_INFO_LENGTH);
+
+    /* Convert to the right encoding */
+    in = 0x124;
+    inptr = q->long_desc;
+    out = 0x248;
+    outptr = pkt->msg;
+    iconv(ic_utf8_to_utf16, &inptr, &in, &outptr, &out);
+
+    /* Send it away */
+    return crypt_send(c, PC_QUEST_INFO_LENGTH, sendbuf);
 }
 
 int send_quest_info(lobby_t *l, sylverant_quest_t *q) {
@@ -4911,10 +4949,13 @@ int send_quest_info(lobby_t *l, sylverant_quest_t *q) {
             switch(c->version) {
                 case CLIENT_VERSION_DCV1:
                 case CLIENT_VERSION_DCV2:
-                case CLIENT_VERSION_PC:
                 case CLIENT_VERSION_GC:
                 case CLIENT_VERSION_EP3:
-                    send_dc_quest_info(c, q);
+                    send_dc_quest_info(c, q, c->language_code);
+                    break;
+
+                case CLIENT_VERSION_PC:
+                    send_pc_quest_info(c, q, c->language_code);
                     break;
             }
         }
@@ -4928,6 +4969,7 @@ int send_quest_info_new(lobby_t *l, uint32_t qid, int lang) {
     int i;
     quest_map_elem_t *elem;
     sylverant_quest_t *q;
+    int sel_lang;
 
     /* Grab the mapped entry */
     c = l->clients[l->leader_id];
@@ -4940,25 +4982,28 @@ int send_quest_info_new(lobby_t *l, uint32_t qid, int lang) {
 
     for(i = 0; i < l->max_clients; ++i) {
         if((c = l->clients[i])) {
-            q = elem->qptr[c->version][c->language_code];
+            q = elem->qptr[c->version][c->q_lang];
+            sel_lang = c->q_lang;
 
-            /* If we didn't find it on the normal language code, try the
-               fallback one. */
+            /* If we didn't find it on the quest language code, try the language
+               code set in the character data. */
             if(!q) {
-                q = elem->qptr[c->version][c->q_lang];
+                q = elem->qptr[c->version][c->language_code];
+                sel_lang = c->language_code;
             }
 
             /* If all else fails, go with the language the quest was selected by
                the leader in, since that has to be there! */
             if(!q) {
                 q = elem->qptr[c->version][lang];
+                sel_lang = lang;
 
                 /* If we still didn't find it, we've got trouble elsewhere... */
                 if(!q) {
                     debug(DBG_WARN, "Couldn't find quest to send info!\n"
                           "ID: %d, Ver: %d, Language: %d, Fallback: %d, "
-                          "Fallback 2: %d\n", qid, c->version, c->language_code,
-                          c->q_lang, lang);
+                          "Fallback 2: %d\n", qid, c->version, c->q_lang,
+                          c->language_code, lang);
                     continue;
                 }
             }
@@ -4967,10 +5012,13 @@ int send_quest_info_new(lobby_t *l, uint32_t qid, int lang) {
             switch(c->version) {
                 case CLIENT_VERSION_DCV1:
                 case CLIENT_VERSION_DCV2:
-                case CLIENT_VERSION_PC:
                 case CLIENT_VERSION_GC:
                 case CLIENT_VERSION_EP3:
-                    send_dc_quest_info(c, q);
+                    send_dc_quest_info(c, q, sel_lang);
+                    break;
+
+                case CLIENT_VERSION_PC:
+                    send_pc_quest_info(c, q, sel_lang);
                     break;
             }
         }
@@ -6359,14 +6407,14 @@ int send_quest_new(lobby_t *l, uint32_t qid, int lc) {
     /* What type of quest file are we sending? */
     for(i = 0; i < l->max_clients; ++i) {
         if((c = l->clients[i])) {
-            q = elem->qptr[c->version][c->language_code];
-            lang = c->language_code;
+            q = elem->qptr[c->version][c->q_lang];
+            lang = c->q_lang;
 
-            /* If we didn't find it on the normal language code, try the
-               fallback one. */
+            /* If we didn't find it on the quest language code, try the language
+               code set in the character data. */
             if(!q) {
-                q = elem->qptr[c->version][c->q_lang];
-                lang = c->q_lang;
+                q = elem->qptr[c->version][c->language_code];
+                lang = c->language_code;
             }
 
             /* If all else fails, go with the language the quest was selected by
@@ -6379,8 +6427,8 @@ int send_quest_new(lobby_t *l, uint32_t qid, int lc) {
                 if(!q) {
                     debug(DBG_WARN, "Couldn't find quest to send!\n"
                           "ID: %d, Ver: %d, Language: %d, Fallback: %d, "
-                          "Fallback 2: %d\n", qid, c->version, c->language_code,
-                          c->q_lang, lc);
+                          "Fallback 2: %d\n", qid, c->version, c->q_lang,
+                          c->language_code, lc);
 
                     /* Unfortunately, we're going to have to disconnect the user
                        if this happens, since we really have no recourse. */
