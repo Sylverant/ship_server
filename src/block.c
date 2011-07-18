@@ -1900,7 +1900,7 @@ static int process_menu(ship_client_t *c, uint32_t menu_id, uint32_t item_id,
         case MENU_ID_GAME:
         {
             char tmp[32];
-            char passwd[17];
+            char passwd_cmp[17];
             lobby_t *l;
             int override = c->flags & CLIENT_FLAG_OVERRIDE_GAME;
 
@@ -1917,16 +1917,15 @@ static int process_menu(ship_client_t *c, uint32_t menu_id, uint32_t item_id,
 
             /* Read the password if the client provided one. */
             memset(tmp, 0, 32);
+            memset(passwd_cmp, 0, 17);
             memcpy(tmp, passwd, passwd_len);
 
             if(c->version == CLIENT_VERSION_PC ||
                c->version == CLIENT_VERSION_BB) {
-                istrncpy16(ic_utf16_to_ascii, passwd, (uint16_t *)tmp, 16);
-                passwd[16] = 0;
+                istrncpy16(ic_utf16_to_ascii, passwd_cmp, (uint16_t *)tmp, 16);
             }
             else {
-                strncpy(passwd, tmp, 16);
-                passwd[16] = 0;
+                strncpy(passwd_cmp, tmp, 16);
             }
 
             /* The client is selecting a game to join. */
@@ -1940,10 +1939,13 @@ static int process_menu(ship_client_t *c, uint32_t menu_id, uint32_t item_id,
             }
 
             /* Check the provided password (if any). */
-            if(l->passwd[0] && strcmp(passwd, l->passwd) && !override) {
-                send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't join game!"),
-                              __(c, "\tC7Wrong Password."));
-                return 0;
+            if(!override) {
+                if(l->passwd[0] && strcmp(passwd_cmp, l->passwd)) {
+                    send_message1(c, "%s\n\n%s",
+                                  __(c, "\tE\tC4Can't join game!"),
+                                  __(c, "\tC7Wrong Password."));
+                    return 0;
+                }
             }
 
             /* Attempt to change the player's lobby. */
