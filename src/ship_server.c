@@ -300,11 +300,13 @@ int main(int argc, char *argv[]) {
 
     if(restart_on_shutdown) {
         chdir(initial_path);
+        free(initial_path);
         execvp(argv[0], argv);
 
         /* This should never be reached, since execvp should replace us. If we
            get here, there was a serious problem... */
         debug(DBG_ERROR, "Restart failed: %s\n", strerror(errno));
+        return -1;
     }
 
     free(initial_path);
