@@ -131,9 +131,9 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
     l->create_time = time(NULL);
 
     /* Copy the game name and password. */
-    strncpy(l->name, name, 16);
+    strncpy(l->name, name, 32);
     strncpy(l->passwd, passwd, 16);
-    l->name[16] = 0;
+    l->name[33] = 0;
     l->passwd[16] = 0;
 
     /* Initialize the packet queue */
@@ -206,9 +206,9 @@ lobby_t *lobby_create_ep3_game(block_t *block, char *name, char *passwd,
     l->flags |= LOBBY_FLAG_EP3;
 
     /* Copy the game name and password. */
-    strncpy(l->name, name, 16);
+    strncpy(l->name, name, 32);
     strncpy(l->passwd, passwd, 16);
-    l->name[16] = 0;
+    l->name[33] = 0;
     l->passwd[16] = 0;
 
     /* Initialize the packet queue */

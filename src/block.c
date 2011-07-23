@@ -1625,6 +1625,7 @@ static int bb_process_mail(ship_client_t *c, bb_simple_mail_pkt *pkt) {
 static int dc_process_game_create(ship_client_t *c, dc_game_create_pkt *pkt) {
     lobby_t *l;
     uint8_t event = ship->cfg->game_event;
+    char name[32];
 
     /* Check the user's ability to create a game of that difficulty. */
     if((LE32(c->pl->v1.level) + 1) < game_required_level[pkt->difficulty]) {
@@ -1633,8 +1634,16 @@ static int dc_process_game_create(ship_client_t *c, dc_game_create_pkt *pkt) {
                                 "difficulty."));
     }
 
+    /* Convert the team name to UTF-8 */
+    if(pkt->name[1] == 'J') {
+        istrncpy(ic_sjis_to_utf8, name, pkt->name, 32);
+    }
+    else {
+        istrncpy(ic_8859_to_utf8, name, pkt->name, 32);
+    }
+
     /* Create the lobby structure. */
-    l = lobby_create_game(c->cur_block, pkt->name, pkt->password,
+    l = lobby_create_game(c->cur_block, name, pkt->password,
                           pkt->difficulty, pkt->battle, pkt->challenge,
                           pkt->version, c->version, c->pl->v1.section,
                           event, 0);
@@ -1660,10 +1669,10 @@ static int dc_process_game_create(ship_client_t *c, dc_game_create_pkt *pkt) {
 static int pc_process_game_create(ship_client_t *c, pc_game_create_pkt *pkt) {
     lobby_t *l = NULL;
     uint8_t event = ship->cfg->game_event;
-    char name[16], password[16];
+    char name[32], password[16];
 
     /* Convert the name/password to the appropriate encoding. */
-    istrncpy16(ic_utf16_to_utf8, name, pkt->name, 16);
+    istrncpy16(ic_utf16_to_utf8, name, pkt->name, 32);
     istrncpy16(ic_utf16_to_ascii, password, pkt->password, 16);
 
     /* Check the user's ability to create a game of that difficulty. */
@@ -1706,6 +1715,7 @@ static int pc_process_game_create(ship_client_t *c, pc_game_create_pkt *pkt) {
 static int gc_process_game_create(ship_client_t *c, gc_game_create_pkt *pkt) {
     lobby_t *l;
     uint8_t event = ship->cfg->game_event;
+    char name[32];
 
     /* Check the user's ability to create a game of that difficulty. */
     if((LE32(c->pl->v1.level) + 1) < game_required_level[pkt->difficulty]) {
@@ -1714,8 +1724,16 @@ static int gc_process_game_create(ship_client_t *c, gc_game_create_pkt *pkt) {
                                 "difficulty."));
     }
 
+    /* Convert the team name to UTF-8 */
+    if(pkt->name[1] == 'J') {
+        istrncpy(ic_sjis_to_utf8, name, pkt->name, 32);
+    }
+    else {
+        istrncpy(ic_8859_to_utf8, name, pkt->name, 32);
+    }
+
     /* Create the lobby structure. */
-    l = lobby_create_game(c->cur_block, pkt->name, pkt->password,
+    l = lobby_create_game(c->cur_block, name, pkt->password,
                           pkt->difficulty, pkt->battle, pkt->challenge,
                           0, c->version, c->pl->v1.section, event,
                           pkt->episode);
@@ -1740,9 +1758,18 @@ static int gc_process_game_create(ship_client_t *c, gc_game_create_pkt *pkt) {
 
 static int ep3_process_game_create(ship_client_t *c, ep3_game_create_pkt *pkt) {
     lobby_t *l;
+    char name[32];
+
+    /* Convert the team name to UTF-8 */
+    if(pkt->name[1] == 'J') {
+        istrncpy(ic_sjis_to_utf8, name, pkt->name, 32);
+    }
+    else {
+        istrncpy(ic_8859_to_utf8, name, pkt->name, 32);
+    }
 
     /* Create the lobby structure. */
-    l = lobby_create_ep3_game(c->cur_block, pkt->name, pkt->password,
+    l = lobby_create_ep3_game(c->cur_block, name, pkt->password,
                               pkt->view_battle, c->pl->v1.section);
 
     /* If we don't have a game, something went wrong... tell the user. */

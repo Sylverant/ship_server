@@ -2365,6 +2365,7 @@ static int send_dc_guild_reply(ship_client_t *c, ship_client_t *s) {
     lobby_t *l = s->cur_lobby;
     block_t *b = s->cur_block;
     uint16_t port = 0;
+    char lname[17];
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -2410,8 +2411,18 @@ static int send_dc_guild_reply(ship_client_t *c, ship_client_t *s) {
         strcpy(pkt->name, s->pl->v1.name);
     }
 
+    /* iconv the lobby name */
+    if(l->name[0] == '\t' && l->name[1] == 'J') {
+        istrncpy(ic_utf8_to_sjis, lname, l->name, 16);
+    }
+    else {
+        istrncpy(ic_utf8_to_8859, lname, l->name, 16);
+    }
+
+    lname[16] = 0;
+
     /* Fill in the location string. Everything here is ASCII, so this is safe */
-    sprintf(pkt->location, "%s,BLOCK%02d,%s", l->name, b->b, ship->cfg->name);
+    sprintf(pkt->location, "%s,BLOCK%02d,%s", lname, b->b, ship->cfg->name);
 
     /* Send it away */
     return crypt_send(c, DC_GUILD_REPLY_LENGTH, sendbuf);
@@ -2443,15 +2454,10 @@ static int send_pc_guild_reply(ship_client_t *c, ship_client_t *s) {
     pkt->menu_id = LE32(MENU_ID_LOBBY);
     pkt->item_id = LE32(l->lobby_id);
 
-    /* Fill in the location string... */
+    /* Fill in the location string. The lobby name is UTF-8 and everything
+       else is ASCII (which is safe to use as UTF-8). */
     sprintf(tmp, "%s,BLOCK%02d,%s", l->name, b->b, ship->cfg->name);
-
-    if(l->name[0] == '\t' && l->name[1] == 'J') {
-        istrncpy(ic_sjis_to_utf16, (char *)pkt->location, tmp, 0x88);
-    }
-    else {
-        istrncpy(ic_8859_to_utf16, (char *)pkt->location, tmp, 0x88);
-    }
+    istrncpy(ic_utf8_to_utf16, (char *)pkt->location, tmp, 0x88);
 
     /* ...and the name. */
     if(s->version == CLIENT_VERSION_BB) {
@@ -2491,15 +2497,10 @@ static int send_bb_guild_reply(ship_client_t *c, ship_client_t *s) {
     pkt->menu_id = LE32(MENU_ID_LOBBY);
     pkt->item_id = LE32(l->lobby_id);
 
-    /* Fill in the location string... */
+    /* Fill in the location string. The lobby name is UTF-8 and everything
+       else is ASCII (which is safe to use as UTF-8). */
     sprintf(tmp, "%s,BLOCK%02d,%s", l->name, b->b, ship->cfg->name);
-
-    if(l->name[0] == '\t' && l->name[1] == 'J') {
-        istrncpy(ic_sjis_to_utf16, (char *)pkt->location, tmp, 0x88);
-    }
-    else {
-        istrncpy(ic_8859_to_utf16, (char *)pkt->location, tmp, 0x88);
-    }
+    istrncpy(ic_utf8_to_utf16, (char *)pkt->location, tmp, 0x88);
 
     /* ...and the name. */
     if(s->version == CLIENT_VERSION_BB) {
@@ -2543,6 +2544,7 @@ static int send_dc_guild_reply6(ship_client_t *c, ship_client_t *s) {
     lobby_t *l = s->cur_lobby;
     block_t *b = s->cur_block;
     uint16_t port = 0;
+    char lname[17];
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -2589,8 +2591,18 @@ static int send_dc_guild_reply6(ship_client_t *c, ship_client_t *s) {
         strcpy(pkt->name, s->pl->v1.name);
     }
 
+    /* iconv the lobby name */
+    if(l->name[0] == '\t' && l->name[1] == 'J') {
+        istrncpy(ic_utf8_to_sjis, lname, l->name, 16);
+    }
+    else {
+        istrncpy(ic_utf8_to_8859, lname, l->name, 16);
+    }
+
+    lname[16] = 0;
+
     /* Fill in the location string. Everything here is ASCII, so this is safe */
-    sprintf(pkt->location, "%s,BLOCK%02d,%s", l->name, b->b, ship->cfg->name);
+    sprintf(pkt->location, "%s,BLOCK%02d,%s", lname, b->b, ship->cfg->name);
 
     /* Send it away */
     return crypt_send(c, DC_GUILD_REPLY6_LENGTH, sendbuf);
@@ -2623,15 +2635,10 @@ static int send_pc_guild_reply6(ship_client_t *c, ship_client_t *s) {
     pkt->menu_id = LE32(MENU_ID_LOBBY);
     pkt->item_id = LE32(l->lobby_id);
 
-    /* Fill in the location string... */
+    /* Fill in the location string. The lobby name is UTF-8 and everything
+       else is ASCII (which is safe to use as UTF-8). */
     sprintf(tmp, "%s,BLOCK%02d,%s", l->name, b->b, ship->cfg->name);
-
-    if(l->name[0] == '\t' && l->name[1] == 'J') {
-        istrncpy(ic_sjis_to_utf16, (char *)pkt->location, tmp, 0x88);
-    }
-    else {
-        istrncpy(ic_8859_to_utf16, (char *)pkt->location, tmp, 0x88);
-    }
+    istrncpy(ic_utf8_to_utf16, (char *)pkt->location, tmp, 0x88);
 
     /* ...and the name. */
     if(s->version == CLIENT_VERSION_BB) {
@@ -2673,15 +2680,10 @@ static int send_bb_guild_reply6(ship_client_t *c, ship_client_t *s) {
     pkt->menu_id = LE32(MENU_ID_LOBBY);
     pkt->item_id = LE32(l->lobby_id);
 
-    /* Fill in the location string... */
+    /* Fill in the location string. The lobby name is UTF-8 and everything
+       else is ASCII (which is safe to use as UTF-8). */
     sprintf(tmp, "%s,BLOCK%02d,%s", l->name, b->b, ship->cfg->name);
-
-    if(l->name[0] == '\t' && l->name[1] == 'J') {
-        istrncpy(ic_sjis_to_utf16, (char *)pkt->location, tmp, 0x88);
-    }
-    else {
-        istrncpy(ic_8859_to_utf16, (char *)pkt->location, tmp, 0x88);
-    }
+    istrncpy(ic_utf8_to_utf16, (char *)pkt->location, tmp, 0x88);
 
     /* ...and the name. */
     if(s->version == CLIENT_VERSION_BB) {
@@ -3364,9 +3366,13 @@ static int send_dc_game_list(ship_client_t *c, block_t *b) {
             (l->battle ? 0x10 : 0x00) | (l->passwd[0] ? 2 : 0) |
             (l->v2 ? 0x40 : 0x00);
 
-        /* Copy the name. The names are either in Shift-JIS or ISO-8859-1, and
-           should be prefixed with the appropriate language tag already */
-        strncpy(pkt->entries[entries].name, l->name, 16);
+        /* Copy the name. These are in UTF-8, and need converting... */
+        if(l->name[1] == 'J') {
+            istrncpy(ic_utf8_to_sjis, pkt->entries[entries].name, l->name, 16);
+        }
+        else {
+            istrncpy(ic_utf8_to_8859, pkt->entries[entries].name, l->name, 16);
+        }
 
         /* Unlock the lobby */
         pthread_mutex_unlock(&l->mutex);
@@ -3432,14 +3438,8 @@ static int send_pc_game_list(ship_client_t *c, block_t *b) {
             (l->v2 ? 0x40 : 0x00);
 
         /* Copy the name */
-        if(l->name[1] == 'J') {
-            istrncpy(ic_sjis_to_utf16, (char *)pkt->entries[entries].name,
-                     l->name, 0x20);
-        }
-        else {
-            istrncpy(ic_8859_to_utf16, (char *)pkt->entries[entries].name,
-                     l->name, 0x20);
-        }
+        istrncpy(ic_utf8_to_utf16, (char *)pkt->entries[entries].name, l->name,
+                 0x20);
 
         /* Unlock the lobby */
         pthread_mutex_unlock(&l->mutex);
@@ -3508,8 +3508,13 @@ static int send_gc_game_list(ship_client_t *c, block_t *b) {
             (l->challenge ? 0x20 : 0x00) | (l->battle ? 0x10 : 0x00) |
             (l->passwd[0] ? 0x02 : 0x00);
 
-        /* Copy the name */
-        strcpy(pkt->entries[entries].name, l->name);
+        /* Copy the name. These are in UTF-8, and need converting... */
+        if(l->name[1] == 'J') {
+            istrncpy(ic_utf8_to_sjis, pkt->entries[entries].name, l->name, 16);
+        }
+        else {
+            istrncpy(ic_utf8_to_8859, pkt->entries[entries].name, l->name, 16);
+        }
 
         /* Unlock the lobby */
         pthread_mutex_unlock(&l->mutex);
@@ -3571,8 +3576,13 @@ static int send_ep3_game_list(ship_client_t *c, block_t *b) {
             (l->challenge ? 0x20 : 0x00) | (l->battle ? 0x10 : 0x00) |
             (l->passwd[0] ? 0x02 : 0x00);
 
-        /* Copy the name */
-        strcpy(pkt->entries[entries].name, l->name);
+        /* Copy the name. These are in UTF-8, and need converting... */
+        if(l->name[1] == 'J') {
+            istrncpy(ic_utf8_to_sjis, pkt->entries[entries].name, l->name, 16);
+        }
+        else {
+            istrncpy(ic_utf8_to_8859, pkt->entries[entries].name, l->name, 16);
+        }
 
         /* Unlock the lobby */
         pthread_mutex_unlock(&l->mutex);
@@ -6488,7 +6498,16 @@ static int send_dcv2_lobby_name(ship_client_t *c, lobby_t *l) {
     pkt->hdr.dc.flags = 0;
 
     /* Fill in the message */
-    len = (uint16_t)sprintf(pkt->msg, "%s", l->name) + 1;
+    if(l->name[0] == '\t' && l->name[1] == 'J') {
+        istrncpy(ic_utf8_to_sjis, pkt->msg, l->name, 16);
+        pkt->msg[16] = 0;
+    }
+    else {
+        istrncpy(ic_utf8_to_8859, pkt->msg, l->name, 16);
+        pkt->msg[16] = 0;
+    }
+
+    len = (uint16_t)strlen(pkt->msg) + 1;
 
     /* Add any padding needed */
     while(len & 0x03) {
@@ -6521,13 +6540,7 @@ static int send_pc_lobby_name(ship_client_t *c, lobby_t *l) {
     out = 65532;
     inptr = l->name;
     outptr = pkt->msg;
-
-    if(l->name[1] == 'J') {
-        iconv(ic_sjis_to_utf16, &inptr, &in, &outptr, &out);
-    }
-    else {
-        iconv(ic_8859_to_utf16, &inptr, &in, &outptr, &out);
-    }
+    iconv(ic_utf8_to_utf16, &inptr, &in, &outptr, &out);
 
     /* Figure out how long the new string is. */
     len = 65532 - out;
@@ -7245,15 +7258,8 @@ static int fill_one_choice_entry(uint8_t *sendbuf, int version,
 
             sprintf(tmp, "%s,BLOCK%02d,%s", it->cur_lobby->name, b->b,
                     ship->cfg->name);
-
-            if(tmp[0] == '\t' && tmp[1] == 'J') {
-                istrncpy(ic_sjis_to_utf16, (char *)pkt->entries[entry].location,
-                         tmp, 0x60);
-            }
-            else {
-                istrncpy(ic_8859_to_utf16, (char *)pkt->entries[entry].location,
-                         tmp, 0x60);
-            }
+            istrncpy(ic_utf8_to_utf16, (char *)pkt->entries[entry].location,
+                     tmp, 0x60);
 
             pkt->entries[entry].ip = ship->cfg->ship_ip;
             pkt->entries[entry].port = LE16(b->dc_port + port_off);
@@ -7268,6 +7274,7 @@ static int fill_one_choice_entry(uint8_t *sendbuf, int version,
         case CLIENT_VERSION_EP3:
         {
             dc_choice_reply_pkt *pkt = (dc_choice_reply_pkt *)sendbuf;
+            char lname[17];
 
             memset(&pkt->entries[entry], 0, 0xD4);
             pkt->entries[entry].guildcard = LE32(it->guildcard);
@@ -7277,8 +7284,20 @@ static int fill_one_choice_entry(uint8_t *sendbuf, int version,
             strcpy(pkt->entries[entry].name, it->pl->v1.name);
             sprintf(pkt->entries[entry].cl_lvl, "%s Lvl %d\n",
                     classes[it->pl->v1.ch_class], it->pl->v1.level + 1);
-            sprintf(pkt->entries[entry].location, "%s,BLOCK%02d,%s",
-                    it->cur_lobby->name, b->b, ship->cfg->name);
+
+            /* iconv the lobby name */
+            if(it->cur_lobby->name[0] == '\t' &&
+               it->cur_lobby->name[1] == 'J') {
+                istrncpy(ic_utf8_to_sjis, lname, it->cur_lobby->name, 16);
+            }
+            else {
+                istrncpy(ic_utf8_to_8859, lname, it->cur_lobby->name, 16);
+            }
+
+            lname[16] = 0;
+
+            sprintf(pkt->entries[entry].location, "%s,BLOCK%02d,%s", lname,
+                    b->b, ship->cfg->name);
 
             pkt->entries[entry].ip = ship->cfg->ship_ip;
             pkt->entries[entry].port = LE16(b->dc_port + port_off);
@@ -7318,15 +7337,8 @@ static int fill_one_choice6_entry(uint8_t *sendbuf, int version,
 
             sprintf(tmp, "%s,BLOCK%02d,%s", it->cur_lobby->name, b->b,
                     ship->cfg->name);
-
-            if(tmp[0] == '\t' && tmp[1] == 'J') {
-                istrncpy(ic_sjis_to_utf16, (char *)pkt->entries[entry].location,
-                         tmp, 0x60);
-            }
-            else {
-                istrncpy(ic_8859_to_utf16, (char *)pkt->entries[entry].location,
-                         tmp, 0x60);
-            }
+            istrncpy(ic_utf8_to_utf16, (char *)pkt->entries[entry].location,
+                     tmp, 0x60);
 
             memcpy(pkt->entries[entry].ip, ship->cfg->ship_ip6, 16);
             pkt->entries[entry].port = LE16(b->dc_port + port_off);
@@ -7341,6 +7353,7 @@ static int fill_one_choice6_entry(uint8_t *sendbuf, int version,
         case CLIENT_VERSION_EP3:
         {
             dc_choice_reply6_pkt *pkt = (dc_choice_reply6_pkt *)sendbuf;
+            char lname[17];
 
             memset(&pkt->entries[entry], 0, 0xE0);
             pkt->entries[entry].guildcard = LE32(it->guildcard);
@@ -7350,8 +7363,20 @@ static int fill_one_choice6_entry(uint8_t *sendbuf, int version,
             strcpy(pkt->entries[entry].name, it->pl->v1.name);
             sprintf(pkt->entries[entry].cl_lvl, "%s Lvl %d\n",
                     classes[it->pl->v1.ch_class], it->pl->v1.level + 1);
-            sprintf(pkt->entries[entry].location, "%s,BLOCK%02d,%s",
-                    it->cur_lobby->name, b->b, ship->cfg->name);
+
+            /* iconv the lobby name */
+            if(it->cur_lobby->name[0] == '\t' &&
+               it->cur_lobby->name[1] == 'J') {
+                istrncpy(ic_utf8_to_sjis, lname, it->cur_lobby->name, 16);
+            }
+            else {
+                istrncpy(ic_utf8_to_8859, lname, it->cur_lobby->name, 16);
+            }
+
+            lname[16] = 0;
+
+            sprintf(pkt->entries[entry].location, "%s,BLOCK%02d,%s", lname,
+                    b->b, ship->cfg->name);
 
             memcpy(pkt->entries[entry].ip, ship->cfg->ship_ip6, 16);
             pkt->entries[entry].port = LE16(b->dc_port + port_off);
