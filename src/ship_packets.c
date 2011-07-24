@@ -2721,8 +2721,10 @@ int send_guild_reply6(ship_client_t *c, ship_client_t *s) {
 #endif
 
 /* Send a premade guild card search reply to the specified client. */
-static int send_dc_guild_reply_sg(ship_client_t *c, dc_guild_reply_pkt *pkt) {
-    uint16_t port = LE16(pkt->port);
+static int send_dc_guild_reply_sg(ship_client_t *c, dc_guild_reply_pkt *p) {
+    uint8_t *sendbuf = get_sendbuf();
+    dc_guild_reply_pkt *pkt = (dc_guild_reply_pkt *)sendbuf;
+    uint16_t port = LE16(p->port);
 
     /* Adjust the port properly... */
     switch(c->version) {
@@ -2735,12 +2737,22 @@ static int send_dc_guild_reply_sg(ship_client_t *c, dc_guild_reply_pkt *pkt) {
             break;
 
         case CLIENT_VERSION_EP3:
-            pkt->port += LE16((port + 3));
+            pkt->port = LE16((port + 3));
             break;
     }
 
+    memcpy(pkt, p, sizeof(dc_guild_reply_pkt));
+
+    /* Convert the location string from UTF-8 to the appropriate encoding. */
+    if(p->location[0] == '\t' && p->location[1] == 'J') {
+        istrncpy(ic_utf8_to_sjis, pkt->location, p->location, 0x44);
+    }
+    else {
+        istrncpy(ic_utf8_to_8859, pkt->location, p->location, 0x44);
+    }
+
     /* Send it away */
-    return crypt_send(c, DC_GUILD_REPLY_LENGTH, (uint8_t *)pkt);
+    return crypt_send(c, DC_GUILD_REPLY_LENGTH, sendbuf);
 }
 
 static int send_pc_guild_reply_sg(ship_client_t *c, dc_guild_reply_pkt *dc) {
@@ -2771,13 +2783,7 @@ static int send_pc_guild_reply_sg(ship_client_t *c, dc_guild_reply_pkt *dc) {
     pkt->item_id = dc->item_id;
 
     /* Fill in the location string and the name */
-    if(dc->location[0] == '\t' && dc->location[0] == 'J') {
-        istrncpy(ic_sjis_to_utf16, (char *)pkt->location, dc->location, 0x88);
-    }
-    else {
-        istrncpy(ic_8859_to_utf16, (char *)pkt->location, dc->location, 0x88);
-    }
-
+    istrncpy(ic_utf8_to_utf16, (char *)pkt->location, dc->location, 0x88);
     istrncpy(ic_8859_to_utf16, (char *)pkt->name, dc->name, 0x40);
 
     /* Send it away */
@@ -2806,8 +2812,10 @@ int send_guild_reply_sg(ship_client_t *c, dc_guild_reply_pkt *pkt) {
 #ifdef SYLVERANT_ENABLE_IPV6
 
 /* Send a premade IPv6 guild card search reply to the specified client. */
-static int send_dc_guild_reply6_sg(ship_client_t *c, dc_guild_reply6_pkt *pkt) {
-    uint16_t port = LE16(pkt->port);
+static int send_dc_guild_reply6_sg(ship_client_t *c, dc_guild_reply6_pkt *p) {
+    uint8_t *sendbuf = get_sendbuf();
+    dc_guild_reply6_pkt *pkt = (dc_guild_reply6_pkt *)sendbuf;
+    uint16_t port = LE16(p->port);
 
     /* Adjust the port properly... */
     switch(c->version) {
@@ -2820,8 +2828,18 @@ static int send_dc_guild_reply6_sg(ship_client_t *c, dc_guild_reply6_pkt *pkt) {
             break;
 
         case CLIENT_VERSION_EP3:
-            pkt->port += LE16((port + 3));
+            pkt->port = LE16((port + 3));
             break;
+    }
+
+    memcpy(pkt, p, sizeof(dc_guild_reply6_pkt));
+
+    /* Convert the location string from UTF-8 to the appropriate encoding. */
+    if(p->location[0] == '\t' && p->location[1] == 'J') {
+        istrncpy(ic_utf8_to_sjis, pkt->location, p->location, 0x44);
+    }
+    else {
+        istrncpy(ic_utf8_to_8859, pkt->location, p->location, 0x44);
     }
 
     /* Send it away */
@@ -2857,13 +2875,7 @@ static int send_pc_guild_reply6_sg(ship_client_t *c, dc_guild_reply6_pkt *dc) {
     pkt->item_id = dc->item_id;
 
     /* Fill in the location string and the name */
-    if(dc->location[0] == '\t' && dc->location[0] == 'J') {
-        istrncpy(ic_sjis_to_utf16, (char *)pkt->location, dc->location, 0x88);
-    }
-    else {
-        istrncpy(ic_8859_to_utf16, (char *)pkt->location, dc->location, 0x88);
-    }
-
+    istrncpy(ic_utf8_to_utf16, (char *)pkt->location, dc->location, 0x88);
     istrncpy(ic_8859_to_utf16, (char *)pkt->name, dc->name, 0x40);
 
     /* Send it away */
