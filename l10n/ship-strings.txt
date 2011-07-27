@@ -1,0 +1,316 @@
+# Sylverant ship server translation file -- Master strings list.
+# Each line starts with a string in English from the source code. This should be
+# followed by a pipe character (|) then the string in the destination language of
+# the translation.
+#
+# Some notes about the translation file format:
+#
+# All files should be UTF-8. Note that this will be changed to the appropriate
+# encoding internally by the server. For PSOPC and PSOBB clients, that would be
+# UTF-16 Little Endian, and for PSODC and PSOGC it will either be Shift-JIS
+# (for Japanese) or ISO-8859-1 (all other languages). Please make sure that all
+# characters you use can be represented in the appropriate encoding.
+#
+# If a pipe character is needed in the string, escape it with a slash
+# (so like this: \|). There are additionally other characters that are able
+# to be done with escapes, such as horizontal tab (\t) and newline (\n).
+#
+# Throughout the strings, you'll see sequences like \tE and \tC4. These are
+# flags to PSO. \tE sets the encoding for non-Japanese. \tC4 sets the color to
+# (in the case of the 4) red. Please keep the colors as-is for consistency
+# across translations. However, for Japanese strings, you will need to replace
+# \tE with \tJ in your translated versions. For the other versions, just copy
+# these flags over untouched if you see them.
+#
+# Comments begin with a # character and span the rest of the line.
+#
+# Blank lines are ignored.
+#
+# Strings are only listed in the first file they appear in (at the time of the
+# creation of the list).
+
+####################################################################
+# File: block.c                                                    #
+####################################################################
+Users
+Teams
+\tE\tC4Can't join game!
+\tC7Your class is\nnot allowed in a\nPSOv1 game.
+\tC7The game is\nin single player\nmode.
+\tC7The game is\nfor PSOPC only.
+\tC7The game is\nfor PSOv1 only.
+\tC7The game is\nfor PSODC only.
+\tC7The game is\ntemporarily\nunavailable.
+\tC7Game mode is set\nto legit and you\nfailed the legit check!
+\tC7Quest selection\nis in progress
+\tC7A quest is in\nprogress.
+\tC7This game is for\nVersion 2 only.
+\tC7Your level is\ntoo high.
+\tC7Your level is\ntoo low.
+\tC7A Player is\nbursting.
+\tC7This game is\nnon-existant.
+\tC7This game is\nfull.
+\tEPSO Version 1 is not supported on\nthis ship.\n\nDisconnecting.
+\tEPSO Version 2 is not supported on\nthis ship.\n\nDisconnecting.
+\tEPSO for PC is not supported on\nthis ship.\n\nDisconnecting.
+\tEPSO Episode 1 & 2 is not supported on\nthis ship.\n\nDisconnecting.
+\tEPSO Episode 3 is not supported on\nthis ship.\n\nDisconnecting.
+\tEPSO Blue Burst is not supported on\nthis ship.\n\nDisconnecting.
+\tE\tC4Can't Change lobby!
+\tC7The lobby is non-\nexistant.
+\tC7The lobby is full.
+\tC7Unknown error occurred.
+\tE\tC4Can't create game!
+\tC7Your level is too\nlow for that\ndifficulty.
+\tC7Try again later.
+
+# These next two are meant to be funny. The two go together if for some reason the
+# item requested at the information desk can't be found. Feel free to replace it
+# something else funny, as appropriate.
+\tE\tC4That information is\nclassified!
+\tC7Nah, it just doesn't\nexist, sorry.
+
+\tC7This game is\nnon-existant.
+\tC7Wrong Password.
+\tE\tC7That category is\nnon-existant.
+\tE\tC4Please wait a moment.
+\tE\tC4That quest is\nnon-existant.
+\tE\tC4That ship is now\noffline.
+
+# This one is here as a general error message if for some reason the client sends
+# something the server doesn't understand. Generally, it shouldn't happen.
+\tE\tC4Huh?
+
+\tE\tC7Updated blacklist.
+
+####################################################################
+# File: clients.c                                                  #
+####################################################################
+# All of the strings for this file are in reference to the friends list feature.
+
+# Set the color to Green and the language code. Used for clients signing on.
+\tE\tC2
+
+# Set the color to Red and the language code. Used for clients signing off.
+\tE\tC4
+
+online
+offline
+Character:
+
+####################################################################
+# File: commands.c                                                 #
+####################################################################
+# This particular string is used for when a non-GM attempts to use a GM command.
+\tE\tC7 Nice try.
+
+\tE\tC7Only valid in a game lobby.
+\tE\tC7Invalid area.
+\tE\tC7Invalid Guild Card.
+\tEYou have been kicked by a GM.
+Reason:
+\tE\tC7Only the leader may use this command.
+\tE\tC7Invalid level value.
+\tE\tC7Invalid level for this difficulty.
+\tE\tC7Minimum level must be <= maximum.
+\tE\tC7Minimum level set.
+\tE\tC7Maximum level must be >= minimum.
+\tE\tC7Maximum level set.
+\tE\tC7Couldn't read quests file.
+\tE\tC7Updated quest list.
+\tE\tC7No quest list configured.
+\tE\tC7Couldn't read GM list.
+\tE\tC7Updated GM list.
+\tE\tC7No GM list configured.
+\tE\tC7Couldn't read limits.
+\tE\tC7Updated limits.
+\tE\tC7No configured limits.
+\tE\tC7Unknown item to refresh.
+\tE\tC7Only valid in a non-game lobby.
+\tE\tC7Not valid on Blue Burst.
+\tE\tC7Invalid slot value.
+\tE\tC7Couldn't save character data.
+\tE\tC7Couldn't request character data.
+\tE\tC7Global Message:
+\tE\tC7Arrow set.
+\tE\tC7Invalid request.
+\tE\tC7Invalid item code.
+\tE\tC7Next item set successfully.
+\tE\tC7Invalid event code.
+\tE\tC7Event set.
+\tE\tC7Password too long.
+\tE\tC7Illegal character in password.
+\tE\tC7Password set.
+\tE\tC7Lobby name too long.
+\tE\tC7Lobby name set.
+Report Bug
+Send a Simple Mail to this guild card to report a bug.
+\tE\tC7Send a mail to the\n'Report Bug' user to report\na bug.
+\tE\tC7Invalid Client ID.
+\tE\tC7No such client.
+\tE\tC7Error setting ban.
+\tEYou have been banned by a GM.
+Ban Length:
+1 day
+Reason:
+1 week
+30 days
+Forever
+\tE\tC7Already in legit mode.
+\tE\tC7Legit check in progress...
+\tE\tC7Please wait a while before\nusing this command.
+\tE\tC7Already in normal mode.
+\tE\tC7Legit mode deactivated.
+\tE\tC7Invalid time.
+\tE\tC7Ship is going down for\nshutdown in
+minutes
+\tE\tC7Logging started.
+\tE\tC7The user is already\nbeing logged.
+\tE\tC7Cannot create log file.
+\tE\tC7Requested user not\nfound.
+\tE\tC7Logging ended.
+\tE\tC7The user is not\nbeing logged.
+\tE\tC7Invalid Nickname.
+\tE\tC7Dreamcast-only mode off.
+\tE\tC7At least one non-Dreamcast player is in the game.
+\tE\tC7Dreamcast-only mode on.
+\tE\tC7V1-only mode off.
+\tE\tC7At least one non-PSOv1 player is in the game.
+\tE\tC7V1-only mode on.
+\tE\tC7No name given.
+\tE\tC7Invulnerability off.
+\tE\tC7Invulnerability on.
+\tE\tC7Infinite TP off.
+\tE\tC7Infinite TP on.
+\tE\tC7Invalid Parameter.
+\tE\tC7No such client.
+\tE\tC7You have been smitten.
+\tE\tC7Client smitten.
+\tE\tC7Nothing to do.
+\tE\tC7Need to set an item first.
+\tE\tC7Only valid on Gamecube.
+\tE\tC7DC/PC games hidden.
+\tE\tC7DC/PC games visible.
+\tE\tC7Gamecube disallowed.
+\tE\tC7Game flag conflict.
+\tE\tC7Gamecube allowed.
+
+# WS here refers to Word Select.
+\tE\tC7Invalid WS code.
+
+\tE\tC7Only valid in a game with\none player.
+\tE\tC7Not valid in battle or\nchallenge modes.
+\tE\tC7Not valid in legit\nmode.
+\tE\tC7Not valid in quests.
+\tE\tC7Only valid on\nPioneer 2.
+\tE\tC7Invalid NPC data.
+\tE\tC7Invalid NPC number.
+\tE\tC7Invalid client ID given,\nor no open client slots.
+\tE\tC7Invalid follow client given.
+\tE\tC7Client STFUed.
+\tE\tC7Client un-STFUed.
+\tE\tC7Guildcard not found.
+\tE\tC7Ignoring
+Entry
+\tE\tC7Ignore list full.
+\tE\tC7Invalid Entry Number.
+\tE\tC7Ignore list entry cleared.
+\tE\tC7Game Event set.
+\tEYou have been banned from this ship.
+\tE\tC7Successfully set ban.
+\tE\tC7Lifted ban.
+\tE\tC7User not banned.
+\tE\tC7Error lifting ban.
+\tE\tC7Color Chat off.
+\tE\tC7Invalid trigger character.
+\tE\tC7Color Chat on.
+\tE\tC7Invalid language code.
+\tE\tC7Quest language set.
+\tE\tC7Invalid Page.
+\tE\tC7Forget something?
+\tE\tC7Not logged in.
+\tE\tC7Logged out.
+\tE\tC7Lobby restriction override on.
+\tE\tC7Ship Revision
+\tE\tC7Ship is going down for\nrestart in
+\tE\tC7Invalid Command.
+
+####################################################################
+# File: list.c                                                     #
+####################################################################
+\tE\tC7Invalid name given.
+\tENo matches found.
+\tE\tC7Missing search domain.
+\tE\tC7Invalid or missing search domain.
+\tE\tC7Invalid page given.
+\tE\tC7Name requires an argument.
+\tE\tC7Invalid min level given.
+\tE\tC7Invalid max level given.
+\tE\tC7Invalid level given.
+\tE\tC7Class requires an argument.
+\tE\tC7Invalid class.
+
+####################################################################
+# File: lobby.c                                                    #
+####################################################################
+\tEThis game is no\nlonger active.
+
+# These are all used in the game info window.
+\tETime
+Mode
+Legit
+Normal
+Questing
+Free Adventure
+Level Range
+Versions Allowed
+
+\tE\tC7Legit mode active.
+\tE\tC7Team legit check failed.
+
+####################################################################
+# File: ship.c                                                     #
+####################################################################
+\tEShip is going down for shutdown.
+Please try another ship.
+Disconnecting.
+\tEYou have been banned from this ship.
+Reason:
+Your ban expires:
+Never
+\tE\tC4That ship is now\noffline.
+
+####################################################################
+# File: shipgate.c                                                 #
+####################################################################
+\tE\tC7Login Successful.
+\tE\tC7Couldn't save character data.
+\tE\tC7Saved character data.
+\tE\tC7User banned.
+\tE\tC7No character data found.
+\tE\tC7Couldn't request character data.
+\tE\tC7Login failed.
+\tE\tC7Friend added.
+\tE\tC7Couldn't add friend.
+\tE\tC7Friend removed.
+\tE\tC7Couldn't remove friend.
+\tENo friends at that offset.
+
+####################################################################
+# File: subcmd.c                                                   #
+####################################################################
+\tEYou have been kicked from the server.
+Attempt to remove a non-legit item from\nthe bank in a legit-mode game.
+\tE\tC7Potentially hacked drop detected.
+
+####################################################################
+# File: utils.c                                                    #
+####################################################################
+\tE\tC7Thank you for your report.
+
+####################################################################
+# File: word_select.c                                              #
+####################################################################
+\tE\tC7Invalid word select.
+\tE\tC7Some clients did not\nreceive your last word\nselect.
+

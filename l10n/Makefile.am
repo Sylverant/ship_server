@@ -1,4 +1,5 @@
-LANGS=
+EXTRA_DIST = ship-strings.txt
+LANGS =
 
 dist-hook:
 	@for l in $(LANGS) ; do \
