@@ -1050,7 +1050,7 @@ static int handle_gmlogin(shipgate_conn_t *conn,
         if(i->guildcard == gc) {
             i->privilege |= pkt->priv;
             i->flags |= CLIENT_FLAG_LOGGED_IN;
-            send_txt(i, "%s", __(i, "\tE\tC7Login Successful"));
+            send_txt(i, "%s", __(i, "\tE\tC7Login Successful."));
 
             goto out;
         }
@@ -1173,10 +1173,11 @@ static int handle_cdata(shipgate_conn_t *conn, shipgate_cdata_err_pkt *pkt) {
                     /* We've found them, figure out what to tell them. */
                     if(flags & SHDR_FAILURE) {
                         send_txt(c, "%s", __(c, "\tE\tC7Couldn't save "
-                                                    "character data"));
+                                                "character data."));
                     }
                     else {
-                        send_txt(c, "%s", __(c, "\tE\tC7Saved character data"));
+                        send_txt(c, "%s", __(c, "\tE\tC7Saved character "
+                                             "data."));
                     }
 
                     done = 1;
@@ -1232,11 +1233,11 @@ static int handle_ban(shipgate_conn_t *conn, shipgate_ban_err_pkt *pkt) {
                             c->flags |= CLIENT_FLAG_DISCONNECTED;
                         }
 
-                        send_txt(c, "%s", __(c, "\tE\tC7Error setting ban!"));
+                        send_txt(c, "%s", __(c, "\tE\tC7Error setting ban."));
 
                     }
                     else {
-                        send_txt(c, "%s", __(c, "\tE\tC7User banned"));
+                        send_txt(c, "%s", __(c, "\tE\tC7User banned."));
                     }
 
                     done = 1;
@@ -1289,11 +1290,11 @@ static int handle_creq_err(shipgate_conn_t *conn, shipgate_cdata_err_pkt *pkt) {
                     /* We've found them, figure out what to tell them. */
                     if(err == ERR_CREQ_NO_DATA) {
                         send_txt(c, "%s", __(c, "\tE\tC7No character data "
-                                             "found"));
+                                             "found."));
                     }
                     else {
                         send_txt(c, "%s", __(c, "\tE\tC7Couldn't request "
-                                             "character data"));
+                                             "character data."));
                     }
 
                     done = 1;
@@ -1345,7 +1346,7 @@ static int handle_gmlogin_err(shipgate_conn_t *conn, shipgate_gm_err_pkt *pkt) {
     TAILQ_FOREACH(i, b->clients, qentry) {
         if(i->guildcard == gc) {
             /* XXXX: Maybe send specific error messages sometime later */
-            send_txt(i, "%s", __(i, "\tE\tC7Login failed"));
+            send_txt(i, "%s", __(i, "\tE\tC7Login failed."));
 
             goto out;
         }
@@ -1509,11 +1510,11 @@ static int handle_addfriend(shipgate_conn_t *c, shipgate_friend_err_pkt *pkt) {
                 if(cl->guildcard == dest && cl->pl) {
                     /* We've found them, figure out what to tell them. */
                     if(err == ERR_NO_ERROR) {
-                        send_txt(cl, "%s", __(cl, "\tE\tC7Friend added"));
+                        send_txt(cl, "%s", __(cl, "\tE\tC7Friend added."));
                     }
                     else {
                         send_txt(cl, "%s", __(cl, "\tE\tC7Couldn't add "
-                                              "friend"));
+                                              "friend."));
                     }
 
                     done = 1;
@@ -1565,11 +1566,11 @@ static int handle_delfriend(shipgate_conn_t *c, shipgate_friend_err_pkt *pkt) {
                 if(cl->guildcard == dest && cl->pl) {
                     /* We've found them, figure out what to tell them. */
                     if(err == ERR_NO_ERROR) {
-                        send_txt(cl, "%s", __(cl, "\tE\tC7Friend removed"));
+                        send_txt(cl, "%s", __(cl, "\tE\tC7Friend removed."));
                     }
                     else {
                         send_txt(cl, "%s", __(cl, "\tE\tC7Couldn't remove "
-                                              "friend"));
+                                              "friend."));
                     }
 
                     done = 1;

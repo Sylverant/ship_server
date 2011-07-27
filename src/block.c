@@ -1154,7 +1154,7 @@ static int process_change_lobby(ship_client_t *c, uint32_t item_id) {
     }
     else if(rv < 0) {
         return send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't Change lobby!"),
-                             __(c, "\tC7Unknown error occured."));
+                             __(c, "\tC7Unknown error occurred."));
     }
     else {
         return rv;

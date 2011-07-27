@@ -48,7 +48,7 @@ static int pllist_ship(ship_client_t *c, const char *name, int first,
     /* Compile the regular expression if the user asked to search by name */
     if(name) {
         if(regcomp(&re, name, REG_EXTENDED | REG_ICASE | REG_NOSUB)) {
-            return send_txt(c, "%s", __(c, "\tE\tC7Invalid name given"));
+            return send_txt(c, "%s", __(c, "\tE\tC7Invalid name given."));
         }
     }
 
@@ -126,7 +126,7 @@ static int pllist_ship(ship_client_t *c, const char *name, int first,
 
     /* If we have no results, then tell the user that */
     if(len == 2) {
-        strcpy(str, __(c, "\tENo matches found"));
+        strcpy(str, __(c, "\tENo matches found."));
     }
 
     /* Send the message away */
@@ -145,7 +145,7 @@ static int pllist_block(ship_client_t *c, const char *name, int first,
     /* Compile the regular expression if the user asked to search by name */
     if(name) {
         if(regcomp(&re, name, REG_EXTENDED | REG_ICASE | REG_NOSUB)) {
-            return send_txt(c, "%s", __(c, "\tE\tC7Invalid name given"));
+            return send_txt(c, "%s", __(c, "\tE\tC7Invalid name given."));
         }
     }
 
@@ -211,7 +211,7 @@ static int pllist_block(ship_client_t *c, const char *name, int first,
 
     /* If we have no results, then tell the user that */
     if(len == 2) {
-        strcpy(str, __(c, "\tENo matches found"));
+        strcpy(str, __(c, "\tENo matches found."));
     }
 
     /* Send the message away */
@@ -230,7 +230,7 @@ static int pllist_lobby(ship_client_t *c, const char *name, int first,
     /* Compile the regular expression if the user asked to search by name */
     if(name) {
         if(regcomp(&re, name, REG_EXTENDED | REG_ICASE | REG_NOSUB)) {
-            return send_txt(c, "%s", __(c, "\tE\tC7Invalid name given"));
+            return send_txt(c, "%s", __(c, "\tE\tC7Invalid name given."));
         }
     }
 
@@ -295,7 +295,7 @@ static int pllist_lobby(ship_client_t *c, const char *name, int first,
 
     /* If we have no results, then tell the user that */
     if(len == 2) {
-        strcpy(str, __(c, "\tENo matches found"));
+        strcpy(str, __(c, "\tENo matches found."));
     }
 
     /* Send the message away */
@@ -313,7 +313,7 @@ int send_player_list(ship_client_t *c, const char *params) {
     /* Figure out what domain we're looking in first. */
     if(!tok) {
         free(tmp);
-        return send_txt(c, "%s", __(c, "\tE\tC7Missing search domain"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Missing search domain."));
     }
     else if(!strcmp(tok, "s")) {
         dom = DOMAIN_SHIP;
@@ -327,7 +327,7 @@ int send_player_list(ship_client_t *c, const char *params) {
     else {
         free(tmp);
         return send_txt(c, "%s",
-                        __(c, "\tE\tC7Invalid or missing search domain"));
+                        __(c, "\tE\tC7Invalid or missing search domain."));
     }
 
     /* Look at whatever we have left.... */
@@ -340,7 +340,7 @@ int send_player_list(ship_client_t *c, const char *params) {
             first = (int)strtol(tok, NULL, 0);
             if(errno) {
                 free(tmp);
-                return send_txt(c, "%s", __(c, "\tE\tC7Invalid page given"));
+                return send_txt(c, "%s", __(c, "\tE\tC7Invalid page given."));
             }
 
             first = (first - 1) * 4;
@@ -351,7 +351,7 @@ int send_player_list(ship_client_t *c, const char *params) {
             if(!name) {
                 free(tmp);
                 return send_txt(c, "%s",
-                                __(c, "\tE\tC7Name requires an argument"));
+                                __(c, "\tE\tC7Name requires an argument."));
             }
         }
         else if(!strcmp(tok, "mnlv")) {
@@ -362,7 +362,7 @@ int send_player_list(ship_client_t *c, const char *params) {
             if(errno) {
                 free(tmp);
                 return send_txt(c, "%s",
-                                __(c, "\tE\tC7Invalid min level given"));
+                                __(c, "\tE\tC7Invalid min level given."));
             }
         }
         else if(!strcmp(tok, "mxlv")) {
@@ -373,7 +373,7 @@ int send_player_list(ship_client_t *c, const char *params) {
             if(errno) {
                 free(tmp);
                 return send_txt(c, "%s",
-                                __(c, "\tE\tC7Invalid max level given"));
+                                __(c, "\tE\tC7Invalid max level given."));
             }
         }
         else if(!strcmp(tok, "lv")) {
@@ -383,7 +383,7 @@ int send_player_list(ship_client_t *c, const char *params) {
             minlvl = maxlvl = (int)strtol(tok, NULL, 0) - 1;
             if(errno) {
                 free(tmp);
-                return send_txt(c, "%s", __(c, "\tE\tC7Invalid level given"));
+                return send_txt(c, "%s", __(c, "\tE\tC7Invalid level given."));
             }
         }
         else if(!strcmp(tok, "c")) {
@@ -394,7 +394,7 @@ int send_player_list(ship_client_t *c, const char *params) {
             if(!tok) {
                 free(tmp);
                 return send_txt(c, "%s",
-                                __(c, "\tE\tC7Class requires an argument"));
+                                __(c, "\tE\tC7Class requires an argument."));
             }
 
             /* Grab the length. */
@@ -402,7 +402,7 @@ int send_player_list(ship_client_t *c, const char *params) {
 
             if(len < 5) {
                 free(tmp);
-                return send_txt(c, "%s", __(c, "\tE\tC7Invalid class"));
+                return send_txt(c, "%s", __(c, "\tE\tC7Invalid class."));
             }
 
             /* Format the class name correctly */
@@ -423,7 +423,7 @@ int send_player_list(ship_client_t *c, const char *params) {
             /* Make sure its valid */
             if(ch_class == 12) {
                 free(tmp);
-                return send_txt(c, "%s", __(c, "\tE\tC7Invalid class"));
+                return send_txt(c, "%s", __(c, "\tE\tC7Invalid class."));
             }
         }
         else {

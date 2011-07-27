@@ -65,7 +65,7 @@ int word_select_send_dc(ship_client_t *c, subcmd_word_select_t *pkt) {
 
         /* Make sure each word is valid */
         if(dcw > WORD_SELECT_DC_MAX && dcw != 0xFFFF) {
-            return send_txt(c, __(c, "\tE\tC7Invalid word select"));
+            return send_txt(c, __(c, "\tE\tC7Invalid word select."));
         }
 
         /* Grab the words from the map */
@@ -124,7 +124,7 @@ int word_select_send_dc(ship_client_t *c, subcmd_word_select_t *pkt) {
     /* See if we had anyone that we couldn't send it to */
     if((pcusers && pcuntrans) || (gcusers && gcuntrans)) {
         send_txt(c, __(c, "\tE\tC7Some clients did not\n"
-                          "receive your last word\nselect"));
+                          "receive your last word\nselect."));
     }
 
     return 0;
@@ -168,7 +168,7 @@ int word_select_send_pc(ship_client_t *c, subcmd_word_select_t *pkt) {
 
         /* Make sure each word is valid */
         if(pcw > WORD_SELECT_PC_MAX && pcw != 0xFFFF) {
-            return send_txt(c, __(c, "\tE\tC7Invalid word select"));
+            return send_txt(c, __(c, "\tE\tC7Invalid word select."));
         }
 
         /* Grab the words from the map */
@@ -271,7 +271,7 @@ int word_select_send_gc(ship_client_t *c, subcmd_word_select_t *pkt) {
 
         /* Make sure each word is valid */
         if(gcw > WORD_SELECT_GC_MAX && gcw != 0xFFFF) {
-            return send_txt(c, __(c, "\tE\tC7Invalid word select"));
+            return send_txt(c, __(c, "\tE\tC7Invalid word select."));
         }
 
         /* Grab the words from the map */
@@ -330,7 +330,7 @@ int word_select_send_gc(ship_client_t *c, subcmd_word_select_t *pkt) {
     /* See if we had anyone that we couldn't send it to */
     if((pcusers && pcuntrans) || (dcusers && dcuntrans)) {
         send_txt(c, __(c, "\tE\tC7Some clients did not\n"
-                       "receive your last word\nselect"));
+                       "receive your last word\nselect."));
     }
 
     return 0;

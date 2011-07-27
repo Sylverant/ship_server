@@ -230,7 +230,7 @@ static void *ship_thd(void *d) {
                     if(s->shutdown_time) {
                         send_message_box(tmp, "%s\n\n%s\n%s",
                                          __(tmp, "\tEShip is going down for "
-                                            "shutdown"),
+                                            "shutdown."),
                                          __(tmp, "Please try another ship."),
                                          __(tmp, "Disconnecting."));
                         it->flags |= CLIENT_FLAG_DISCONNECTED;
@@ -257,7 +257,7 @@ static void *ship_thd(void *d) {
                     if(s->shutdown_time) {
                         send_message_box(tmp, "%s\n\n%s\n%s",
                                          __(tmp, "\tEShip is going down for "
-                                            "shutdown"),
+                                            "shutdown."),
                                          __(tmp, "Please try another ship."),
                                          __(tmp, "Disconnecting."));
                         it->flags |= CLIENT_FLAG_DISCONNECTED;
@@ -284,7 +284,7 @@ static void *ship_thd(void *d) {
                     if(s->shutdown_time) {
                         send_message_box(tmp, "%s\n\n%s\n%s",
                                          __(tmp, "\tEShip is going down for "
-                                            "shutdown"),
+                                            "shutdown."),
                                          __(tmp, "Please try another ship."),
                                          __(tmp, "Disconnecting."));
                         it->flags |= CLIENT_FLAG_DISCONNECTED;
@@ -312,7 +312,7 @@ static void *ship_thd(void *d) {
                     if(s->shutdown_time) {
                         send_message_box(tmp, "%s\n\n%s\n%s",
                                          __(tmp, "\tEShip is going down for "
-                                            "shutdown"),
+                                            "shutdown."),
                                          __(tmp, "Please try another ship."),
                                          __(tmp, "Disconnecting."));
                         it->flags |= CLIENT_FLAG_DISCONNECTED;
@@ -340,7 +340,7 @@ static void *ship_thd(void *d) {
                     if(s->shutdown_time) {
                         send_message_box(tmp, "%s\n\n%s\n%s",
                                          __(tmp, "\tEShip is going down for "
-                                            "shutdown"),
+                                            "shutdown."),
                                          __(tmp, "Please try another ship."),
                                          __(tmp, "Disconnecting."));
                         it->flags |= CLIENT_FLAG_DISCONNECTED;
@@ -802,8 +802,9 @@ static int send_ban_msg(ship_client_t *c, time_t until, const char *reason) {
     struct tm cooked;
 
     /* Create the ban string. */
-    sprintf(string, __(c, "\tEYou have been banned from this ship.\n"
-                       "Reason:\n%s\n\nYour ban expires:\n"), reason);
+    sprintf(string, "%s\n%s\n%s\n\n%s\n",
+            __(c, "\tEYou have been banned from this ship."), __(c, "Reason:"),
+            reason, __(c, "Your ban expires:"));
 
     if(until == (time_t)-1) {
         strcat(string, __(c, "Never"));

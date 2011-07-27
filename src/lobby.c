@@ -1076,7 +1076,7 @@ void lobby_legit_check_finish_locked(lobby_t *l) {
     else {
         send_txt(l->clients[l->leader_id], "%s",
                  __(l->clients[l->leader_id],
-                    "\tE\tC7Team legit check failed!"));
+                    "\tE\tC7Team legit check failed."));
     }
 
     /* Since the legit check is done, clear the flag for that and the

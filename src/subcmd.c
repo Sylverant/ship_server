@@ -805,12 +805,12 @@ static int handle_itemdrop(ship_client_t *c, subcmd_itemgen_t *pkt) {
                     if(name) {
                         send_txt(c2, "%s: %s",
                                  __(c2, "\tE\tC7Potentially hacked drop\n"
-                                    "detected"), name);
+                                    "detected."), name);
                     }
                     else {
                         send_txt(c2, "%s",
                                  __(c2, "\tE\tC7Potentially hacked drop\n"
-                                    "detected"));
+                                    "detected."));
                     }
 
                     /* Send out the drop item packet. This doesn't go to the

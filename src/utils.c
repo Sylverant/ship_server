@@ -178,7 +178,7 @@ int dc_bug_report(ship_client_t *c, dc_simple_mail_pkt *pkt) {
 
     fclose(fp);
 
-    return send_txt(c, "%s", __(c, "\tE\tC7Thank you for your report"));
+    return send_txt(c, "%s", __(c, "\tE\tC7Thank you for your report."));
 }
 
 int pc_bug_report(ship_client_t *c, pc_simple_mail_pkt *pkt) {
@@ -228,7 +228,7 @@ int pc_bug_report(ship_client_t *c, pc_simple_mail_pkt *pkt) {
 
     fclose(fp);
 
-    return send_txt(c, "%s", __(c, "\tE\tC7Thank you for your report"));
+    return send_txt(c, "%s", __(c, "\tE\tC7Thank you for your report."));
 }
 
 /* Begin logging the specified client's packets */

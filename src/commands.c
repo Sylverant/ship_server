@@ -80,12 +80,12 @@ static int handle_warp(ship_client_t *c, const char *params) {
 
     if(errno) {
         /* Send a message saying invalid area */
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid area!"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid area."));
     }
 
     if(area > 17) {
         /* Area too large, give up */
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid area!"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid area."));
     }
 
     /* Send the person to the requested place */
@@ -113,12 +113,12 @@ static int handle_warpall(ship_client_t *c, const char *params) {
 
     if(errno) {
         /* Send a message saying invalid area */
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid area!"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid area."));
     }
 
     if(area > 17) {
         /* Area too large, give up */
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid area!"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid area."));
     }
 
     /* Send the person to the requested place */
@@ -143,7 +143,7 @@ static int handle_kill(ship_client_t *c, const char *params) {
 
     if(errno != 0) {
         /* Send a message saying invalid guildcard number */
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card."));
     }
 
     /* Look for the requested user (only on this block) */
@@ -208,7 +208,7 @@ static int handle_min_level(ship_client_t *c, const char *params) {
 
     if(errno || lvl > 200 || lvl < 1) {
         /* Send a message saying invalid level */
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid level value"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid level value."));
     }
 
     /* Make sure the requested level is greater than or equal to the value for
@@ -253,7 +253,7 @@ static int handle_max_level(ship_client_t *c, const char *params) {
 
     if(errno || lvl > 200 || lvl < 1) {
         /* Send a message saying invalid level */
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid level value"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid level value."));
     }
 
     /* Make sure the requested level is greater than or equal to the value for
@@ -289,7 +289,7 @@ static int handle_refresh(ship_client_t *c, const char *params) {
                 debug(DBG_ERROR, "%s: Couldn't read quests file!\n",
                       ship->cfg->name);
                 return send_txt(c, "%s",
-                                __(c, "\tE\tC7Couldn't read quests file!"));
+                                __(c, "\tE\tC7Couldn't read quests file."));
             }
 
             /* Lock the mutex to prevent anyone from trying anything funny. */
@@ -301,7 +301,7 @@ static int handle_refresh(ship_client_t *c, const char *params) {
 
             /* Unlock the lock, we're done. */
             pthread_rwlock_unlock(&ship->qlock);
-            return send_txt(c, "%s", __(c, "\tE\tC7Updated quest list"));
+            return send_txt(c, "%s", __(c, "\tE\tC7Updated quest list."));
         }
         else if(ship->cfg->quests_dir && ship->cfg->quests_dir[0]) {
             /* Read in the new quests first */
@@ -341,11 +341,11 @@ static int handle_refresh(ship_client_t *c, const char *params) {
             
             /* Unlock the lock, we're done. */
             pthread_rwlock_unlock(&ship->qlock);
-            return send_txt(c, "%s", __(c, "\tE\tC7Updated quest list"));
+            return send_txt(c, "%s", __(c, "\tE\tC7Updated quest list."));
         }
         else {
             return send_txt(c, "%s",
-                            __(c, "\tE\tC7No configured quests list!"));
+                            __(c, "\tE\tC7No quest list configured."));
         }
     }
     else if(!strcmp(params, "gms")) {
@@ -359,19 +359,19 @@ static int handle_refresh(ship_client_t *c, const char *params) {
                well, if needed. */
             if(gm_list_read(ship->cfg->gm_file, ship)) {
                 return send_txt(c, "%s",
-                                __(c, "\tE\tC7Couldn't read GM list!"));
+                                __(c, "\tE\tC7Couldn't read GM list."));
             }
 
-            return send_txt(c, "%s", __(c, "\tE\tC7Updated GMs list"));
+            return send_txt(c, "%s", __(c, "\tE\tC7Updated GM list."));
         }
         else {
-            return send_txt(c, "%s", __(c, "\tE\tC7No configured GM list!"));
+            return send_txt(c, "%s", __(c, "\tE\tC7No GM list configured."));
         }
     }
     else if(!strcmp(params, "limits")) {
         if(ship->cfg->limits_file && ship->cfg->limits_file[0]) {
             if(sylverant_read_limits(ship->cfg->limits_file, &limits)) {
-                return send_txt(c, "%s", __(c, "\tE\tC7Couldn't read limits!"));
+                return send_txt(c, "%s", __(c, "\tE\tC7Couldn't read limits."));
             }
 
             pthread_rwlock_wrlock(&ship->llock);
@@ -381,14 +381,14 @@ static int handle_refresh(ship_client_t *c, const char *params) {
 
             sylverant_free_limits(tmplimits);
 
-            return send_txt(c, "%s", __(c, "\tE\tC7Updated limits"));
+            return send_txt(c, "%s", __(c, "\tE\tC7Updated limits."));
         }
         else {
-            return send_txt(c, "%s", __(c, "\tE\tC7No configured limits!"));
+            return send_txt(c, "%s", __(c, "\tE\tC7No configured limits."));
         }
     }
     else {
-        return send_txt(c, "%s", __(c, "\tE\tC7Unknown item to refresh"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Unknown item to refresh."));
     }
 }
 
@@ -414,7 +414,7 @@ static int handle_save(ship_client_t *c, const char *params) {
 
     if(errno || slot > 4 || slot < 1) {
         /* Send a message saying invalid slot */
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid slot value"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid slot value."));
     }
 
     /* Adjust so we don't go into the Blue Burst character data */
@@ -423,7 +423,7 @@ static int handle_save(ship_client_t *c, const char *params) {
     /* Send the character data to the shipgate */
     if(shipgate_send_cdata(&ship->sg, c->guildcard, slot, c->pl, 1052)) {
         /* Send a message saying we couldn't save */
-        return send_txt(c, "%s", __(c, "\tE\tC7Couldn't save character data"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Couldn't save character data."));
     }
 
     /* An error or success message will be sent when the shipgate gets its
@@ -453,7 +453,7 @@ static int handle_restore(ship_client_t *c, const char *params) {
 
     if(errno || slot > 4 || slot < 1) {
         /* Send a message saying invalid slot */
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid slot value"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid slot value."));
     }
 
     /* Adjust so we don't go into the Blue Burst character data */
@@ -463,7 +463,7 @@ static int handle_restore(ship_client_t *c, const char *params) {
     if(shipgate_send_creq(&ship->sg, c->guildcard, slot)) {
         /* Send a message saying we couldn't request */
         return send_txt(c, "%s",
-                        __(c, "\tE\tC7Couldn't request character data"));
+                        __(c, "\tE\tC7Couldn't request character data."));
     }
 
     return 0;
@@ -552,7 +552,7 @@ static int handle_arrow(ship_client_t *c, const char *params) {
     i = atoi(params);
     c->arrow = i;
 
-    send_txt(c, "%s", __(c, "\tE\tC7Arrow set"));
+    send_txt(c, "%s", __(c, "\tE\tC7Arrow set."));
 
     return send_lobby_arrows(c->cur_lobby);
 }
@@ -569,7 +569,7 @@ static int handle_login(ship_client_t *c, const char *params) {
     }
 
     if(len == 32) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid request"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid request."));
     }
 
     username[len] = '\0';
@@ -582,7 +582,7 @@ static int handle_login(ship_client_t *c, const char *params) {
     }
 
     if(len == 32) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid request"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid request."));
     }
 
     password[len] = '\0';
@@ -607,7 +607,7 @@ static int handle_item(ship_client_t *c, const char *params) {
                    item + 3);
 
     if(count == EOF || count == 0) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid item code"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid item code."));
     }
 
     c->next_item[0] = item[0];
@@ -615,7 +615,7 @@ static int handle_item(ship_client_t *c, const char *params) {
     c->next_item[2] = item[2];
     c->next_item[3] = item[3];
 
-    return send_txt(c, "%s", __(c, "\tE\tC7Next item set successfully"));
+    return send_txt(c, "%s", __(c, "\tE\tC7Next item set successfully."));
 }
 
 /* Usage /item4 item4 */
@@ -632,12 +632,12 @@ static int handle_item4(ship_client_t *c, const char *params) {
     count = sscanf(params, "%x", &item);
 
     if(count == EOF || count == 0) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid item code"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid item code."));
     }
 
     c->next_item[3] = item;
 
-    return send_txt(c, "%s", __(c, "\tE\tC7Next item set successfully"));
+    return send_txt(c, "%s", __(c, "\tE\tC7Next item set successfully."));
 }
 
 /* Usage: /event number */
@@ -790,7 +790,7 @@ static int handle_bug(ship_client_t *c, const char *params) {
     gcpkt.padding[0] = gcpkt.padding[1] = gcpkt.padding[1] = 0;
     sprintf(gcpkt.name, __(c, "Report Bug"));
     sprintf(gcpkt.text, __(c, "Send a Simple Mail to this guildcard to report "
-                           "a bug"));
+                           "a bug."));
 
     send_txt(c, "%s", __(c, "\tE\tC7Send a mail to the\n"
                          "'Report Bug' user to report\n"
@@ -815,12 +815,12 @@ static int handle_clinfo(ship_client_t *c, const char *params) {
     count = sscanf(params, "%d", &id);
 
     if(count == EOF || count == 0 || id >= l->max_clients || id < 0) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Client ID"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Client ID."));
     }
 
     /* Make sure there is such a client. */
     if(!(cl = l->clients[id])) {
-        return send_txt(c, "%s", __(c, "\tE\tC7No such client"));
+        return send_txt(c, "%s", __(c, "\tE\tC7No such client."));
     }
 
     /* Fill in the client's info. */
@@ -848,13 +848,13 @@ static int handle_gban_d(ship_client_t *c, const char *params) {
 
     if(errno != 0) {
         /* Send a message saying invalid guildcard number */
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card."));
     }
 
     /* Set the ban with the shipgate first (86400s = 1 day). */
     if(shipgate_send_ban(&ship->sg, SHDR_TYPE_GCBAN, c->guildcard, gc,
                          time(NULL) + 86400, reason + 1)) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Error setting ban!"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Error setting ban."));
     }
 
     /* Look for the requested user and kick them if they're currently connected
@@ -864,13 +864,13 @@ static int handle_gban_d(ship_client_t *c, const char *params) {
         if(i->guildcard == gc) {
             if(strlen(reason) > 1) {
                 send_message_box(i, "%s\n%s %s\n%s\n%s",
-                                 __(i, "\tEYou have been banned by a GM"),
+                                 __(i, "\tEYou have been banned by a GM."),
                                  __(i, "Ban Length:"), __(i, "1 day"),
                                  __(i, "Reason:"), reason + 1);
             }
             else {
                 send_message_box(i, "%s\n%s %s",
-                                 __(i, "\tEYou have been banned by a GM"),
+                                 __(i, "\tEYou have been banned by a GM."),
                                  __(i, "Ban Length:"), __(i, "1 day"));
             }
 
@@ -901,13 +901,13 @@ static int handle_gban_w(ship_client_t *c, const char *params) {
 
     if(errno != 0) {
         /* Send a message saying invalid guildcard number */
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card."));
     }
 
     /* Set the ban with the shipgate first (604800s = 1 week). */
     if(shipgate_send_ban(&ship->sg, SHDR_TYPE_GCBAN, c->guildcard, gc,
                          time(NULL) + 604800, reason + 1)) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Error setting ban!"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Error setting ban."));
     }
 
     /* Look for the requested user and kick them if they're currently connected
@@ -917,13 +917,13 @@ static int handle_gban_w(ship_client_t *c, const char *params) {
         if(i->guildcard == gc) {
             if(strlen(reason) > 1) {
                 send_message_box(i, "%s\n%s %s\n%s\n%s",
-                                 __(i, "\tEYou have been banned by a GM"),
+                                 __(i, "\tEYou have been banned by a GM."),
                                  __(i, "Ban Length:"), __(i, "1 week"),
                                  __(i, "Reason:"), reason + 1);
             }
             else {
                 send_message_box(i, "%s\n%s %s",
-                                 __(i, "\tEYou have been banned by a GM"),
+                                 __(i, "\tEYou have been banned by a GM."),
                                  __(i, "Ban Length:"), __(i, "1 week"));
             }
 
@@ -954,13 +954,13 @@ static int handle_gban_m(ship_client_t *c, const char *params) {
 
     if(errno != 0) {
         /* Send a message saying invalid guildcard number */
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card."));
     }
 
     /* Set the ban with the shipgate first (2,592,000s = 30 days). */
     if(shipgate_send_ban(&ship->sg, SHDR_TYPE_GCBAN, c->guildcard, gc,
                          time(NULL) + 2592000, reason + 1)) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Error setting ban!"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Error setting ban."));
     }
 
     /* Look for the requested user and kick them if they're currently connected
@@ -970,13 +970,13 @@ static int handle_gban_m(ship_client_t *c, const char *params) {
         if(i->guildcard == gc) {
             if(strlen(reason) > 1) {
                 send_message_box(i, "%s\n%s %s\n%s\n%s",
-                                 __(i, "\tEYou have been banned by a GM"),
+                                 __(i, "\tEYou have been banned by a GM."),
                                  __(i, "Ban Length:"), __(i, "30 days"),
                                  __(i, "Reason:"), reason + 1);
             }
             else {
                 send_message_box(i, "%s\n%s %s",
-                                 __(i, "\tEYou have been banned by a GM"),
+                                 __(i, "\tEYou have been banned by a GM."),
                                  __(i, "Ban Length:"), __(i, "30 days"));
             }
 
@@ -1007,14 +1007,14 @@ static int handle_gban_p(ship_client_t *c, const char *params) {
 
     if(errno != 0) {
         /* Send a message saying invalid guildcard number */
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card."));
     }
 
     /* Set the ban with the shipgate first (0xFFFFFFFF = forever (or close
        enough anyway)). */
     if(shipgate_send_ban(&ship->sg, SHDR_TYPE_GCBAN, c->guildcard, gc,
                          0xFFFFFFFF, reason + 1)) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Error setting ban!"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Error setting ban."));
     }
 
     /* Look for the requested user and kick them if they're currently connected
@@ -1024,13 +1024,13 @@ static int handle_gban_p(ship_client_t *c, const char *params) {
         if(i->guildcard == gc) {
             if(strlen(reason) > 1) {
                 send_message_box(i, "%s\n%s %s\n%s\n%s",
-                                 __(i, "\tEYou have been banned by a GM"),
+                                 __(i, "\tEYou have been banned by a GM."),
                                  __(i, "Ban Length:"), __(i, "Forever"),
                                  __(i, "Reason:"), reason + 1);
             }
             else {
                 send_message_box(i, "%s\n%s %s",
-                                 __(i, "\tEYou have been banned by a GM"),
+                                 __(i, "\tEYou have been banned by a GM."),
                                  __(i, "Ban Length:"), __(i, "Forever"));
             }
 
@@ -1241,7 +1241,7 @@ static int handle_log(ship_client_t *c, const char *params) {
 
     if(errno != 0) {
         /* Send a message saying invalid guildcard number */
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card."));
     }
 
     /* Look for the requested user and start the log */
@@ -1251,7 +1251,7 @@ static int handle_log(ship_client_t *c, const char *params) {
             rv = pkt_log_start(i);
 
             if(!rv) {
-                return send_txt(c, "%s", __(c, "\tE\tC7Logging started"));
+                return send_txt(c, "%s", __(c, "\tE\tC7Logging started."));
             }
             else if(rv == -1) {
                 return send_txt(c, "%s", __(c, "\tE\tC7The user is already\n"
@@ -1259,13 +1259,13 @@ static int handle_log(ship_client_t *c, const char *params) {
             }
             else if(rv == -2) {
                 return send_txt(c, "%s",
-                                __(c, "\tE\tC7Cannot create log file"));
+                                __(c, "\tE\tC7Cannot create log file."));
             }
         }
     }
 
     /* The person isn't here... There's nothing left to do. */
-    return send_txt(c, "%s", __(c, "\tE\tC7Requested user not\nfound"));
+    return send_txt(c, "%s", __(c, "\tE\tC7Requested user not\nfound."));
 }
 
 /* Usage: /endlog guildcard */
@@ -1286,7 +1286,7 @@ static int handle_endlog(ship_client_t *c, const char *params) {
 
     if(errno != 0) {
         /* Send a message saying invalid guildcard number */
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card."));
     }
 
     /* Look for the requested user and end the log */
@@ -1296,7 +1296,7 @@ static int handle_endlog(ship_client_t *c, const char *params) {
             rv = pkt_log_stop(i);
 
             if(!rv) {
-                return send_txt(c, "%s", __(c, "\tE\tC7Logging ended"));
+                return send_txt(c, "%s", __(c, "\tE\tC7Logging ended."));
             }
             else if(rv == -1) {
                 return send_txt(c, "%s", __(c,"\tE\tC7The user is not\n"
@@ -1306,7 +1306,7 @@ static int handle_endlog(ship_client_t *c, const char *params) {
     }
 
     /* The person isn't here... There's nothing left to do. */
-    return send_txt(c, "%s", __(c, "\tE\tC7Requested user not\nfound"));
+    return send_txt(c, "%s", __(c, "\tE\tC7Requested user not\nfound."));
 }
 
 /* Usage: /motd */
@@ -1325,12 +1325,12 @@ static int handle_friendadd(ship_client_t *c, const char *params) {
 
     if(errno != 0) {
         /* Send a message saying invalid guildcard number */
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card."));
     }
 
     /* Make sure the nickname is valid. */
     if(!nick || nick[0] != ' ' || nick[1] == '\0') {
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Nickname"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Nickname."));
     }
 
     /* Send a request to the shipgate to do the rest */
@@ -1350,7 +1350,7 @@ static int handle_frienddel(ship_client_t *c, const char *params) {
 
     if(errno != 0) {
         /* Send a message saying invalid guildcard number */
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card."));
     }
 
     /* Send a request to the shipgate to do the rest */
@@ -1474,12 +1474,12 @@ static int handle_forgegc(ship_client_t *c, const char *params) {
 
     if(errno != 0) {
         /* Send a message saying invalid guildcard number */
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card."));
     }
 
     /* Make sure a name was given */
     if(!name || name[0] != ' ' || name[1] == '\0') {
-        return send_txt(c, "%s", __(c, "\tE\tC7No name given"));
+        return send_txt(c, "%s", __(c, "\tE\tC7No name given."));
     }
 
     /* Forge the guildcard send */
@@ -1576,7 +1576,7 @@ static int handle_smite(ship_client_t *c, const char *params) {
 
     if(count == EOF || count < 3 || id >= l->max_clients || id < 0 || hp < 0 ||
        tp < 0 || hp > 2040 || tp > 2040) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Parameter"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Parameter."));
     }
 
     pthread_mutex_lock(&l->mutex);
@@ -1584,7 +1584,7 @@ static int handle_smite(ship_client_t *c, const char *params) {
     /* Make sure there is such a client. */
     if(!(cl = l->clients[id])) {
         pthread_mutex_unlock(&l->mutex);
-        return send_txt(c, "%s", __(c, "\tE\tC7No such client"));
+        return send_txt(c, "%s", __(c, "\tE\tC7No such client."));
     }
 
     /* Smite the client */
@@ -1688,17 +1688,17 @@ static int handle_teleport(ship_client_t *c, const char *params) {
 
     if(errno) {
         /* Send a message saying invalid client ID */
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Client ID"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Client ID."));
     }
 
     if(client > l->max_clients) {
         /* Client ID too large, give up */
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Client ID"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Client ID."));
     }
 
     if(!(c2 = l->clients[client])) {
         /* Client doesn't exist */
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Client ID"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Client ID."));
     }
 
     /* See if we need to warp first */
@@ -1822,7 +1822,7 @@ static int handle_ws(ship_client_t *c, const char *params) {
     count = sscanf(params, "%x,%x,%x,%x", ws + 0, ws + 1, ws + 2, ws + 3);
 
     if(count == EOF || count == 0) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid WS code"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid WS code."));
     }
 
     /* Fill in the packet */
@@ -1967,7 +1967,7 @@ static int handle_npc(ship_client_t *c, const char *params) {
 
     if(count == EOF || count == 0) {
         pthread_mutex_unlock(&l->mutex);
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid NPC data"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid NPC data."));
     }
 
     /* Fill in sane defaults. */
@@ -1988,7 +1988,7 @@ static int handle_npc(ship_client_t *c, const char *params) {
     /* Check the validity of arguments */
     if(npcnum < 0 || npcnum > 63) {
         pthread_mutex_unlock(&l->mutex);
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid NPC number"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid NPC number."));
     }
 
     if(client_id < 0 || client_id >= l->max_clients || l->clients[client_id]) {
@@ -1999,7 +1999,7 @@ static int handle_npc(ship_client_t *c, const char *params) {
 
     if(follow < 0 || follow >= l->max_clients || !l->clients[follow]) {
         pthread_mutex_unlock(&l->mutex);
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid follow client given"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid follow client given."));
     }
 
     /* This command, for now anyway, locks us down to one player mode. */
@@ -2043,14 +2043,14 @@ static int handle_stfu(ship_client_t *c, const char *params) {
 
     if(errno != 0) {
         /* Send a message saying invalid guildcard number */
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card."));
     }
 
     /* Look for the requested user and STFU them (only on this block). */
     TAILQ_FOREACH(i, b->clients, qentry) {
         if(i->guildcard == gc && i->privilege < c->privilege) {
             i->flags |= CLIENT_FLAG_STFU;
-            return send_txt(c, "%s", __(c, "\tE\tC7Client STFUed"));
+            return send_txt(c, "%s", __(c, "\tE\tC7Client STFUed."));
         }
     }
 
@@ -2075,19 +2075,19 @@ static int handle_unstfu(ship_client_t *c, const char *params) {
 
     if(errno != 0) {
         /* Send a message saying invalid guildcard number */
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card."));
     }
 
     /* Look for the requested user and un-STFU them (only on this block). */
     TAILQ_FOREACH(i, b->clients, qentry) {
         if(i->guildcard == gc) {
             i->flags &= ~CLIENT_FLAG_STFU;
-            return send_txt(c, "%s", __(c, "\tE\tC7Client un-STFUed"));
+            return send_txt(c, "%s", __(c, "\tE\tC7Client un-STFUed."));
         }
     }
 
     /* The person isn't here... There's nothing left to do. */
-    return send_txt(c, "%s", __(c, "\tE\tC7Guildcard not found"));
+    return send_txt(c, "%s", __(c, "\tE\tC7Guildcard not found."));
 }
 
 /* Usage: /ignore client_id */
@@ -2100,7 +2100,7 @@ static int handle_ignore(ship_client_t *c, const char *params) {
     i = sscanf(params, "%d", &id);
 
     if(i == EOF || i == 0 || id >= l->max_clients || id < 0) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Client ID"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Client ID."));
     }
 
     /* Lock the lobby so we don't mess anything up in grabbing this... */
@@ -2109,7 +2109,7 @@ static int handle_ignore(ship_client_t *c, const char *params) {
     /* Make sure there is such a client. */
     if(!(cl = l->clients[id])) {
         pthread_mutex_unlock(&l->mutex);
-        return send_txt(c, "%s", __(c, "\tE\tC7No such client"));
+        return send_txt(c, "%s", __(c, "\tE\tC7No such client."));
     }
 
     /* Find an empty spot to put this in. */
@@ -2118,13 +2118,13 @@ static int handle_ignore(ship_client_t *c, const char *params) {
             c->ignore_list[i] = cl->guildcard;
             pthread_mutex_unlock(&l->mutex);
             return send_txt(c, "%s %s\n%s %d", __(c, "\tE\tC7Ignoring"),
-                            cl->pl->v1.name, __(c, "\tE\tC7Entry"), i);
+                            cl->pl->v1.name, __(c, "Entry"), i);
         }
     }
 
     /* If we get here, the ignore list is full, report that to the user... */
     pthread_mutex_unlock(&l->mutex);
-    return send_txt(c, "%s", __(c, "\tE\tC7Ignore list full"));
+    return send_txt(c, "%s", __(c, "\tE\tC7Ignore list full."));
 }
 
 /* Usage: /unignore entry_number */
@@ -2135,13 +2135,13 @@ static int handle_unignore(ship_client_t *c, const char *params) {
     i = sscanf(params, "%d", &id);
 
     if(i == EOF || i == 0 || id >= CLIENT_IGNORE_LIST_SIZE || id < 0) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Entry Number"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Entry Number."));
     }
 
     /* Clear that entry of the ignore list */
     c->ignore_list[id] = 0;
 
-    return send_txt(c, "%s", __(c, "\tE\tC7Ignore list entry cleared"));
+    return send_txt(c, "%s", __(c, "\tE\tC7Ignore list entry cleared."));
 }
 
 /* Usage: /quit */
@@ -2190,12 +2190,12 @@ static int handle_ban_d(ship_client_t *c, const char *params) {
 
     if(errno != 0) {
         /* Send a message saying invalid guildcard number */
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card."));
     }
 
     /* Set the ban in the list (86,400s = 7 days) */
     if(ban_guildcard(ship, time(NULL) + 86400, c->guildcard, gc, reason + 1)) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Error setting ban!"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Error setting ban."));
     }
 
     /* Look for the requested user and kick them if they're on the ship. */
@@ -2209,14 +2209,14 @@ static int handle_ban_d(ship_client_t *c, const char *params) {
                     if(strlen(reason) > 1) {
                         send_message_box(i, "%s\n%s %s\n%s\n%s",
                                          __(i, "\tEYou have been banned from "
-                                            "this ship"), __(i, "Ban Length:"),
+                                            "this ship."), __(i, "Ban Length:"),
                                          __(i, "1 day"), __(i, "Reason:"),
                                          reason + 1);
                     }
                     else {
                         send_message_box(i, "%s\n%s %s",
                                          __(i, "\tEYou have been banned from "
-                                            "this ship"), __(i, "Ban Length:"),
+                                            "this ship."), __(i, "Ban Length:"),
                                          __(i, "1 day"));
                     }
 
@@ -2250,12 +2250,12 @@ static int handle_ban_w(ship_client_t *c, const char *params) {
 
     if(errno != 0) {
         /* Send a message saying invalid guildcard number */
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card."));
     }
 
     /* Set the ban in the list (604,800s = 7 days) */
     if(ban_guildcard(ship, time(NULL) + 604800, c->guildcard, gc, reason + 1)) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Error setting ban!"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Error setting ban."));
     }
 
     /* Look for the requested user and kick them if they're on the ship. */
@@ -2269,14 +2269,14 @@ static int handle_ban_w(ship_client_t *c, const char *params) {
                     if(strlen(reason) > 1) {
                         send_message_box(i, "%s\n%s %s\n%s\n%s",
                                          __(i, "\tEYou have been banned from "
-                                            "this ship"), __(i, "Ban Length:"),
+                                            "this ship."), __(i, "Ban Length:"),
                                          __(i, "1 week"), __(i, "Reason:"),
                                          reason + 1);
                     }
                     else {
                         send_message_box(i, "%s\n%s %s",
                                          __(i, "\tEYou have been banned from "
-                                            "this ship"), __(i, "Ban Length:"),
+                                            "this ship."), __(i, "Ban Length:"),
                                          __(i, "1 week"));
                     }
 
@@ -2310,13 +2310,13 @@ static int handle_ban_m(ship_client_t *c, const char *params) {
 
     if(errno != 0) {
         /* Send a message saying invalid guildcard number */
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card."));
     }
 
     /* Set the ban in the list (2,592,000s = 30 days) */
     if(ban_guildcard(ship, time(NULL) + 2592000, c->guildcard, gc,
                      reason + 1)) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Error setting ban!"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Error setting ban."));
     }
 
     /* Look for the requested user and kick them if they're on the ship. */
@@ -2330,14 +2330,14 @@ static int handle_ban_m(ship_client_t *c, const char *params) {
                     if(strlen(reason) > 1) {
                         send_message_box(i, "%s\n%s %s\n%s\n%s",
                                          __(i, "\tEYou have been banned from "
-                                            "this ship"), __(i, "Ban Length:"),
+                                            "this ship."), __(i, "Ban Length:"),
                                          __(i, "30 days"), __(i, "Reason:"),
                                          reason + 1);
                     }
                     else {
                         send_message_box(i, "%s\n%s %s",
                                          __(i, "\tEYou have been banned from "
-                                            "this ship"), __(i, "Ban Length:"),
+                                            "this ship."), __(i, "Ban Length:"),
                                          __(i, "30 days"));
                     }
 
@@ -2371,12 +2371,12 @@ static int handle_ban_p(ship_client_t *c, const char *params) {
 
     if(errno != 0) {
         /* Send a message saying invalid guildcard number */
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card."));
     }
 
     /* Set the ban in the list. An end time of -1 = forever */
     if(ban_guildcard(ship, (time_t)-1, c->guildcard, gc, reason + 1)) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Error setting ban!"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Error setting ban."));
     }
 
     /* Look for the requested user and kick them if they're on the ship. */
@@ -2390,14 +2390,14 @@ static int handle_ban_p(ship_client_t *c, const char *params) {
                     if(strlen(reason) > 1) {
                         send_message_box(i, "%s\n%s %s\n%s\n%s",
                                          __(i, "\tEYou have been banned from "
-                                            "this ship"), __(i, "Ban Length:"),
+                                            "this ship."), __(i, "Ban Length:"),
                                          __(i, "Forever"), __(i, "Reason:"),
                                          reason + 1);
                     }
                     else {
                         send_message_box(i, "%s\n%s %s",
                                          __(i, "\tEYou have been banned from "
-                                            "this ship"), __(i, "Ban Length:"),
+                                            "this ship."), __(i, "Ban Length:"),
                                          __(i, "Forever"));
                     }
 
@@ -2428,7 +2428,7 @@ static int handle_unban(ship_client_t *c, const char *params) {
 
     if(errno != 0) {
         /* Send a message saying invalid guildcard number */
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card."));
     }
 
     /* Attempt to lift the ban */
@@ -2436,13 +2436,13 @@ static int handle_unban(ship_client_t *c, const char *params) {
 
     /* Did we succeed? */
     if(!rv) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Lifted ban"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Lifted ban."));
     }
     else if(rv == -1) {
-        return send_txt(c, "%s", __(c, "\tE\tC7User not banned"));
+        return send_txt(c, "%s", __(c, "\tE\tC7User not banned."));
     }
     else {
-        return send_txt(c, "%s", __(c, "\tE\tC7Error lifting ban"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Error lifting ban."));
     }
 }
 
@@ -2451,17 +2451,17 @@ static int handle_cc(ship_client_t *c, const char *params) {
     /* Are we turning it off? */
     if(!strcmp(params, "off")) {
         c->cc_char = 0;
-        return send_txt(c, "%s", __(c, "\tE\tC7Color Chat off"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Color Chat off."));
     }
 
     /* Make sure they only gave one character */
     if(strlen(params) != 1) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid trigger char"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid trigger character."));
     }
 
     /* Set the char in the client struct */
     c->cc_char = params[0];
-    return send_txt(c, "%s", __(c, "\tE\tC7Color Chat on"));
+    return send_txt(c, "%s", __(c, "\tE\tC7Color Chat on."));
 }
 
 /* Usage: /qlang [2 character language code] */
@@ -2470,7 +2470,7 @@ static int handle_qlang(ship_client_t *c, const char *params) {
 
     /* Make sure they only gave one character */
     if(strlen(params) != 2) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid language code"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid language code."));
     }
 
     /* Look for the specified language code */
@@ -2481,11 +2481,11 @@ static int handle_qlang(ship_client_t *c, const char *params) {
             shipgate_send_user_opt(&ship->sg, c->guildcard, c->cur_block->b,
                                    USER_OPT_QUEST_LANG, 1, &c->q_lang);
 
-            return send_txt(c, "%s", __(c, "\tE\tC7Quest language set"));
+            return send_txt(c, "%s", __(c, "\tE\tC7Quest language set."));
         }
     }
 
-    return send_txt(c, "%s", __(c, "\tE\tC7Invalid language code"));
+    return send_txt(c, "%s", __(c, "\tE\tC7Invalid language code."));
 }
 
 /* Usage: /friends page */
@@ -2499,7 +2499,7 @@ static int handle_friends(ship_client_t *c, const char *params) {
 
     if(errno != 0) {
         /* Send a message saying invalid page number */
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Page"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Page."));
     }
 
     /* Send the request to the shipgate */
@@ -2635,7 +2635,7 @@ static int handle_search(ship_client_t *c, const char *params) {
 
     if(errno != 0) {
         /* Send a message saying invalid guildcard number */
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card"));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card."));
     }
 
     /* Hacky? Maybe a bit, but this will work just fine. */
@@ -2773,7 +2773,7 @@ static int command_call(ship_client_t *c, const char *txt, size_t len) {
     }
 
     /* Send the user a message saying invalid command. */
-    return send_txt(c, "%s", __(c, "\tE\tC7Invalid Command!"));
+    return send_txt(c, "%s", __(c, "\tE\tC7Invalid Command."));
 }
 
 int command_parse(ship_client_t *c, dc_chat_pkt *pkt) {
