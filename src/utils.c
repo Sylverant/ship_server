@@ -624,6 +624,50 @@ void make_disp_data(ship_client_t *s, ship_client_t *d, void *buf) {
     }
 }
 
+void update_lobby_event(void) {
+    int i, j;
+    block_t *b;
+    lobby_t *l;
+    ship_client_t *c2;
+    uint8_t event = ship->lobby_event;
+
+    /* Go through all the blocks... */
+    for(i = 0; i < ship->cfg->blocks; ++i) {
+        b = ship->blocks[i];
+
+        if(b && b->run) {
+            pthread_mutex_lock(&b->mutex);
+
+            /* ... and set the event code on each default lobby. */
+            TAILQ_FOREACH(l, &b->lobbies, qentry) {
+                pthread_mutex_lock(&l->mutex);
+
+                if(l->type == LOBBY_TYPE_DEFAULT) {
+                    l->event = event;
+
+                    for(j = 0; j < l->max_clients; ++j) {
+                        if(l->clients[j] != NULL) {
+                            c2 = l->clients[j];
+
+                            pthread_mutex_lock(&c2->mutex);
+
+                            if(c2->version > CLIENT_VERSION_PC) {
+                                send_simple(c2, LOBBY_EVENT_TYPE, event);
+                            }
+
+                            pthread_mutex_unlock(&c2->mutex);
+                        }
+                    }
+                }
+
+                pthread_mutex_unlock(&l->mutex);
+            }
+
+            pthread_mutex_unlock(&b->mutex);
+        }
+    }
+}
+
 int init_iconv(void) {
     ic_utf8_to_utf16 = iconv_open("UTF-16LE", "UTF-8");
 

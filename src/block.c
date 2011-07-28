@@ -429,7 +429,7 @@ block_t *block_server_start(ship_t *s, int b, uint16_t port) {
     /* Create the first 20 lobbies (the default ones) */
     for(i = 1; i <= 20; ++i) {
         /* Grab a new lobby. XXXX: Check the return value. */
-        l = lobby_create_default(rv, i, s->cfg->lobby_event);
+        l = lobby_create_default(rv, i, s->lobby_event);
 
         /* Add it into our list of lobbies */
         TAILQ_INSERT_TAIL(&rv->lobbies, l, qentry);
@@ -1624,7 +1624,7 @@ static int bb_process_mail(ship_client_t *c, bb_simple_mail_pkt *pkt) {
 
 static int dc_process_game_create(ship_client_t *c, dc_game_create_pkt *pkt) {
     lobby_t *l;
-    uint8_t event = ship->cfg->game_event;
+    uint8_t event = ship->game_event;
     char name[32];
 
     /* Check the user's ability to create a game of that difficulty. */
@@ -1668,7 +1668,7 @@ static int dc_process_game_create(ship_client_t *c, dc_game_create_pkt *pkt) {
 
 static int pc_process_game_create(ship_client_t *c, pc_game_create_pkt *pkt) {
     lobby_t *l = NULL;
-    uint8_t event = ship->cfg->game_event;
+    uint8_t event = ship->game_event;
     char name[32], password[16];
 
     /* Convert the name/password to the appropriate encoding. */
@@ -1714,7 +1714,7 @@ static int pc_process_game_create(ship_client_t *c, pc_game_create_pkt *pkt) {
 
 static int gc_process_game_create(ship_client_t *c, gc_game_create_pkt *pkt) {
     lobby_t *l;
-    uint8_t event = ship->cfg->game_event;
+    uint8_t event = ship->game_event;
     char name[32];
 
     /* Check the user's ability to create a game of that difficulty. */
@@ -1835,7 +1835,7 @@ static int process_menu(ship_client_t *c, uint32_t menu_id, uint32_t item_id,
             }
 
             /* Attempt to open the file */
-            fp = fopen(ship->cfg->info_files[item_id], "r");
+            fp = fopen(ship->cfg->info_files[item_id].filename, "r");
 
             if(!fp) {
                 send_message1(c, "%s\n\n%s",

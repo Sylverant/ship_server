@@ -74,6 +74,54 @@ static void clean_quests(ship_t *s) {
     quest_cleanup(&s->qmap);
 }
 
+static sylverant_event_t *find_current_event(ship_t *s) {
+    time_t now;
+    int i;
+    struct tm tm_now;
+    int m, d;
+
+    if(s->cfg->event_count == 1) {
+        return s->cfg->events;
+    }
+
+    /* If we have more than one event, then its a bit more work... */
+    now = time(NULL);
+    gmtime_r(&now, &tm_now);
+    m = tm_now.tm_mon + 1;
+    d = tm_now.tm_mday;
+
+    for(i = 1; i < s->cfg->event_count; ++i) {
+        /* Are we completely outside the month(s) of the event? */
+        if(s->cfg->events[i].start_month <= s->cfg->events[i].end_month &&
+           (m < s->cfg->events[i].start_month ||
+            m > s->cfg->events[i].end_month)) {
+            continue;
+        }
+        /* We need a special case for events that span the end of a year... */
+        else if(s->cfg->events[i].start_month > s->cfg->events[i].end_month &&
+                m > s->cfg->events[i].end_month &&
+                m < s->cfg->events[i].start_month) {
+            continue;
+        }
+        /* If we're in the start month, are we before the start day? */
+        else if(m == s->cfg->events[i].start_month &&
+                d < s->cfg->events[i].start_day) {
+            continue;
+        }
+        /* If we're in the end month, are we after the end day? */
+        else if(m == s->cfg->events[i].end_month &&
+                d > s->cfg->events[i].end_day) {
+            continue;
+        }
+
+        /* This is the event we're looking for! */
+        return &s->cfg->events[i];
+    }
+
+    /* No events matched, so use the default event. */
+    return s->cfg->events;
+}
+
 static void *ship_thd(void *d) {
     int i, nfds;
     ship_t *s = (ship_t *)d;
@@ -89,6 +137,7 @@ static void *ship_thd(void *d) {
     time_t now;
     time_t last_ban_sweep = time(NULL);
     int numsocks = 1;
+    sylverant_event_t *event, *oldevent = s->cfg->events;
 
 #ifdef SYLVERANT_ENABLE_IPV6
     if(enable_ipv6) {
@@ -108,7 +157,7 @@ static void *ship_thd(void *d) {
         nfds = 0;
         FD_ZERO(&readfds);
         FD_ZERO(&writefds);
-        timeout.tv_sec = 9001;
+        timeout.tv_sec = 60;
         timeout.tv_usec = 0;
         now = time(NULL);
 
@@ -133,6 +182,25 @@ static void *ship_thd(void *d) {
                 s->sg.login_attempt = 0;
                 timeout.tv_sec = 30;
             }
+        }
+
+        /* Check the event to see if its changed on us... */
+        event = find_current_event(s);
+
+        if(event != oldevent) {
+            debug(DBG_LOG, "Changing event (lobby: %d, game: %d)\n",
+                  (int)event->lobby_event, (int)event->game_event);
+
+            if(event->lobby_event != 0xFF) {
+                s->lobby_event = event->lobby_event;
+                update_lobby_event();
+            }
+
+            if(event->game_event != 0xFF) {
+                s->game_event = event->game_event;
+            }
+
+            oldevent = event;
         }
 
         /* Fill the sockets into the fd_sets so we can use select below. */
@@ -688,6 +756,8 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     rv->ep3sock[1] = ep3sock[1];
     rv->bbsock[1] = bbsock[1];
     rv->run = 1;
+    rv->lobby_event = s->events[0].lobby_event;
+    rv->game_event = s->events[0].game_event;
 
     /* Initialize scripting support */
     init_scripts(rv);

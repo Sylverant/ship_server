@@ -145,6 +145,7 @@ static sylverant_ship_t *load_config(void) {
 
 static void print_config(sylverant_ship_t *cfg) {
     char ipstr[INET6_ADDRSTRLEN] = { 0 };
+    int i;
 
     /* Print out the configuration. */
     debug(DBG_LOG, "Configured parameters:\n");
@@ -175,8 +176,18 @@ static void print_config(sylverant_ship_t *cfg) {
 
     debug(DBG_LOG, "Base Port: %d\n", (int)cfg->base_port);
     debug(DBG_LOG, "Blocks: %d\n", cfg->blocks);
-    debug(DBG_LOG, "Lobby Event: %d\n", cfg->lobby_event);
-    debug(DBG_LOG, "Game Event: %d\n", cfg->game_event);
+    debug(DBG_LOG, "Default Lobby Event: %d\n", cfg->events[0].lobby_event);
+    debug(DBG_LOG, "Default Game Event: %d\n", cfg->events[0].game_event);
+
+    if(cfg->event_count != 1) {
+        for(i = 1; i < cfg->event_count; ++i) {
+            debug(DBG_LOG, "Event (%d-%d through %d-%d):\n",
+                  cfg->events[i].start_month, cfg->events[i].start_day,
+                  cfg->events[i].end_month, cfg->events[i].end_day);
+            debug(DBG_LOG, "\tLobby: %d, Game: %d\n",
+                  cfg->events[i].lobby_event, cfg->events[i].game_event);
+        }
+    }
 
     if(cfg->menu_code) {
         debug(DBG_LOG, "Menu: %c%c\n", (char)cfg->menu_code,

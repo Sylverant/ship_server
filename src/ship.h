@@ -88,6 +88,8 @@ struct ship {
 
     uint16_t num_clients;
     uint16_t num_games;
+    uint8_t lobby_event;
+    uint8_t game_event;
 
     sylverant_quest_list_t quests;
     sylverant_quest_list_t qlist[CLIENT_VERSION_COUNT][CLIENT_LANG_COUNT];

@@ -3633,10 +3633,10 @@ int send_game_list(ship_client_t *c, block_t *b) {
 }
 
 /* Send the list of lobby info items to the client. */
-static int send_dc_info_list(ship_client_t *c, ship_t *s) {
+static int send_dc_info_list(ship_client_t *c, ship_t *s, uint32_t v) {
     uint8_t *sendbuf = get_sendbuf();
     dc_block_list_pkt *pkt = (dc_block_list_pkt *)sendbuf;
-    int i, len = 0x20;
+    int i, len = 0x20, entries = 0;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -3662,25 +3662,30 @@ static int send_dc_info_list(ship_client_t *c, ship_t *s) {
     pkt->entries[0].name[0x11] = 0x00;
 
     /* Add each info item to the list. */
-    for(i = 1; i <= s->cfg->info_file_count; ++i) {
+    for(i = 0; i < s->cfg->info_file_count; ++i) {
+        if(!(s->cfg->info_files[i].versions & v)) {
+            continue;
+        }
+
         /* Clear out the ship information */
-        memset(&pkt->entries[i], 0, 0x1C);
+        memset(&pkt->entries[entries], 0, 0x1C);
 
         /* Fill in what we have */
-        pkt->entries[i].menu_id = LE32(MENU_ID_INFODESK);
-        pkt->entries[i].item_id = LE32((i - 1));
-        pkt->entries[i].flags = LE16(0x0000);
+        pkt->entries[entries].menu_id = LE32(MENU_ID_INFODESK);
+        pkt->entries[entries].item_id = LE32(i);
+        pkt->entries[entries].flags = LE16(0x0000);
 
         /* These are always ASCII, so this is fine */
-        strncpy(pkt->entries[i].name, s->cfg->info_files_desc[i - 1], 0x11);
-        pkt->entries[i].name[0x11] = 0;
+        strncpy(pkt->entries[entries].name, s->cfg->info_files[i].desc, 0x11);
+        pkt->entries[entries].name[0x11] = 0;
 
         len += 0x1C;
+        ++entries;
     }
 
     /* Fill in the rest of the header */
     pkt->hdr.pkt_len = LE16(len);
-    pkt->hdr.flags = (uint8_t)(s->cfg->info_file_count);
+    pkt->hdr.flags = (uint8_t)(entries - 1);
 
     /* Send the packet away */
     return crypt_send(c, len, sendbuf);
@@ -3689,7 +3694,7 @@ static int send_dc_info_list(ship_client_t *c, ship_t *s) {
 static int send_pc_info_list(ship_client_t *c, ship_t *s) {
     uint8_t *sendbuf = get_sendbuf();
     pc_block_list_pkt *pkt = (pc_block_list_pkt *)sendbuf;
-    int i, len = 0x30;
+    int i, len = 0x30, entries = 1;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -3712,24 +3717,29 @@ static int send_pc_info_list(ship_client_t *c, ship_t *s) {
              0x20);
 
     /* Add each info item to the list. */
-    for(i = 1; i <= s->cfg->info_file_count; ++i) {
+    for(i = 0; i < s->cfg->info_file_count; ++i) {
+        if(!(s->cfg->info_files[i].versions & SYLVERANT_INFO_PC)) {
+            continue;
+        }
+
         /* Clear out the ship information */
-        memset(&pkt->entries[i], 0, 0x2C);
+        memset(&pkt->entries[entries], 0, 0x2C);
 
         /* Fill in what we have */
-        pkt->entries[i].menu_id = LE32(MENU_ID_INFODESK);
-        pkt->entries[i].item_id = LE32((i - 1));
-        pkt->entries[i].flags = LE16(0x0000);
+        pkt->entries[entries].menu_id = LE32(MENU_ID_INFODESK);
+        pkt->entries[entries].item_id = LE32(i);
+        pkt->entries[entries].flags = LE16(0x0000);
 
-        istrncpy(ic_8859_to_utf16, (char *)pkt->entries[i].name,
-                 s->cfg->info_files_desc[i - 1], 0x20);
+        istrncpy(ic_8859_to_utf16, (char *)pkt->entries[entries].name,
+                 s->cfg->info_files[i].desc, 0x20);
 
         len += 0x2C;
+        ++entries;
     }
 
     /* Fill in the rest of the header */
     pkt->hdr.pkt_len = LE16(len);
-    pkt->hdr.flags = (uint8_t)(s->cfg->info_file_count);
+    pkt->hdr.flags = (uint8_t)(entries - 1);
 
     /* Send the packet away */
     return crypt_send(c, len, sendbuf);
@@ -3739,10 +3749,10 @@ int send_info_list(ship_client_t *c, ship_t *s) {
     /* Call the appropriate function */
     switch(c->version) {
         case CLIENT_VERSION_DCV1:
+            return send_dc_info_list(c, s, SYLVERANT_INFO_V1);
+
         case CLIENT_VERSION_DCV2:
-        case CLIENT_VERSION_GC:
-        case CLIENT_VERSION_EP3:
-            return send_dc_info_list(c, s);
+            return send_dc_info_list(c, s, SYLVERANT_INFO_V2);
 
         case CLIENT_VERSION_PC:
             return send_pc_info_list(c, s);

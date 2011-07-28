@@ -48,6 +48,7 @@ int open_sock(int family, uint16_t port);
 const char *skip_lang_code(const char *input);
 
 void make_disp_data(ship_client_t *s, ship_client_t *d, void *buf);
+void update_lobby_event(void);
 
 /* Actually implemented in list.c, not utils.c. */
 int send_player_list(ship_client_t *c, const char *params);

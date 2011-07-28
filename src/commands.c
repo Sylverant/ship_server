@@ -659,7 +659,7 @@ static int handle_event(ship_client_t *c, const char *params) {
         return send_txt(c, "%s", __(c, "\tE\tC7Invalid event code."));
     }
 
-    ship->cfg->lobby_event = event;
+    ship->lobby_event = event;
 
     /* Go through all the blocks... */
     for(i = 0; i < ship->cfg->blocks; ++i) {
@@ -2166,7 +2166,7 @@ static int handle_gameevent(ship_client_t *c, const char *params) {
         return send_txt(c, "%s", __(c, "\tE\tC7Invalid event code."));
     }
 
-    ship->cfg->game_event = event;
+    ship->game_event = event;
 
     return send_txt(c, "%s", __(c, "\tE\tC7Game Event set."));
 }
