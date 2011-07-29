@@ -34,23 +34,7 @@
 #include "shipgate.h"
 #include "items.h"
 #include "bans.h"
-
-/* Some macros for commonly used privilege checks. */
-#define LOCAL_GM(c) \
-    ((c->privilege & CLIENT_PRIV_LOCAL_GM) && \
-     (c->flags & CLIENT_FLAG_LOGGED_IN))
-
-#define GLOBAL_GM(c) \
-    ((c->privilege & CLIENT_PRIV_GLOBAL_GM) && \
-     (c->flags & CLIENT_FLAG_LOGGED_IN))
-
-#define LOCAL_ROOT(c) \
-    ((c->privilege & CLIENT_PRIV_LOCAL_ROOT) && \
-     (c->flags & CLIENT_FLAG_LOGGED_IN))
-
-#define GLOBAL_ROOT(c) \
-    ((c->privilege & CLIENT_PRIV_GLOBAL_ROOT) && \
-     (c->flags & CLIENT_FLAG_LOGGED_IN))
+#include "admin.h"
 
 extern int handle_dc_gcsend(ship_client_t *d, subcmd_dc_gcsend_t *pkt);
 
@@ -128,8 +112,6 @@ static int handle_warpall(ship_client_t *c, const char *params) {
 /* Usage: /kill guildcard reason */
 static int handle_kill(ship_client_t *c, const char *params) {
     uint32_t gc;
-    block_t *b = c->cur_block;
-    ship_client_t *i;
     char *reason;
 
     /* Make sure the requester is a GM. */
@@ -146,44 +128,13 @@ static int handle_kill(ship_client_t *c, const char *params) {
         return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card."));
     }
 
-    /* Look for the requested user (only on this block) */
-    TAILQ_FOREACH(i, b->clients, qentry) {
-        /* Disconnect them if we find them */
-        if(i->guildcard == gc) {
-            if(c->privilege <= i->privilege) {
-                return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
-            }
-
-            if(strlen(reason) > 1) {
-                send_message_box(i, "%s\n\n%s\n%s",
-                                 __(i, "\tEYou have been kicked by a GM."),
-                                 __(i, "Reason:"), reason + 1);
-            }
-            else {
-                send_message_box(i, "%s",
-                                 __(i, "\tEYou have been kicked by a GM."));
-            }
-
-            i->flags |= CLIENT_FLAG_DISCONNECTED;
-            return 0;
-        }
+    /* Hand it off to the admin functionality to do the dirty work... */
+    if(strlen(reason) > 1) {
+        return kill_guildcard(c, gc, reason + 1);
     }
-
-    /* If the requester is a global GM, forward the request to the shipgate,
-       since it wasn't able to be done on this block (the shipgate may well
-       send the packet back to us if the person is on another block on this
-       ship). */
-    if(GLOBAL_GM(c)) {
-        if(strlen(reason) > 1) {
-            shipgate_send_kick(&ship->sg, c->guildcard, gc, reason + 1);
-        }
-        else {
-            shipgate_send_kick(&ship->sg, c->guildcard, gc, NULL);
-        }
+    else {
+        return kill_guildcard(c, gc, NULL);
     }
-
-    /* The person isn't here... There's nothing to do. */
-    return 0;
 }
 
 /* Usage: /minlvl level */
@@ -271,82 +222,13 @@ static int handle_max_level(ship_client_t *c, const char *params) {
 
 /* Usage: /refresh [quests, gms, or limits] */
 static int handle_refresh(ship_client_t *c, const char *params) {
-    sylverant_quest_list_t quests;
-    sylverant_quest_list_t qlist[CLIENT_VERSION_COUNT][CLIENT_LANG_COUNT];
-    quest_map_t qmap;
-    sylverant_limits_t *limits, *tmplimits;
-    int i, j;
-    char fn[512];
-
     /* Make sure the requester is a GM. */
     if(!LOCAL_GM(c)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
     if(!strcmp(params, "quests")) {
-        if(ship->cfg->quests_file && ship->cfg->quests_file[0]) {
-            if(sylverant_quests_read(ship->cfg->quests_file, &quests)) {
-                debug(DBG_ERROR, "%s: Couldn't read quests file!\n",
-                      ship->cfg->name);
-                return send_txt(c, "%s",
-                                __(c, "\tE\tC7Couldn't read quests file."));
-            }
-
-            /* Lock the mutex to prevent anyone from trying anything funny. */
-            pthread_rwlock_wrlock(&ship->qlock);
-
-            /* Out with the old, and in with the new. */
-            sylverant_quests_destroy(&ship->quests);
-            ship->quests = quests;
-
-            /* Unlock the lock, we're done. */
-            pthread_rwlock_unlock(&ship->qlock);
-            return send_txt(c, "%s", __(c, "\tE\tC7Updated quest list."));
-        }
-        else if(ship->cfg->quests_dir && ship->cfg->quests_dir[0]) {
-            /* Read in the new quests first */
-            TAILQ_INIT(&qmap);
-
-            for(i = 0; i < CLIENT_VERSION_COUNT; ++i) {
-                for(j = 0; j < CLIENT_LANG_COUNT; ++j) {
-                    sprintf(fn, "%s/%s-%s/quests.xml", ship->cfg->quests_dir,
-                            version_codes[i], language_codes[j]);
-                    if(!sylverant_quests_read(fn, &qlist[i][j])) {
-                        if(!quest_map(&qmap, &qlist[i][j], i, j)) { 
-                            debug(DBG_LOG, "Read quests for %s-%s\n",
-                                  version_codes[i], language_codes[j]);
-                        }
-                        else {
-                            debug(DBG_LOG, "Unable to map quests for %s-%s\n",
-                                  version_codes[i], language_codes[j]);
-                            sylverant_quests_destroy(&qlist[i][j]);
-                        }
-                    }
-                }
-            }
-
-            /* Lock the mutex to prevent anyone from trying anything funny. */
-            pthread_rwlock_wrlock(&ship->qlock);
-            
-            /* Out with the old, and in with the new. */
-            for(i = 0; i < CLIENT_VERSION_COUNT; ++i) {
-                for(j = 0; j < CLIENT_LANG_COUNT; ++j) {
-                    sylverant_quests_destroy(&ship->qlist[i][j]);
-                    ship->qlist[i][j] = qlist[i][j];
-                }
-            }
-
-            quest_cleanup(&ship->qmap);
-            ship->qmap = qmap;
-            
-            /* Unlock the lock, we're done. */
-            pthread_rwlock_unlock(&ship->qlock);
-            return send_txt(c, "%s", __(c, "\tE\tC7Updated quest list."));
-        }
-        else {
-            return send_txt(c, "%s",
-                            __(c, "\tE\tC7No quest list configured."));
-        }
+        return refresh_quests(c);
     }
     else if(!strcmp(params, "gms")) {
         /* Make sure the requester is a local root. */
@@ -354,38 +236,10 @@ static int handle_refresh(ship_client_t *c, const char *params) {
             return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
         }
 
-        if(ship->cfg->gm_file && ship->cfg->gm_file[0]) {
-            /* Try to read the GM file. This will clean out the old list as
-               well, if needed. */
-            if(gm_list_read(ship->cfg->gm_file, ship)) {
-                return send_txt(c, "%s",
-                                __(c, "\tE\tC7Couldn't read GM list."));
-            }
-
-            return send_txt(c, "%s", __(c, "\tE\tC7Updated GM list."));
-        }
-        else {
-            return send_txt(c, "%s", __(c, "\tE\tC7No GM list configured."));
-        }
+        return refresh_gms(c);
     }
     else if(!strcmp(params, "limits")) {
-        if(ship->cfg->limits_file && ship->cfg->limits_file[0]) {
-            if(sylverant_read_limits(ship->cfg->limits_file, &limits)) {
-                return send_txt(c, "%s", __(c, "\tE\tC7Couldn't read limits."));
-            }
-
-            pthread_rwlock_wrlock(&ship->llock);
-            tmplimits = ship->limits;
-            ship->limits = limits;
-            pthread_rwlock_unlock(&ship->llock);
-
-            sylverant_free_limits(tmplimits);
-
-            return send_txt(c, "%s", __(c, "\tE\tC7Updated limits."));
-        }
-        else {
-            return send_txt(c, "%s", __(c, "\tE\tC7No configured limits."));
-        }
+        return refresh_limits(c);
     }
     else {
         return send_txt(c, "%s", __(c, "\tE\tC7Unknown item to refresh."));
@@ -509,39 +363,12 @@ static int handle_bstat(ship_client_t *c, const char *params) {
 
 /* Usage /bcast message */
 static int handle_bcast(ship_client_t *c, const char *params) {
-    block_t *b;
-    int i;
-    ship_client_t *i2;
-
     /* Make sure the requester is a GM. */
     if(!LOCAL_GM(c)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
-    /* Go through each block and send the message to anyone that is alive. */
-    for(i = 0; i < ship->cfg->blocks; ++i) {
-        b = ship->blocks[i];
-
-        if(b && b->run) {
-            pthread_mutex_lock(&b->mutex);
-
-            /* Send the message to each player. */
-            TAILQ_FOREACH(i2, b->clients, qentry) {
-                pthread_mutex_lock(&i2->mutex);
-
-                if(i2->pl) {
-                    send_txt(i2, "%s\n%s", __(i2, "\tE\tC7Global Message:"),
-                             params);
-                }
-
-                pthread_mutex_unlock(&i2->mutex);
-            }
-
-            pthread_mutex_unlock(&b->mutex);
-        }
-    }
-
-    return 0;
+    return broadcast_message(c, params, 1);
 }
 
 /* Usage /arrow color_number */
@@ -642,10 +469,7 @@ static int handle_item4(ship_client_t *c, const char *params) {
 
 /* Usage: /event number */
 static int handle_event(ship_client_t *c, const char *params) {
-    lobby_t *l;
-    ship_client_t *c2;
-    block_t *b;
-    int event, i, j;
+    int event;
 
     /* Make sure the requester is a GM. */
     if(!LOCAL_GM(c)) {
@@ -660,42 +484,7 @@ static int handle_event(ship_client_t *c, const char *params) {
     }
 
     ship->lobby_event = event;
-
-    /* Go through all the blocks... */
-    for(i = 0; i < ship->cfg->blocks; ++i) {
-        b = ship->blocks[i];
-
-        if(b && b->run) {
-            pthread_mutex_lock(&b->mutex);
-
-            /* ... and set the event code on each default lobby. */
-            TAILQ_FOREACH(l, &b->lobbies, qentry) {
-                pthread_mutex_lock(&l->mutex);
-
-                if(l->type == LOBBY_TYPE_DEFAULT) {
-                    l->event = event;
-
-                    for(j = 0; j < l->max_clients; ++j) {
-                        if(l->clients[j] != NULL) {
-                            c2 = l->clients[j];
-
-                            pthread_mutex_lock(&c2->mutex);
-
-                            if(c2->version > CLIENT_VERSION_PC) {
-                                send_simple(c2, LOBBY_EVENT_TYPE, event);
-                            }
-
-                            pthread_mutex_unlock(&c2->mutex);
-                        }
-                    }
-                }
-
-                pthread_mutex_unlock(&l->mutex);
-            }
-
-            pthread_mutex_unlock(&b->mutex);
-        }
-    }
+    update_lobby_event();
 
     return send_txt(c, "%s", __(c, "\tE\tC7Event set."));
 }
@@ -833,8 +622,6 @@ static int handle_clinfo(ship_client_t *c, const char *params) {
 /* Usage: /gban:d guildcard reason */
 static int handle_gban_d(ship_client_t *c, const char *params) {
     uint32_t gc;
-    block_t *b = c->cur_block;
-    ship_client_t *i;
     char *reason;
 
     /* Make sure the requester is a global GM. */
@@ -851,43 +638,18 @@ static int handle_gban_d(ship_client_t *c, const char *params) {
         return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card."));
     }
 
-    /* Set the ban with the shipgate first (86400s = 1 day). */
-    if(shipgate_send_ban(&ship->sg, SHDR_TYPE_GCBAN, c->guildcard, gc,
-                         time(NULL) + 86400, reason + 1)) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Error setting ban."));
+    /* Set the ban (86,400s = 1 day). */
+    if(strlen(reason) > 1) {
+        return global_ban(c, gc, 86400, reason + 1);
     }
-
-    /* Look for the requested user and kick them if they're currently connected
-       (only on this block). */
-    TAILQ_FOREACH(i, b->clients, qentry) {
-        /* Disconnect them if we find them */
-        if(i->guildcard == gc) {
-            if(strlen(reason) > 1) {
-                send_message_box(i, "%s\n%s %s\n%s\n%s",
-                                 __(i, "\tEYou have been banned by a GM."),
-                                 __(i, "Ban Length:"), __(i, "1 day"),
-                                 __(i, "Reason:"), reason + 1);
-            }
-            else {
-                send_message_box(i, "%s\n%s %s",
-                                 __(i, "\tEYou have been banned by a GM."),
-                                 __(i, "Ban Length:"), __(i, "1 day"));
-            }
-
-            i->flags |= CLIENT_FLAG_DISCONNECTED;
-            return 0;
-        }
+    else {
+        return global_ban(c, gc, 86400, NULL);
     }
-
-    /* The person isn't here... There's nothing left to do. */
-    return 0;
 }
 
 /* Usage: /gban:w guildcard reason */
 static int handle_gban_w(ship_client_t *c, const char *params) {
     uint32_t gc;
-    block_t *b = c->cur_block;
-    ship_client_t *i;
     char *reason;
 
     /* Make sure the requester is a global GM. */
@@ -904,43 +666,18 @@ static int handle_gban_w(ship_client_t *c, const char *params) {
         return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card."));
     }
 
-    /* Set the ban with the shipgate first (604800s = 1 week). */
-    if(shipgate_send_ban(&ship->sg, SHDR_TYPE_GCBAN, c->guildcard, gc,
-                         time(NULL) + 604800, reason + 1)) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Error setting ban."));
+    /* Set the ban (604,800s = 1 week). */
+    if(strlen(reason) > 1) {
+        return global_ban(c, gc, 604800, reason + 1);
     }
-
-    /* Look for the requested user and kick them if they're currently connected
-       (only on this block). */
-    TAILQ_FOREACH(i, b->clients, qentry) {
-        /* Disconnect them if we find them */
-        if(i->guildcard == gc) {
-            if(strlen(reason) > 1) {
-                send_message_box(i, "%s\n%s %s\n%s\n%s",
-                                 __(i, "\tEYou have been banned by a GM."),
-                                 __(i, "Ban Length:"), __(i, "1 week"),
-                                 __(i, "Reason:"), reason + 1);
-            }
-            else {
-                send_message_box(i, "%s\n%s %s",
-                                 __(i, "\tEYou have been banned by a GM."),
-                                 __(i, "Ban Length:"), __(i, "1 week"));
-            }
-
-            i->flags |= CLIENT_FLAG_DISCONNECTED;
-            return 0;
-        }
+    else {
+        return global_ban(c, gc, 604800, NULL);
     }
-
-    /* The person isn't here... There's nothing left to do. */
-    return 0;
 }
 
 /* Usage: /gban:m guildcard reason */
 static int handle_gban_m(ship_client_t *c, const char *params) {
     uint32_t gc;
-    block_t *b = c->cur_block;
-    ship_client_t *i;
     char *reason;
 
     /* Make sure the requester is a global GM. */
@@ -957,43 +694,18 @@ static int handle_gban_m(ship_client_t *c, const char *params) {
         return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card."));
     }
 
-    /* Set the ban with the shipgate first (2,592,000s = 30 days). */
-    if(shipgate_send_ban(&ship->sg, SHDR_TYPE_GCBAN, c->guildcard, gc,
-                         time(NULL) + 2592000, reason + 1)) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Error setting ban."));
+    /* Set the ban (2,592,000s = 30 days). */
+    if(strlen(reason) > 1) {
+        return global_ban(c, gc, 2592000, reason + 1);
     }
-
-    /* Look for the requested user and kick them if they're currently connected
-       (only on this block). */
-    TAILQ_FOREACH(i, b->clients, qentry) {
-        /* Disconnect them if we find them */
-        if(i->guildcard == gc) {
-            if(strlen(reason) > 1) {
-                send_message_box(i, "%s\n%s %s\n%s\n%s",
-                                 __(i, "\tEYou have been banned by a GM."),
-                                 __(i, "Ban Length:"), __(i, "30 days"),
-                                 __(i, "Reason:"), reason + 1);
-            }
-            else {
-                send_message_box(i, "%s\n%s %s",
-                                 __(i, "\tEYou have been banned by a GM."),
-                                 __(i, "Ban Length:"), __(i, "30 days"));
-            }
-
-            i->flags |= CLIENT_FLAG_DISCONNECTED;
-            return 0;
-        }
+    else {
+        return global_ban(c, gc, 2592000, NULL);
     }
-
-    /* The person isn't here... There's nothing left to do. */
-    return 0;
 }
 
 /* Usage: /gban:p guildcard reason */
 static int handle_gban_p(ship_client_t *c, const char *params) {
     uint32_t gc;
-    block_t *b = c->cur_block;
-    ship_client_t *i;
     char *reason;
 
     /* Make sure the requester is a global GM. */
@@ -1010,40 +722,13 @@ static int handle_gban_p(ship_client_t *c, const char *params) {
         return send_txt(c, "%s", __(c, "\tE\tC7Invalid Guild Card."));
     }
 
-    /* Set the ban with the shipgate first (0xFFFFFFFF = forever (or close
-       enough anyway)). */
-    if(shipgate_send_ban(&ship->sg, SHDR_TYPE_GCBAN, c->guildcard, gc,
-                         0xFFFFFFFF, reason + 1)) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Error setting ban."));
+    /* Set the ban (0xFFFFFFFF = forever (or close enough for now)). */
+    if(strlen(reason) > 1) {
+        return global_ban(c, gc, 0xFFFFFFFF, reason + 1);
     }
-
-    /* Look for the requested user and kick them if they're currently connected
-       (only on this block). */
-    TAILQ_FOREACH(i, b->clients, qentry) {
-        /* Disconnect them if we find them */
-        if(i->guildcard == gc) {
-            if(strlen(reason) > 1) {
-                send_message_box(i, "%s\n%s %s\n%s\n%s",
-                                 __(i, "\tEYou have been banned by a GM."),
-                                 __(i, "Ban Length:"), __(i, "Forever"),
-                                 __(i, "Reason:"), reason + 1);
-            }
-            else {
-                send_message_box(i, "%s\n%s %s",
-                                 __(i, "\tEYou have been banned by a GM."),
-                                 __(i, "Ban Length:"), __(i, "Forever"));
-            }
-
-            i->flags |= CLIENT_FLAG_DISCONNECTED;
-
-            /* The ban setter will get a message telling them the ban has been
-               set (or an error happened). */
-            return 0;
-        }
+    else {
+        return global_ban(c, gc, 0xFFFFFFFF, NULL);
     }
-
-    /* The person isn't here... There's nothing left to do. */
-    return 0;
 }
 
 /* Usage: /list parameters (there's too much to put here) */
@@ -1166,10 +851,7 @@ static int handle_normal(ship_client_t *c, const char *params) {
 
 /* Usage: /shutdown minutes */
 static int handle_shutdown(ship_client_t *c, const char *params) {
-    int i;
-    ship_client_t *i2;
     uint32_t when;
-    block_t *b;
 
     /* Make sure the requester is a local root. */
     if(!LOCAL_ROOT(c)) {
@@ -1190,37 +872,7 @@ static int handle_shutdown(ship_client_t *c, const char *params) {
         when = 1;
     }
 
-    /* Go through each block and send a notification to everyone. */
-    for(i = 0; i < ship->cfg->blocks; ++i) {
-        b = ship->blocks[i];
-
-        if(b && b->run) {
-            pthread_mutex_lock(&b->mutex);
-
-            /* Send the message to each player. */
-            TAILQ_FOREACH(i2, b->clients, qentry) {
-                pthread_mutex_lock(&i2->mutex);
-
-                if(i2->pl) {
-                    send_txt(i2, "%s %lu %s",
-                             __(i2, "\tE\tC7Ship is going down for\n"
-                                "shutdown in"),
-                             (unsigned long)when, __(i2, "minutes."));
-                }
-
-                pthread_mutex_unlock(&i2->mutex);
-            }
-
-            pthread_mutex_unlock(&b->mutex);
-        }
-    }
-
-    /* Log the event to the log file */
-    debug(DBG_LOG, "Ship server shutdown scheduled for %d minutes by %u\n",
-          when, c->guildcard);
-
-    ship_server_shutdown(ship, time(NULL) + (when * 60));
-    return 0;
+    return schedule_shutdown(c, when, 0);
 }
 
 /* Usage: /log guildcard */
@@ -2529,8 +2181,7 @@ static int handle_logout(ship_client_t *c, const char *params) {
     }
 
     /* Clear the logged in status. */
-    c->flags &= ~CLIENT_FLAG_LOGGED_IN;
-    c->flags &= ~CLIENT_FLAG_OVERRIDE_GAME;
+    c->flags &= ~(CLIENT_FLAG_LOGGED_IN | CLIENT_FLAG_OVERRIDE_GAME);
 
     return send_txt(c, "%s", __(c, "\tE\tC7Logged out."));
 }
@@ -2564,11 +2215,7 @@ static int handle_ver(ship_client_t *c, const char *params) {
 
 /* Usage: /restart minutes */
 static int handle_restart(ship_client_t *c, const char *params) {
-    int i;
-    ship_client_t *i2;
     uint32_t when;
-    block_t *b;
-    extern int restart_on_shutdown;     /* in ship_server.c */
 
     /* Make sure the requester is a local root. */
     if(!LOCAL_ROOT(c)) {
@@ -2589,38 +2236,7 @@ static int handle_restart(ship_client_t *c, const char *params) {
         when = 1;
     }
 
-    /* Go through each block and send a notification to everyone. */
-    for(i = 0; i < ship->cfg->blocks; ++i) {
-        b = ship->blocks[i];
-
-        if(b && b->run) {
-            pthread_mutex_lock(&b->mutex);
-
-            /* Send the message to each player. */
-            TAILQ_FOREACH(i2, b->clients, qentry) {
-                pthread_mutex_lock(&i2->mutex);
-
-                if(i2->pl) {
-                    send_txt(i2, "%s %lu %s",
-                             __(i2, "\tE\tC7Ship is going down for\n"
-                                "restart in"),
-                             (unsigned long)when, __(i2, "minutes."));
-                }
-
-                pthread_mutex_unlock(&i2->mutex);
-            }
-
-            pthread_mutex_unlock(&b->mutex);
-        }
-    }
-
-    /* Log the event to the log file */
-    debug(DBG_LOG, "Ship server restart scheduled for %d minutes by %u\n",
-          when, c->guildcard);
-
-    restart_on_shutdown = 1;
-    ship_server_shutdown(ship, time(NULL) + (when * 60));
-    return 0;
+    return schedule_shutdown(c, when, 1);
 }
 
 /* Usage: /search guildcard */
