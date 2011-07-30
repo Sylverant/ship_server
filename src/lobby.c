@@ -133,7 +133,7 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
     /* Copy the game name and password. */
     strncpy(l->name, name, 32);
     strncpy(l->passwd, passwd, 16);
-    l->name[33] = 0;
+    l->name[32] = 0;
     l->passwd[16] = 0;
 
     /* Initialize the packet queue */
