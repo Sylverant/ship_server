@@ -301,7 +301,7 @@ static void *ship_thd(void *d) {
                                             "shutdown."),
                                          __(tmp, "Please try another ship."),
                                          __(tmp, "Disconnecting."));
-                        it->flags |= CLIENT_FLAG_DISCONNECTED;
+                        tmp->flags |= CLIENT_FLAG_DISCONNECTED;
                     }
                 }
 
@@ -328,7 +328,7 @@ static void *ship_thd(void *d) {
                                             "shutdown."),
                                          __(tmp, "Please try another ship."),
                                          __(tmp, "Disconnecting."));
-                        it->flags |= CLIENT_FLAG_DISCONNECTED;
+                        tmp->flags |= CLIENT_FLAG_DISCONNECTED;
                     }
                 }
 
@@ -355,7 +355,7 @@ static void *ship_thd(void *d) {
                                             "shutdown."),
                                          __(tmp, "Please try another ship."),
                                          __(tmp, "Disconnecting."));
-                        it->flags |= CLIENT_FLAG_DISCONNECTED;
+                        tmp->flags |= CLIENT_FLAG_DISCONNECTED;
                     }
                 }
 
@@ -383,7 +383,7 @@ static void *ship_thd(void *d) {
                                             "shutdown."),
                                          __(tmp, "Please try another ship."),
                                          __(tmp, "Disconnecting."));
-                        it->flags |= CLIENT_FLAG_DISCONNECTED;
+                        tmp->flags |= CLIENT_FLAG_DISCONNECTED;
                     }
                 }
 
@@ -411,7 +411,7 @@ static void *ship_thd(void *d) {
                                             "shutdown."),
                                          __(tmp, "Please try another ship."),
                                          __(tmp, "Disconnecting."));
-                        it->flags |= CLIENT_FLAG_DISCONNECTED;
+                        tmp->flags |= CLIENT_FLAG_DISCONNECTED;
                     }
                 }
             }
