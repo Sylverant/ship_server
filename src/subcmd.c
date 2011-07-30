@@ -1084,8 +1084,22 @@ static int handle_cmode_grave(ship_client_t *c, subcmd_pkt_t *pkt) {
             memcpy(&dc, pkt, sizeof(subcmd_dc_grave_t));
 
             /* Make a copy to send to PC players... */
-            memcpy(&pc, &dc, 64);
-            pc.unk4 = dc.unk4;
+            pc.hdr.pkt_type = GAME_COMMAND0_TYPE;
+            pc.hdr.pkt_len = LE16(0x00E4);
+
+            pc.type = SUBCMD_CMODE_GRAVE;
+            pc.size = 0x38;
+            pc.unused1 = dc.unused1;
+            pc.client_id = dc.client_id;
+            pc.unk0 = dc.unk0;
+            pc.unk1 = dc.unk1;
+
+            for(i = 0; i < 0x0C; ++i) {
+                pc.string[i] = LE16(dc.string[i]);
+            }
+
+            memcpy(pc.unk2, dc.unk2, 0x24);
+            pc.grave_unk4 = dc.grave_unk4;
             pc.deaths = dc.deaths;
             pc.coords_time[0] = dc.coords_time[0];
             pc.coords_time[1] = dc.coords_time[1];
@@ -1119,15 +1133,30 @@ static int handle_cmode_grave(ship_client_t *c, subcmd_pkt_t *pkt) {
                 iconv(ic_8859_to_utf16, &inptr, &in, &outptr, &out);
             }
 
-            memcpy(pc.unk5, dc.unk5, 40);
+            memcpy(pc.times, dc.times, 36);
+            pc.unk = dc.unk;
             break;
 
         case CLIENT_VERSION_PC:
             memcpy(&pc, pkt, sizeof(subcmd_pc_grave_t));
 
             /* Make a copy to send to DC players... */
-            memcpy(&dc, &pc, 64);
-            dc.unk4 = pc.unk4;
+            dc.hdr.pkt_type = GAME_COMMAND0_TYPE;
+            dc.hdr.pkt_len = LE16(0x00AC);
+
+            dc.type = SUBCMD_CMODE_GRAVE;
+            dc.size = 0x2A;
+            dc.unused1 = pc.unused1;
+            dc.client_id = pc.client_id;
+            dc.unk0 = pc.unk0;
+            dc.unk1 = pc.unk1;
+            
+            for(i = 0; i < 0x0C; ++i) {
+                dc.string[i] = (char)LE16(dc.string[i]);
+            }
+
+            memcpy(dc.unk2, pc.unk2, 0x24);
+            dc.grave_unk4 = pc.grave_unk4;
             dc.deaths = pc.deaths;
             dc.coords_time[0] = pc.coords_time[0];
             dc.coords_time[1] = pc.coords_time[1];
@@ -1161,7 +1190,8 @@ static int handle_cmode_grave(ship_client_t *c, subcmd_pkt_t *pkt) {
                 iconv(ic_utf16_to_8859, &inptr, &in, &outptr, &out);
             }
 
-            memcpy(dc.unk5, pc.unk5, 40);
+            memcpy(dc.times, pc.times, 36);
+            dc.unk = pc.unk;
             break;
 
         default:
@@ -1326,7 +1356,6 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
     if(l->flags & LOBBY_FLAG_BURSTING) {
         switch(type) {
             case SUBCMD_UNK_3B:
-            case SUBCMD_UNK_7C:
             case SUBCMD_BURST_DONE:
                 rv = lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt, 0);
                 break;
@@ -1337,6 +1366,10 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
 
             case SUBCMD_SET_POS_3F:
                 rv = handle_set_pos(c, (subcmd_set_pos_t *)pkt);
+                break;
+
+            case SUBCMD_CMODE_GRAVE:
+                rv = handle_cmode_grave(c, pkt);
                 break;
 
             default:

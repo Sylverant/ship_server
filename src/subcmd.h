@@ -329,18 +329,21 @@ typedef struct subcmd_dc_grave {
     dc_pkt_hdr_t hdr;
     uint8_t type;
     uint8_t size;
-    uint8_t unk1;                       /* 0 on DC, has something on PC? */
-    uint8_t unused1;
-    uint8_t client_id;
+    uint8_t unused1;                    /* Unused? */
     uint8_t unused2;
-    uint16_t unk2;
-    uint32_t unk3[13];                  /* Always blank for me? */
-    uint16_t unk4;                      /* Always seems to be 0x0100? */
+    uint8_t client_id;
+    uint8_t unused3;
+    uint16_t unk0;
+    uint32_t unk1;                      /* Matches with C-Data unk1 */
+    char string[0x0C];                  /* Challenge Rank string */
+    uint8_t unk2[0x24];                 /* Always blank? */
+    uint16_t grave_unk4;
     uint16_t deaths;
-    uint32_t coords_time[5];            /* Maybe that's what this is? */
-    char team[20];                      /* Probably shorter */
-    char message[24];                   /* Only seems to use 22 chars */
-    uint32_t unk5[10];
+    uint32_t coords_time[5];
+    char team[20];
+    char message[24];
+    uint32_t times[9];
+    uint32_t unk;
 } PACKED subcmd_dc_grave_t;
 
 /* Packet used for grave data in C-Mode (PC) */
@@ -348,18 +351,21 @@ typedef struct subcmd_pc_grave {
     dc_pkt_hdr_t hdr;
     uint8_t type;
     uint8_t size;
-    uint8_t unk1;
-    uint8_t unused1;
-    uint8_t client_id;
+    uint8_t unused1;                    /* Unused? */
     uint8_t unused2;
-    uint16_t unk2;
-    uint32_t unk3[16];
-    uint16_t unk4;                      /* Always seems to be 0x0100? */
+    uint8_t client_id;
+    uint8_t unused3;
+    uint16_t unk0;
+    uint32_t unk1;                      /* Matches with C-Data unk1 */
+    uint16_t string[0x0C];              /* Challenge Rank string */
+    uint8_t unk2[0x24];                 /* Always blank? */
+    uint16_t grave_unk4;
     uint16_t deaths;
-    uint32_t coords_time[5];            /* Maybe that's what these are? */
+    uint32_t coords_time[5];
     uint16_t team[20];
     uint16_t message[24];
-    uint32_t unk5[10];
+    uint32_t times[9];
+    uint32_t unk;
 } PACKED subcmd_pc_grave_t;
 
 #undef PACKED
