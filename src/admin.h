@@ -37,15 +37,17 @@
     ((c->privilege & CLIENT_PRIV_GLOBAL_ROOT) && \
      (c->flags & CLIENT_FLAG_LOGGED_IN))
 
+typedef int (*msgfunc)(ship_client_t *, const char *, ...);
+
 int kill_guildcard(ship_client_t *c, uint32_t gc, const char *reason);
 
-int refresh_quests(ship_client_t *c);
-int refresh_gms(ship_client_t *c);
-int refresh_limits(ship_client_t *c);
+int refresh_quests(ship_client_t *c, msgfunc f);
+int refresh_gms(ship_client_t *c, msgfunc f);
+int refresh_limits(ship_client_t *c, msgfunc f);
 
 int broadcast_message(ship_client_t *c, const char *message, int prefix);
 
-int schedule_shutdown(ship_client_t *c, uint32_t when, int restart);
+int schedule_shutdown(ship_client_t *c, uint32_t when, int restart, msgfunc f);
 
 int global_ban(ship_client_t *c, uint32_t gc, uint32_t l, const char *reason);
 

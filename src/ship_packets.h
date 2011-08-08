@@ -48,7 +48,23 @@
 #define MENU_ID_QUEST       0x00000004
 #define MENU_ID_SHIP        0x00000005
 #define MENU_ID_GAME_TYPE   0x00000006
+#define MENU_ID_GM          0x00000007
 #define MENU_ID_LOBBY       0xFFFFFFFF
+
+/* Submenus of the GM menu. */
+#define MENU_ID_GM_SHUTDOWN     0x00000407
+#define MENU_ID_GM_RESTART      0x00000507
+#define MENU_ID_GM_GAME_EVENT   0x00000607
+#define MENU_ID_GM_LOBBY_EVENT  0x00000707
+
+/* GM Options Item IDs */
+#define ITEM_ID_GM_REF_QUESTS   0x00000001
+#define ITEM_ID_GM_REF_GMS      0x00000002
+#define ITEM_ID_GM_REF_LIMITS   0x00000003
+#define ITEM_ID_GM_SHUTDOWN     0x00000004
+#define ITEM_ID_GM_RESTART      0x00000005
+#define ITEM_ID_GM_GAME_EVENT   0x00000006
+#define ITEM_ID_GM_LOBBY_EVENT  0x00000007
 
 /* This must be placed into the copyright field in the DC welcome packet. */
 const static char dc_welcome_copyright[] =
@@ -58,6 +74,9 @@ const static char dc_welcome_copyright[] =
 const static char bb_welcome_copyright[] =
     "Phantasy Star Online Blue Burst Game Server. Copyright 1999-2004 "
     "SONICTEAM.";
+
+/* Encrypt and send a packet away. */
+int crypt_send(ship_client_t *c, int len, uint8_t *sendbuf);
 
 /* Retrieve the thread-specific sendbuf for the current thread. */
 uint8_t *get_sendbuf();
@@ -241,5 +260,8 @@ int send_lobby_ep3_jukebox(lobby_t *l, uint16_t music);
 
 /* Send a user the Blue Burst full character/option data packet. */
 int send_bb_full_char(ship_client_t *c);
+
+/* Send a GM Menu to a client. */
+int send_gm_menu(ship_client_t *c, uint32_t menu_id);
 
 #endif /* !SHIP_PACKETS_H */

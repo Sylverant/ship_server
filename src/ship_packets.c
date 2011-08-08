@@ -35,6 +35,7 @@
 #include "utils.h"
 #include "subcmd.h"
 #include "quests.h"
+#include "admin.h"
 
 /* Options for choice search. */
 typedef struct cs_opt {
@@ -43,7 +44,7 @@ typedef struct cs_opt {
     char text[0x1C];
 } cs_opt_t;
 
-cs_opt_t cs_options[] = {
+static cs_opt_t cs_options[] = {
     { 0x0000, 0x0001, "Hunter's Level" },
     { 0x0001, 0x0000, "Any" },
     { 0x0001, 0x0001, "Own Level +/- 5" },
@@ -70,6 +71,98 @@ cs_opt_t cs_options[] = {
 };
 
 #define CS_OPTIONS_COUNT 23
+
+/* Definition of the options in each menu of the GM menu */
+typedef struct gm_opt {
+    uint32_t menu_id;
+    uint32_t item_id;
+    uint32_t lobby_type;
+    uint8_t privilege;
+    char text[0x10];
+} gm_opt_t;
+
+/* GM Menu options */
+static gm_opt_t gm_opts[] = {
+    {   MENU_ID_GM              , ITEM_ID_GM_REF_QUESTS , 0x07,
+        CLIENT_PRIV_LOCAL_GM    , "Refresh Quests"  },
+    {   MENU_ID_GM              , ITEM_ID_GM_REF_GMS    , 0x07,
+        CLIENT_PRIV_LOCAL_ROOT  , "Refresh GMs"     },
+    {   MENU_ID_GM              , ITEM_ID_GM_REF_LIMITS , 0x07, 
+        CLIENT_PRIV_LOCAL_GM    , "Refresh Limits"  },
+    {   MENU_ID_GM              , ITEM_ID_GM_SHUTDOWN   , 0x07,
+        CLIENT_PRIV_LOCAL_ROOT  , "Shutdown"        },
+    {   MENU_ID_GM              , ITEM_ID_GM_RESTART    , 0x07,
+        CLIENT_PRIV_LOCAL_ROOT  , "Restart"         },
+    {   MENU_ID_GM              , ITEM_ID_GM_GAME_EVENT , 0x07,
+        CLIENT_PRIV_LOCAL_GM    , "Game Event"      },
+    {   MENU_ID_GM              , ITEM_ID_GM_LOBBY_EVENT, 0x07,
+        CLIENT_PRIV_LOCAL_GM    , "Lobby Event"     },
+    {   MENU_ID_GM_SHUTDOWN     , 1                     , 0x07,
+        CLIENT_PRIV_LOCAL_ROOT  , "1 Minute"        },
+    {   MENU_ID_GM_SHUTDOWN     , 5                     , 0x07,
+        CLIENT_PRIV_LOCAL_ROOT  , "5 Minutes"       },
+    {   MENU_ID_GM_SHUTDOWN     , 15                    , 0x07,
+        CLIENT_PRIV_LOCAL_ROOT  , "15 Minutes"      },
+    {   MENU_ID_GM_SHUTDOWN     , 30                    , 0x07,
+        CLIENT_PRIV_LOCAL_ROOT  , "30 Minutes"      },
+    {   MENU_ID_GM_SHUTDOWN     , 60                    , 0x07,
+        CLIENT_PRIV_LOCAL_ROOT  , "60 Minutes"      },
+    {   MENU_ID_GM_RESTART      , 1                     , 0x07,
+        CLIENT_PRIV_LOCAL_ROOT  , "1 Minute"        },
+    {   MENU_ID_GM_RESTART      , 5                     , 0x07,
+        CLIENT_PRIV_LOCAL_ROOT  , "5 Minutes"       },
+    {   MENU_ID_GM_RESTART      , 15                    , 0x07,
+        CLIENT_PRIV_LOCAL_ROOT  , "15 Minutes"      },
+    {   MENU_ID_GM_RESTART      , 30                    , 0x07,
+        CLIENT_PRIV_LOCAL_ROOT  , "30 Minutes"      },
+    {   MENU_ID_GM_RESTART      , 60                    , 0x07,
+        CLIENT_PRIV_LOCAL_ROOT  , "60 Minutes"      },
+    {   MENU_ID_GM_GAME_EVENT   , GAME_EVENT_NONE       , 0x07,
+        CLIENT_PRIV_LOCAL_GM    , "None"            },
+    {   MENU_ID_GM_GAME_EVENT   , GAME_EVENT_CHRISTMAS  , 0x07,
+        CLIENT_PRIV_LOCAL_GM    , "Christmas"       },
+    {   MENU_ID_GM_GAME_EVENT   , GAME_EVENT_21ST       , 0x07,
+        CLIENT_PRIV_LOCAL_GM    , "21st Century"    },
+    {   MENU_ID_GM_GAME_EVENT   , GAME_EVENT_VALENTINES , 0x07,
+        CLIENT_PRIV_LOCAL_GM    , "Valentine's Day" },
+    {   MENU_ID_GM_GAME_EVENT   , GAME_EVENT_EASTER     , 0x07,
+        CLIENT_PRIV_LOCAL_GM    , "Easter"          },
+    {   MENU_ID_GM_GAME_EVENT   , GAME_EVENT_HALLOWEEN  , 0x07,
+        CLIENT_PRIV_LOCAL_GM    , "Halloween"       },
+    {   MENU_ID_GM_GAME_EVENT   , GAME_EVENT_SONIC      , 0x07,
+        CLIENT_PRIV_LOCAL_GM    , "Sonic"           },
+    {   MENU_ID_GM_LOBBY_EVENT  , LOBBY_EVENT_NONE      , 0x07,
+        CLIENT_PRIV_LOCAL_GM    , "None"            },
+    {   MENU_ID_GM_LOBBY_EVENT  , LOBBY_EVENT_CHRISTMAS , 0x07,
+        CLIENT_PRIV_LOCAL_GM    , "Christmas"       },
+    {   MENU_ID_GM_LOBBY_EVENT  , LOBBY_EVENT_VALENTINES, 0x07,
+        CLIENT_PRIV_LOCAL_GM    , "Valentine's Day" },
+    {   MENU_ID_GM_LOBBY_EVENT  , LOBBY_EVENT_EASTER    , 0x07,
+        CLIENT_PRIV_LOCAL_GM    , "Easter"          },
+    {   MENU_ID_GM_LOBBY_EVENT  , LOBBY_EVENT_HALLOWEEN , 0x07,
+        CLIENT_PRIV_LOCAL_GM    , "Halloween"       },
+    {   MENU_ID_GM_LOBBY_EVENT  , LOBBY_EVENT_SONIC     , 0x07,
+        CLIENT_PRIV_LOCAL_GM    , "Sonic"           },
+    {   MENU_ID_GM_LOBBY_EVENT  , LOBBY_EVENT_NEWYEARS  , 0x07,
+        CLIENT_PRIV_LOCAL_GM    , "New Year's"      },
+    {   MENU_ID_GM_LOBBY_EVENT  , LOBBY_EVENT_SPRING    , 0x07,
+        CLIENT_PRIV_LOCAL_GM    , "Spring"          },
+    {   MENU_ID_GM_LOBBY_EVENT  , LOBBY_EVENT_WHITEDAY  , 0x07,
+        CLIENT_PRIV_LOCAL_GM    , "White Day"       },
+    {   MENU_ID_GM_LOBBY_EVENT  , LOBBY_EVENT_WEDDING   , 0x07,
+        CLIENT_PRIV_LOCAL_GM    , "Wedding"         },
+    {   MENU_ID_GM_LOBBY_EVENT  , LOBBY_EVENT_AUTUMN    , 0x07,
+        CLIENT_PRIV_LOCAL_GM    , "Autumn"          },
+    {   MENU_ID_GM_LOBBY_EVENT  , LOBBY_EVENT_FLAGS     , 0x07,
+        CLIENT_PRIV_LOCAL_GM    , "Flags"           },
+    {   MENU_ID_GM_LOBBY_EVENT  , LOBBY_EVENT_SPRINGFLAG, 0x07,
+        CLIENT_PRIV_LOCAL_GM    , "Spring (flags)"  },
+    {   MENU_ID_GM_LOBBY_EVENT  , LOBBY_EVENT_ALT_NORMAL, 0x07,
+        CLIENT_PRIV_LOCAL_GM    , "Normal (Alt)"    },
+    /* End of list marker -- Do not remove */
+    {   0                       , 0                     , 0x00,
+        0                       , ""                }
+};
 
 /* The list of type codes for the quest directories. */
 static const char type_codes[][3] = {
@@ -134,7 +227,7 @@ static int send_raw(ship_client_t *c, int len, uint8_t *sendbuf) {
 }
 
 /* Encrypt and send a packet away. */
-static int crypt_send(ship_client_t *c, int len, uint8_t *sendbuf) {
+int crypt_send(ship_client_t *c, int len, uint8_t *sendbuf) {
     /* Expand it to be a multiple of 8/4 bytes long */
     while(len & (c->hdr_size - 1)) {
         sendbuf[len++] = 0;
@@ -3636,7 +3729,7 @@ int send_game_list(ship_client_t *c, block_t *b) {
 static int send_dc_info_list(ship_client_t *c, ship_t *s, uint32_t v) {
     uint8_t *sendbuf = get_sendbuf();
     dc_block_list_pkt *pkt = (dc_block_list_pkt *)sendbuf;
-    int i, len = 0x20, entries = 0;
+    int i, len = 0x20, entries = 1;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -9022,4 +9115,173 @@ int send_bb_full_char(ship_client_t *c) {
     /* FIXME: Various team stuff */
     /* Send the packet away */
     return crypt_send(c, BB_FULL_CHARACTER_LENGTH, sendbuf);
+}
+
+/* Send a GM Menu to a client. */
+static int send_dc_gm_menu(ship_client_t *c, uint32_t menu_id) {
+    uint8_t *sendbuf = get_sendbuf();
+    dc_block_list_pkt *pkt = (dc_block_list_pkt *)sendbuf;
+    int i, len = 0x20, entries = 1;
+    const char *opt;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Clear the base packet */
+    memset(pkt, 0, sizeof(dc_block_list_pkt));
+
+    /* Fill in some basic stuff */
+    pkt->hdr.pkt_type = LOBBY_INFO_TYPE;
+
+    /* Fill in the ship name entry */
+    memset(&pkt->entries[0], 0, 0x1C);
+    pkt->entries[0].menu_id = LE32(0x00040000);
+    pkt->entries[0].item_id = 0;
+    pkt->entries[0].flags = 0;
+    strncpy(pkt->entries[0].name, ship->cfg->name, 0x10);
+
+    /* Add what's needed at the end */
+    pkt->entries[0].name[0x0F] = 0x00;
+    pkt->entries[0].name[0x10] = 0x08;
+    pkt->entries[0].name[0x11] = 0x00;
+
+    /* Add each info item to the list. */
+    for(i = 0; gm_opts[i].menu_id; ++i) {
+        /* Make sure the user is logged in and has the required privilege */
+        if(!(c->flags & CLIENT_FLAG_LOGGED_IN) ||
+           (c->privilege & gm_opts[i].privilege) != gm_opts[i].privilege) {
+            continue;
+        }
+
+        /* Make sure the item is in the right menu */
+        if(gm_opts[i].menu_id != menu_id) {
+            continue;
+        }
+
+        /* Make sure the user is in an appropriate lobby type. */
+        if(!(c->cur_lobby->type & gm_opts[i].lobby_type)) {
+            continue;
+        }
+
+        /* Clear out the ship information */
+        memset(&pkt->entries[entries], 0, 0x1C);
+
+        /* Fill in what we have */
+        pkt->entries[entries].menu_id = LE32(menu_id);
+        pkt->entries[entries].item_id = LE32(gm_opts[i].item_id);
+        pkt->entries[entries].flags = LE16(0x0000);
+
+        /* Fill in the text... */
+        opt = __(c, gm_opts[i].text);
+
+        if(opt[0] == '\t' && opt[1] == 'J') {
+            istrncpy(ic_utf8_to_sjis, pkt->entries[entries].name, opt, 0x10);
+        }
+        else {
+            istrncpy(ic_utf8_to_8859, pkt->entries[entries].name, opt, 0x10);
+        }
+
+        len += 0x1C;
+        ++entries;
+    }
+
+    /* Fill in the rest of the header */
+    pkt->hdr.pkt_len = LE16(len);
+    pkt->hdr.flags = (uint8_t)(entries - 1);
+
+    /* Send the packet away */
+    return crypt_send(c, len, sendbuf);
+}
+
+static int send_pc_gm_menu(ship_client_t *c, uint32_t menu_id) {
+    uint8_t *sendbuf = get_sendbuf();
+    pc_block_list_pkt *pkt = (pc_block_list_pkt *)sendbuf;
+    int i, len = 0x30, entries = 1;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Clear the base packet */
+    memset(pkt, 0, 0x30);
+
+    /* Fill in some basic stuff */
+    pkt->hdr.pkt_type = LOBBY_INFO_TYPE;
+
+    /* Fill in the ship name entry */
+    memset(&pkt->entries[0], 0, 0x1C);
+    pkt->entries[0].menu_id = LE32(0x00040000);
+    pkt->entries[0].item_id = 0;
+    pkt->entries[0].flags = 0;
+
+    istrncpy(ic_8859_to_utf16, (char *)pkt->entries[0].name, ship->cfg->name,
+             0x20);
+
+    /* Add each info item to the list. */
+    for(i = 0; gm_opts[i].menu_id; ++i) {
+        /* Make sure the user is logged in and has the required privilege */
+        if(!(c->flags & CLIENT_FLAG_LOGGED_IN) ||
+           (c->privilege & gm_opts[i].privilege) != gm_opts[i].privilege) {
+            continue;
+        }
+
+        /* Make sure the item is in the right menu */
+        if(gm_opts[i].menu_id != menu_id) {
+            continue;
+        }
+
+        /* Make sure the user is in an appropriate lobby type */
+        if(!(c->cur_lobby->type & gm_opts[i].lobby_type)) {
+            continue;
+        }
+
+        /* Clear out the ship information */
+        memset(&pkt->entries[entries], 0, 0x2C);
+
+        /* Fill in what we have */
+        pkt->entries[entries].menu_id = LE32(menu_id);
+        pkt->entries[entries].item_id = LE32(gm_opts[i].item_id);
+        pkt->entries[entries].flags = LE16(0x0000);
+
+        istrncpy(ic_utf8_to_utf16, (char *)pkt->entries[entries].name,
+                 __(c, gm_opts[i].text), 0x20);
+
+        len += 0x2C;
+        ++entries;
+    }
+
+    /* Fill in the rest of the header */
+    pkt->hdr.pkt_len = LE16(len);
+    pkt->hdr.flags = (uint8_t)(entries - 1);
+
+    /* Send the packet away */
+    return crypt_send(c, len, sendbuf);
+}
+
+int send_gm_menu(ship_client_t *c, uint32_t menu_id) {
+    /* Make sure the user's at least a Local GM */
+    if(!LOCAL_GM(c)) {
+        return -1;
+    }
+
+    /* Call the appropriate function */
+    switch(c->version) {
+        case CLIENT_VERSION_DCV1:
+        case CLIENT_VERSION_DCV2:
+        case CLIENT_VERSION_GC:
+        case CLIENT_VERSION_EP3:
+            return send_dc_gm_menu(c, menu_id);
+
+        case CLIENT_VERSION_PC:
+            return send_pc_gm_menu(c, menu_id);
+
+        case CLIENT_VERSION_BB:
+            /* XXXX: Write me! */
+            return 0;
+    }
+
+    return -1;
 }

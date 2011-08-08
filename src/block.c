@@ -40,6 +40,7 @@
 #include "gm.h"
 #include "subcmd.h"
 #include "scripts.h"
+#include "admin.h"
 
 extern int enable_ipv6;
 
@@ -1815,6 +1816,59 @@ static int dc_process_done_burst(ship_client_t *c) {
     return rv;
 }
 
+static int process_gm_menu(ship_client_t *c, uint32_t menu_id,
+                           uint32_t item_id) {
+    if(!LOCAL_GM(c)) {
+        return send_message1(c, "%s", __(c, "\tE\tC7Nice try."));
+    }
+
+    switch(menu_id) {
+        case MENU_ID_GM:
+            switch(item_id) {
+                case ITEM_ID_GM_REF_QUESTS:
+                    return refresh_quests(c, send_message1);
+
+                case ITEM_ID_GM_REF_GMS:
+                    return refresh_gms(c, send_message1);
+
+                case ITEM_ID_GM_REF_LIMITS:
+                    return refresh_limits(c, send_message1);
+
+                case ITEM_ID_GM_RESTART:
+                case ITEM_ID_GM_SHUTDOWN:
+                case ITEM_ID_GM_GAME_EVENT:
+                case ITEM_ID_GM_LOBBY_EVENT:
+                    return send_gm_menu(c, MENU_ID_GM | (item_id << 8));
+            }
+
+            break;
+
+        case MENU_ID_GM_SHUTDOWN:
+        case MENU_ID_GM_RESTART:
+            return schedule_shutdown(c, item_id, menu_id == MENU_ID_GM_RESTART,
+                                     send_message1);
+
+        case MENU_ID_GM_GAME_EVENT:
+            if(item_id < 7) {
+                ship->game_event = item_id;
+                return send_message1(c, "%s", __(c, "\tE\tC7Game Event set."));
+            }
+
+            break;
+
+        case MENU_ID_GM_LOBBY_EVENT:
+            if(item_id < 15) {
+                ship->lobby_event = item_id;
+                update_lobby_event();
+                return send_message1(c, "%s", __(c, "\tE\tC7Event set."));
+            }
+            
+            break;
+    }
+
+    return send_message1(c, "%s", __(c, "\tE\tC4Huh?"));
+}
+
 static int process_menu(ship_client_t *c, uint32_t menu_id, uint32_t item_id,
                         const uint8_t *passwd, uint16_t passwd_len) {
     /* Figure out what the client is selecting. */
@@ -2141,6 +2195,10 @@ static int process_menu(ship_client_t *c, uint32_t menu_id, uint32_t item_id,
 
             return send_message1(c, "%s", __(c, "\tE\tC4Huh?"));
         }
+
+        /* GM Menu */
+        case MENU_ID_GM:
+            return process_gm_menu(c, menu_id, item_id);
     }
 
     return -1;

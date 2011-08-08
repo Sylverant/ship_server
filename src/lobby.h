@@ -115,7 +115,7 @@ TAILQ_HEAD(lobby_queue, lobby);
 /* Possible values for the type parameter. */
 #define LOBBY_TYPE_DEFAULT      0x00000001
 #define LOBBY_TYPE_GAME         0x00000002
-#define LOBBY_TYPE_EP3_GAME     0x00000003
+#define LOBBY_TYPE_EP3_GAME     0x00000004
 
 /* Possible values for the flags parameter. */
 #define LOBBY_FLAG_BURSTING     0x00000001
@@ -130,6 +130,33 @@ TAILQ_HEAD(lobby_queue, lobby);
 #define LOBBY_FLAG_GC_ALLOWED   0x00000200
 #define LOBBY_FLAG_SINGLEPLAYER 0x00000400
 #define LOBBY_FLAG_EP3          0x00000800
+
+/* Events that can be set on games */
+#define GAME_EVENT_NONE         0
+#define GAME_EVENT_CHRISTMAS    1
+#define GAME_EVENT_21ST         2
+#define GAME_EVENT_VALENTINES   3
+#define GAME_EVENT_EASTER       4
+#define GAME_EVENT_HALLOWEEN    5
+#define GAME_EVENT_SONIC        6
+
+/* Events that can be set on lobbies */
+#define LOBBY_EVENT_NONE        0
+#define LOBBY_EVENT_CHRISTMAS   1
+/* 2 is just a normal (no event) lobby... */
+#define LOBBY_EVENT_VALENTINES  3
+#define LOBBY_EVENT_EASTER      4
+#define LOBBY_EVENT_HALLOWEEN   5
+#define LOBBY_EVENT_SONIC       6
+#define LOBBY_EVENT_NEWYEARS    7
+#define LOBBY_EVENT_SPRING      8
+#define LOBBY_EVENT_WHITEDAY    9
+#define LOBBY_EVENT_WEDDING     10
+#define LOBBY_EVENT_AUTUMN      11
+#define LOBBY_EVENT_FLAGS       12
+#define LOBBY_EVENT_SPRINGFLAG  13
+#define LOBBY_EVENT_ALT_NORMAL  14
+
 
 /* The required level for various difficulties. */
 const static int game_required_level[4] = { 1, 20, 40, 80 };

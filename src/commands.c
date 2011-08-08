@@ -228,7 +228,7 @@ static int handle_refresh(ship_client_t *c, const char *params) {
     }
 
     if(!strcmp(params, "quests")) {
-        return refresh_quests(c);
+        return refresh_quests(c, send_txt);
     }
     else if(!strcmp(params, "gms")) {
         /* Make sure the requester is a local root. */
@@ -236,10 +236,10 @@ static int handle_refresh(ship_client_t *c, const char *params) {
             return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
         }
 
-        return refresh_gms(c);
+        return refresh_gms(c, send_txt);
     }
     else if(!strcmp(params, "limits")) {
-        return refresh_limits(c);
+        return refresh_limits(c, send_txt);
     }
     else {
         return send_txt(c, "%s", __(c, "\tE\tC7Unknown item to refresh."));
@@ -872,7 +872,7 @@ static int handle_shutdown(ship_client_t *c, const char *params) {
         when = 1;
     }
 
-    return schedule_shutdown(c, when, 0);
+    return schedule_shutdown(c, when, 0, send_txt);
 }
 
 /* Usage: /log guildcard */
@@ -2236,7 +2236,7 @@ static int handle_restart(ship_client_t *c, const char *params) {
         when = 1;
     }
 
-    return schedule_shutdown(c, when, 1);
+    return schedule_shutdown(c, when, 1, send_txt);
 }
 
 /* Usage: /search guildcard */
@@ -2285,6 +2285,16 @@ static int handle_search(ship_client_t *c, const char *params) {
 
         return block_process_pkt(c, (uint8_t *)&dc);
     }
+}
+
+/* Usage: /gm */
+static int handle_gm(ship_client_t *c, const char *params) {
+    /* Make sure the requester is a local GM, at least. */
+    if(!LOCAL_GM(c)) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
+    }
+
+    return send_gm_menu(c, MENU_ID_GM);
 }
 
 static command_t cmds[] = {
@@ -2354,6 +2364,7 @@ static command_t cmds[] = {
     { "ver"      , handle_ver       },
     { "restart"  , handle_restart   },
     { "search"   , handle_search    },
+    { "gm"       , handle_gm        },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

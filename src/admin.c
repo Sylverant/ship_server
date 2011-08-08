@@ -91,7 +91,7 @@ int kill_guildcard(ship_client_t *c, uint32_t gc, const char *reason) {
     return 0;
 }
 
-int refresh_quests(ship_client_t *c) {
+int refresh_quests(ship_client_t *c, msgfunc f) {
     sylverant_quest_list_t quests;
     sylverant_quest_list_t qlist[CLIENT_VERSION_COUNT][CLIENT_LANG_COUNT];
     quest_map_t qmap;
@@ -107,8 +107,7 @@ int refresh_quests(ship_client_t *c) {
         if(sylverant_quests_read(ship->cfg->quests_file, &quests)) {
             debug(DBG_ERROR, "%s: Couldn't read quests file!\n",
                   ship->cfg->name);
-            return send_txt(c, "%s",
-                            __(c, "\tE\tC7Couldn't read quests file."));
+            return f(c, "%s", __(c, "\tE\tC7Couldn't read quests file."));
         }
 
         /* Lock the mutex to prevent anyone from trying anything funny. */
@@ -120,7 +119,7 @@ int refresh_quests(ship_client_t *c) {
 
         /* Unlock the lock, we're done. */
         pthread_rwlock_unlock(&ship->qlock);
-        return send_txt(c, "%s", __(c, "\tE\tC7Updated quest list."));
+        return f(c, "%s", __(c, "\tE\tC7Updated quest list."));
     }
     else if(ship->cfg->quests_dir && ship->cfg->quests_dir[0]) {
         /* Read in the new quests first */
@@ -160,14 +159,14 @@ int refresh_quests(ship_client_t *c) {
 
         /* Unlock the lock, we're done. */
         pthread_rwlock_unlock(&ship->qlock);
-        return send_txt(c, "%s", __(c, "\tE\tC7Updated quest list."));
+        return f(c, "%s", __(c, "\tE\tC7Updated quest list."));
     }
     else {
-        return send_txt(c, "%s", __(c, "\tE\tC7No quest list configured."));
+        return f(c, "%s", __(c, "\tE\tC7No quest list configured."));
     }
 }
 
-int refresh_gms(ship_client_t *c) {
+int refresh_gms(ship_client_t *c, msgfunc f) {
     /* Make sure we don't have anyone trying to escalate their privileges. */
     if(!LOCAL_ROOT(c)) {
         return -1;
@@ -177,18 +176,17 @@ int refresh_gms(ship_client_t *c) {
         /* Try to read the GM file. This will clean out the old list as
          well, if needed. */
         if(gm_list_read(ship->cfg->gm_file, ship)) {
-            return send_txt(c, "%s",
-                            __(c, "\tE\tC7Couldn't read GM list."));
+            return f(c, "%s", __(c, "\tE\tC7Couldn't read GM list."));
         }
 
-        return send_txt(c, "%s", __(c, "\tE\tC7Updated GM list."));
+        return f(c, "%s", __(c, "\tE\tC7Updated GM list."));
     }
     else {
-        return send_txt(c, "%s", __(c, "\tE\tC7No GM list configured."));
+        return f(c, "%s", __(c, "\tE\tC7No GM list configured."));
     }
 }
 
-int refresh_limits(ship_client_t *c) {
+int refresh_limits(ship_client_t *c, msgfunc f) {
     sylverant_limits_t *limits, *tmplimits;
 
     /* Make sure we don't have anyone trying to escalate their privileges. */
@@ -198,7 +196,7 @@ int refresh_limits(ship_client_t *c) {
 
     if(ship->cfg->limits_file && ship->cfg->limits_file[0]) {
         if(sylverant_read_limits(ship->cfg->limits_file, &limits)) {
-            return send_txt(c, "%s", __(c, "\tE\tC7Couldn't read limits."));
+            return f(c, "%s", __(c, "\tE\tC7Couldn't read limits."));
         }
 
         pthread_rwlock_wrlock(&ship->llock);
@@ -208,10 +206,10 @@ int refresh_limits(ship_client_t *c) {
 
         sylverant_free_limits(tmplimits);
 
-        return send_txt(c, "%s", __(c, "\tE\tC7Updated limits."));
+        return f(c, "%s", __(c, "\tE\tC7Updated limits."));
     }
     else {
-        return send_txt(c, "%s", __(c, "\tE\tC7No configured limits."));
+        return f(c, "%s", __(c, "\tE\tC7No configured limits."));
     }
 }
 
@@ -254,7 +252,7 @@ int broadcast_message(ship_client_t *c, const char *message, int prefix) {
     return 0;
 }
 
-int schedule_shutdown(ship_client_t *c, uint32_t when, int restart) {
+int schedule_shutdown(ship_client_t *c, uint32_t when, int restart, msgfunc f) {
     ship_client_t *i2;
     block_t *b;
     int i;
@@ -277,15 +275,31 @@ int schedule_shutdown(ship_client_t *c, uint32_t when, int restart) {
                 pthread_mutex_lock(&i2->mutex);
 
                 if(i2->pl) {
-                    if(restart) {
-                        send_txt(i2, "%s %" PRIu32 " %s",
-                                 __(i2, "\tE\tC7Ship is going down for\n"
-                                    "restart in"), when, __(i2, "minutes."));
+                    if(i2 != c) {
+                        if(restart) {
+                            send_txt(i2, "%s %" PRIu32 " %s",
+                                     __(i2, "\tE\tC7Ship is going down for\n"
+                                        "restart in"), when,
+                                     __(i2, "minutes."));
+                        }
+                        else {
+                            send_txt(i2, "%s %" PRIu32 " %s",
+                                     __(i2, "\tE\tC7Ship is going down for\n"
+                                        "shutdown in"), when,
+                                     __(i2, "minutes."));
+                        }
                     }
                     else {
-                        send_txt(i2, "%s %" PRIu32 " %s",
-                                 __(i2, "\tE\tC7Ship is going down for\n"
-                                    "shutdown in"), when, __(i2, "minutes."));
+                        if(restart) {
+                            f(i2, "%s %" PRIu32 " %s",
+                              __(i2, "\tE\tC7Ship is going down for\n"
+                                 "restart in"), when, __(i2, "minutes."));
+                        }
+                        else {
+                            f(i2, "%s %" PRIu32 " %s",
+                              __(i2, "\tE\tC7Ship is going down for\n"
+                              "shutdown in"), when, __(i2, "minutes."));
+                        }
                     }
                 }
 
