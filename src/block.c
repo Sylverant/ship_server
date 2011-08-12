@@ -1038,7 +1038,7 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
             /* Set up to send the Message of the Day if we have one and the
                client hasn't already gotten it this session.
                XXXX: Disabled for Gamecube, for now (due to bugginess). */
-            if(ship->motd && c->version != CLIENT_VERSION_GC &&
+            if(c->version != CLIENT_VERSION_GC &&
                c->version != CLIENT_VERSION_EP3) {
                 send_simple(c, PING_TYPE, 0);
             }
@@ -2493,6 +2493,71 @@ static int bb_process_config(ship_client_t *c, bb_options_update_pkt *pkt) {
     return 0;
 }
 
+int send_motd(ship_client_t *c) {
+    FILE *fp;
+    char buf[1024];
+    long len;
+    uint32_t lang = (1 << c->q_lang), ver;
+    int i, found = 0;
+    sylverant_info_file_t *f;
+
+    switch(c->version) {
+        case CLIENT_VERSION_DCV1:
+            ver = SYLVERANT_INFO_V1;
+            break;
+
+        case CLIENT_VERSION_DCV2:
+            ver = SYLVERANT_INFO_V2;
+            break;
+
+        case CLIENT_VERSION_PC:
+            ver = SYLVERANT_INFO_PC;
+            break;
+
+        default:
+            return 0;
+    }
+
+    for(i = 0; i < ship->cfg->info_file_count && !found; ++i) {
+        f = &ship->cfg->info_files[i];
+
+        if(!f->desc && (f->versions & ver) && (f->languages & lang)) {
+            found = 1;
+        }
+    }
+
+    /* No MOTD found for the given version/language combination. */
+    if(!found) {
+        return 0;
+    }
+
+    /* Attempt to open the file */
+    fp = fopen(f->filename, "r");
+
+    /* Can't find the file? Punt. */
+    if(!fp) {
+        return 0;
+    }
+
+    /* Figure out the length of the file. */
+    fseek(fp, 0, SEEK_END);
+    len = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+
+    /* Truncate to about 1KB */
+    if(len > 1023) {
+        len = 1023;
+    }
+
+    /* Read the file in. */
+    fread(buf, 1, len, fp);
+    fclose(fp);
+    buf[len] = 0;
+
+    /* Send the message to the client. */
+    return send_message_box(c, "%s", buf);
+}
+
 /* Process block commands for a Dreamcast client. */
 static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
     uint8_t type;
@@ -2535,10 +2600,10 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return dc_process_change_lobby(c, (dc_select_pkt *)pkt);
 
         case PING_TYPE:
-            if(!(c->flags & CLIENT_FLAG_SENT_MOTD) && ship->motd &&
+            if(!(c->flags & CLIENT_FLAG_SENT_MOTD) &&
                c->version != CLIENT_VERSION_GC &&
                c->version != CLIENT_VERSION_EP3) {
-                send_message_box(c, "%s", ship->motd);
+                send_motd(c);
                 c->flags |= CLIENT_FLAG_SENT_MOTD;
             }
 

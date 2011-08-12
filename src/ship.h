@@ -109,8 +109,6 @@ struct ship {
     struct miniship_queue ships;
     int mccount;
     uint16_t *menu_codes;
-
-    char *motd;
 };
 
 #ifndef SHIP_DEFINED

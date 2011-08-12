@@ -77,4 +77,6 @@ int block_process_pkt(ship_client_t *c, uint8_t *pkt);
 lobby_t *block_get_lobby(block_t *b, uint32_t lobby_id);
 int block_info_reply(ship_client_t *c, uint32_t block);
 
+int send_motd(ship_client_t *c);
+
 #endif /* !SHIP_H */

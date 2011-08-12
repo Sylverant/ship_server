@@ -526,7 +526,6 @@ static void *ship_thd(void *d) {
     pthread_rwlock_destroy(&s->llock);
     sylverant_free_limits(s->limits);
     shipgate_cleanup(&s->sg);
-    free(s->motd);
     free(s->gm_list);
     sylverant_quests_destroy(&s->quests);
     clean_quests(s);
@@ -551,43 +550,6 @@ static void *ship_thd(void *d) {
     free(s->blocks);
     free(s);
     return NULL;
-}
-
-static void ship_read_motd(ship_t *s, const char *fn) {
-    FILE *fp;
-    size_t len;
-    char tmp[512];
-
-    /* Open it up */
-    fp = fopen(fn, "rt");
-    if(!fp) {
-        debug(DBG_WARN, "%s: Couldn't open MOTD file\n", s->cfg->name);
-        return;
-    }
-
-    /* Read from the file */
-    len = fread(tmp, 1, 511, fp);
-    if(!len) {
-        debug(DBG_WARN, "%s: Couldn't read MOTD file\n", s->cfg->name);
-        fclose(fp);
-        return;
-    }
-
-    fclose(fp);
-    tmp[len] = '\0';
-
-    len = strlen(tmp);
-
-    /* If we have a message, allocate space for it, and copy it in. */
-    if(len) {
-        s->motd = (char *)malloc(len + 1);
-        if(!s->motd) {
-            perror("malloc");
-            return;
-        }
-
-        strcpy(s->motd, tmp);
-    }
 }
 
 ship_t *ship_server_start(sylverant_ship_t *s) {
@@ -781,21 +743,14 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
         goto err_shipgate;
     }
 
-    /* If we have a message of the day, read it */
-    if(s->motd_file) {
-        ship_read_motd(rv, s->motd_file);
-    }
-
     /* Start up the thread for this ship. */
     if(pthread_create(&rv->thd, NULL, &ship_thd, rv)) {
         debug(DBG_ERROR, "%s: Cannot start ship thread!\n", s->name);
-        goto err_motd;
+        goto err_shipgate;
     }
 
     return rv;
 
-err_motd:
-    free(rv->motd);
 err_shipgate:
     shipgate_cleanup(&rv->sg);
 err_bans_locks:

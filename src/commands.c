@@ -963,7 +963,7 @@ static int handle_endlog(ship_client_t *c, const char *params) {
 
 /* Usage: /motd */
 static int handle_motd(ship_client_t *c, const char *params) {
-    return send_message_box(c, "%s", ship->motd);
+    return send_motd(c);
 }
 
 /* Usage: /friendadd guildcard nickname */

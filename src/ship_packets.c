@@ -3730,6 +3730,7 @@ static int send_dc_info_list(ship_client_t *c, ship_t *s, uint32_t v) {
     uint8_t *sendbuf = get_sendbuf();
     dc_block_list_pkt *pkt = (dc_block_list_pkt *)sendbuf;
     int i, len = 0x20, entries = 1;
+    uint32_t lang = (1 << c->q_lang);
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -3757,6 +3758,15 @@ static int send_dc_info_list(ship_client_t *c, ship_t *s, uint32_t v) {
     /* Add each info item to the list. */
     for(i = 0; i < s->cfg->info_file_count; ++i) {
         if(!(s->cfg->info_files[i].versions & v)) {
+            continue;
+        }
+
+        if(!(s->cfg->info_files[i].languages & lang)) {
+            continue;
+        }
+
+        /* Skip MOTD entries. */
+        if(!(s->cfg->info_files[i].desc)) {
             continue;
         }
 
@@ -3788,6 +3798,7 @@ static int send_pc_info_list(ship_client_t *c, ship_t *s) {
     uint8_t *sendbuf = get_sendbuf();
     pc_block_list_pkt *pkt = (pc_block_list_pkt *)sendbuf;
     int i, len = 0x30, entries = 1;
+    uint32_t lang = (1 << c->q_lang);
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -3812,6 +3823,15 @@ static int send_pc_info_list(ship_client_t *c, ship_t *s) {
     /* Add each info item to the list. */
     for(i = 0; i < s->cfg->info_file_count; ++i) {
         if(!(s->cfg->info_files[i].versions & SYLVERANT_INFO_PC)) {
+            continue;
+        }
+
+        if(!(s->cfg->info_files[i].languages & lang)) {
+            continue;
+        }
+
+        /* Skip MOTD entries. */
+        if(!(s->cfg->info_files[i].desc)) {
             continue;
         }
 
