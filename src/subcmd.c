@@ -664,6 +664,11 @@ static int handle_take_item(ship_client_t *c, subcmd_take_item_t *pkt) {
         return -1;
     }
 
+    /* Buggy PSO version is buggy... */
+    if(c->version == CLIENT_VERSION_DCV1 && pkt->size == 0x06) {
+        pkt->size = 0x07;
+    }
+
     /* Sanity check... Make sure the size of the subcommand and the client id
        match with what we expect. Disconnect the client if not. */
     if(pkt->size != 0x07 || pkt->client_id != c->client_id) {
