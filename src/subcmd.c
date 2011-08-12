@@ -1223,6 +1223,11 @@ int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
     uint8_t type = pkt->type;
     int rv = -1;
 
+    /* Ignore these if the client isn't in a lobby. */
+    if(!l) {
+        return 0;
+    }
+
     pthread_mutex_lock(&l->mutex);
 
     /* Find the destination. */
@@ -1315,6 +1320,11 @@ int subcmd_bb_handle_one(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
     int rv = -1;
     uint32_t dnum = LE32(pkt->hdr.flags);
 
+    /* Ignore these if the client isn't in a lobby. */
+    if(!l) {
+        return 0;
+    }
+
     pthread_mutex_lock(&l->mutex);
 
     /* Find the destination. */
@@ -1349,6 +1359,11 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
     uint8_t type = pkt->type;
     lobby_t *l = c->cur_lobby;
     int rv, sent = 1;
+
+    /* Ignore these if the client isn't in a lobby. */
+    if(!l) {
+        return 0;
+    }
 
     pthread_mutex_lock(&l->mutex);
 
@@ -1462,6 +1477,11 @@ int subcmd_bb_handle_bcast(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
     lobby_t *l = c->cur_lobby;
     int rv, sent = 1;
 
+    /* Ignore these if the client isn't in a lobby. */
+    if(!l) {
+        return 0;
+    }
+
     pthread_mutex_lock(&l->mutex);
 
     switch(type) {
@@ -1486,6 +1506,11 @@ int subcmd_bb_handle_bcast(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
 int subcmd_handle_ep3_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
     lobby_t *l = c->cur_lobby;
     int rv;
+
+    /* Ignore these if the client isn't in a lobby. */
+    if(!l) {
+        return 0;
+    }
 
     pthread_mutex_lock(&l->mutex);
 
