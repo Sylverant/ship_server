@@ -1629,10 +1629,13 @@ static int dc_process_game_create(ship_client_t *c, dc_game_create_pkt *pkt) {
     char name[32];
 
     /* Check the user's ability to create a game of that difficulty. */
-    if((LE32(c->pl->v1.level) + 1) < game_required_level[pkt->difficulty]) {
-        return send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't create game!"),
-                             __(c, "\tC7Your level is too\nlow for that\n"
-                                "difficulty."));
+    if(!(c->flags & CLIENT_FLAG_OVERRIDE_GAME)) {
+        if((LE32(c->pl->v1.level) + 1) < game_required_level[pkt->difficulty]) {
+            return send_message1(c, "%s\n\n%s",
+                                 __(c, "\tE\tC4Can't create game!"),
+                                 __(c, "\tC7Your level is too\nlow for that\n"
+                                    "difficulty."));
+        }
     }
 
     /* Convert the team name to UTF-8 */
@@ -1677,10 +1680,13 @@ static int pc_process_game_create(ship_client_t *c, pc_game_create_pkt *pkt) {
     istrncpy16(ic_utf16_to_ascii, password, pkt->password, 16);
 
     /* Check the user's ability to create a game of that difficulty. */
-    if((LE32(c->pl->v1.level) + 1) < game_required_level[pkt->difficulty]) {
-        return send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't create game!"),
-                             __(c, "\tC7Your level is too\nlow for that\n"
-                                "difficulty."));
+    if(!(c->flags & CLIENT_FLAG_OVERRIDE_GAME)) {
+        if((LE32(c->pl->v1.level) + 1) < game_required_level[pkt->difficulty]) {
+            return send_message1(c, "%s\n\n%s",
+                                 __(c, "\tE\tC4Can't create game!"),
+                                 __(c, "\tC7Your level is too\nlow for that\n"
+                                    "difficulty."));
+        }
     }
 
     /* Create the lobby structure. */
@@ -1719,10 +1725,13 @@ static int gc_process_game_create(ship_client_t *c, gc_game_create_pkt *pkt) {
     char name[32];
 
     /* Check the user's ability to create a game of that difficulty. */
-    if((LE32(c->pl->v1.level) + 1) < game_required_level[pkt->difficulty]) {
-        return send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't create game!"),
-                             __(c, "\tC7Your level is too\nlow for that\n"
-                                "difficulty."));
+    if(!(c->flags & CLIENT_FLAG_OVERRIDE_GAME)) {
+        if((LE32(c->pl->v1.level) + 1) < game_required_level[pkt->difficulty]) {
+            return send_message1(c, "%s\n\n%s",
+                                 __(c, "\tE\tC4Can't create game!"),
+                                 __(c, "\tC7Your level is too\nlow for that\n"
+                                    "difficulty."));
+        }
     }
 
     /* Convert the team name to UTF-8 */
