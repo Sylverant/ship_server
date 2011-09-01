@@ -940,11 +940,6 @@ static int handle_delete_inv(ship_client_t *c, subcmd_destroy_item_t *pkt) {
         return -1;
     }
 
-    if(!(l->flags & LOBBY_FLAG_SINGLEPLAYER) &&
-       pkt->client_id != c->client_id) {
-        return -1;
-    }
-
 #if 0
     /* Ignore meseta */
     if(pkt->item_id != 0xFFFFFFFF) {
@@ -1019,11 +1014,6 @@ static int handle_use_item(ship_client_t *c, subcmd_use_item_t *pkt) {
     /* Sanity check... Make sure the size of the subcommand and the client id
        match with what we expect. Disconnect the client if not. */
     if(pkt->size != 0x02) {
-        return -1;
-    }
-
-    if(!(l->flags & LOBBY_FLAG_SINGLEPLAYER) &&
-       pkt->client_id != c->client_id) {
         return -1;
     }
 
