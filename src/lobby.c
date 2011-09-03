@@ -799,6 +799,12 @@ int lobby_remove_player(ship_client_t *c) {
     /* Lock the mutex before we try anything funny. */
     pthread_mutex_lock(&l->mutex);
 
+    /* If they were bursting, unlock the lobby... */
+    if((c->flags & CLIENT_FLAG_BURSTING)) {
+        l->flags &= ~LOBBY_FLAG_BURSTING;
+        lobby_handle_done_burst(l);
+    }
+
     /* We have a nice function to handle most of the heavy lifting... */
     client_id = c->client_id;
     delete_lobby = lobby_remove_client_locked(c, client_id, l);
@@ -1134,7 +1140,7 @@ int lobby_enqueue_pkt(lobby_t *l, ship_client_t *c, dc_pkt_hdr_t *p) {
     pthread_mutex_lock(&l->mutex);
 
     /* Sanity checks... */
-    if(!l->flags & LOBBY_FLAG_BURSTING) {
+    if(!(l->flags & LOBBY_FLAG_BURSTING)) {
         rv = -1;
         goto out;
     }

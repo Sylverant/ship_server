@@ -312,13 +312,6 @@ void client_destroy_connection(ship_client_t *c,
     if(c->create_lobby) {
         lobby_destroy_noremove(c->create_lobby);
     }
-    /* Otherwise, if they were bursting, clear the flag on the lobby... */
-    else if((c->flags & CLIENT_FLAG_BURSTING) && c->cur_lobby) {
-        pthread_mutex_lock(&c->cur_lobby->mutex);
-        c->cur_lobby->flags &= ~LOBBY_FLAG_BURSTING;
-        lobby_handle_done_burst(c->cur_lobby);
-        pthread_mutex_unlock(&c->cur_lobby->mutex);
-    }
 
     /* If we were logging the user, close the file */
     if(c->logfile) {
