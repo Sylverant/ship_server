@@ -221,7 +221,6 @@ int shipgate_connect(ship_t *s, shipgate_conn_t *rv) {
     /* Check the header of the packet. */
     if(ntohs(pkt.hdr.pkt_len) != SHIPGATE_LOGIN_SIZE ||
        ntohs(pkt.hdr.pkt_type) != SHDR_TYPE_LOGIN ||
-       ntohs(pkt.hdr.pkt_unc_len) != SHIPGATE_LOGIN_SIZE ||
        ntohs(pkt.hdr.flags) != (SHDR_NO_DEFLATE)) {
         debug(DBG_ERROR, "%s: Bad shipgate header!\n", s->cfg->name);
         close(sock);
@@ -1087,7 +1086,6 @@ static int handle_login(shipgate_conn_t *conn, shipgate_login_pkt *pkt) {
     /* Check the header of the packet. */
     if(ntohs(pkt->hdr.pkt_len) != SHIPGATE_LOGIN_SIZE ||
        ntohs(pkt->hdr.pkt_type) != SHDR_TYPE_LOGIN ||
-       ntohs(pkt->hdr.pkt_unc_len) != SHIPGATE_LOGIN_SIZE ||
        ntohs(pkt->hdr.flags) != (SHDR_NO_DEFLATE)) {
         return -2;
     }
@@ -1653,7 +1651,7 @@ static int handle_frlist(shipgate_conn_t *c, shipgate_friend_list_pkt *pkt) {
     b = s->blocks[block - 1];
     pthread_mutex_lock(&b->mutex);
 
-    total = ntohs(pkt->hdr.pkt_unc_len) - sizeof(shipgate_friend_list_pkt);
+    total = ntohs(pkt->hdr.pkt_len) - sizeof(shipgate_friend_list_pkt);
 
     msg[0] = '\0';
 
@@ -1763,7 +1761,7 @@ static int  handle_useropt(shipgate_conn_t *c, shipgate_user_opt_pkt *pkt) {
     ship_client_t *i;
     uint32_t gc = ntohl(pkt->guildcard), block = ntohl(pkt->block);
     uint8_t *optptr = (uint8_t *)pkt->options;
-    uint8_t *endptr = ((uint8_t *)pkt) + ntohs(pkt->hdr.pkt_unc_len);
+    uint8_t *endptr = ((uint8_t *)pkt) + ntohs(pkt->hdr.pkt_len);
     shipgate_user_opt_t *opt = (shipgate_user_opt_t *)optptr;
     uint32_t option, length;
 
