@@ -423,7 +423,9 @@ static void *ship_thd(void *d) {
                           s->cfg->name);
 
                     /* Close the connection so we can attempt to reconnect */
+                    gnutls_bye(s->sg.session, GNUTLS_SHUT_RDWR);
                     close(s->sg.sock);
+                    gnutls_deinit(s->sg.session);
                     s->sg.sock = -1;
 
                     if(rv < -1) {
@@ -440,7 +442,9 @@ static void *ship_thd(void *d) {
                           s->cfg->name);
 
                     /* Close the connection so we can attempt to reconnect */
+                    gnutls_bye(s->sg.session, GNUTLS_SHUT_RDWR);
                     close(s->sg.sock);
+                    gnutls_deinit(s->sg.session);
                     s->sg.sock = -1;
                 }
             }
@@ -735,12 +739,6 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     if(shipgate_connect(rv, &rv->sg)) {
         debug(DBG_ERROR, "%s: Couldn't connect to shipgate!\n", s->name);
         goto err_bans_locks;
-    }
-
-    /* Register with the shipgate. */
-    if(shipgate_send_ship_info(&rv->sg, rv)) {
-        debug(DBG_ERROR, "%s: Couldn't register with shipgate!\n", s->name);
-        goto err_shipgate;
     }
 
     /* Start up the thread for this ship. */

@@ -20,7 +20,16 @@
 
 #include <time.h>
 #include <inttypes.h>
-#include <openssl/rc4.h>
+
+#ifdef HAVE_SSIZE_T
+#undef HAVE_SSIZE_T
+#endif
+
+#include <gnutls/gnutls.h>
+
+#ifdef HAVE_SSIZE_T
+#undef HAVE_SSIZE_T
+#endif
 
 /* Forward declarations. */
 struct ship;
@@ -36,14 +45,15 @@ typedef struct ship ship_t;
 
 #define PACKED __attribute__((packed))
 
-#define SHIPGATE_PROTO_VER  9
+#define SHIPGATE_PROTO_VER  10
 
-/* The header that is prepended to any packets sent to the shipgate. */
+/* New header in protocol version 10 and newer. */
 typedef struct shipgate_hdr {
-    uint16_t pkt_len;                   /* Compressed length */
+    uint16_t pkt_len;
     uint16_t pkt_type;
-    uint16_t pkt_unc_len;               /* Uncompressed length */
-    uint16_t flags;                     /* Packet flags */
+    uint8_t version;
+    uint8_t reserved;
+    uint16_t flags;
 } PACKED shipgate_hdr_t;
 
 /* Shipgate connection structure. */
@@ -53,13 +63,11 @@ struct shipgate_conn {
     int has_key;
 
     time_t login_attempt;
-
     ship_t *ship;
 
-    uint16_t key_idx;
+    gnutls_session_t session;
 
-    RC4_KEY ship_key;
-    RC4_KEY gate_key;
+    uint16_t key_idx;
 
     unsigned char *recvbuf;
     int recvbuf_cur;
@@ -131,32 +139,12 @@ typedef struct shipgate_login {
     uint8_t ver_major;
     uint8_t ver_minor;
     uint8_t ver_micro;
-    uint8_t gate_nonce[4];
-    uint8_t ship_nonce[4];
+    uint32_t reserved[2];
 } PACKED shipgate_login_pkt;
-
-/* The reply to the login request from the shipgate. This form is deprecated,
-   and not valid in shipgate protocol v7. New ships should use the other form
-   (type 0x0025) instead of this one (type 0x0010). */
-typedef struct shipgate_login_reply {
-    shipgate_hdr_t hdr;
-    char name[12];
-    uint32_t ship_addr;
-    uint32_t int_addr;                  /* reserved for compatibility */
-    uint16_t ship_port;
-    uint16_t ship_key;
-    uint16_t clients;
-    uint16_t games;
-    uint32_t flags;
-    uint16_t menu_code;
-    uint8_t reserved[2];
-    uint32_t proto_ver;
-} PACKED shipgate_login_reply_pkt;
 
 /* The reply to the login request from the shipgate (with IPv6 support).
    Note that IPv4 support is still required, as PSO itself does not actually
-   support IPv6. Only ship<->shipgate communications are supported over IPv6
-   (for the time being anyway). */
+   support IPv6 (however, proxies can alleviate this problem a bit). */
 typedef struct shipgate_login6_reply {
     shipgate_hdr_t hdr;
     uint32_t proto_ver;
@@ -165,7 +153,7 @@ typedef struct shipgate_login6_reply {
     uint32_t ship_addr4;                /* IPv4 address (required) */
     uint8_t ship_addr6[16];             /* IPv6 address (optional) */
     uint16_t ship_port;
-    uint16_t ship_key;
+    uint16_t ship_key;                  /* Reserved in TLS clients */
     uint16_t clients;
     uint16_t games;
     uint16_t menu_code;
@@ -394,14 +382,13 @@ typedef struct shipgate_bb_opts {
 #undef PACKED
 
 /* Size of the shipgate login packet. */
-#define SHIPGATE_LOGIN_SIZE         64
+#define SHIPGATE_LOGINV0_SIZE       64
 
 /* The requisite message for the msg field of the shipgate_login_pkt. */
 static const char shipgate_login_msg[] =
     "Sylverant Shipgate Copyright Lawrence Sebald";
 
 /* Flags for the flags field of shipgate_hdr_t */
-#define SHDR_NO_DEFLATE     0x0001      /* Packet was not deflate()'d */
 #define SHDR_RESPONSE       0x8000      /* Response to a request */
 #define SHDR_FAILURE        0x4000      /* Failure to complete request */
 

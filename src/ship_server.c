@@ -26,6 +26,8 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 
+#include <gnutls/gnutls.h>
+
 #include <sylverant/config.h>
 #include <sylverant/debug.h>
 #include <sylverant/mtwist.h>
@@ -40,6 +42,12 @@
 ship_t *ship;
 int enable_ipv6 = 1;
 int restart_on_shutdown = 0;
+
+/* TLS stuff */
+gnutls_certificate_credentials_t tls_cred;
+gnutls_priority_t tls_prio;
+static gnutls_dh_params_t dh_params;
+
 static const char *config_file = NULL;
 static const char *custom_dir = NULL;
 static int dont_daemonize = 0;
@@ -231,6 +239,44 @@ static void install_signal_handlers() {
     }
 }
 
+static int init_gnutls(sylverant_ship_t *cfg) {
+    int rv;
+
+    /* XXXX: Should really check return values in here */
+    /* Do the global init */
+    gnutls_global_init();
+
+    /* Set up our credentials */
+    rv = gnutls_certificate_allocate_credentials(&tls_cred);
+    rv = gnutls_certificate_set_x509_trust_file(tls_cred, cfg->shipgate_ca,
+                                                GNUTLS_X509_FMT_PEM);
+    rv = gnutls_certificate_set_x509_key_file(tls_cred, cfg->ship_cert,
+                                              cfg->ship_key,
+                                              GNUTLS_X509_FMT_PEM);
+
+    /* Generate Diffie-Hellman parameters */
+    debug(DBG_LOG, "Generating Diffie-Hellman parameters...\n"
+          "This may take a little while.\n");
+    rv = gnutls_dh_params_init(&dh_params);
+    rv = gnutls_dh_params_generate2(dh_params, 1024);
+    debug(DBG_LOG, "Done!\n");
+
+    /* Set our priorities */
+    rv = gnutls_priority_init(&tls_prio, "NORMAL:+COMP-DEFLATE", NULL);
+
+    /* Set the Diffie-Hellman parameters */
+    gnutls_certificate_set_dh_params(tls_cred, dh_params);
+
+    return 0;
+}
+
+static void cleanup_gnutls() {
+    gnutls_dh_params_deinit(dh_params);
+    gnutls_certificate_free_credentials(tls_cred);
+    gnutls_priority_deinit(tls_prio);
+    gnutls_global_deinit();
+}
+
 int main(int argc, char *argv[]) {
     void *tmp;
     sylverant_ship_t *cfg;
@@ -272,6 +318,11 @@ int main(int argc, char *argv[]) {
 
     print_config(cfg);
 
+    /* Initialize GnuTLS stuff... */
+    if(init_gnutls(cfg)) {
+        exit(EXIT_FAILURE);
+    }
+
     /* Set up things for clients to connect. */
     if(client_init()) {
         exit(EXIT_FAILURE);
@@ -307,6 +358,7 @@ int main(int argc, char *argv[]) {
     cleanup_i18n();
     cleanup_iconv();
     client_shutdown();
+    cleanup_gnutls();
     sylverant_free_ship_config(cfg);
 
     if(restart_on_shutdown) {
