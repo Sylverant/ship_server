@@ -54,19 +54,20 @@ static inline ssize_t sg_send(shipgate_conn_t *c, void *buffer, size_t len) {
 }
 
 /* Send a raw packet away. */
-static int send_raw(shipgate_conn_t *c, int len, uint8_t *sendbuf) {
+static int send_raw(shipgate_conn_t *c, int len, uint8_t *sendbuf, int crypt) {
     ssize_t rv, total = 0;
     void *tmp;
 
     /* Keep trying until the whole thing's sent. */
-    if(!c->sendbuf_cur) {
+    if((!crypt || c->has_key) && c->sock >= 0 && !c->sendbuf_cur) {
         while(total < len) {
             rv = sg_send(c, sendbuf + total, len - total);
 
-            if(rv == -1 && errno != EAGAIN) {
-                return -1;
+            if(rv == GNUTLS_E_AGAIN || rv == GNUTLS_E_INTERRUPTED) {
+                /* Try again. */
+                continue;
             }
-            else if(rv == -1) {
+            else if(rv <= 0) {
                 break;
             }
 
@@ -113,7 +114,7 @@ static int send_crypt(shipgate_conn_t *c, int len, uint8_t *sendbuf) {
         return -1;
     }
 
-    return send_raw(c, len, sendbuf);
+    return send_raw(c, len, sendbuf, 1);
 }
 
 /* Send a ping packet to the server. */
@@ -1936,6 +1937,11 @@ int shipgate_process_pkt(shipgate_conn_t *c) {
 int shipgate_send_pkts(shipgate_conn_t *c) {
     ssize_t amt;
 
+    /* Don't even try if there's not a connection. */
+    if(!c->has_key || c->sock < 0) {
+        return 0;
+    }
+
     /* Send as much as we can. */
     amt = sg_send(c, c->sendbuf, c->sendbuf_cur);
 
@@ -2035,7 +2041,7 @@ int shipgate_send_ship_info(shipgate_conn_t *c, ship_t *ship) {
     pkt->menu_code = htons(ship->cfg->menu_code);
 
     /* Send it away */
-    return send_raw(c, sizeof(shipgate_login6_reply_pkt), sendbuf);
+    return send_raw(c, sizeof(shipgate_login6_reply_pkt), sendbuf, 0);
 }
 
 /* Send a client count update to the shipgate. */
