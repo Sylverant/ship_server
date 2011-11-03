@@ -615,54 +615,6 @@ static int handle_bb_mail(shipgate_conn_t *conn, bb_simple_mail_pkt *pkt) {
     return rv;
 }
 
-static int handle_dc_gsearch(shipgate_conn_t *conn, dc_guild_search_pkt *pkt,
-                             uint32_t sid) {
-    int i;
-    ship_t *s = conn->ship;
-    block_t *b;
-    ship_client_t *c;
-    uint32_t dest = LE32(pkt->gc_target);
-    int done = 0, rv = 0;
-
-    for(i = 0; i < s->cfg->blocks && !done; ++i) {
-        if(s->blocks[i]) {
-            b = s->blocks[i];
-            pthread_mutex_lock(&b->mutex);
-
-            TAILQ_FOREACH(c, b->clients, qentry) {
-                pthread_mutex_lock(&c->mutex);
-
-                if(c->guildcard == dest && c->pl) {
-                    /* We've found them, reply */
-                    rv = send_greply(conn, pkt->gc_search, pkt->gc_target,
-                                     s->cfg->ship_ip, b->dc_port,
-                                     c->cur_lobby->name, b->b, s->cfg->name,
-                                     c->cur_lobby->lobby_id, c->pl->v1.name,
-                                     sid);
-                    done = 1;
-                }
-                else if(c->guildcard == dest) {
-                    /* Act like they don't exist for right now (they don't
-                       really exist right now) */
-                    rv = 0;
-                    done = 1;
-                }
-
-                pthread_mutex_unlock(&c->mutex);
-
-                if(done) {
-                    pthread_mutex_unlock(&b->mutex);
-                    break;
-                }
-            }
-
-            pthread_mutex_unlock(&b->mutex);
-        }
-    }
-
-    return rv;
-}
-
 static int handle_dc(shipgate_conn_t *conn, shipgate_fw_9_pkt *pkt) {
     dc_pkt_hdr_t *dc = (dc_pkt_hdr_t *)pkt->pkt;
     uint8_t type = dc->pkt_type;
@@ -672,8 +624,9 @@ static int handle_dc(shipgate_conn_t *conn, shipgate_fw_9_pkt *pkt) {
             return handle_dc_greply(conn, (dc_guild_reply_pkt *)dc);
 
         case GUILD_SEARCH_TYPE:
-            return handle_dc_gsearch(conn, (dc_guild_search_pkt *)dc,
-                                     pkt->ship_id);
+            /* We should never get these... Ignore them, but log a warning. */
+            debug(DBG_WARN, "Shipgate sent guild search?!\n");
+            return 0;
 
         case SIMPLE_MAIL_TYPE:
             return handle_dc_mail(conn, (dc_simple_mail_pkt *)dc);
@@ -774,7 +727,6 @@ static int handle_sstatus(shipgate_conn_t *conn, shipgate_ship_status_pkt *p) {
         }
 
         if(!ship_found) {
-            debug(DBG_WARN, "Shipgate attempted to close non-existant ship!\n");
             return 0;
         }
 
@@ -813,11 +765,29 @@ static int handle_sstatus(shipgate_conn_t *conn, shipgate_ship_status_pkt *p) {
         free(i);
     }
     else {
-        /* Allocate space, and punt if we can't */
-        i = (miniship_t *)malloc(sizeof(miniship_t));
+        /* Look for the ship first of all, just in case. */
+        TAILQ_FOREACH(i, &s->ships, qentry) {
+            if(sid == i->ship_id) {
+                ship_found = 1;
 
-        if(!i) {
-            return 0;
+                /* Remove it from the list, it'll get re-added later (in the
+                   correct position). This also saves us some trouble, in case
+                   anything goes wrong... */
+                TAILQ_REMOVE(&s->ships, i, qentry);
+
+                break;
+            }
+        }
+
+        /* If we didn't find the ship (in most cases we won't), allocate space
+           for it. */
+        if(!ship_found) {
+            /* Allocate space, and punt if we can't */
+            i = (miniship_t *)malloc(sizeof(miniship_t));
+
+            if(!i) {
+                return 0;
+            }
         }
 
         /* See if we need to deal with the menu code or not here */
@@ -2238,53 +2208,6 @@ int shipgate_send_ban(shipgate_conn_t *c, uint16_t type, uint32_t requester,
 
     /* Send the packet away */
     return send_crypt(c, sizeof(shipgate_ban_req_pkt), sendbuf);
-}
-
-static int send_greply(shipgate_conn_t *c, uint32_t gc1, uint32_t gc2,
-                       in_addr_t ip, uint16_t port, const char *game, int block,
-                       const char *ship, uint32_t lobby, const char *name,
-                       uint32_t sid) {
-    uint8_t *sendbuf = get_sendbuf();
-    shipgate_fw_pkt *pkt = (shipgate_fw_pkt *)sendbuf;
-    dc_guild_reply_pkt *dc = (dc_guild_reply_pkt *)pkt->pkt;
-    int full_len = sizeof(shipgate_fw_pkt) + DC_GUILD_REPLY_LENGTH;
-
-    /* Verify we got the sendbuf. */
-    if(!sendbuf) {
-        return -1;
-    }
-
-    /* Round up the packet size, if needed. */
-    if(full_len & 0x07)
-        full_len = (full_len + 8) & 0xFFF8;
-
-    /* Scrub the buffer */
-    memset(pkt, 0, full_len);
-
-    /* Fill in the shipgate header */
-    pkt->hdr.pkt_len = htons(full_len);
-    pkt->hdr.pkt_type = htons(SHDR_TYPE_DC);
-    pkt->hdr.version = pkt->hdr.reserved = 0;
-    pkt->hdr.flags = 0;
-    pkt->ship_id = sid;
-
-    /* Fill in the Dreamcast packet stuff */
-    dc->hdr.pkt_type = GUILD_REPLY_TYPE;
-    dc->hdr.pkt_len = LE16(DC_GUILD_REPLY_LENGTH);
-    dc->tag = LE32(0x00010000);
-    dc->gc_search = gc1;
-    dc->gc_target = gc2;
-    dc->ip = ip;
-    dc->port = LE16(port);
-    dc->menu_id = LE32(MENU_ID_LOBBY);
-    dc->item_id = LE32(lobby);
-    strcpy(dc->name, name);
-
-    /* Fill in the location string */
-    sprintf(dc->location, "%s,BLOCK%02d,%s", game, block, ship);
-
-    /* Send the packet away */
-    return send_crypt(c, full_len, sendbuf);
 }
 
 /* Send a friendlist update */
