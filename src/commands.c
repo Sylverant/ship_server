@@ -21,6 +21,7 @@
 #include <errno.h>
 #include <iconv.h>
 #include <time.h>
+#include <ctype.h>
 #include <sys/time.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
@@ -2297,6 +2298,71 @@ static int handle_gm(ship_client_t *c, const char *params) {
     return send_gm_menu(c, MENU_ID_GM);
 }
 
+/* Usage: /maps [numeric string] */
+static int handle_maps(ship_client_t *c, const char *params) {
+    uint32_t maps[32] = { 0 };
+    int i = 0;
+
+    /* Make sure the requester is a local GM, at least. */
+    if(!LOCAL_GM(c)) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
+    }
+
+    /* Read in the maps string, one character at a time. Any undefined entries
+       at the end will give you a 0 in their place. */
+    while(*params) {
+        if(!isdigit(*params)) {
+            return send_txt(c, "%s", __(c, "\tE\tC7Invalid map entry."));
+        }
+        else if(i > 31) {
+            return send_txt(c, "%s", __(c, "\tE\tC7Too many entries."));
+        }
+
+        maps[i++] = *params - '0';
+        params++;
+    }
+
+    /* Free any old set, if there is one. */
+    if(c->next_maps) {
+        free(c->next_maps);
+    }
+
+    /* Save the maps string into the client's struct. */
+    c->next_maps = (uint32_t *)malloc(sizeof(uint32_t) * 32);
+    if(!c->next_maps) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Unknown error."));
+    }
+
+    memcpy(c->next_maps, maps, sizeof(uint32_t) * 32);
+
+    /* We're done. */
+    return send_txt(c, "%s", __(c, "\tE\tC7Set maps for next team."));
+}
+
+/* Usage: /showmaps */
+static int handle_showmaps(ship_client_t *c, const char *params) {
+    char string[33];
+    int i;
+    lobby_t *l= c->cur_lobby;
+
+    pthread_mutex_lock(&l->mutex);
+
+    if(l->type != LOBBY_TYPE_GAME) {
+        pthread_mutex_unlock(&l->mutex);
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
+    }
+
+    /* Build the string from the map list */
+    for(i = 0; i < 32; ++i) {
+        string[i] = l->maps[i] + '0';
+    }
+
+    string[32] = 0;
+
+    pthread_mutex_unlock(&l->mutex);
+    return send_txt(c, "%s\n%s", __(c, "\tE\tC7Maps in use:"), string);
+}
+
 static command_t cmds[] = {
     { "warp"     , handle_warp      },
     { "kill"     , handle_kill      },
@@ -2365,6 +2431,8 @@ static command_t cmds[] = {
     { "restart"  , handle_restart   },
     { "search"   , handle_search    },
     { "gm"       , handle_gm        },
+    { "maps"     , handle_maps      },
+    { "showmaps" , handle_showmaps  },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

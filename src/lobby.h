@@ -165,7 +165,7 @@ lobby_t *lobby_create_default(block_t *block, uint32_t lobby_id, uint8_t ev);
 lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
                            uint8_t difficulty, uint8_t battle, uint8_t chal,
                            uint8_t v2, int version, uint8_t section,
-                           uint8_t event, uint8_t episode);
+                           uint8_t event, uint8_t episode, ship_client_t *c);
 lobby_t *lobby_create_ep3_game(block_t *block, char *name, char *passwd,
                                uint8_t view_battle, uint8_t section);
 void lobby_destroy(lobby_t *l);

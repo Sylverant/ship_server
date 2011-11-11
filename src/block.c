@@ -1650,7 +1650,7 @@ static int dc_process_game_create(ship_client_t *c, dc_game_create_pkt *pkt) {
     l = lobby_create_game(c->cur_block, name, pkt->password,
                           pkt->difficulty, pkt->battle, pkt->challenge,
                           pkt->version, c->version, c->pl->v1.section,
-                          event, 0);
+                          event, 0, c);
 
     /* If we don't have a game, something went wrong... tell the user. */
     if(!l) {
@@ -1692,7 +1692,7 @@ static int pc_process_game_create(ship_client_t *c, pc_game_create_pkt *pkt) {
     /* Create the lobby structure. */
     l = lobby_create_game(c->cur_block, name, password, pkt->difficulty,
                           pkt->battle, pkt->challenge, 1, c->version,
-                          c->pl->v1.section, event, 0);
+                          c->pl->v1.section, event, 0, c);
 
     /* If we don't have a game, something went wrong... tell the user. */
     if(!l) {
@@ -1746,7 +1746,7 @@ static int gc_process_game_create(ship_client_t *c, gc_game_create_pkt *pkt) {
     l = lobby_create_game(c->cur_block, name, pkt->password,
                           pkt->difficulty, pkt->battle, pkt->challenge,
                           0, c->version, c->pl->v1.section, event,
-                          pkt->episode);
+                          pkt->episode, c);
 
     /* If we don't have a game, something went wrong... tell the user. */
     if(!l) {

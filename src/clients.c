@@ -350,6 +350,10 @@ void client_destroy_connection(ship_client_t *c,
         free(c->bb_opts);
     }
 
+    if(c->next_maps) {
+        free(c->next_maps);
+    }
+
     pthread_mutex_destroy(&c->mutex);
 
 #ifdef HAVE_PYTHON

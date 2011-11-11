@@ -90,7 +90,7 @@ static const uint32_t maps[2][0x20] = {
 lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
                            uint8_t difficulty, uint8_t battle, uint8_t chal,
                            uint8_t v2, int version, uint8_t section,
-                           uint8_t event, uint8_t episode) {
+                           uint8_t event, uint8_t episode, ship_client_t *c) {
     lobby_t *l = (lobby_t *)malloc(sizeof(lobby_t));
     uint32_t id = 0x20;
     int i;
@@ -149,11 +149,27 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
         episode = 1;
     }
 
-    /* Generate the random maps we'll be using for this game. */
-    for(i = 0; i < 0x20; ++i) {
-        if(maps[episode - 1][i] != 1) {
-            l->maps[i] = genrand_int32() % maps[episode - 1][i];
+    /* Generate the random maps we'll be using for this game, assuming the
+       client hasn't set a maps string. */
+    if(!c->next_maps) {
+        for(i = 0; i < 0x20; ++i) {
+            if(maps[episode - 1][i] != 1) {
+                l->maps[i] = genrand_int32() % maps[episode - 1][i];
+            }
         }
+    }
+    else {
+        for(i = 0; i < 0x20; ++i) {
+            if(c->next_maps[i] < maps[episode - 1][i]) {
+                l->maps[i] = c->next_maps[i];
+            }
+            else {
+                l->maps[i] = genrand_int32() % maps[episode - 1][i];
+            }
+        }
+
+        free(c->next_maps);
+        c->next_maps = NULL;
     }
 
     /* Add it to the list of lobbies, and increment the game count. */

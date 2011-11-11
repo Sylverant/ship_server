@@ -138,6 +138,8 @@ struct ship_client {
     lobby_t *create_lobby;
     uint32_t *blacklist;                /* Points into the player struct. */
 
+    uint32_t *next_maps;
+
     time_t last_message;
     time_t last_sent;
     time_t join_time;
