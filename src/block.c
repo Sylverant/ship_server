@@ -74,7 +74,7 @@ static void *block_thd(void *d) {
         nfds = 0;
         FD_ZERO(&readfds);
         FD_ZERO(&writefds);
-        timeout.tv_sec = 9001;
+        timeout.tv_sec = 30;
         timeout.tv_usec = 0;
         now = time(NULL);
 
@@ -116,7 +116,6 @@ static void *block_thd(void *d) {
             }
 
             nfds = nfds > it->sock ? nfds : it->sock;
-            timeout.tv_sec = timeout.tv_sec < 30 ? timeout.tv_sec : 30;
         }
 
         /* Add the listening sockets to the read fd_set. */

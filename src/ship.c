@@ -157,7 +157,7 @@ static void *ship_thd(void *d) {
         nfds = 0;
         FD_ZERO(&readfds);
         FD_ZERO(&writefds);
-        timeout.tv_sec = 60;
+        timeout.tv_sec = 30;
         timeout.tv_usec = 0;
         now = time(NULL);
 
