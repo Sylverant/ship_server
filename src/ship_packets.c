@@ -4672,7 +4672,9 @@ static int send_dc_quest_list_new(ship_client_t *c, int cn, int lang) {
                 continue;
             }
 
-            if(!elem->qptr[tmp->version][tmp->language_code] &&
+            if(!elem->qptr[tmp->version][tmp->q_lang] &&
+               !elem->qptr[tmp->version][tmp->language_code] &&
+               !elem->qptr[tmp->version][CLIENT_LANG_ENGLISH] &&
                !elem->qptr[tmp->version][lang]) {
                 break;
             }
@@ -4803,7 +4805,9 @@ static int send_pc_quest_list_new(ship_client_t *c, int cn, int lang) {
                 continue;
             }
 
-            if(!elem->qptr[tmp->version][tmp->language_code] &&
+            if(!elem->qptr[tmp->version][tmp->q_lang] &&
+               !elem->qptr[tmp->version][tmp->language_code] &&
+               !elem->qptr[tmp->version][CLIENT_LANG_ENGLISH] &&
                !elem->qptr[tmp->version][lang]) {
                 break;
             }
@@ -4917,7 +4921,9 @@ static int send_gc_quest_list_new(ship_client_t *c, int cn, int lang) {
                 continue;
             }
 
-            if(!elem->qptr[tmp->version][tmp->language_code] &&
+            if(!elem->qptr[tmp->version][tmp->q_lang] &&
+               !elem->qptr[tmp->version][tmp->language_code] &&
+               !elem->qptr[tmp->version][CLIENT_LANG_ENGLISH] &&
                !elem->qptr[tmp->version][lang]) {
                 break;
             }
@@ -5135,6 +5141,12 @@ int send_quest_info_new(lobby_t *l, uint32_t qid, int lang) {
             if(!q) {
                 q = elem->qptr[c->version][c->language_code];
                 sel_lang = c->language_code;
+            }
+
+            /* Try English next, so as to have a reasonably sane fallback. */
+            if(!q) {
+                q = elem->qptr[c->version][CLIENT_LANG_ENGLISH];
+                sel_lang = CLIENT_LANG_ENGLISH;
             }
 
             /* If all else fails, go with the language the quest was selected by
@@ -6560,6 +6572,12 @@ int send_quest_new(lobby_t *l, uint32_t qid, int lc) {
             if(!q) {
                 q = elem->qptr[c->version][c->language_code];
                 lang = c->language_code;
+            }
+
+            /* Next try English, so as to have a reasonably sane fallback. */
+            if(!q) {
+                q = elem->qptr[c->version][CLIENT_LANG_ENGLISH];
+                lang = CLIENT_LANG_ENGLISH;
             }
 
             /* If all else fails, go with the language the quest was selected by

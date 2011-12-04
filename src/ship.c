@@ -180,7 +180,6 @@ static void *ship_thd(void *d) {
             }
             else {
                 s->sg.login_attempt = 0;
-                timeout.tv_sec = 30;
             }
         }
 
@@ -229,7 +228,6 @@ static void *ship_thd(void *d) {
             }
 
             nfds = nfds > it->sock ? nfds : it->sock;
-            timeout.tv_sec = 30;
         }
 
         /* Add the listening sockets to the read fd_set. */
@@ -258,9 +256,6 @@ static void *ship_thd(void *d) {
             }
 
             nfds = nfds > s->sg.sock ? nfds : s->sg.sock;
-        }
-        else {
-            timeout.tv_sec = 30;
         }
 
         /* If we're supposed to shut down soon, make sure we aren't in the
