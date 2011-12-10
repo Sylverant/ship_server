@@ -2390,6 +2390,40 @@ static int handle_restorebk(ship_client_t *c, const char *params) {
     return 0;
 }
 
+/* Usage /enablebk */
+static int handle_enablebk(ship_client_t *c, const char *params) {
+    uint8_t enable = 1;
+
+    /* Make sure the user is logged in */
+    if(!(c->flags & CLIENT_FLAG_LOGGED_IN)) {
+        return send_txt(c, "%s", __(c, "\tE\tC7You must be logged in to "
+                                    "use this command."));
+    }
+
+    /* Send the message to the shipgate */
+    shipgate_send_user_opt(&ship->sg, c->guildcard, c->cur_block->b,
+                           USER_OPT_ENABLE_BACKUP, 1, &enable);
+    c->flags |= CLIENT_FLAG_AUTO_BACKUP;
+    return send_txt(c, "%s", __(c, "\tE\tC7Character backups enabled."));
+}
+
+/* Usage /disablebk */
+static int handle_disablebk(ship_client_t *c, const char *params) {
+    uint8_t enable = 0;
+
+    /* Make sure the user is logged in */
+    if(!(c->flags & CLIENT_FLAG_LOGGED_IN)) {
+        return send_txt(c, "%s", __(c, "\tE\tC7You must be logged in to "
+                                    "use this command."));
+    }
+
+    /* Send the message to the shipgate */
+    shipgate_send_user_opt(&ship->sg, c->guildcard, c->cur_block->b,
+                           USER_OPT_ENABLE_BACKUP, 1, &enable);
+    c->flags &= ~(CLIENT_FLAG_AUTO_BACKUP);
+    return send_txt(c, "%s", __(c, "\tE\tC7Character backups disabled."));
+}
+
 static command_t cmds[] = {
     { "warp"     , handle_warp      },
     { "kill"     , handle_kill      },
@@ -2461,6 +2495,8 @@ static command_t cmds[] = {
     { "maps"     , handle_maps      },
     { "showmaps" , handle_showmaps  },
     { "restorebk", handle_restorebk },
+    { "enablebk" , handle_enablebk  },
+    { "disablebk", handle_disablebk },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

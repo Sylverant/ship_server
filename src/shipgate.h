@@ -481,6 +481,7 @@ static const char shipgate_login_msg[] =
 
 /* Possible values for user options */
 #define USER_OPT_QUEST_LANG     0x00000001
+#define USER_OPT_ENABLE_BACKUP  0x00000002
 
 /* Possible values for the fw_flags on a forwarded packet */
 #define FW_FLAG_PREFER_IPV6     0x00000001  /* Prefer IPv6 on reply */

@@ -68,7 +68,7 @@ static int send_raw(shipgate_conn_t *c, int len, uint8_t *sendbuf, int crypt) {
                 continue;
             }
             else if(rv <= 0) {
-                break;
+                return -1;
             }
 
             total += rv;
@@ -1621,6 +1621,20 @@ static int  handle_useropt(shipgate_conn_t *c, shipgate_user_opt_pkt *pkt) {
                         /* Only byte of the data that's used is the first one.
                            It has the language code in it. */
                         i->q_lang = opt->data[0];
+                        break;
+
+                    case USER_OPT_ENABLE_BACKUP:
+                        /* Make sure the length is right */
+                        if(length != 16) {
+                            break;
+                        }
+
+                        /* Only byte of the data that's used is the first one.
+                           It is a boolean saying whether or not to enable the
+                           auto backup feature. */
+                        if(opt->data[0]) {
+                            i->flags |= CLIENT_FLAG_AUTO_BACKUP;
+                        }
                         break;
                 }
 
