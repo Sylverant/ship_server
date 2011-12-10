@@ -713,6 +713,15 @@ static int join_game(ship_client_t *c, lobby_t *l) {
         l->highest_item[c->client_id] = (uint16_t)id;
     }
 
+    /* Try to backup their character data */
+    if(c->version != CLIENT_VERSION_BB) {
+        if(shipgate_send_cbkup(&ship->sg, c->guildcard, c->cur_block->b,
+                               c->pl->v1.name, &c->pl->v1, 1052)) {
+            /* XXXX: Should probably notify them... */
+            return rv;
+        }
+    }
+
     return rv;
 }
 

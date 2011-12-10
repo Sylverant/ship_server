@@ -276,7 +276,8 @@ static int handle_save(ship_client_t *c, const char *params) {
     slot += 4;
 
     /* Send the character data to the shipgate */
-    if(shipgate_send_cdata(&ship->sg, c->guildcard, slot, c->pl, 1052)) {
+    if(shipgate_send_cdata(&ship->sg, c->guildcard, slot, c->pl, 1052,
+                           c->cur_block->b)) {
         /* Send a message saying we couldn't save */
         return send_txt(c, "%s", __(c, "\tE\tC7Couldn't save character data."));
     }
@@ -2363,6 +2364,32 @@ static int handle_showmaps(ship_client_t *c, const char *params) {
     return send_txt(c, "%s\n%s", __(c, "\tE\tC7Maps in use:"), string);
 }
 
+/* Usage: /restorebk */
+static int handle_restorebk(ship_client_t *c, const char *params) {
+    lobby_t *l = c->cur_lobby;
+
+    /* Make sure that the requester is in a lobby lobby, not a game lobby */
+    if(l->type != LOBBY_TYPE_DEFAULT) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a "
+                                    "non-game lobby."));
+    }
+
+    /* Not valid for Blue Burst clients */
+    if(c->version == CLIENT_VERSION_BB) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Not valid on Blue Burst."));
+    }
+
+    /* Send the request to the shipgate. */
+    if(shipgate_send_cbkup_req(&ship->sg, c->guildcard, c->cur_block->b,
+                               c->pl->v1.name)) {
+        /* Send a message saying we couldn't request */
+        return send_txt(c, "%s",
+                        __(c, "\tE\tC7Couldn't request character data."));
+    }
+
+    return 0;
+}
+
 static command_t cmds[] = {
     { "warp"     , handle_warp      },
     { "kill"     , handle_kill      },
@@ -2433,6 +2460,7 @@ static command_t cmds[] = {
     { "gm"       , handle_gm        },
     { "maps"     , handle_maps      },
     { "showmaps" , handle_showmaps  },
+    { "restorebk", handle_restorebk },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

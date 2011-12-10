@@ -1710,6 +1710,7 @@ static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
                 return handle_cdata(conn, (shipgate_cdata_err_pkt *)pkt);
 
             case SHDR_TYPE_CREQ:
+            case SHDR_TYPE_CBKUP:
                 return handle_creq_err(conn, (shipgate_cdata_err_pkt *)pkt);
 
             case SHDR_TYPE_GMLOGIN:
@@ -1802,6 +1803,15 @@ static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
 
             case SHDR_TYPE_BBOPTS:
                 return handle_bbopts(conn, (shipgate_bb_opts_pkt *)pkt);
+
+            case SHDR_TYPE_CBKUP:
+                if(!(flags & SHDR_RESPONSE)) {
+                    /* We should never get a non-response version of this. */
+                    return -1;
+                }
+
+                /* No need really to notify the user. */
+                return 0;
         }
     }
 
@@ -1933,7 +1943,7 @@ int shipgate_send_pkts(shipgate_conn_t *c) {
 /* Packets are below here. */
 /* Send the shipgate a character data save request. */
 int shipgate_send_cdata(shipgate_conn_t *c, uint32_t gc, uint32_t slot,
-                        const void *cdata, int len) {
+                        const void *cdata, int len, uint32_t block) {
     uint8_t *sendbuf = get_sendbuf();
     shipgate_char_data_pkt *pkt = (shipgate_char_data_pkt *)sendbuf;
 
@@ -1951,7 +1961,7 @@ int shipgate_send_cdata(shipgate_conn_t *c, uint32_t gc, uint32_t slot,
     /* Fill in the body. */
     pkt->guildcard = htonl(gc);
     pkt->slot = htonl(slot);
-    pkt->padding = 0;
+    pkt->block = htonl(block);
     memcpy(pkt->data, cdata, len); 
 
     /* Send it away. */
@@ -2611,4 +2621,57 @@ int shipgate_send_bb_opts(shipgate_conn_t *c, ship_client_t *cl) {
 
     /* Send the packet away */
     return send_crypt(c, sizeof(shipgate_bb_opts_pkt), sendbuf);
+}
+
+/* Send the shipgate a character data backup request. */
+int shipgate_send_cbkup(shipgate_conn_t *c, uint32_t gc, uint32_t block,
+                        const char *name, const void *cdata, int len) {
+    uint8_t *sendbuf = get_sendbuf();
+    shipgate_char_bkup_pkt *pkt = (shipgate_char_bkup_pkt *)sendbuf;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Fill in the header. */
+    pkt->hdr.pkt_len = htons(sizeof(shipgate_char_bkup_pkt) + len);
+    pkt->hdr.pkt_type = htons(SHDR_TYPE_CBKUP);
+    pkt->hdr.version = pkt->hdr.reserved = 0;
+    pkt->hdr.flags = 0;
+
+    /* Fill in the body. */
+    pkt->guildcard = htonl(gc);
+    pkt->block = htonl(block);
+    strncpy((char *)pkt->name, name, 32);
+    pkt->name[31] = 0;
+    memcpy(pkt->data, cdata, len); 
+
+    /* Send it away. */
+    return send_crypt(c, sizeof(shipgate_char_bkup_pkt) + len, sendbuf);
+}
+
+/* Send the shipgate a request for character backup data. */
+int shipgate_send_cbkup_req(shipgate_conn_t *c, uint32_t gc, uint32_t block,
+                            const char *name) {
+    uint8_t *sendbuf = get_sendbuf();
+    shipgate_char_bkup_pkt *pkt = (shipgate_char_bkup_pkt *)sendbuf;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Fill in the header and the body. */
+    pkt->hdr.pkt_len = htons(sizeof(shipgate_char_bkup_pkt));
+    pkt->hdr.pkt_type = htons(SHDR_TYPE_CBKUP);
+    pkt->hdr.version = pkt->hdr.reserved = 0;
+    pkt->hdr.flags = 0;
+    pkt->guildcard = htonl(gc);
+    pkt->block = htonl(block);
+    strncpy((char *)pkt->name, name, 32);
+    pkt->name[31] = 0;
+
+    /* Send it away. */
+    return send_crypt(c, sizeof(shipgate_char_bkup_pkt), sendbuf);
 }

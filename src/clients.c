@@ -281,7 +281,8 @@ void client_destroy_connection(ship_client_t *c,
     if(c->version == CLIENT_VERSION_BB &&
        !(c->flags & CLIENT_FLAG_TYPE_SHIP)) {
         shipgate_send_cdata(&ship->sg, c->guildcard, c->sec_data.slot,
-                            c->bb_pl, sizeof(sylverant_bb_db_char_t));
+                            c->bb_pl, sizeof(sylverant_bb_db_char_t),
+                            c->cur_block->b);
         shipgate_send_bb_opts(&ship->sg, c);
     }
 
