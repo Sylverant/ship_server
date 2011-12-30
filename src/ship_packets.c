@@ -2465,6 +2465,10 @@ static int send_dc_guild_reply(ship_client_t *c, ship_client_t *s) {
         return -1;
     }
 
+    /* If they're not on a block or lobby, don't even try. */
+    if(!l || !b)
+        return 0;
+
     /* Clear it out first */
     memset(pkt, 0, DC_GUILD_REPLY_LENGTH);
 
@@ -2533,6 +2537,10 @@ static int send_pc_guild_reply(ship_client_t *c, ship_client_t *s) {
         return -1;
     }
 
+    /* If they're not on a block or lobby, don't even try. */
+    if(!l || !b)
+        return 0;
+
     /* Clear it out first */
     memset(pkt, 0, PC_GUILD_REPLY_LENGTH);
 
@@ -2575,6 +2583,10 @@ static int send_bb_guild_reply(ship_client_t *c, ship_client_t *s) {
     if(!sendbuf) {
         return -1;
     }
+
+    /* If they're not on a block or lobby, don't even try. */
+    if(!l || !b)
+        return 0;
 
     /* Clear it out first */
     memset(pkt, 0, BB_GUILD_REPLY_LENGTH);
@@ -2643,6 +2655,10 @@ static int send_dc_guild_reply6(ship_client_t *c, ship_client_t *s) {
     if(!sendbuf) {
         return -1;
     }
+
+    /* If they're not on a block or lobby, don't even try. */
+    if(!l || !b)
+        return 0;
 
     /* Clear it out first */
     memset(pkt, 0, DC_GUILD_REPLY6_LENGTH);
@@ -2713,6 +2729,10 @@ static int send_pc_guild_reply6(ship_client_t *c, ship_client_t *s) {
         return -1;
     }
 
+    /* If they're not on a block or lobby, don't even try. */
+    if(!l || !b)
+        return 0;
+
     /* Clear it out first */
     memset(pkt, 0, PC_GUILD_REPLY6_LENGTH);
 
@@ -2757,6 +2777,10 @@ static int send_bb_guild_reply6(ship_client_t *c, ship_client_t *s) {
     if(!sendbuf) {
         return -1;
     }
+
+    /* If they're not on a block or lobby, don't even try. */
+    if(!l || !b)
+        return 0;
 
     /* Clear it out first */
     memset(pkt, 0, BB_GUILD_REPLY6_LENGTH);
