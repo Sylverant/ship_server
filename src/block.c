@@ -1672,7 +1672,9 @@ static int dc_process_game_create(ship_client_t *c, dc_game_create_pkt *pkt) {
     if(join_game(c, l)) {
         /* Something broke, destroy the created lobby before anyone tries to
            join it. */
+        pthread_rwlock_wrlock(&c->cur_block->lobby_lock);
         lobby_destroy(l);
+        pthread_rwlock_unlock(&c->cur_block->lobby_lock);
     }
 
     /* All is good in the world. */
@@ -1721,7 +1723,9 @@ static int pc_process_game_create(ship_client_t *c, pc_game_create_pkt *pkt) {
     if(join_game(c, l)) {
         /* Something broke, destroy the created lobby before anyone tries to
            join it. */
+        pthread_rwlock_wrlock(&c->cur_block->lobby_lock);
         lobby_destroy(l);
+        pthread_rwlock_unlock(&c->cur_block->lobby_lock);
     }
 
     /* All is good in the world. */
@@ -1768,7 +1772,9 @@ static int gc_process_game_create(ship_client_t *c, gc_game_create_pkt *pkt) {
     if(join_game(c, l)) {
         /* Something broke, destroy the created lobby before anyone tries to
            join it. */
+        pthread_rwlock_wrlock(&c->cur_block->lobby_lock);
         lobby_destroy(l);
+        pthread_rwlock_unlock(&c->cur_block->lobby_lock);
     }
 
     /* All is good in the world. */
@@ -1801,8 +1807,10 @@ static int ep3_process_game_create(ship_client_t *c, ep3_game_create_pkt *pkt) {
        in the game. */
     if(join_game(c, l)) {
         /* Something broke, destroy the created lobby before anyone tries to
-         join it. */
+           join it. */
+        pthread_rwlock_wrlock(&c->cur_block->lobby_lock);
         lobby_destroy(l);
+        pthread_rwlock_unlock(&c->cur_block->lobby_lock);
     }
 
     /* All is good in the world. */
@@ -2207,7 +2215,9 @@ static int process_menu(ship_client_t *c, uint32_t menu_id, uint32_t item_id,
                 if(join_game(c, l)) {
                     /* Something broke, destroy the created lobby before anyone
                        tries to join it. */
+                    pthread_rwlock_wrlock(&c->cur_block->lobby_lock);
                     lobby_destroy(l);
+                    pthread_rwlock_unlock(&c->cur_block->lobby_lock);
                 }
 
                 /* All's well in the world if we get here. */

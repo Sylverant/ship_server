@@ -263,7 +263,6 @@ static void lobby_destroy_locked(lobby_t *l, int remove) {
     /* TAILQ_REMOVE may or may not be safe to use if the item was never actually
        inserted in a list, so don't remove it if it wasn't. */
     if(remove) {
-        pthread_rwlock_wrlock(&l->block->lobby_lock);
         TAILQ_REMOVE(&l->block->lobbies, l, qentry);
 
         /* Decrement the game count if it got incremented for this lobby */
@@ -271,8 +270,6 @@ static void lobby_destroy_locked(lobby_t *l, int remove) {
             --l->block->num_games;
             ship_dec_games(l->block->ship);
         }
-
-        pthread_rwlock_unlock(&l->block->lobby_lock);
     }
 
     lobby_empty_pkt_queue(l);
@@ -792,7 +789,9 @@ int lobby_change_lobby(ship_client_t *c, lobby_t *req) {
 
     /* If the old lobby is empty (and not a default lobby), remove it. */
     if(delete_lobby) {
+        pthread_rwlock_wrlock(&c->cur_block->lobby_lock);
         lobby_destroy_locked(l, 1);
+        pthread_rwlock_unlock(&c->cur_block->lobby_lock);
     }
 
     /* Send the message to the shipgate */
@@ -847,7 +846,9 @@ int lobby_remove_player(ship_client_t *c) {
     send_lobby_leave(l, c, client_id);
 
     if(delete_lobby) {
+        pthread_rwlock_wrlock(&c->cur_block->lobby_lock);
         lobby_destroy_locked(l, 1);
+        pthread_rwlock_unlock(&c->cur_block->lobby_lock);
     }
 
     c->cur_lobby = NULL;
