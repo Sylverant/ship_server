@@ -3476,13 +3476,39 @@ static int send_dc_game_list(ship_client_t *c, block_t *b) {
     pthread_rwlock_rdlock(&b->lobby_lock);
 
     TAILQ_FOREACH(l, &b->lobbies, qentry) {
+        /* Lock the lobby */
+        pthread_mutex_lock(&l->mutex);
+
         /* Ignore default lobbies and Gamecube games */
         if(l->type != LOBBY_TYPE_GAME || l->episode) {
+            pthread_mutex_unlock(&l->mutex);
             continue;
         }
 
-        /* Lock the lobby */
-        pthread_mutex_lock(&l->mutex);
+        /* Don't show v2-only lobbies to v1 players */
+        if(c->version == CLIENT_VERSION_DCV1 && l->v2) {
+            pthread_mutex_unlock(&l->mutex);
+            continue;
+        }
+
+        /* Don't show v1-only lobbies to v2 players */
+        if(c->version == CLIENT_VERSION_DCV2 &&
+           (l->flags & LOBBY_FLAG_V1ONLY)) {
+            pthread_mutex_unlock(&l->mutex);
+            continue;
+        }
+
+        /* Don't show pc-only lobbies to dc players */
+        if((l->flags & LOBBY_FLAG_PCONLY)) {
+            pthread_mutex_unlock(&l->mutex);
+            continue;
+        }
+
+        /* Don't bother showing single-player lobbies */
+        if((l->flags & LOBBY_FLAG_SINGLEPLAYER)) {
+            pthread_mutex_unlock(&l->mutex);
+            continue;
+        }
 
         /* Clear the entry */
         memset(pkt->entries + entries, 0, 0x1C);
@@ -3551,13 +3577,26 @@ static int send_pc_game_list(ship_client_t *c, block_t *b) {
     pthread_rwlock_rdlock(&b->lobby_lock);
 
     TAILQ_FOREACH(l, &b->lobbies, qentry) {
+        /* Lock the lobby */
+        pthread_mutex_lock(&l->mutex);
+
         /* Ignore default lobbies and Gamecube games */
         if(l->type != LOBBY_TYPE_GAME || l->episode) {
+            pthread_mutex_unlock(&l->mutex);
             continue;
         }
 
-        /* Lock the lobby */
-        pthread_mutex_lock(&l->mutex);
+        /* Don't show v1-only or dc-only lobbies */
+        if((l->flags & LOBBY_FLAG_V1ONLY) || (l->flags & LOBBY_FLAG_DCONLY)) {
+            pthread_mutex_unlock(&l->mutex);
+            continue;
+        }
+
+        /* Don't bother showing single-player lobbies */
+        if((l->flags & LOBBY_FLAG_SINGLEPLAYER)) {
+            pthread_mutex_unlock(&l->mutex);
+            continue;
+        }
 
         /* Clear the entry */
         memset(pkt->entries + entries, 0, 0x2C);
@@ -3620,20 +3659,28 @@ static int send_gc_game_list(ship_client_t *c, block_t *b) {
     pthread_rwlock_rdlock(&b->lobby_lock);
 
     TAILQ_FOREACH(l, &b->lobbies, qentry) {
+        /* Lock the lobby */
+        pthread_mutex_lock(&l->mutex);
+
         /* Ignore default lobbies */
         if(l->type != LOBBY_TYPE_GAME) {
+            pthread_mutex_unlock(&l->mutex);
             continue;
         }
-
+        
         /* Ignore DC/PC games if the user hasn't set the flag to show them or
            the lobby doesn't have the right flag set */
         if(!l->episode && (!(c->flags & CLIENT_FLAG_SHOW_DCPC_ON_GC) ||
                            !(l->flags & LOBBY_FLAG_GC_ALLOWED))) {
+            pthread_mutex_unlock(&l->mutex);
             continue;
         }
 
-        /* Lock the lobby */
-        pthread_mutex_lock(&l->mutex);
+        /* Don't bother showing single-player lobbies */
+        if((l->flags & LOBBY_FLAG_SINGLEPLAYER)) {
+            pthread_mutex_unlock(&l->mutex);
+            continue;
+        }
 
         /* Clear the entry */
         memset(pkt->entries + entries, 0, 0x1C);
@@ -3699,13 +3746,14 @@ static int send_ep3_game_list(ship_client_t *c, block_t *b) {
     pthread_rwlock_rdlock(&b->lobby_lock);
 
     TAILQ_FOREACH(l, &b->lobbies, qentry) {
-        /* Ignore non-Episode 3 and default lobbies */
-        if(l->type != LOBBY_TYPE_EP3_GAME) {
-            continue;
-        }
-
         /* Lock the lobby */
         pthread_mutex_lock(&l->mutex);
+
+        /* Ignore non-Episode 3 and default lobbies */
+        if(l->type != LOBBY_TYPE_EP3_GAME) {
+            pthread_mutex_unlock(&l->mutex);
+            continue;
+        }
 
         /* Clear the entry */
         memset(pkt->entries + entries, 0, 0x1C);
