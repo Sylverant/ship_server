@@ -79,7 +79,7 @@ static void *block_thd(void *d) {
         now = time(NULL);
 
         /* Fill the sockets into the fd_sets so we can use select below. */
-        pthread_mutex_lock(&b->mutex);
+        pthread_rwlock_rdlock(&b->lock);
 
         TAILQ_FOREACH(it, b->clients, qentry) {
             /* If we haven't heard from a client in 2 minutes, its dead.
@@ -118,6 +118,8 @@ static void *block_thd(void *d) {
             nfds = nfds > it->sock ? nfds : it->sock;
         }
 
+        pthread_rwlock_unlock(&b->lock);
+
         /* Add the listening sockets to the read fd_set. */
         for(i = 0; i < numsocks; ++i) {
             FD_SET(b->dcsock[i], &readfds);
@@ -134,13 +136,9 @@ static void *block_thd(void *d) {
 
         FD_SET(b->pipes[1], &readfds);
         nfds = nfds > b->pipes[1] ? nfds : b->pipes[1];
-
-        pthread_mutex_unlock(&b->mutex);
         
         /* Wait for some activity... */
         if(select(nfds + 1, &readfds, &writefds, NULL, &timeout) > 0) {
-            pthread_mutex_lock(&b->mutex);
-
             if(FD_ISSET(b->pipes[1], &readfds)) {
                 read(b->pipes[1], &len, 1);
             }
@@ -232,6 +230,8 @@ static void *block_thd(void *d) {
                 }
             }
 
+            pthread_rwlock_rdlock(&b->lock);
+
             /* Process client connections. */
             TAILQ_FOREACH(it, b->clients, qentry) {
                 pthread_mutex_lock(&it->mutex);
@@ -277,11 +277,14 @@ static void *block_thd(void *d) {
 
                 pthread_mutex_unlock(&it->mutex);
             }
+
+            pthread_rwlock_unlock(&b->lock);
         }
 
         /* Clean up any dead connections (its not safe to do a TAILQ_REMOVE
            in the middle of a TAILQ_FOREACH, and client_destroy_connection
            does indeed use TAILQ_REMOVE). */
+        pthread_rwlock_wrlock(&b->lock);
         it = TAILQ_FIRST(b->clients);
         while(it) {
             tmp = TAILQ_NEXT(it, qentry);
@@ -302,12 +305,13 @@ static void *block_thd(void *d) {
                    them, or else bad things might happen. */
                 lobby_remove_player(it);
                 client_destroy_connection(it, b->clients);
+                --b->num_clients;
             }
 
             it = tmp;
         }
 
-        pthread_mutex_unlock(&b->mutex);
+        pthread_rwlock_unlock(&b->lock);
     }
 
     pthread_exit(NULL);
@@ -319,7 +323,6 @@ block_t *block_server_start(ship_t *s, int b, uint16_t port) {
     int gcsock[2] = { -1, -1 }, ep3sock[2] = { -1, -1 };
     int bbsock[2] = { -1, -1 }, i;
     lobby_t *l, *l2;
-    pthread_mutexattr_t attr;
 
     debug(DBG_LOG, "%s: Starting server for block %d...\n", s->cfg->name, b);
 
@@ -435,11 +438,9 @@ block_t *block_server_start(ship_t *s, int b, uint16_t port) {
         TAILQ_INSERT_TAIL(&rv->lobbies, l, qentry);
     }
 
-    /* Create the mutex */
-    pthread_mutexattr_init(&attr);
-    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-    pthread_mutex_init(&rv->mutex, &attr);
-    pthread_mutexattr_destroy(&attr);
+    /* Create the reader-writer locks */
+    pthread_rwlock_init(&rv->lock, NULL);
+    pthread_rwlock_init(&rv->lobby_lock, NULL);
 
     /* Start up the thread for this block. */
     if(pthread_create(&rv->thd, NULL, &block_thd, rv)) {
@@ -458,7 +459,8 @@ err_lobbies:
         l2 = l;
     }
 
-    pthread_mutex_destroy(&rv->mutex);
+    pthread_rwlock_destroy(&rv->lock);
+    pthread_rwlock_destroy(&rv->lobby_lock);
     free(rv->clients);
 err_pipes:
     close(rv->pipes[0]);
@@ -506,24 +508,7 @@ void block_server_stop(block_t *b) {
     /* Wait for it to die. */
     pthread_join(b->thd, NULL);
 
-    /* Disconnect any clients. */
-    it = TAILQ_FIRST(b->clients);
-    while(it) {
-        tmp = TAILQ_NEXT(it, qentry);
-        client_destroy_connection(it, b->clients);        
-        it = tmp;
-    }
-
-    /* Destroy the lobbies that exist. */
-    it2 = TAILQ_FIRST(&b->lobbies);
-    while(it2) {
-        tmp2 = TAILQ_NEXT(it2, qentry);
-        lobby_destroy(it2);
-        it2 = tmp2;
-    }
-
-    /* Free the block structure. */
-    pthread_mutex_destroy(&b->mutex);
+    /* Close all the sockets so nobody can connect... */
     close(b->pipes[0]);
     close(b->pipes[1]);
     close(b->dcsock[0]);
@@ -540,6 +525,35 @@ void block_server_stop(block_t *b) {
         close(b->bbsock[1]);
     }
 #endif
+
+    /* Disconnect any clients. */
+    pthread_rwlock_wrlock(&b->lock);
+
+    it = TAILQ_FIRST(b->clients);
+    while(it) {
+        tmp = TAILQ_NEXT(it, qentry);
+        client_destroy_connection(it, b->clients);        
+        it = tmp;
+    }
+
+    pthread_rwlock_unlock(&b->lock);
+
+    /* Destroy the lobbies that exist. */
+    pthread_rwlock_wrlock(&b->lobby_lock);
+
+    it2 = TAILQ_FIRST(&b->lobbies);
+    while(it2) {
+        tmp2 = TAILQ_NEXT(it2, qentry);
+        lobby_destroy(it2);
+        it2 = tmp2;
+    }
+
+    pthread_rwlock_unlock(&b->lobby_lock);
+
+    /* Finish with our cleanup... */
+    pthread_rwlock_destroy(&b->lobby_lock);
+    pthread_rwlock_destroy(&b->lock);
+
     free(b->clients);
     free(b);
 }
@@ -547,9 +561,7 @@ void block_server_stop(block_t *b) {
 int block_info_reply(ship_client_t *c, uint32_t block) {
     block_t *b;
     char string[256];
-    int games = 0, players = 0;
-    lobby_t *i;
-    ship_client_t *i2;
+    int players, games;
 
     /* Make sure the block selected is in range. */
     if(block > ship->cfg->blocks) {
@@ -557,42 +569,25 @@ int block_info_reply(ship_client_t *c, uint32_t block) {
     }
 
     /* Make sure that block is up and running. */
-    if(ship->blocks[block - 1] == NULL  || ship->blocks[block - 1]->run == 0) {
+    if(ship->blocks[block - 1] == NULL || ship->blocks[block - 1]->run == 0) {
         return 0;
     }
 
     /* Grab the block in question */
     b = ship->blocks[block - 1];
 
-    pthread_mutex_lock(&b->mutex);
+    /* Grab the stats from the block structure */
+    pthread_rwlock_rdlock(&b->lobby_lock);
+    games = b->num_games;
+    pthread_rwlock_unlock(&b->lobby_lock);
 
-    /* Determine the number of games currently active. */
-    TAILQ_FOREACH(i, &b->lobbies, qentry) {
-        pthread_mutex_lock(&i->mutex);
-
-        if(i->type != LOBBY_TYPE_DEFAULT) {
-            ++games;
-        }
-
-        pthread_mutex_unlock(&i->mutex);
-    }
-
-    /* And the number of players active. */
-    TAILQ_FOREACH(i2, b->clients, qentry) {
-        pthread_mutex_lock(&i2->mutex);
-
-        if(i2->pl) {
-            ++players;
-        }
-
-        pthread_mutex_unlock(&i2->mutex);
-    }
-
-    pthread_mutex_unlock(&b->mutex);
+    pthread_rwlock_rdlock(&b->lock);
+    players = b->num_clients;
+    pthread_rwlock_unlock(&b->lock);
 
     /* Fill in the string. */
-    sprintf(string, "BLOCK%02d\n%d %s\n%d %s", b->b, players,
-            __(c, "Users"), games, __(c, "Teams"));
+    snprintf(string, 256, "BLOCK%02d\n%d %s\n%d %s", b->b, players,
+             __(c, "Users"), games, __(c, "Teams"));
 
     /* Send the information away. */
     return send_info_reply(c, string);
@@ -1046,7 +1041,7 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
 
             /* Set up to send the Message of the Day if we have one and the
                client hasn't already gotten it this session.
-               XXXX: Disabled for Gamecube, for now (due to bugginess). */
+               Disabled for Gamecube, due to bugginess (of the game). */
             if(c->version != CLIENT_VERSION_GC &&
                c->version != CLIENT_VERSION_EP3) {
                 send_simple(c, PING_TYPE, 0);
@@ -1143,6 +1138,8 @@ static int process_change_lobby(ship_client_t *c, uint32_t item_id) {
     lobby_t *i, *req = NULL;
     int rv;
 
+    pthread_rwlock_rdlock(&c->cur_block->lobby_lock);
+
     TAILQ_FOREACH(i, &c->cur_block->lobbies, qentry) {
         if(i->lobby_id == item_id) {
             req = i;
@@ -1152,11 +1149,14 @@ static int process_change_lobby(ship_client_t *c, uint32_t item_id) {
 
     /* The requested lobby is non-existant? What to do... */
     if(req == NULL) {
+        pthread_rwlock_unlock(&c->cur_block->lobby_lock);
         return send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't Change lobby!"),
                              __(c, "\tC7The lobby is non-\nexistant."));
     }
 
     rv = lobby_change_lobby(c, req);
+
+    pthread_rwlock_unlock(&c->cur_block->lobby_lock);
 
     if(rv == -1) {
         return send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't Change lobby!"),
@@ -1302,7 +1302,7 @@ static int dc_process_guild_search(ship_client_t *c, dc_guild_search_pkt *pkt) {
             continue;
         }
 
-        pthread_mutex_lock(&ship->blocks[i]->mutex);
+        pthread_rwlock_rdlock(&ship->blocks[i]->lock);
 
         /* Look through all clients on that block. */
         TAILQ_FOREACH(it, ship->blocks[i]->clients, qentry) {
@@ -1334,7 +1334,7 @@ static int dc_process_guild_search(ship_client_t *c, dc_guild_search_pkt *pkt) {
                 break;
         }
 
-        pthread_mutex_unlock(&ship->blocks[i]->mutex);
+        pthread_rwlock_unlock(&ship->blocks[i]->lock);
     }
 
     /* If we get here, we didn't find it locally. Send to the shipgate to
@@ -1365,7 +1365,7 @@ static int bb_process_guild_search(ship_client_t *c, bb_guild_search_pkt *pkt) {
             continue;
         }
 
-        pthread_mutex_lock(&ship->blocks[i]->mutex);
+        pthread_rwlock_rdlock(&ship->blocks[i]->lock);
 
         /* Look through all clients on that block. */
         TAILQ_FOREACH(it, ship->blocks[i]->clients, qentry) {
@@ -1397,7 +1397,7 @@ static int bb_process_guild_search(ship_client_t *c, bb_guild_search_pkt *pkt) {
                 break;
         }
 
-        pthread_mutex_unlock(&ship->blocks[i]->mutex);
+        pthread_rwlock_unlock(&ship->blocks[i]->lock);
     }
 
     /* If we get here, we didn't find it locally. Send to the shipgate to
@@ -1438,7 +1438,7 @@ static int dc_process_mail(ship_client_t *c, dc_simple_mail_pkt *pkt) {
             continue;
         }
 
-        pthread_mutex_lock(&ship->blocks[i]->mutex);
+        pthread_rwlock_rdlock(&ship->blocks[i]->lock);
 
         /* Look through all clients on that block. */
         TAILQ_FOREACH(it, ship->blocks[i]->clients, qentry) {
@@ -1476,7 +1476,7 @@ static int dc_process_mail(ship_client_t *c, dc_simple_mail_pkt *pkt) {
             }
         }
 
-        pthread_mutex_unlock(&ship->blocks[i]->mutex);
+        pthread_rwlock_unlock(&ship->blocks[i]->lock);
     }
 
     if(!done) {
@@ -1511,7 +1511,7 @@ static int pc_process_mail(ship_client_t *c, pc_simple_mail_pkt *pkt) {
             continue;
         }
 
-        pthread_mutex_lock(&ship->blocks[i]->mutex);
+        pthread_rwlock_rdlock(&ship->blocks[i]->lock);
 
         /* Look through all clients on that block. */
         TAILQ_FOREACH(it, ship->blocks[i]->clients, qentry) {
@@ -1548,7 +1548,7 @@ static int pc_process_mail(ship_client_t *c, pc_simple_mail_pkt *pkt) {
             }
         }
 
-        pthread_mutex_unlock(&ship->blocks[i]->mutex);
+        pthread_rwlock_unlock(&ship->blocks[i]->lock);
     }
 
     if(!done) {
@@ -1583,7 +1583,7 @@ static int bb_process_mail(ship_client_t *c, bb_simple_mail_pkt *pkt) {
             continue;
         }
 
-        pthread_mutex_lock(&ship->blocks[i]->mutex);
+        pthread_rwlock_rdlock(&ship->blocks[i]->lock);
 
         /* Look through all clients on that block. */
         TAILQ_FOREACH(it, ship->blocks[i]->clients, qentry) {
@@ -1620,7 +1620,7 @@ static int bb_process_mail(ship_client_t *c, bb_simple_mail_pkt *pkt) {
             }
         }
 
-        pthread_mutex_unlock(&ship->blocks[i]->mutex);
+        pthread_rwlock_unlock(&ship->blocks[i]->lock);
     }
 
     if(!done) {
@@ -2196,8 +2196,11 @@ static int process_menu(ship_client_t *c, uint32_t menu_id, uint32_t item_id,
                 }
 
                 /* Add the lobby to the list of lobbies on the block. */
+                pthread_rwlock_wrlock(&c->cur_block->lobby_lock);
                 TAILQ_INSERT_TAIL(&c->cur_block->lobbies, l, qentry);
                 ship_inc_games(ship);
+                ++c->cur_block->num_games;
+                pthread_rwlock_unlock(&c->cur_block->lobby_lock);
                 c->create_lobby = NULL;
 
                 /* Add the user to the lobby... */

@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -56,7 +56,7 @@ static int dont_daemonize = 0;
 static void print_program_info(void) {
     printf("Sylverant Ship Server version %s\n", VERSION);
     printf("SVN Revision: %s\n", SVN_REVISION);
-    printf("Copyright (C) 2009, 2010, 2011 Lawrence Sebald\n\n");
+    printf("Copyright (C) 2009, 2010, 2011, 2012 Lawrence Sebald\n\n");
     printf("This program is free software: you can redistribute it and/or\n"
            "modify it under the terms of the GNU Affero General Public\n"
            "License version 3 as published by the Free Software Foundation.\n\n"

@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -328,39 +328,20 @@ static int handle_restore(ship_client_t *c, const char *params) {
 /* Usage: /bstat */
 static int handle_bstat(ship_client_t *c, const char *params) {
     block_t *b = c->cur_block;
-    lobby_t *i;
-    ship_client_t *i2;
-    int games = 0, players = 0;
+    int games, players;
 
-    pthread_mutex_lock(&b->mutex);
+    /* Grab the stats from the block structure */
+    pthread_rwlock_rdlock(&b->lobby_lock);
+    games = b->num_games;
+    pthread_rwlock_unlock(&b->lobby_lock);
 
-    /* Determine the number of games currently active. */
-    TAILQ_FOREACH(i, &b->lobbies, qentry) {
-        pthread_mutex_lock(&i->mutex);
-
-        if(i->type != LOBBY_TYPE_DEFAULT) {
-            ++games;
-        }
-
-        pthread_mutex_unlock(&i->mutex);
-    }
-
-    /* And the number of players active. */
-    TAILQ_FOREACH(i2, b->clients, qentry) {
-        pthread_mutex_lock(&i2->mutex);
-
-        if(i2->pl) {
-            ++players;
-        }
-
-        pthread_mutex_unlock(&i2->mutex);
-    }
-
-    pthread_mutex_unlock(&b->mutex);
+    pthread_rwlock_rdlock(&b->lock);
+    players = b->num_clients;
+    pthread_rwlock_unlock(&b->lock);
 
     /* Fill in the string. */
-    return send_txt(c, "\tE\tC7BLOCK%02d:\n%d %s\n%d %s", b->b,
-                    players, __(c, "Users"), games, __(c, "Teams"));
+    return send_txt(c, "\tE\tC7BLOCK%02d:\n%d %s\n%d %s", b->b, players,
+                    __(c, "Users"), games, __(c, "Teams"));
 }
 
 /* Usage /bcast message */
@@ -417,8 +398,8 @@ static int handle_login(ship_client_t *c, const char *params) {
     password[len] = '\0';
 
     /* We'll get success/failure later from the shipgate. */
-    return shipgate_send_gmlogin(&ship->sg, c->guildcard,
-                                 c->cur_block->b, username, password);
+    return shipgate_send_gmlogin(&ship->sg, c->guildcard, c->cur_block->b,
+                                 username, password);
 }
 
 /* Usage /item item1,item2,item3,item4 */
@@ -1855,7 +1836,7 @@ static int handle_ban_d(ship_client_t *c, const char *params) {
     /* Look for the requested user and kick them if they're on the ship. */
     for(j = 0; j < ship->cfg->blocks; ++j) {
         if((b = ship->blocks[j])) {
-            pthread_mutex_lock(&b->mutex);
+            pthread_rwlock_rdlock(&b->lock);
 
             TAILQ_FOREACH(i, b->clients, qentry) {
                 /* Disconnect them if we find them */
@@ -1878,7 +1859,7 @@ static int handle_ban_d(ship_client_t *c, const char *params) {
                 }
             }
 
-            pthread_mutex_unlock(&b->mutex);
+            pthread_rwlock_unlock(&b->lock);
         }
     }
 
@@ -1915,7 +1896,7 @@ static int handle_ban_w(ship_client_t *c, const char *params) {
     /* Look for the requested user and kick them if they're on the ship. */
     for(j = 0; j < ship->cfg->blocks; ++j) {
         if((b = ship->blocks[j])) {
-            pthread_mutex_lock(&b->mutex);
+            pthread_rwlock_rdlock(&b->lock);
 
             TAILQ_FOREACH(i, b->clients, qentry) {
                 /* Disconnect them if we find them */
@@ -1938,7 +1919,7 @@ static int handle_ban_w(ship_client_t *c, const char *params) {
                 }
             }
 
-            pthread_mutex_unlock(&b->mutex);
+            pthread_rwlock_unlock(&b->lock);
         }
     }
 
@@ -1976,7 +1957,7 @@ static int handle_ban_m(ship_client_t *c, const char *params) {
     /* Look for the requested user and kick them if they're on the ship. */
     for(j = 0; j < ship->cfg->blocks; ++j) {
         if((b = ship->blocks[j])) {
-            pthread_mutex_lock(&b->mutex);
+            pthread_rwlock_rdlock(&b->lock);
 
             TAILQ_FOREACH(i, b->clients, qentry) {
                 /* Disconnect them if we find them */
@@ -1999,7 +1980,7 @@ static int handle_ban_m(ship_client_t *c, const char *params) {
                 }
             }
 
-            pthread_mutex_unlock(&b->mutex);
+            pthread_rwlock_unlock(&b->lock);
         }
     }
 
@@ -2036,7 +2017,7 @@ static int handle_ban_p(ship_client_t *c, const char *params) {
     /* Look for the requested user and kick them if they're on the ship. */
     for(j = 0; j < ship->cfg->blocks; ++j) {
         if((b = ship->blocks[j])) {
-            pthread_mutex_lock(&b->mutex);
+            pthread_rwlock_rdlock(&b->lock);
 
             TAILQ_FOREACH(i, b->clients, qentry) {
                 /* Disconnect them if we find them */
@@ -2059,7 +2040,7 @@ static int handle_ban_p(ship_client_t *c, const char *params) {
                 }
             }
 
-            pthread_mutex_unlock(&b->mutex);
+            pthread_rwlock_unlock(&b->lock);
         }
     }
 

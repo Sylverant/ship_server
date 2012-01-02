@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -174,7 +174,11 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
 
     /* Add it to the list of lobbies, and increment the game count. */
     if(version != CLIENT_VERSION_PC || battle || chal || difficulty == 3) {
+        pthread_rwlock_wrlock(&block->lobby_lock);
         TAILQ_INSERT_TAIL(&block->lobbies, l, qentry);
+        ++block->num_games;
+        pthread_rwlock_unlock(&block->lobby_lock);
+
         ship_inc_games(block->ship);
     }
 
@@ -234,7 +238,10 @@ lobby_t *lobby_create_ep3_game(block_t *block, char *name, char *passwd,
     pthread_mutex_init(&l->mutex, NULL);
 
     /* Add it to the list of lobbies, and increment the game count. */
+    pthread_rwlock_wrlock(&block->lobby_lock);
     TAILQ_INSERT_TAIL(&block->lobbies, l, qentry);
+    ++block->num_games;
+    pthread_rwlock_unlock(&block->lobby_lock);
     ship_inc_games(block->ship);
 
     return l;
@@ -256,12 +263,16 @@ static void lobby_destroy_locked(lobby_t *l, int remove) {
     /* TAILQ_REMOVE may or may not be safe to use if the item was never actually
        inserted in a list, so don't remove it if it wasn't. */
     if(remove) {
+        pthread_rwlock_wrlock(&l->block->lobby_lock);
         TAILQ_REMOVE(&l->block->lobbies, l, qentry);
 
         /* Decrement the game count if it got incremented for this lobby */
         if(l->type != LOBBY_TYPE_DEFAULT) {
+            --l->block->num_games;
             ship_dec_games(l->block->ship);
         }
+
+        pthread_rwlock_unlock(&l->block->lobby_lock);
     }
 
     lobby_empty_pkt_queue(l);

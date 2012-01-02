@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2010, 2011 Lawrence Sebald
+    Copyright (C) 2010, 2011, 2012 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -61,7 +61,7 @@ static int pllist_ship(ship_client_t *c, const char *name, int first,
         }
 
         b = ship->blocks[i];
-        pthread_mutex_lock(&b->mutex);
+        pthread_rwlock_rdlock(&b->lock);
 
         /* Go through everyone in the block looking for any matches. */
         TAILQ_FOREACH(c2, b->clients, qentry) {
@@ -116,7 +116,7 @@ static int pllist_ship(ship_client_t *c, const char *name, int first,
             }
         }
 
-        pthread_mutex_unlock(&b->mutex);
+        pthread_rwlock_unlock(&b->lock);
     }
 
     /* Clean up the regular expression */
@@ -150,6 +150,8 @@ static int pllist_block(ship_client_t *c, const char *name, int first,
     }
 
     strcpy(str, "\tE");
+
+    pthread_rwlock_rdlock(&b->lock);
 
     /* Go through everyone in the block looking for any matches. */
     TAILQ_FOREACH(c2, b->clients, qentry) {
@@ -203,6 +205,8 @@ static int pllist_block(ship_client_t *c, const char *name, int first,
             break;
         }
     }
+
+    pthread_rwlock_unlock(&b->lock);
 
     /* Clean up the regular expression */
     if(name) {

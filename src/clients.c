@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -246,7 +246,16 @@ ship_client_t *client_create_connection(int sock, int version, int type,
     }
 
     /* Insert it at the end of our list, and we're done. */
-    TAILQ_INSERT_TAIL(clients, rv, qentry);
+    if(type == CLIENT_TYPE_BLOCK) {
+        pthread_rwlock_wrlock(&block->lock);
+        TAILQ_INSERT_TAIL(clients, rv, qentry);
+        ++block->num_clients;
+        pthread_rwlock_unlock(&block->lock);
+    }
+    else {
+        TAILQ_INSERT_TAIL(clients, rv, qentry);
+    }
+
     ship_inc_clients(ship);
 
     return rv;
@@ -269,7 +278,8 @@ err:
     return NULL;
 }
 
-/* Destroy a connection, closing the socket and removing it from the list. */
+/* Destroy a connection, closing the socket and removing it from the list. This
+   must always be called with the appropriate lock held for the list! */
 void client_destroy_connection(ship_client_t *c,
                                struct client_queue *clients) {
     time_t now;

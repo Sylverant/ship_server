@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -43,7 +43,7 @@ int kill_guildcard(ship_client_t *c, uint32_t gc, const char *reason) {
         b = ship->blocks[j];
 
         if(b && b->run) {
-            pthread_mutex_lock(&b->mutex);
+            pthread_rwlock_rdlock(&b->lock);
 
             /* Look for the requested user */
             TAILQ_FOREACH(i, b->clients, qentry) {
@@ -53,7 +53,7 @@ int kill_guildcard(ship_client_t *c, uint32_t gc, const char *reason) {
                 if(i->guildcard == gc) {
                     if(c->privilege <= i->privilege) {
                         pthread_mutex_unlock(&i->mutex);
-                        pthread_mutex_unlock(&b->mutex);
+                        pthread_rwlock_unlock(&b->lock);
                         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
                     }
 
@@ -71,14 +71,14 @@ int kill_guildcard(ship_client_t *c, uint32_t gc, const char *reason) {
 
                     i->flags |= CLIENT_FLAG_DISCONNECTED;
                     pthread_mutex_unlock(&i->mutex);
-                    pthread_mutex_unlock(&b->mutex);
+                    pthread_rwlock_unlock(&b->lock);
                     return 0;
                 }
 
                 pthread_mutex_unlock(&i->mutex);
             }
 
-            pthread_mutex_unlock(&b->mutex);
+            pthread_rwlock_unlock(&b->lock);
         }
     }
 
@@ -228,7 +228,7 @@ int broadcast_message(ship_client_t *c, const char *message, int prefix) {
         b = ship->blocks[i];
 
         if(b && b->run) {
-            pthread_mutex_lock(&b->mutex);
+            pthread_rwlock_rdlock(&b->lock);
 
             /* Send the message to each player. */
             TAILQ_FOREACH(i2, b->clients, qentry) {
@@ -245,7 +245,7 @@ int broadcast_message(ship_client_t *c, const char *message, int prefix) {
                 pthread_mutex_unlock(&i2->mutex);
             }
 
-            pthread_mutex_unlock(&b->mutex);
+            pthread_rwlock_unlock(&b->lock);
         }
     }
 
@@ -268,7 +268,7 @@ int schedule_shutdown(ship_client_t *c, uint32_t when, int restart, msgfunc f) {
         b = ship->blocks[i];
 
         if(b && b->run) {
-            pthread_mutex_lock(&b->mutex);
+            pthread_rwlock_rdlock(&b->lock);
 
             /* Send the message to each player. */
             TAILQ_FOREACH(i2, b->clients, qentry) {
@@ -306,7 +306,7 @@ int schedule_shutdown(ship_client_t *c, uint32_t when, int restart, msgfunc f) {
                 pthread_mutex_unlock(&i2->mutex);
             }
 
-            pthread_mutex_unlock(&b->mutex);
+            pthread_rwlock_unlock(&b->lock);
         }
     }
 
@@ -343,7 +343,7 @@ int global_ban(ship_client_t *c, uint32_t gc, uint32_t l, const char *reason) {
         b = ship->blocks[j];
 
         if(b && b->run) {
-            pthread_mutex_lock(&b->mutex);
+            pthread_rwlock_rdlock(&b->lock);
 
             TAILQ_FOREACH(i, b->clients, qentry) {
                 /* Disconnect them if we find them */
@@ -355,7 +355,7 @@ int global_ban(ship_client_t *c, uint32_t gc, uint32_t l, const char *reason) {
                        most cases anyway) */
                     if(c->privilege <= i->privilege) {
                         pthread_mutex_unlock(&i->mutex);
-                        pthread_mutex_unlock(&b->mutex);
+                        pthread_rwlock_unlock(&b->lock);
                         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
                     }
 
@@ -408,14 +408,14 @@ int global_ban(ship_client_t *c, uint32_t gc, uint32_t l, const char *reason) {
                     /* The ban setter will get a message telling them the ban has been
                        set (or an error happened). */
                     pthread_mutex_unlock(&i->mutex);
-                    pthread_mutex_unlock(&b->mutex);
+                    pthread_rwlock_unlock(&b->lock);
                     return 0;
                 }
 
                 pthread_mutex_unlock(&i->mutex);
             }
 
-            pthread_mutex_unlock(&b->mutex);
+            pthread_rwlock_unlock(&b->lock);
         }
     }
 

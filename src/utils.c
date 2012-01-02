@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -636,7 +636,7 @@ void update_lobby_event(void) {
         b = ship->blocks[i];
 
         if(b && b->run) {
-            pthread_mutex_lock(&b->mutex);
+            pthread_rwlock_rdlock(&b->lobby_lock);
 
             /* ... and set the event code on each default lobby. */
             TAILQ_FOREACH(l, &b->lobbies, qentry) {
@@ -663,7 +663,7 @@ void update_lobby_event(void) {
                 pthread_mutex_unlock(&l->mutex);
             }
 
-            pthread_mutex_unlock(&b->mutex);
+            pthread_rwlock_unlock(&b->lobby_lock);
         }
     }
 }

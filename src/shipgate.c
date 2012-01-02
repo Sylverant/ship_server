@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -38,12 +38,6 @@
 /* TLS stuff -- from ship_server.c */
 extern gnutls_certificate_credentials_t tls_cred;
 extern gnutls_priority_t tls_prio;
-
-/* Forward declaration */
-static int send_greply(shipgate_conn_t *c, uint32_t gc1, uint32_t gc2,
-                       in_addr_t ip, uint16_t port, const char *game, int block,
-                       const char *ship, uint32_t lobby, const char *name,
-                       uint32_t sid);
 
 static inline ssize_t sg_recv(shipgate_conn_t *c, void *buffer, size_t len) {
     return gnutls_record_recv(c->session, buffer, len);
@@ -313,7 +307,7 @@ static int handle_dc_greply(shipgate_conn_t *conn, dc_guild_reply_pkt *pkt) {
     for(i = 0; i < s->cfg->blocks && !done; ++i) {
         if(s->blocks[i]) {
             b = s->blocks[i];
-            pthread_mutex_lock(&b->mutex);
+            pthread_rwlock_rdlock(&b->lock);
 
             TAILQ_FOREACH(c, b->clients, qentry) {
                 pthread_mutex_lock(&c->mutex);
@@ -340,7 +334,7 @@ static int handle_dc_greply(shipgate_conn_t *conn, dc_guild_reply_pkt *pkt) {
                 }
             }
 
-            pthread_mutex_unlock(&b->mutex);
+            pthread_rwlock_unlock(&b->lock);
         }
     }
 
@@ -359,7 +353,7 @@ static int handle_bb_greply(shipgate_conn_t *conn, bb_guild_reply_pkt *pkt,
     }
 
     b = ship->blocks[block - 1];
-    pthread_mutex_lock(&b->mutex);
+    pthread_rwlock_rdlock(&b->lock);
 
     /* Look for the client */
     TAILQ_FOREACH(c, b->clients, qentry) {
@@ -368,14 +362,14 @@ static int handle_bb_greply(shipgate_conn_t *conn, bb_guild_reply_pkt *pkt,
         if(c->guildcard == dest) {
             send_pkt_bb(c, (bb_pkt_hdr_t *)pkt);
             pthread_mutex_unlock(&c->mutex);
-            pthread_mutex_unlock(&b->mutex);
+            pthread_rwlock_unlock(&b->lock);
             return 0;
         }
 
         pthread_mutex_unlock(&c->mutex);
     }
 
-    pthread_mutex_unlock(&b->mutex);
+    pthread_rwlock_unlock(&b->lock);
 
     return 0;
 }
@@ -469,7 +463,7 @@ static int handle_dc_mail(shipgate_conn_t *conn, dc_simple_mail_pkt *pkt) {
     for(i = 0; i < s->cfg->blocks && !done; ++i) {
         if(s->blocks[i]) {
             b = s->blocks[i];
-            pthread_mutex_lock(&b->mutex);
+            pthread_rwlock_rdlock(&b->lock);
 
             TAILQ_FOREACH(c, b->clients, qentry) {
                 pthread_mutex_lock(&c->mutex);
@@ -498,12 +492,11 @@ static int handle_dc_mail(shipgate_conn_t *conn, dc_simple_mail_pkt *pkt) {
                 pthread_mutex_unlock(&c->mutex);
 
                 if(done) {
-                    pthread_mutex_unlock(&b->mutex);
                     break;
                 }
             }
 
-            pthread_mutex_unlock(&b->mutex);
+            pthread_rwlock_unlock(&b->lock);
         }
     }
 
@@ -522,7 +515,7 @@ static int handle_pc_mail(shipgate_conn_t *conn, pc_simple_mail_pkt *pkt) {
     for(i = 0; i < s->cfg->blocks && !done; ++i) {
         if(s->blocks[i]) {
             b = s->blocks[i];
-            pthread_mutex_lock(&b->mutex);
+            pthread_rwlock_rdlock(&b->lock);
 
             TAILQ_FOREACH(c, b->clients, qentry) {
                 pthread_mutex_lock(&c->mutex);
@@ -551,12 +544,11 @@ static int handle_pc_mail(shipgate_conn_t *conn, pc_simple_mail_pkt *pkt) {
                 pthread_mutex_unlock(&c->mutex);
 
                 if(done) {
-                    pthread_mutex_unlock(&b->mutex);
                     break;
                 }
             }
 
-            pthread_mutex_unlock(&b->mutex);
+            pthread_rwlock_unlock(&b->lock);
         }
     }
 
@@ -575,7 +567,7 @@ static int handle_bb_mail(shipgate_conn_t *conn, bb_simple_mail_pkt *pkt) {
     for(i = 0; i < s->cfg->blocks && !done; ++i) {
         if(s->blocks[i]) {
             b = s->blocks[i];
-            pthread_mutex_lock(&b->mutex);
+            pthread_rwlock_rdlock(&b->lock);
 
             TAILQ_FOREACH(c, b->clients, qentry) {
                 pthread_mutex_lock(&c->mutex);
@@ -603,12 +595,11 @@ static int handle_bb_mail(shipgate_conn_t *conn, bb_simple_mail_pkt *pkt) {
                 pthread_mutex_unlock(&c->mutex);
 
                 if(done) {
-                    pthread_mutex_unlock(&b->mutex);
                     break;
                 }
             }
 
-            pthread_mutex_unlock(&b->mutex);
+            pthread_rwlock_unlock(&b->lock);
         }
     }
 
@@ -863,7 +854,7 @@ static int handle_creq(shipgate_conn_t *conn, shipgate_char_data_pkt *pkt) {
     for(i = 0; i < s->cfg->blocks && !done; ++i) {
         if(s->blocks[i]) {
             b = s->blocks[i];
-            pthread_mutex_lock(&b->mutex);
+            pthread_rwlock_rdlock(&b->lock);
 
             TAILQ_FOREACH(c, b->clients, qentry) {
                 pthread_mutex_lock(&c->mutex);
@@ -885,12 +876,11 @@ static int handle_creq(shipgate_conn_t *conn, shipgate_char_data_pkt *pkt) {
                 pthread_mutex_unlock(&c->mutex);
 
                 if(done) {
-                    pthread_mutex_unlock(&b->mutex);
                     break;
                 }
             }
 
-            pthread_mutex_unlock(&b->mutex);
+            pthread_rwlock_unlock(&b->lock);
         }
     }
 
@@ -905,7 +895,6 @@ static int handle_gmlogin(shipgate_conn_t *conn,
     ship_t *s = conn->ship;
     block_t *b;
     ship_client_t *i;
-    int rv = 0;
 
     /* Make sure the packet looks sane */
     if(!(flags & SHDR_RESPONSE)) {
@@ -918,7 +907,7 @@ static int handle_gmlogin(shipgate_conn_t *conn,
     }
 
     b = s->blocks[block - 1];
-    pthread_mutex_lock(&b->mutex);
+    pthread_rwlock_rdlock(&b->lock);
 
     /* Find the requested client. */
     TAILQ_FOREACH(i, b->clients, qentry) {
@@ -926,14 +915,12 @@ static int handle_gmlogin(shipgate_conn_t *conn,
             i->privilege |= pkt->priv;
             i->flags |= CLIENT_FLAG_LOGGED_IN;
             send_txt(i, "%s", __(i, "\tE\tC7Login Successful."));
-
-            goto out;
+            break;
         }
     }
 
-out:
-    pthread_mutex_unlock(&b->mutex);
-    return rv;
+    pthread_rwlock_unlock(&b->lock);
+    return 0;
 }
 
 static int handle_login(shipgate_conn_t *conn, shipgate_login_pkt *pkt) {
@@ -990,7 +977,7 @@ static int handle_cdata(shipgate_conn_t *conn, shipgate_cdata_err_pkt *pkt) {
     for(i = 0; i < s->cfg->blocks && !done; ++i) {
         if(s->blocks[i]) {
             b = s->blocks[i];
-            pthread_mutex_lock(&b->mutex);
+            pthread_rwlock_rdlock(&b->lock);
 
             TAILQ_FOREACH(c, b->clients, qentry) {
                 pthread_mutex_lock(&c->mutex);
@@ -1017,12 +1004,11 @@ static int handle_cdata(shipgate_conn_t *conn, shipgate_cdata_err_pkt *pkt) {
                 pthread_mutex_unlock(&c->mutex);
 
                 if(done) {
-                    pthread_mutex_unlock(&b->mutex);
                     break;
                 }
             }
 
-            pthread_mutex_unlock(&b->mutex);
+            pthread_rwlock_unlock(&b->lock);
         }
     }
 
@@ -1046,7 +1032,7 @@ static int handle_ban(shipgate_conn_t *conn, shipgate_ban_err_pkt *pkt) {
     for(i = 0; i < s->cfg->blocks && !done; ++i) {
         if(s->blocks[i]) {
             b = s->blocks[i];
-            pthread_mutex_lock(&b->mutex);
+            pthread_rwlock_rdlock(&b->lock);
 
             TAILQ_FOREACH(c, b->clients, qentry) {
                 pthread_mutex_lock(&c->mutex);
@@ -1077,12 +1063,11 @@ static int handle_ban(shipgate_conn_t *conn, shipgate_ban_err_pkt *pkt) {
                 pthread_mutex_unlock(&c->mutex);
 
                 if(done) {
-                    pthread_mutex_unlock(&b->mutex);
                     break;
                 }
             }
 
-            pthread_mutex_unlock(&b->mutex);
+            pthread_rwlock_unlock(&b->lock);
         }
     }
 
@@ -1107,7 +1092,7 @@ static int handle_creq_err(shipgate_conn_t *conn, shipgate_cdata_err_pkt *pkt) {
     for(i = 0; i < s->cfg->blocks && !done; ++i) {
         if(s->blocks[i]) {
             b = s->blocks[i];
-            pthread_mutex_lock(&b->mutex);
+            pthread_rwlock_rdlock(&b->lock);
 
             TAILQ_FOREACH(c, b->clients, qentry) {
                 pthread_mutex_lock(&c->mutex);
@@ -1134,12 +1119,11 @@ static int handle_creq_err(shipgate_conn_t *conn, shipgate_cdata_err_pkt *pkt) {
                 pthread_mutex_unlock(&c->mutex);
 
                 if(done) {
-                    pthread_mutex_unlock(&b->mutex);
                     break;
                 }
             }
 
-            pthread_mutex_unlock(&b->mutex);
+            pthread_rwlock_unlock(&b->lock);
         }
     }
 
@@ -1166,20 +1150,18 @@ static int handle_gmlogin_err(shipgate_conn_t *conn, shipgate_gm_err_pkt *pkt) {
     }
 
     b = s->blocks[block - 1];
-    pthread_mutex_lock(&b->mutex);
+    pthread_rwlock_rdlock(&b->lock);
 
     /* Find the requested client. */
     TAILQ_FOREACH(i, b->clients, qentry) {
         if(i->guildcard == gc) {
             /* XXXX: Maybe send specific error messages sometime later */
             send_txt(i, "%s", __(i, "\tE\tC7Login failed."));
-
-            goto out;
+            break;
         }
     }
 
-out:
-    pthread_mutex_unlock(&b->mutex);
+    pthread_rwlock_unlock(&b->lock);
     return rv;
 }
 
@@ -1195,7 +1177,7 @@ static int handle_blogin_err(shipgate_conn_t *c, shipgate_blogin_err_pkt *pkt) {
         return 0;
     }
 
-    pthread_mutex_lock(&b->mutex);
+    pthread_rwlock_rdlock(&b->lock);
 
     /* Find the requested client and boot them off (regardless of the error type
        for now) */
@@ -1205,7 +1187,7 @@ static int handle_blogin_err(shipgate_conn_t *c, shipgate_blogin_err_pkt *pkt) {
         }
     }
 
-    pthread_mutex_unlock(&b->mutex);
+    pthread_rwlock_unlock(&b->lock);
 
     return 0;
 }
@@ -1293,20 +1275,19 @@ static int handle_friend(shipgate_conn_t *c, shipgate_friend_login_pkt *pkt) {
     }
 
     /* Find the user in question */
+    pthread_rwlock_rdlock(&b->lock);
+
     TAILQ_FOREACH(cl, b->clients, qentry) {
         if(cl->guildcard == ugc) {
+            /* The rest is easy */
+            client_send_friendmsg(cl, on, pkt->friend_name, ms->name, fbl,
+                                  pkt->friend_nick);
             break;
         }
     }
 
-    /* If we can't find the user, give up */
-    if(!cl) {
-        return 0;
-    }
+    pthread_rwlock_unlock(&b->lock);
 
-    /* The rest is easy */
-    client_send_friendmsg(cl, on, pkt->friend_name, ms->name, fbl,
-                          pkt->friend_nick);
     return 0;
 }
 
@@ -1328,7 +1309,7 @@ static int handle_addfriend(shipgate_conn_t *c, shipgate_friend_err_pkt *pkt) {
     for(i = 0; i < s->cfg->blocks && !done; ++i) {
         if(s->blocks[i]) {
             b = s->blocks[i];
-            pthread_mutex_lock(&b->mutex);
+            pthread_rwlock_rdlock(&b->lock);
 
             TAILQ_FOREACH(cl, b->clients, qentry) {
                 pthread_mutex_lock(&cl->mutex);
@@ -1354,12 +1335,11 @@ static int handle_addfriend(shipgate_conn_t *c, shipgate_friend_err_pkt *pkt) {
                 pthread_mutex_unlock(&cl->mutex);
 
                 if(done) {
-                    pthread_mutex_unlock(&b->mutex);
                     break;
                 }
             }
 
-            pthread_mutex_unlock(&b->mutex);
+            pthread_rwlock_unlock(&b->lock);
         }
     }
 
@@ -1384,7 +1364,7 @@ static int handle_delfriend(shipgate_conn_t *c, shipgate_friend_err_pkt *pkt) {
     for(i = 0; i < s->cfg->blocks && !done; ++i) {
         if(s->blocks[i]) {
             b = s->blocks[i];
-            pthread_mutex_lock(&b->mutex);
+            pthread_rwlock_rdlock(&b->lock);
 
             TAILQ_FOREACH(cl, b->clients, qentry) {
                 pthread_mutex_lock(&cl->mutex);
@@ -1410,12 +1390,11 @@ static int handle_delfriend(shipgate_conn_t *c, shipgate_friend_err_pkt *pkt) {
                 pthread_mutex_unlock(&cl->mutex);
 
                 if(done) {
-                    pthread_mutex_unlock(&b->mutex);
                     break;
                 }
             }
 
-            pthread_mutex_unlock(&b->mutex);
+            pthread_rwlock_unlock(&b->lock);
         }
     }
 
@@ -1435,7 +1414,7 @@ static int handle_kick(shipgate_conn_t *conn, shipgate_kick_pkt *pkt) {
     }
 
     b = s->blocks[block - 1];
-    pthread_mutex_lock(&b->mutex);
+    pthread_rwlock_rdlock(&b->lock);
 
     /* Find the requested client. */
     TAILQ_FOREACH(i, b->clients, qentry) {
@@ -1452,12 +1431,11 @@ static int handle_kick(shipgate_conn_t *conn, shipgate_kick_pkt *pkt) {
             }
 
             i->flags |= CLIENT_FLAG_DISCONNECTED;
-            goto out;
+            break;
         }
     }
 
-out:
-    pthread_mutex_unlock(&b->mutex);
+    pthread_rwlock_unlock(&b->lock);
     return 0;
 }
 
@@ -1477,11 +1455,9 @@ static int handle_frlist(shipgate_conn_t *c, shipgate_friend_list_pkt *pkt) {
     }
 
     b = s->blocks[block - 1];
-    pthread_mutex_lock(&b->mutex);
-
     total = ntohs(pkt->hdr.pkt_len) - sizeof(shipgate_friend_list_pkt);
-
     msg[0] = '\0';
+    pthread_rwlock_rdlock(&b->lock);
 
     /* Find the requested client. */
     TAILQ_FOREACH(i, b->clients, qentry) {
@@ -1532,12 +1508,11 @@ static int handle_frlist(shipgate_conn_t *c, shipgate_friend_list_pkt *pkt) {
 
             pthread_mutex_unlock(&i->mutex);
 
-            goto out;
+            break;
         }
     }
 
-out:
-    pthread_mutex_unlock(&b->mutex);
+    pthread_rwlock_unlock(&b->lock);
     return 0;
 }
 
@@ -1562,7 +1537,7 @@ static int handle_globalmsg(shipgate_conn_t *c, shipgate_global_msg_pkt *pkt) {
         b = s->blocks[i];
 
         if(b && b->run) {
-            pthread_mutex_lock(&b->mutex);
+            pthread_rwlock_rdlock(&b->lock);
 
             /* Send the message to each player. */
             TAILQ_FOREACH(i2, b->clients, qentry) {
@@ -1576,7 +1551,7 @@ static int handle_globalmsg(shipgate_conn_t *c, shipgate_global_msg_pkt *pkt) {
                 pthread_mutex_unlock(&i2->mutex);
             }
 
-            pthread_mutex_unlock(&b->mutex);
+            pthread_rwlock_unlock(&b->lock);
         }
     }
 
@@ -1599,7 +1574,7 @@ static int  handle_useropt(shipgate_conn_t *c, shipgate_user_opt_pkt *pkt) {
     }
 
     b = s->blocks[block - 1];
-    pthread_mutex_lock(&b->mutex);
+    pthread_rwlock_rdlock(&b->lock);
 
     /* Find the requested client. */
     TAILQ_FOREACH(i, b->clients, qentry) {
@@ -1644,12 +1619,11 @@ static int  handle_useropt(shipgate_conn_t *c, shipgate_user_opt_pkt *pkt) {
             }
 
             pthread_mutex_unlock(&i->mutex);
-            goto out;
+            break;
         }
     }
 
-out:
-    pthread_mutex_unlock(&b->mutex);
+    pthread_rwlock_unlock(&b->lock);
     return 0;
 }
 
@@ -1665,7 +1639,7 @@ static int handle_bbopts(shipgate_conn_t *c, shipgate_bb_opts_pkt *pkt) {
     }
 
     b = s->blocks[block - 1];
-    pthread_mutex_lock(&b->mutex);
+    pthread_rwlock_rdlock(&b->lock);
 
     /* Find the requested client. */
     TAILQ_FOREACH(i, b->clients, qentry) {
@@ -1681,12 +1655,11 @@ static int handle_bbopts(shipgate_conn_t *c, shipgate_bb_opts_pkt *pkt) {
             send_simple(i, CHAR_DATA_REQUEST_TYPE, 0);
 
             pthread_mutex_unlock(&i->mutex);
-            goto out;
+            break;
         }
     }
 
-out:
-    pthread_mutex_unlock(&b->mutex);
+    pthread_rwlock_unlock(&b->lock);
     return 0;
 }
 
@@ -2396,7 +2369,7 @@ int shipgate_send_clients(shipgate_conn_t *c) {
     for(i = 0; i < s->cfg->blocks; ++i) {
         if(s->blocks[i]) {
             b = s->blocks[i];
-            pthread_mutex_lock(&b->mutex);
+            pthread_rwlock_rdlock(&b->lock);
 
             /* Set up this pass */
             pkt->block = htonl(b->b);
@@ -2440,7 +2413,7 @@ int shipgate_send_clients(shipgate_conn_t *c) {
                 pthread_mutex_unlock(&cl->mutex);
             }
 
-            pthread_mutex_unlock(&b->mutex);
+            pthread_rwlock_unlock(&b->lock);
 
             if(count) {
                 /* Fill in the header */

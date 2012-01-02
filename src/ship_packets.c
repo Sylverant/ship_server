@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -3473,6 +3473,8 @@ static int send_dc_game_list(ship_client_t *c, block_t *b) {
     pkt->entries[0].flags = 0x04;
     strcpy(pkt->entries[0].name, b->ship->cfg->name);
 
+    pthread_rwlock_rdlock(&b->lobby_lock);
+
     TAILQ_FOREACH(l, &b->lobbies, qentry) {
         /* Ignore default lobbies and Gamecube games */
         if(l->type != LOBBY_TYPE_GAME || l->episode) {
@@ -3511,6 +3513,8 @@ static int send_dc_game_list(ship_client_t *c, block_t *b) {
         len += 0x1C;
     }
 
+    pthread_rwlock_unlock(&b->lobby_lock);
+
     /* Fill in the rest of the header */
     pkt->hdr.flags = entries - 1;
     pkt->hdr.pkt_len = LE16(len);
@@ -3543,6 +3547,8 @@ static int send_pc_game_list(ship_client_t *c, block_t *b) {
 
     istrncpy(ic_8859_to_utf16, (char *)pkt->entries[0].name, ship->cfg->name,
              0x20);
+
+    pthread_rwlock_rdlock(&b->lobby_lock);
 
     TAILQ_FOREACH(l, &b->lobbies, qentry) {
         /* Ignore default lobbies and Gamecube games */
@@ -3578,6 +3584,8 @@ static int send_pc_game_list(ship_client_t *c, block_t *b) {
         len += 0x2C;
     }
 
+    pthread_rwlock_unlock(&b->lobby_lock);
+
     /* Fill in the rest of the header */
     pkt->hdr.flags = entries - 1;
     pkt->hdr.pkt_len = LE16(len);
@@ -3608,6 +3616,8 @@ static int send_gc_game_list(ship_client_t *c, block_t *b) {
     pkt->entries[0].item_id = 0xFFFFFFFF;
     pkt->entries[0].flags = 0x04;
     strcpy(pkt->entries[0].name, b->ship->cfg->name);
+
+    pthread_rwlock_rdlock(&b->lobby_lock);
 
     TAILQ_FOREACH(l, &b->lobbies, qentry) {
         /* Ignore default lobbies */
@@ -3653,6 +3663,8 @@ static int send_gc_game_list(ship_client_t *c, block_t *b) {
         len += 0x1C;
     }
 
+    pthread_rwlock_unlock(&b->lobby_lock);
+
     /* Fill in the rest of the header */
     pkt->hdr.flags = entries - 1;
     pkt->hdr.pkt_len = LE16(len);
@@ -3683,6 +3695,8 @@ static int send_ep3_game_list(ship_client_t *c, block_t *b) {
     pkt->entries[0].item_id = 0xFFFFFFFF;
     pkt->entries[0].flags = 0x04;
     strcpy(pkt->entries[0].name, b->ship->cfg->name);
+
+    pthread_rwlock_rdlock(&b->lobby_lock);
 
     TAILQ_FOREACH(l, &b->lobbies, qentry) {
         /* Ignore non-Episode 3 and default lobbies */
@@ -3720,6 +3734,8 @@ static int send_ep3_game_list(ship_client_t *c, block_t *b) {
         ++entries;
         len += 0x1C;
     }
+
+    pthread_rwlock_unlock(&b->lobby_lock);
 
     /* Fill in the rest of the header */
     pkt->hdr.flags = entries - 1;
@@ -7581,7 +7597,7 @@ static int fill_choice_entries(ship_client_t *c, uint8_t *sendbuf,
         b = ship->blocks[i];
 
         if(b && b->run) {
-            pthread_mutex_lock(&b->mutex);
+            pthread_rwlock_rdlock(&b->lock);
 
             /* Look through all clients on that block. */
             TAILQ_FOREACH(it, b->clients, qentry) {
@@ -7625,12 +7641,12 @@ static int fill_choice_entries(ship_client_t *c, uint8_t *sendbuf,
                 /* Choice search is limited to 32 entries by the game... */
                 if(entries == 32) {
                     *lenp = len;
-                    pthread_mutex_unlock(&b->mutex);
+                    pthread_rwlock_unlock(&b->lock);
                     return entries;
                 }
             }
 
-            pthread_mutex_unlock(&b->mutex);
+            pthread_rwlock_unlock(&b->lock);
         }
     }
 

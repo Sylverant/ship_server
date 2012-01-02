@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -43,8 +43,11 @@ struct block {
     ship_t *ship;
 
     pthread_t thd;
-    pthread_mutex_t mutex;
+
+    /* Reader-writer lock for the client tailqueue */
+    pthread_rwlock_t lock;
     struct client_queue *clients;
+    int num_clients;
 
     int b;
     int run;
@@ -62,7 +65,10 @@ struct block {
     uint16_t ep3_port;
     uint16_t bb_port;
 
+    /* Reader-writer lock for the lobby tailqueue */
+    pthread_rwlock_t lobby_lock;
     struct lobby_queue lobbies;
+    int num_games;
 };
 
 #ifndef BLOCK_DEFINED
