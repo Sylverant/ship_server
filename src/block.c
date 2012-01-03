@@ -1573,7 +1573,7 @@ static int bb_process_mail(ship_client_t *c, bb_simple_mail_pkt *pkt) {
 
     /* First check if this is to the bug report "character". */
     if(gc == BUG_REPORT_GC) {
-        //pc_bug_report(c, pkt);
+        bb_bug_report(c, pkt);
         return 0;
     }
 

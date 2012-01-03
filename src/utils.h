@@ -31,6 +31,7 @@ void fprint_packet(FILE *fp, const unsigned char *pkt, int len, int rec);
 
 int dc_bug_report(ship_client_t *c, dc_simple_mail_pkt *pkt);
 int pc_bug_report(ship_client_t *c, pc_simple_mail_pkt *pkt);
+int bb_bug_report(ship_client_t *c, bb_simple_mail_pkt *pkt);
 
 int pkt_log_start(ship_client_t *i);
 int pkt_log_stop(ship_client_t *i);

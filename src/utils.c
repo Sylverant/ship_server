@@ -231,6 +231,58 @@ int pc_bug_report(ship_client_t *c, pc_simple_mail_pkt *pkt) {
     return send_txt(c, "%s", __(c, "\tE\tC7Thank you for your report."));
 }
 
+int bb_bug_report(ship_client_t *c, bb_simple_mail_pkt *pkt) {
+    struct timeval rawtime;
+    struct tm cooked;
+    char filename[64];
+    char text[0x200], name[0x40];
+    FILE *fp;
+    ICONV_CONST char *inptr;
+    char *outptr;
+    size_t in, out;
+
+    /* Get the timestamp */
+    gettimeofday(&rawtime, NULL);
+
+    /* Get UTC */
+    gmtime_r(&rawtime.tv_sec, &cooked);
+
+    /* Figure out the name of the file we'll be writing to. */
+    sprintf(filename, "bugs/%u.%02u.%02u.%02u.%02u.%02u.%03u-%d",
+            cooked.tm_year + 1900, cooked.tm_mon + 1, cooked.tm_mday,
+            cooked.tm_hour, cooked.tm_min, cooked.tm_sec,
+            (unsigned int)(rawtime.tv_usec / 1000), c->guildcard);
+
+    in = 0x158;
+    out = 0x200;
+    inptr = (ICONV_CONST char *)pkt->message;
+    outptr = text;
+    iconv(ic_utf16_to_utf8, &inptr, &in, &outptr, &out);
+
+    text[0x1FF] = '\0';
+
+    istrncpy16(ic_utf16_to_ascii, name, &c->pl->bb.character.name[2], 0x40);
+
+    /* Attempt to open up the file. */
+    fp = fopen(filename, "w");
+
+    if(!fp) {
+        return -1;
+    }
+
+    /* Write the bug report out. */
+    fprintf(fp, "Bug report from %s (%d) v%d @ %u.%02u.%02u %02u:%02u:%02u\n\n",
+            name, c->guildcard, c->version, cooked.tm_year + 1900,
+            cooked.tm_mon + 1, cooked.tm_mday, cooked.tm_hour, cooked.tm_min,
+            cooked.tm_sec);
+
+    fprintf(fp, "%s", text);
+
+    fclose(fp);
+
+    return send_txt(c, "%s", __(c, "\tE\tC7Thank you for your report."));
+}
+
 /* Begin logging the specified client's packets */
 int pkt_log_start(ship_client_t *i) {
     struct timeval rawtime;
