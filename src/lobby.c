@@ -73,8 +73,6 @@ lobby_t *lobby_create_default(block_t *block, uint32_t lobby_id, uint8_t ev) {
 }
 
 static void lobby_setup_drops(lobby_t *l, uint32_t rs) {
-    l->next_item = 0xF0000001;  /* This aught to work, I suppose... */
-
     if(rs == 0x9C350DD4) {
         l->dropfunc = td;
     }
@@ -85,6 +83,12 @@ static void lobby_setup_drops(lobby_t *l, uint32_t rs) {
 static const uint32_t maps[3][0x20] = {
     {1,1,1,5,1,5,3,2,3,2,3,2,3,2,3,2,3,2,3,2,3,2,1,1,1,1,1,1,1,1,1,1},
     {1,1,2,1,2,1,2,1,2,1,1,3,1,3,1,3,2,2,1,3,2,2,2,2,1,1,1,1,1,1,1,1},
+    {1,1,1,3,1,3,1,3,1,3,1,3,3,1,1,3,3,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1}
+};
+
+static const uint32_t sp_maps[3][0x20] = {
+    {1,1,1,3,1,3,3,1,3,1,3,1,3,2,3,2,3,2,3,2,3,2,1,1,1,1,1,1,1,1,1,1},
+    {1,1,2,1,2,1,2,1,2,1,1,3,1,3,1,3,2,2,1,3,2,1,2,1,1,1,1,1,1,1,1,1},
     {1,1,1,3,1,3,1,3,1,3,1,3,3,1,1,3,3,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1}
 };
 
@@ -114,9 +118,18 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
     /* Set up the specified parameters. */
     l->lobby_id = id;
     l->type = LOBBY_TYPE_GAME;
-    l->max_clients = 4;
+
+    if(!single_player)
+        l->max_clients = 4;
+    else
+        l->max_clients = 1;
+
     l->block = block;
-    l->item_id = 0x00810000;
+
+    if(version == CLIENT_VERSION_BB)
+        l->item_id = 0x00810000;
+    else
+        l->item_id = 0xF0000000;
 
     l->leader_id = 1;
     l->difficulty = difficulty;
@@ -158,19 +171,40 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
     /* Generate the random maps we'll be using for this game, assuming the
        client hasn't set a maps string. */
     if(!c->next_maps) {
-        for(i = 0; i < 0x20; ++i) {
-            if(maps[episode - 1][i] != 1) {
-                l->maps[i] = genrand_int32() % maps[episode - 1][i];
+        if(!single_player) {
+            for(i = 0; i < 0x20; ++i) {
+                if(maps[episode - 1][i] != 1) {
+                    l->maps[i] = genrand_int32() % maps[episode - 1][i];
+                }
+            }
+        }
+        else {
+            for(i = 0; i < 0x20; ++i) {
+                if(sp_maps[episode - 1][i] != 1) {
+                    l->maps[i] = genrand_int32() % sp_maps[episode - 1][i];
+                }
             }
         }
     }
     else {
-        for(i = 0; i < 0x20; ++i) {
-            if(c->next_maps[i] < maps[episode - 1][i]) {
-                l->maps[i] = c->next_maps[i];
+        if(!single_player) {
+            for(i = 0; i < 0x20; ++i) {
+                if(c->next_maps[i] < maps[episode - 1][i]) {
+                    l->maps[i] = c->next_maps[i];
+                }
+                else {
+                    l->maps[i] = genrand_int32() % maps[episode - 1][i];
+                }
             }
-            else {
-                l->maps[i] = genrand_int32() % maps[episode - 1][i];
+        }
+        else {
+            for(i = 0; i < 0x20; ++i) {
+                if(c->next_maps[i] < sp_maps[episode - 1][i]) {
+                    l->maps[i] = c->next_maps[i];
+                }
+                else {
+                    l->maps[i] = genrand_int32() % sp_maps[episode - 1][i];
+                }
             }
         }
 

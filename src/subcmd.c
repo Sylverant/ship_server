@@ -1542,8 +1542,8 @@ int subcmd_send_lobby_item(lobby_t *l, subcmd_itemreq_t *req,
     gen.item2[0] = LE32(item[3]);
     gen.item2[1] = LE32(0x00000002);
 
-    gen.item_id = LE32(l->next_item);
-    ++l->next_item;
+    gen.item_id = LE32(l->item_id);
+    ++l->item_id;
 
     /* Send the packet to every client in the lobby. */
     for(i = 0; i < l->max_clients; ++i) {
