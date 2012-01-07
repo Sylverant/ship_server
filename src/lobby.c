@@ -82,15 +82,17 @@ static void lobby_setup_drops(lobby_t *l, uint32_t rs) {
 
 /* This list of numbers was borrowed from newserv. Hopefully Fuzziqer won't
    mind too much. */
-static const uint32_t maps[2][0x20] = {
+static const uint32_t maps[3][0x20] = {
     {1,1,1,5,1,5,3,2,3,2,3,2,3,2,3,2,3,2,3,2,3,2,1,1,1,1,1,1,1,1,1,1},
-    {1,1,2,1,2,1,2,1,2,1,1,3,1,3,1,3,2,2,1,3,2,2,2,2,1,1,1,1,1,1,1,1}
+    {1,1,2,1,2,1,2,1,2,1,1,3,1,3,1,3,2,2,1,3,2,2,2,2,1,1,1,1,1,1,1,1},
+    {1,1,1,3,1,3,1,3,1,3,1,3,3,1,1,3,3,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1}
 };
 
 lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
                            uint8_t difficulty, uint8_t battle, uint8_t chal,
                            uint8_t v2, int version, uint8_t section,
-                           uint8_t event, uint8_t episode, ship_client_t *c) {
+                           uint8_t event, uint8_t episode, ship_client_t *c,
+                           uint8_t single_player) {
     lobby_t *l = (lobby_t *)malloc(sizeof(lobby_t));
     uint32_t id = 0x20;
     int i;
@@ -130,11 +132,14 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
     l->max_chal = 0xFF;
     l->create_time = time(NULL);
 
+    if(single_player)
+        l->flags |= LOBBY_FLAG_SINGLEPLAYER;
+
     /* Copy the game name and password. */
-    strncpy(l->name, name, 32);
-    strncpy(l->passwd, passwd, 16);
-    l->name[32] = 0;
-    l->passwd[16] = 0;
+    strncpy(l->name, name, 64);
+    strncpy(l->passwd, passwd, 64);
+    l->name[64] = 0;
+    l->passwd[64] = 0;
 
     /* Initialize the packet queue */
     STAILQ_INIT(&l->pkt_queue);
@@ -470,7 +475,7 @@ static int lobby_add_client_locked(ship_client_t *c, lobby_t *l) {
                 l->max_chal = clev;
             }
 
-            if(l->version == CLIENT_VERSION_GC && l->num_clients == 1) {
+            if(l->num_clients == 1) {
                 l->leader_id = c->client_id;
             }
 
@@ -679,7 +684,7 @@ int lobby_change_lobby(ship_client_t *c, lobby_t *req) {
     }
 
     /* Make sure this isn't a single-player lobby. */
-    if((req->flags & LOBBY_FLAG_SINGLEPLAYER)) {
+    if((req->flags & LOBBY_FLAG_SINGLEPLAYER) && req->num_clients) {
         rv = -14;
         goto out;
     }

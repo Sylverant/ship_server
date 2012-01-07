@@ -2347,7 +2347,7 @@ static int send_pc_lobby_bbchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
 
     /* Fill in the packet */
     pkt->guildcard = LE32(s->guildcard);
-    strcpy16((uint16_t *)pkt->msg, s->pl->bb.character.name);
+    strcpy16((uint16_t *)pkt->msg, &s->pl->bb.character.name[2]);
     strcat16((uint16_t *)pkt->msg, tmp);
     strcat16((uint16_t *)pkt->msg, msg);
     len = (strlen16((uint16_t *)pkt->msg) << 1) + 0x0E;
@@ -3252,8 +3252,14 @@ static int send_dc_game_join(ship_client_t *c, lobby_t *l) {
             pkt->players[i].ip_addr = 0xFFFFFFFF;
             pkt->players[i].client_id = LE32(i);
 
-            /* No need to iconv, the name is fine as is */
-            memcpy(pkt->players[i].name, l->clients[i]->pl->v1.name, 16);
+            if(l->clients[i]->version == CLIENT_VERSION_BB) {
+                istrncpy16(ic_utf16_to_ascii, pkt->players[i].name,
+                           l->clients[i]->pl->bb.character.name, 16);
+            }
+            else {
+                memcpy(pkt->players[i].name, l->clients[i]->pl->v1.name, 16);
+            }
+
             ++clients;
         }
     }
@@ -3304,9 +3310,17 @@ static int send_pc_game_join(ship_client_t *c, lobby_t *l) {
             pkt->players[i].ip_addr = 0xFFFFFFFF;
             pkt->players[i].client_id = LE32(i);
 
-            /* Convert the name to UTF-16. */
-            istrncpy(ic_8859_to_utf16, (char *)pkt->players[i].name,
-                     l->clients[i]->pl->v1.name, 32);
+            if(l->clients[i]->version == CLIENT_VERSION_BB) {
+                memcpy(pkt->players[i].name,
+                       &l->clients[i]->pl->bb.character.name[2], 28);
+                pkt->players[i].name[14] = 0;
+                pkt->players[i].name[15] = 0;
+            }
+            else {
+                istrncpy(ic_8859_to_utf16, (char *)pkt->players[i].name,
+                         l->clients[i]->pl->v1.name, 32);
+            }
+
             ++clients;
         }
     }
@@ -3359,8 +3373,14 @@ static int send_gc_game_join(ship_client_t *c, lobby_t *l) {
             pkt->players[i].ip_addr = 0xFFFFFFFF;
             pkt->players[i].client_id = LE32(i);
 
-            /* No need to iconv the names, they'll be good as is */
-            memcpy(pkt->players[i].name, l->clients[i]->pl->v1.name, 16);
+            if(l->clients[i]->version == CLIENT_VERSION_BB) {
+                istrncpy16(ic_utf16_to_ascii, pkt->players[i].name,
+                           l->clients[i]->pl->bb.character.name, 16);
+            }
+            else {
+                memcpy(pkt->players[i].name, l->clients[i]->pl->v1.name, 16);
+            }
+
             ++clients;
         }
     }
@@ -3429,6 +3449,69 @@ static int send_ep3_game_join(ship_client_t *c, lobby_t *l) {
     return crypt_send(c, EP3_GAME_JOIN_LENGTH, sendbuf);
 }
 
+static int send_bb_game_join(ship_client_t *c, lobby_t *l) {
+    uint8_t *sendbuf = get_sendbuf();
+    bb_game_join_pkt *pkt = (bb_game_join_pkt *)sendbuf;
+    int clients = 0, i;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Clear it out first. */
+    memset(pkt, 0, sizeof(bb_game_join_pkt));
+
+    /* Fill in the basics. */
+    pkt->hdr.pkt_type = LE16(GAME_JOIN_TYPE);
+    pkt->hdr.pkt_len = LE16(sizeof(bb_game_join_pkt));
+    pkt->client_id = c->client_id;
+    pkt->leader_id = l->leader_id;
+    pkt->one = 1;
+    pkt->difficulty = l->difficulty;
+    pkt->battle = l->battle;
+    pkt->event = l->event;
+    pkt->section = l->section;
+    pkt->challenge = l->challenge;
+    pkt->rand_seed = LE32(l->rand_seed);
+    pkt->episode = l->episode;
+    pkt->one2 = 1;
+    pkt->single_player = (l->flags & LOBBY_FLAG_SINGLEPLAYER) ? 1 : 0;
+    pkt->unused = 0;
+
+    /* Fill in the variations array. */
+    for(i = 0; i < 0x20; ++i) {
+        pkt->maps[i] = LE32(l->maps[i]);
+    }
+
+    for(i = 0; i < 4; ++i) {
+        if(l->clients[i]) {
+            /* Copy the player's data into the packet. */
+            pkt->players[i].tag = LE32(0x00010000);
+            pkt->players[i].guildcard = LE32(l->clients[i]->guildcard);
+            pkt->players[i].client_id = LE32(i);
+
+            /* Convert the name to UTF-16. */
+            if(l->clients[i]->version == CLIENT_VERSION_BB) {
+                memcpy(pkt->players[i].name,
+                       l->clients[i]->pl->bb.character.name, 32);
+            }
+            else {
+                istrncpy(ic_8859_to_utf16, (char *)pkt->players[i].name,
+                         l->clients[i]->pl->v1.name, 32);
+            }
+
+            ++clients;
+        }
+    }
+
+    /* Copy the client count over. */
+    pkt->hdr.flags = LE32(clients);
+
+    /* Send it away */
+    return crypt_send(c, sizeof(bb_game_join_pkt), sendbuf);
+}
+
 int send_game_join(ship_client_t *c, lobby_t *l) {
     /* Call the appropriate function. */
     switch(c->version) {
@@ -3444,6 +3527,9 @@ int send_game_join(ship_client_t *c, lobby_t *l) {
 
         case CLIENT_VERSION_EP3:
             return send_ep3_game_join(c, l);
+
+        case CLIENT_VERSION_BB:
+            return send_bb_game_join(c, l);
     }
 
     return -1;
@@ -3793,6 +3879,78 @@ static int send_ep3_game_list(ship_client_t *c, block_t *b) {
     return crypt_send(c, len, sendbuf);
 }
 
+static int send_bb_game_list(ship_client_t *c, block_t *b) {
+    uint8_t *sendbuf = get_sendbuf();
+    bb_game_list_pkt *pkt = (bb_game_list_pkt *)sendbuf;
+    int entries = 1, len = 0x34;
+    lobby_t *l;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Clear out the packet and the first entry */
+    memset(pkt, 0, 0x34);
+
+    /* Fill in the header */
+    pkt->hdr.pkt_type = GAME_LIST_TYPE;
+
+    /* Fill in the first entry */
+    pkt->entries[0].menu_id = MENU_ID_LOBBY;
+    pkt->entries[0].item_id = 0xFFFFFFFF;
+    pkt->entries[0].flags = 0x04;
+
+    istrncpy(ic_8859_to_utf16, (char *)pkt->entries[0].name, ship->cfg->name,
+             0x20);
+
+    pthread_rwlock_rdlock(&b->lobby_lock);
+
+    TAILQ_FOREACH(l, &b->lobbies, qentry) {
+        /* Lock the lobby */
+        pthread_mutex_lock(&l->mutex);
+
+        /* Ignore default lobbies and non-bb games */
+        if(l->type != LOBBY_TYPE_GAME || l->version != CLIENT_VERSION_BB) {
+            pthread_mutex_unlock(&l->mutex);
+            continue;
+        }
+
+        /* Clear the entry */
+        memset(pkt->entries + entries, 0, 0x2C);
+
+        /* Copy the lobby's data to the packet */
+        pkt->entries[entries].menu_id = LE32(MENU_ID_GAME);
+        pkt->entries[entries].item_id = LE32(l->lobby_id);
+        pkt->entries[entries].difficulty = 0x22 + l->difficulty;
+        pkt->entries[entries].players = l->num_clients;
+        pkt->entries[entries].episode = (l->max_clients << 4) | l->episode;
+        pkt->entries[entries].flags = (l->challenge ? 0x20 : 0x00) |
+            (l->battle ? 0x10 : 0x00) | (l->passwd[0] ? 2 : 0) |
+            ((l->flags & LOBBY_FLAG_SINGLEPLAYER) ? 0x04 : 0x00);
+
+        /* Copy the name */
+        istrncpy(ic_utf8_to_utf16, (char *)pkt->entries[entries].name, l->name,
+                 0x20);
+
+        /* Unlock the lobby */
+        pthread_mutex_unlock(&l->mutex);
+
+        /* Update the counters */
+        ++entries;
+        len += 0x2C;
+    }
+
+    pthread_rwlock_unlock(&b->lobby_lock);
+
+    /* Fill in the rest of the header */
+    pkt->hdr.flags = LE32(entries - 1);
+    pkt->hdr.pkt_len = LE16(len);
+
+    /* Send it away */
+    return crypt_send(c, len, sendbuf);
+}
+
 int send_game_list(ship_client_t *c, block_t *b) {
     /* Call the appropriate function. */
     switch(c->version) {
@@ -3808,6 +3966,9 @@ int send_game_list(ship_client_t *c, block_t *b) {
 
         case CLIENT_VERSION_EP3:
             return send_ep3_game_list(c, b);
+
+        case CLIENT_VERSION_BB:
+            return send_bb_game_list(c, b);
     }
 
     return -1;
@@ -6803,6 +6964,46 @@ static int send_pc_lobby_name(ship_client_t *c, lobby_t *l) {
     return crypt_send(c, len, sendbuf);
 }
 
+static int send_bb_lobby_name(ship_client_t *c, lobby_t *l) {
+    uint8_t *sendbuf = get_sendbuf();
+    bb_msg_box_pkt *pkt = (bb_msg_box_pkt *)sendbuf;
+    uint16_t len;
+    size_t in, out;
+    ICONV_CONST char *inptr;
+    char *outptr;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Convert the message to the appropriate encoding. */
+    in = strlen(l->name) + 1;
+    out = 65532;
+    inptr = l->name;
+    outptr = pkt->msg;
+    iconv(ic_utf8_to_utf16, &inptr, &in, &outptr, &out);
+
+    /* Figure out how long the new string is. */
+    len = 65532 - out;
+
+    /* Fill in the basics */
+    pkt->hdr.pkt_type = LE16(LOBBY_NAME_TYPE);
+    pkt->hdr.flags = 0;
+
+    /* Add any padding needed */
+    while(len & 0x03) {
+        pkt->msg[len++] = 0;
+    }
+
+    /* Fill in the length */
+    len += 0x08;
+    pkt->hdr.pkt_len = LE16(len);
+
+    /* Send it away */
+    return crypt_send(c, len, sendbuf);
+}
+
 int send_lobby_name(ship_client_t *c, lobby_t *l) {
     /* Call the appropriate function. */
     switch(c->version) {
@@ -6813,6 +7014,9 @@ int send_lobby_name(ship_client_t *c, lobby_t *l) {
 
         case CLIENT_VERSION_PC:
             return send_pc_lobby_name(c, l);
+
+        case CLIENT_VERSION_BB:
+            return send_bb_lobby_name(c, l);
     }
 
     return -1;

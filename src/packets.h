@@ -685,6 +685,19 @@ typedef struct gc_game_create {
     uint8_t episode;
 } PACKED gc_game_create_pkt;
 
+typedef struct bb_game_create {
+    bb_pkt_hdr_t hdr;
+    uint32_t unused[2];
+    uint16_t name[16];
+    uint16_t password[16];
+    uint8_t difficulty;
+    uint8_t battle;
+    uint8_t challenge;
+    uint8_t episode;
+    uint8_t single_player;
+    uint8_t padding[3];
+} PACKED bb_game_create_pkt;
+
 #ifdef PLAYER_H
 
 /* The packet sent to clients to join a game */
@@ -756,6 +769,25 @@ typedef struct ep3_game_join {
     v1_player_t player_data[4];
 } PACKED ep3_game_join_pkt;
 
+typedef struct bb_game_join {
+    bb_pkt_hdr_t hdr;
+    uint32_t maps[0x20];
+    bb_player_hdr_t players[4];
+    uint8_t client_id;
+    uint8_t leader_id;
+    uint8_t one;                        /* Always 1. */
+    uint8_t difficulty;
+    uint8_t battle;
+    uint8_t event;
+    uint8_t section;
+    uint8_t challenge;
+    uint32_t rand_seed;
+    uint8_t episode;
+    uint8_t one2;                       /* Always 1. */
+    uint8_t single_player;
+    uint8_t unused;
+} PACKED bb_game_join_pkt;
+
 #endif
 
 /* The packet sent to clients to give them the game select list */
@@ -784,6 +816,19 @@ typedef struct pc_game_list {
         uint8_t flags;
     } entries[0];
 } PACKED pc_game_list_pkt;
+
+typedef struct bb_game_list {
+    bb_pkt_hdr_t hdr;
+    struct {
+        uint32_t menu_id;
+        uint32_t item_id;
+        uint8_t difficulty;
+        uint8_t players;
+        uint16_t name[16];
+        uint8_t episode;
+        uint8_t flags;
+    } entries[0];
+} PACKED bb_game_list_pkt;
 
 /* The packet sent to display a large message to the user */
 typedef struct dc_msg_box {

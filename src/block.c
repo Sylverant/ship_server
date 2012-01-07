@@ -85,7 +85,13 @@ static void *block_thd(void *d) {
             /* If we haven't heard from a client in 2 minutes, its dead.
                Disconnect it. */
             if(now > it->last_message + 120) {
-                if(it->pl) {
+                if(it->bb_pl) {
+                    char nm[64];
+                    istrncpy16(ic_utf16_to_utf8, nm,
+                               &it->pl->bb.character.name[2], 64);
+                    debug(DBG_LOG, "Ping Timeout: %s(%d)\n", nm, it->guildcard);
+                }
+                else if(it->pl) {
                     debug(DBG_LOG, "Ping Timeout: %s(%d)\n", it->pl->v1.name,
                           it->guildcard);
                 }
@@ -290,12 +296,15 @@ static void *block_thd(void *d) {
             tmp = TAILQ_NEXT(it, qentry);
 
             if(it->flags & CLIENT_FLAG_DISCONNECTED) {
-                if(it->pl) {
+                if(it->bb_pl) {
+                    char nm[64];
+                    istrncpy16(ic_utf16_to_utf8, nm,
+                               &it->pl->bb.character.name[2], 64);
+                    debug(DBG_LOG, "Disconnecting %s(%d)\n", nm, it->guildcard);
+                }
+                else if(it->pl) {
                     debug(DBG_LOG, "Disconnecting %s(%d)\n", it->pl->v1.name,
                           it->guildcard);
-                }
-                else if(it->bb_pl) {
-                    debug(DBG_LOG, "Disconnecting (%d)\n", it->guildcard);
                 }
                 else {
                     debug(DBG_LOG, "Disconnecting something...\n");
@@ -1659,7 +1668,7 @@ static int dc_process_game_create(ship_client_t *c, dc_game_create_pkt *pkt) {
     l = lobby_create_game(c->cur_block, name, pkt->password,
                           pkt->difficulty, pkt->battle, pkt->challenge,
                           pkt->version, c->version, c->pl->v1.section,
-                          event, 0, c);
+                          event, 0, c, 0);
 
     /* If we don't have a game, something went wrong... tell the user. */
     if(!l) {
@@ -1703,7 +1712,7 @@ static int pc_process_game_create(ship_client_t *c, pc_game_create_pkt *pkt) {
     /* Create the lobby structure. */
     l = lobby_create_game(c->cur_block, name, password, pkt->difficulty,
                           pkt->battle, pkt->challenge, 1, c->version,
-                          c->pl->v1.section, event, 0, c);
+                          c->pl->v1.section, event, 0, c, 0);
 
     /* If we don't have a game, something went wrong... tell the user. */
     if(!l) {
@@ -1759,7 +1768,7 @@ static int gc_process_game_create(ship_client_t *c, gc_game_create_pkt *pkt) {
     l = lobby_create_game(c->cur_block, name, pkt->password,
                           pkt->difficulty, pkt->battle, pkt->challenge,
                           0, c->version, c->pl->v1.section, event,
-                          pkt->episode, c);
+                          pkt->episode, c, 0);
 
     /* If we don't have a game, something went wrong... tell the user. */
     if(!l) {
@@ -1796,6 +1805,51 @@ static int ep3_process_game_create(ship_client_t *c, ep3_game_create_pkt *pkt) {
     /* Create the lobby structure. */
     l = lobby_create_ep3_game(c->cur_block, name, pkt->password,
                               pkt->view_battle, c->pl->v1.section);
+
+    /* If we don't have a game, something went wrong... tell the user. */
+    if(!l) {
+        return send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't create game!"),
+                             __(c, "\tC7Try again later."));
+    }
+
+    /* We've got a new game, but nobody's in it yet... Lets put the requester
+       in the game. */
+    if(join_game(c, l)) {
+        /* Something broke, destroy the created lobby before anyone tries to
+           join it. */
+        pthread_rwlock_wrlock(&c->cur_block->lobby_lock);
+        lobby_destroy(l);
+        pthread_rwlock_unlock(&c->cur_block->lobby_lock);
+    }
+
+    /* All is good in the world. */
+    return 0;
+}
+
+static int bb_process_game_create(ship_client_t *c, bb_game_create_pkt *pkt) {
+    lobby_t *l;
+    uint8_t event = ship->game_event;
+    char name[65], passwd[65];
+
+    /* Check the user's ability to create a game of that difficulty. */
+    if(!(c->flags & CLIENT_FLAG_OVERRIDE_GAME)) {
+        if((LE32(c->pl->v1.level) + 1) < game_required_level[pkt->difficulty]) {
+            return send_message1(c, "%s\n\n%s",
+                                 __(c, "\tE\tC4Can't create game!"),
+                                 __(c, "\tC7Your level is too\nlow for that\n"
+                                    "difficulty."));
+        }
+    }
+
+    /* Convert the team name/password to UTF-8 */
+    istrncpy16(ic_utf16_to_utf8, name, pkt->name, 64);
+    istrncpy16(ic_utf16_to_utf8, passwd, pkt->password, 64);
+
+    /* Create the lobby structure. */
+    l = lobby_create_game(c->cur_block, name, passwd, pkt->difficulty,
+                          pkt->battle, pkt->challenge, 0, c->version,
+                          c->pl->bb.character.section, event, pkt->episode, c,
+                          pkt->single_player);
 
     /* If we don't have a game, something went wrong... tell the user. */
     if(!l) {
@@ -2840,6 +2894,7 @@ static int bb_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return bb_process_login(c, (bb_login_93_pkt *)pkt);
 
         case CHAR_DATA_TYPE:
+        case LEAVE_GAME_PL_DATA_TYPE:
             return bb_process_char(c, (bb_char_data_pkt *)pkt);
 
         case GAME_COMMAND0_TYPE:
@@ -2929,6 +2984,18 @@ static int bb_process_pkt(ship_client_t *c, uint8_t *pkt) {
         case BB_FULL_CHARACTER_TYPE:
             /* Ignore for now... */
             return 0;
+
+        case GAME_LIST_TYPE:
+            return send_game_list(c, c->cur_block);
+
+        case DONE_BURSTING_TYPE:
+            return dc_process_done_burst(c);
+
+        case GAME_CREATE_TYPE:
+            return bb_process_game_create(c, (bb_game_create_pkt *)pkt);
+
+        case LOBBY_NAME_TYPE:
+            return send_lobby_name(c, c->cur_lobby);            
 
         default:
             debug(DBG_LOG, "Unknown packet!\n");
