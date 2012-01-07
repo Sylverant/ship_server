@@ -1251,20 +1251,23 @@ static int handle_smite(ship_client_t *c, const char *params) {
 static int handle_makeitem(ship_client_t *c, const char *params) {
     lobby_t *l = c->cur_lobby;
     subcmd_drop_stack_t p2;
-    static uint32_t itid = 0xF0000001;  /* ID of the next item generated */
 
     /* Make sure the requester is a GM. */
     if(!LOCAL_GM(c)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
+    pthread_mutex_lock(&l->mutex);
+
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
     if(l->type != LOBBY_TYPE_GAME) {
+        pthread_mutex_unlock(&l->mutex);
         return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
     }
 
     /* Make sure there's something set with /item */
     if(!c->next_item[0]) {
+        pthread_mutex_unlock(&l->mutex);
         return send_txt(c, "%s", __(c, "\tE\tC7Need to set an item first."));
     }
 
@@ -1283,7 +1286,7 @@ static int handle_makeitem(ship_client_t *c, const char *params) {
     p2.item[0] = LE32(c->next_item[0]);
     p2.item[1] = LE32(c->next_item[1]);
     p2.item[2] = LE32(c->next_item[2]);
-    p2.item_id = LE32(itid);
+    p2.item_id = LE32(l->item_id);
     p2.item2 = LE32(c->next_item[3]);
     p2.two = LE32(0x00000002);
 
@@ -1294,9 +1297,10 @@ static int handle_makeitem(ship_client_t *c, const char *params) {
     c->next_item[3] = 0;
 
     /* Increment the next item ID. */
-    itid++;
+    ++l->item_id;
 
     /* Send the packet to everyone in the lobby */
+    pthread_mutex_unlock(&l->mutex);
     return lobby_send_pkt_dc(l, NULL, (dc_pkt_hdr_t *)&p2, 0);
 }
 

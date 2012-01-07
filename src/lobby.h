@@ -66,11 +66,13 @@ struct lobby {
 
     uint32_t lobby_id;
     uint32_t type;
+    uint32_t flags;
+    uint32_t item_id;
+
     int max_clients;
     int num_clients;
 
     block_t *block;
-    uint32_t flags;
 
     uint8_t leader_id;
     uint8_t difficulty;

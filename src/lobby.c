@@ -116,6 +116,7 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
     l->type = LOBBY_TYPE_GAME;
     l->max_clients = 4;
     l->block = block;
+    l->item_id = 0x00810000;
 
     l->leader_id = 1;
     l->difficulty = difficulty;
