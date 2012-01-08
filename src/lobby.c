@@ -224,7 +224,7 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
 
     l->rand_seed = genrand_int32();
 
-    lobby_setup_drops(l, crc32((uint8_t *)l->name, 16));
+    lobby_setup_drops(l, sylverant_crc32((uint8_t *)l->name, 16));
 
     return l;
 }
