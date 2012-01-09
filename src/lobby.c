@@ -1000,7 +1000,11 @@ int lobby_info_reply(ship_client_t *c, uint32_t lobby) {
                 __(c, "Versions Allowed"));
 
         /* Figure out what versions are allowed. */
-        if(l->version == CLIENT_VERSION_GC) {
+        if(l->version == CLIENT_VERSION_BB) {
+            /* Blue Burst is easy... */
+            sprintf(msg, "%s Blue Burst", msg);
+        }
+        else if(l->version == CLIENT_VERSION_GC) {
             /* Easy one here, GC games can only have GC chars */
             sprintf(msg, "%s GC", msg);
         }

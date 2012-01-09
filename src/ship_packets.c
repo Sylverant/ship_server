@@ -9591,6 +9591,72 @@ static int send_pc_gm_menu(ship_client_t *c, uint32_t menu_id) {
     return crypt_send(c, len, sendbuf);
 }
 
+static int send_bb_gm_menu(ship_client_t *c, uint32_t menu_id) {
+    uint8_t *sendbuf = get_sendbuf();
+    bb_block_list_pkt *pkt = (bb_block_list_pkt *)sendbuf;
+    int i, len = 0x34, entries = 1;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Clear the base packet */
+    memset(pkt, 0, 0x30);
+
+    /* Fill in some basic stuff */
+    pkt->hdr.pkt_type = LOBBY_INFO_TYPE;
+
+    /* Fill in the ship name entry */
+    memset(&pkt->entries[0], 0, 0x1C);
+    pkt->entries[0].menu_id = LE32(0x00040000);
+    pkt->entries[0].item_id = 0;
+    pkt->entries[0].flags = 0;
+
+    istrncpy(ic_8859_to_utf16, (char *)pkt->entries[0].name, ship->cfg->name,
+             0x20);
+
+    /* Add each info item to the list. */
+    for(i = 0; gm_opts[i].menu_id; ++i) {
+        /* Make sure the user is logged in and has the required privilege */
+        if(!(c->flags & CLIENT_FLAG_LOGGED_IN) ||
+           (c->privilege & gm_opts[i].privilege) != gm_opts[i].privilege) {
+            continue;
+        }
+
+        /* Make sure the item is in the right menu */
+        if(gm_opts[i].menu_id != menu_id) {
+            continue;
+        }
+
+        /* Make sure the user is in an appropriate lobby type */
+        if(!(c->cur_lobby->type & gm_opts[i].lobby_type)) {
+            continue;
+        }
+
+        /* Clear out the ship information */
+        memset(&pkt->entries[entries], 0, 0x2C);
+
+        /* Fill in what we have */
+        pkt->entries[entries].menu_id = LE32(menu_id);
+        pkt->entries[entries].item_id = LE32(gm_opts[i].item_id);
+        pkt->entries[entries].flags = LE16(0x0000);
+
+        istrncpy(ic_utf8_to_utf16, (char *)pkt->entries[entries].name,
+                 __(c, gm_opts[i].text), 0x20);
+
+        len += 0x2C;
+        ++entries;
+    }
+
+    /* Fill in the rest of the header */
+    pkt->hdr.pkt_len = LE16(len);
+    pkt->hdr.flags = LE32(entries - 1);
+
+    /* Send the packet away */
+    return crypt_send(c, len, sendbuf);
+}
+
 int send_gm_menu(ship_client_t *c, uint32_t menu_id) {
     /* Make sure the user's at least a Local GM */
     if(!LOCAL_GM(c)) {
@@ -9609,8 +9675,7 @@ int send_gm_menu(ship_client_t *c, uint32_t menu_id) {
             return send_pc_gm_menu(c, menu_id);
 
         case CLIENT_VERSION_BB:
-            /* XXXX: Write me! */
-            return 0;
+            return send_bb_gm_menu(c, menu_id);
     }
 
     return -1;
