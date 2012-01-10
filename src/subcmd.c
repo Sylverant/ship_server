@@ -21,6 +21,7 @@
 #include <pthread.h>
 
 #include <sylverant/debug.h>
+#include <sylverant/mtwist.h>
 
 #include "subcmd.h"
 #include "clients.h"
@@ -28,6 +29,9 @@
 #include "utils.h"
 #include "items.h"
 #include "word_select.h"
+
+/* Forward declarations */
+static int subcmd_send_shop_inv(ship_client_t *c, subcmd_bb_shop_req_t *req);
 
 /* Handle a Guild card send packet. */
 int handle_dc_gcsend(ship_client_t *d, subcmd_dc_gcsend_t *pkt) {
@@ -895,6 +899,22 @@ static int handle_set_area(ship_client_t *c, subcmd_set_area_t *pkt) {
     return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt, 0);
 }
 
+static int handle_bb_set_area(ship_client_t *c, subcmd_bb_set_area_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+
+    /* Make sure the area is valid */
+    if(pkt->area > 17) {
+        return -1;
+    }
+
+    /* Save the new area and move along */
+    if(c->client_id == pkt->client_id) {
+        c->cur_area = pkt->area;
+    }
+
+    return lobby_send_pkt_bb(l, c, (bb_pkt_hdr_t *)pkt, 0);
+}
+
 static int handle_set_pos(ship_client_t *c, subcmd_set_pos_t *pkt) {
     lobby_t *l = c->cur_lobby;
 
@@ -922,6 +942,32 @@ static int handle_move(ship_client_t *c, subcmd_move_t *pkt) {
     }
 
     return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt, 0);
+}
+
+static int handle_bb_set_pos(ship_client_t *c, subcmd_bb_set_pos_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+
+    /* Save the new position and move along */
+    if(c->client_id == pkt->client_id) {
+        c->w = pkt->w;
+        c->x = pkt->x;
+        c->y = pkt->y;
+        c->z = pkt->z;
+    }
+
+    return lobby_send_pkt_bb(l, c, (bb_pkt_hdr_t *)pkt, 0);
+}
+
+static int handle_bb_move(ship_client_t *c, subcmd_bb_move_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+
+    /* Save the new position and move along */
+    if(c->client_id == pkt->client_id) {
+        c->x = pkt->x;
+        c->z = pkt->z;
+    }
+
+    return lobby_send_pkt_bb(l, c, (bb_pkt_hdr_t *)pkt, 0);
 }
 
 static int handle_delete_inv(ship_client_t *c, subcmd_destroy_item_t *pkt) {
@@ -1047,10 +1093,29 @@ static int handle_word_select(ship_client_t *c, subcmd_word_select_t *pkt) {
 
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_BB:
             return word_select_send_gc(c, pkt);
     }
 
     return 0;
+}
+
+static int handle_bb_word_select(ship_client_t *c,
+                                 subcmd_bb_word_select_t *pkt) {
+    subcmd_word_select_t gc;
+
+    /* Don't send chats for a STFUed client. */
+    if((c->flags & CLIENT_FLAG_STFU)) {
+        return 0;
+    }
+
+    memcpy(&gc, pkt, sizeof(subcmd_word_select_t) - sizeof(dc_pkt_hdr_t));
+    gc.client_id_gc = pkt->client_id;
+    gc.hdr.pkt_type = (uint8_t)(LE16(pkt->hdr.pkt_type));
+    gc.hdr.flags = (uint8_t)pkt->hdr.flags;
+    gc.hdr.pkt_len = LE16((LE16(pkt->hdr.pkt_len) - 4));
+
+    return word_select_send_gc(c, &gc);
 }
 
 static int handle_symbol_chat(ship_client_t *c, subcmd_pkt_t *pkt) {
@@ -1062,6 +1127,17 @@ static int handle_symbol_chat(ship_client_t *c, subcmd_pkt_t *pkt) {
     }
 
     return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt, 1);
+}
+
+static int handle_bb_symbol_chat(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+
+    /* Don't send chats for a STFUed client. */
+    if((c->flags & CLIENT_FLAG_STFU)) {
+        return 0;
+    }
+
+    return lobby_send_pkt_bb(l, c, (bb_pkt_hdr_t *)pkt, 1);
 }
 
 static int handle_cmode_grave(ship_client_t *c, subcmd_pkt_t *pkt) {
@@ -1333,14 +1409,24 @@ int subcmd_bb_handle_one(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
 
     switch(type) {
         case SUBCMD_GUILDCARD:
+            /* Make sure the recipient is not ignoring the sender... */
+            if(client_has_ignored(dest, c->guildcard)) {
+                rv = 0;
+                break;
+            }
+
             rv = handle_bb_gcsend(c, dest);
             break;
 
+        case SUBCMD_SHOPREQ:
+            rv = subcmd_send_shop_inv(c, (subcmd_bb_shop_req_t *)pkt);
+            break;
+
         default:
-#ifdef LOG_UNKNOWN_SUBS
+#ifdef BB_LOG_UNKNOWN_SUBS
             debug(DBG_LOG, "Unknown 0x62/0x6D: 0x%02X\n", type);
             print_packet((unsigned char *)pkt, LE16(pkt->hdr.pkt_len));
-#endif /* LOG_UNKNOWN_SUBS */
+#endif /* BB_LOG_UNKNOWN_SUBS */
             /* Forward the packet unchanged to the destination. */
             rv = send_pkt_bb(dest, (bb_pkt_hdr_t *)pkt);
     }
@@ -1365,7 +1451,7 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
     /* If there's a burst going on in the lobby, delay most packets */
     if(l->flags & LOBBY_FLAG_BURSTING) {
         switch(type) {
-            case SUBCMD_UNK_3B:
+            case SUBCMD_LOAD_3B:
             case SUBCMD_BURST_DONE:
                 rv = lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt, 0);
                 break;
@@ -1455,6 +1541,20 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
             debug(DBG_LOG, "Unknown 0x60: 0x%02X\n", type);
             print_packet((unsigned char *)pkt, LE16(pkt->hdr.dc.pkt_len));
 #endif /* LOG_UNKNOWN_SUBS */
+
+        case SUBCMD_SET_AREA_21:
+        case SUBCMD_LOAD_22:
+        case SUBCMD_FINISH_LOAD:
+        case SUBCMD_TALK_NPC:
+        case SUBCMD_DONE_NPC:
+        case SUBCMD_LOAD_3B:
+        case SUBCMD_TALK_DESK:
+        case SUBCMD_WARP_55:
+        case SUBCMD_LOBBY_ACTION:
+        case SUBCMD_GOGO_BALL:
+        case SUBCMD_LOBBY_CHAIR:
+        case SUBCMD_CHAIR_DIR:
+        case SUBCMD_CHAIR_MOVE:
             sent = 0;
     }
 
@@ -1480,11 +1580,47 @@ int subcmd_bb_handle_bcast(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
     pthread_mutex_lock(&l->mutex);
 
     switch(type) {
+        case SUBCMD_SYMBOL_CHAT:
+            rv = handle_bb_symbol_chat(c, pkt);
+            break;
+
+        case SUBCMD_SET_AREA:
+            rv = handle_bb_set_area(c, (subcmd_bb_set_area_t *)pkt);
+            break;
+
+        case SUBCMD_SET_POS_3E:
+        case SUBCMD_SET_POS_3F:
+            rv = handle_bb_set_pos(c, (subcmd_bb_set_pos_t *)pkt);
+            break;
+
+        case SUBCMD_MOVE_SLOW:
+        case SUBCMD_MOVE_FAST:
+            rv = handle_bb_move(c, (subcmd_bb_move_t *)pkt);
+            break;
+
+        case SUBCMD_WORD_SELECT:
+            rv = handle_bb_word_select(c, (subcmd_bb_word_select_t *)pkt);
+            break;
+
         default:
-#ifdef LOG_UNKNOWN_SUBS
+#ifdef BB_LOG_UNKNOWN_SUBS
             debug(DBG_LOG, "Unknown 0x60: 0x%02X\n", type);
             print_packet((unsigned char *)pkt, LE16(pkt->hdr.pkt_len));
-#endif /* LOG_UNKNOWN_SUBS */
+#endif /* BB_LOG_UNKNOWN_SUBS */
+
+        case SUBCMD_SET_AREA_21:
+        case SUBCMD_LOAD_22:
+        case SUBCMD_FINISH_LOAD:
+        case SUBCMD_TALK_NPC:
+        case SUBCMD_DONE_NPC:
+        case SUBCMD_LOAD_3B:
+        case SUBCMD_TALK_DESK:
+        case SUBCMD_WARP_55:
+        case SUBCMD_LOBBY_ACTION:
+        case SUBCMD_GOGO_BALL:
+        case SUBCMD_LOBBY_CHAIR:
+        case SUBCMD_CHAIR_DIR:
+        case SUBCMD_CHAIR_MOVE:
             sent = 0;
     }
 
@@ -1552,5 +1688,30 @@ int subcmd_send_lobby_item(lobby_t *l, subcmd_itemreq_t *req,
         }
     }
 
+    return 0;
+}
+
+static int subcmd_send_shop_inv(ship_client_t *c, subcmd_bb_shop_req_t *req) {
+    /* XXXX: Hard coded for now... */
+    subcmd_bb_shop_inv_t shop;
+    int i;
+
+    memset(&shop, 0, sizeof(shop));
+
+    shop.hdr.pkt_len = LE16(0xEC);
+    shop.hdr.pkt_type = LE16(GAME_COMMAND0_TYPE);
+    shop.hdr.flags = 0;
+    shop.type = SUBCMD_SHOPINV;
+    shop.size = 0x3B;
+    shop.shop_type = req->shop_type;
+    shop.num_items = 0x0B;
+
+    for(i = 0; i < 0x0B; ++i) {
+        shop.items[i].item_data[0] = LE32((0x03 | (i << 8)));
+        shop.items[i].reserved = 0xFFFFFFFF;
+        shop.items[i].cost = LE32((genrand_int32() % 255));
+    }
+
+    send_pkt_bb(c, (bb_pkt_hdr_t *)&shop);
     return 0;
 }

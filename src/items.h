@@ -597,6 +597,7 @@ typedef enum item_code_e {
     Item_Cake                         = 0x220E03,
     Item_Accessories                  = 0x230E03,
     Item_Mr_Nakas_Business_Card       = 0x240E03,
+    Item_Meseta                       = 0x000004,
     Item_NoSuchItem                   = 0xFFFFFF
 } item_code_t;
 

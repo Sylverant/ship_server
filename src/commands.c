@@ -1250,6 +1250,7 @@ static int handle_smite(ship_client_t *c, const char *params) {
 /* Usage: /makeitem */
 static int handle_makeitem(ship_client_t *c, const char *params) {
     lobby_t *l = c->cur_lobby;
+    item_t *item;
     subcmd_drop_stack_t p2;
 
     /* Make sure the requester is a GM. */
@@ -1271,6 +1272,19 @@ static int handle_makeitem(ship_client_t *c, const char *params) {
         return send_txt(c, "%s", __(c, "\tE\tC7Need to set an item first."));
     }
 
+    /* If we're on Blue Burst, add the item to the lobby's inventory first. */
+    if(l->version == CLIENT_VERSION_BB) {
+        item = lobby_add_item_locked(l, c->next_item);
+
+        if(!item) {
+            pthread_mutex_unlock(&l->mutex);
+            return send_txt(c, "%s", __(c, "\tE\tC7No space for new item."));
+        }
+    }
+    else {
+        ++l->item_id;
+    }
+
     /* Generate the packet to drop the item */
     p2.hdr.pkt_type = GAME_COMMAND0_TYPE;
     p2.hdr.pkt_len = sizeof(subcmd_drop_stack_t);
@@ -1286,7 +1300,7 @@ static int handle_makeitem(ship_client_t *c, const char *params) {
     p2.item[0] = LE32(c->next_item[0]);
     p2.item[1] = LE32(c->next_item[1]);
     p2.item[2] = LE32(c->next_item[2]);
-    p2.item_id = LE32(l->item_id);
+    p2.item_id = LE32((l->item_id - 1));
     p2.item2 = LE32(c->next_item[3]);
     p2.two = LE32(0x00000002);
 
@@ -1295,9 +1309,6 @@ static int handle_makeitem(ship_client_t *c, const char *params) {
     c->next_item[1] = 0;
     c->next_item[2] = 0;
     c->next_item[3] = 0;
-
-    /* Increment the next item ID. */
-    ++l->item_id;
 
     /* Send the packet to everyone in the lobby */
     pthread_mutex_unlock(&l->mutex);
@@ -1364,22 +1375,47 @@ static int handle_teleport(ship_client_t *c, const char *params) {
     }
 }
 
+/* Usage: /dumpinv [lobby] */
 static int handle_dumpinv(ship_client_t *c, const char *params) {
     int i;
+    lobby_t *l = c->cur_lobby;
+    lobby_item_t *j;
 
     /* Make sure the requester is a GM. */
     if(!LOCAL_GM(c)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
-    debug(DBG_LOG, "Inventory dump for %s (%d)\n", c->pl->v1.name,
-          c->guildcard);
+    if(!params || strcmp(params, "lobby")) {
+        debug(DBG_LOG, "Inventory dump for %s (%d)\n", c->pl->v1.name,
+              c->guildcard);
 
-    for(i = 0; i < c->item_count; ++i) {
-        debug(DBG_LOG, "%d (%08x): %08x %08x %08x %08x: %s\n", i, 
-               LE32(c->items[i].item_id), LE32(c->items[i].data_l[0]),
-               LE32(c->items[i].data_l[1]), LE32(c->items[i].data_l[2]),
-               LE32(c->items[i].data2_l), item_get_name(&c->items[i]));
+        for(i = 0; i < c->item_count; ++i) {
+            debug(DBG_LOG, "%d (%08x): %08x %08x %08x %08x: %s\n", i, 
+                   LE32(c->items[i].item_id), LE32(c->items[i].data_l[0]),
+                   LE32(c->items[i].data_l[1]), LE32(c->items[i].data_l[2]),
+                   LE32(c->items[i].data2_l), item_get_name(&c->items[i]));
+        }
+    }
+    else {
+        pthread_mutex_lock(&l->mutex);
+
+        if(l->type != LOBBY_TYPE_GAME || l->version != CLIENT_VERSION_BB) {
+            pthread_mutex_unlock(&l->mutex);
+            return send_txt(c, "%s", __(c, "\tE\tC7Invalid request."));
+        }
+
+        debug(DBG_LOG, "Inventory dump for lobby %s (%" PRIu32 ")\n", l->name,
+              l->lobby_id);
+
+        TAILQ_FOREACH(j, &l->item_queue, qentry) {
+            debug(DBG_LOG, "%08x: %08x %08x %08x %08x: %s\n", 
+                  LE32(j->d.item_id), LE32(j->d.data_l[0]),
+                  LE32(j->d.data_l[1]), LE32(j->d.data_l[2]),
+                  LE32(j->d.data2_l), item_get_name(&j->d));
+        }
+
+        pthread_mutex_unlock(&l->mutex);
     }
 
     return 0;

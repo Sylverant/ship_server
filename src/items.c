@@ -26,6 +26,7 @@
 
 /* Master list of all items. Spelling in this list is as it is in PSOPC. */
 static item_map_t item_list[] = {
+    { Item_Meseta, "Meseta" },
     { Item_Saber, "Saber" },
     { Item_Brand, "Brand" },
     { Item_Buster, "Buster" },

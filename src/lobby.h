@@ -29,7 +29,7 @@
 
 #include "player.h"
 
-#define LOBBY_MAX_CLIENTS 12
+#define LOBBY_MAX_CLIENTS   12
 
 /* Forward declaration. */
 struct ship_client;
@@ -59,6 +59,14 @@ typedef struct lobby_pkt {
 
 STAILQ_HEAD(lobby_pkt_queue, lobby_pkt);
 
+typedef struct lobby_item {
+    TAILQ_ENTRY(lobby_item) qentry;
+
+    item_t d;
+} lobby_item_t;
+
+TAILQ_HEAD(lobby_item_queue, lobby_item);
+
 struct lobby {
     TAILQ_ENTRY(lobby) qentry;
 
@@ -71,6 +79,7 @@ struct lobby {
 
     int max_clients;
     int num_clients;
+    int version;
 
     block_t *block;
 
@@ -88,7 +97,6 @@ struct lobby {
     uint8_t legit_check_passed;
     uint8_t legit_check_done;
 
-    int version;
     uint32_t min_level;
     uint32_t max_level;
     uint32_t rand_seed;
@@ -101,10 +109,10 @@ struct lobby {
     ship_client_t *clients[LOBBY_MAX_CLIENTS];
 
     struct lobby_pkt_queue pkt_queue;
+    struct lobby_item_queue item_queue;
     time_t create_time;
 
     int (*dropfunc)(struct lobby *l, void *req);
-    uint32_t next_item;
 };
 
 #ifndef LOBBY_DEFINED
@@ -208,5 +216,9 @@ int lobby_handle_done_burst(lobby_t *l);
 
 /* Enqueue a packet for later sending (due to a player bursting) */
 int lobby_enqueue_pkt(lobby_t *l, ship_client_t *c, dc_pkt_hdr_t *p);
+
+/* Add an item to the lobby's inventory. The caller must hold the lobby's mutex
+   before calling this. Returns NULL on any problems... */
+item_t *lobby_add_item_locked(lobby_t *l, uint32_t item_data[4]);
 
 #endif /* !LOBBY_H */

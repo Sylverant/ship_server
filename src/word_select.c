@@ -31,6 +31,7 @@ int word_select_send_dc(ship_client_t *c, subcmd_word_select_t *pkt) {
     lobby_t *l = c->cur_lobby;
     int i;
     subcmd_word_select_t pc, gc;
+    subcmd_bb_word_select_t bb;
     int pcusers = 0, gcusers = 0;
     int pcuntrans = 0, gcuntrans = 0;
     uint16_t dcw, pcw, gcw;
@@ -59,6 +60,18 @@ int word_select_send_dc(ship_client_t *c, subcmd_word_select_t *pkt) {
     gc.unused1 = 0;
     gc.ws_type = pkt->ws_type;
     gc.unused2 = 0;
+
+    bb.hdr.pkt_type = LE16(GAME_COMMAND0_TYPE);
+    bb.hdr.flags = LE32(pkt->hdr.flags);
+    bb.hdr.pkt_len = LE16(0x0028);
+    bb.type = SUBCMD_WORD_SELECT;
+    bb.size = 0x08;
+    bb.client_id = pkt->client_id;
+    bb.client_id_gc = 0;
+    bb.num_words = pkt->num_words;
+    bb.unused1 = 0;
+    bb.ws_type = pkt->ws_type;
+    bb.unused2 = 0;
 
     for(i = 0; i < 12; ++i) {
         dcw = LE16(pkt->words[i]);
@@ -89,6 +102,7 @@ int word_select_send_dc(ship_client_t *c, subcmd_word_select_t *pkt) {
         /* Throw them into the packets */
         pc.words[i] = LE16(pcw);
         gc.words[i] = LE16(gcw);
+        bb.words[i] = LE16(gcw);
     }
 
     /* Send the packet to everyone we can */
@@ -117,6 +131,14 @@ int word_select_send_dc(ship_client_t *c, subcmd_word_select_t *pkt) {
 
                     gcusers = 1;
                     break;
+
+                case CLIENT_VERSION_BB:
+                    if(!gcuntrans) {
+                        send_pkt_bb(l->clients[i], (bb_pkt_hdr_t *)&bb);
+                    }
+
+                    gcusers = 1;
+                    break;
             }
         }
     }
@@ -134,6 +156,7 @@ int word_select_send_pc(ship_client_t *c, subcmd_word_select_t *pkt) {
     lobby_t *l = c->cur_lobby;
     int i;
     subcmd_word_select_t dc, gc;
+    subcmd_bb_word_select_t bb;
     int dcusers = 0, gcusers = 0;
     int dcuntrans = 0, gcuntrans = 0;
     uint16_t dcw, pcw, gcw;
@@ -162,6 +185,18 @@ int word_select_send_pc(ship_client_t *c, subcmd_word_select_t *pkt) {
     gc.unused1 = 0;
     gc.ws_type = pkt->ws_type;
     gc.unused2 = 0;
+
+    bb.hdr.pkt_type = LE16(GAME_COMMAND0_TYPE);
+    bb.hdr.flags = LE32(pkt->hdr.flags);
+    bb.hdr.pkt_len = LE16(0x0028);
+    bb.type = SUBCMD_WORD_SELECT;
+    bb.size = 0x08;
+    bb.client_id = pkt->client_id;
+    bb.client_id_gc = 0;
+    bb.num_words = pkt->num_words;
+    bb.unused1 = 0;
+    bb.ws_type = pkt->ws_type;
+    bb.unused2 = 0;
 
     for(i = 0; i < 12; ++i) {
         pcw = LE16(pkt->words[i]);
@@ -192,6 +227,7 @@ int word_select_send_pc(ship_client_t *c, subcmd_word_select_t *pkt) {
         /* Throw them into the packets */
         dc.words[i] = LE16(dcw);
         gc.words[i] = LE16(gcw);
+        bb.words[i] = LE16(gcw);
     }
 
     /* Send the packet to everyone we can */
@@ -220,6 +256,14 @@ int word_select_send_pc(ship_client_t *c, subcmd_word_select_t *pkt) {
 
                     gcusers = 1;
                     break;
+
+                case CLIENT_VERSION_BB:
+                    if(!gcuntrans) {
+                        send_pkt_bb(l->clients[i], (bb_pkt_hdr_t *)&bb);
+                    }
+
+                    gcusers = 1;
+                    break;
             }
         }
     }
@@ -237,6 +281,7 @@ int word_select_send_gc(ship_client_t *c, subcmd_word_select_t *pkt) {
     lobby_t *l = c->cur_lobby;
     int i;
     subcmd_word_select_t pc, dc;
+    subcmd_bb_word_select_t bb;
     int pcusers = 0, dcusers = 0;
     int pcuntrans = 0, dcuntrans = 0;
     uint16_t dcw, pcw, gcw;
@@ -265,6 +310,18 @@ int word_select_send_gc(ship_client_t *c, subcmd_word_select_t *pkt) {
     dc.unused1 = 0;
     dc.ws_type = pkt->ws_type;
     dc.unused2 = 0;
+
+    bb.hdr.pkt_type = LE16(GAME_COMMAND0_TYPE);
+    bb.hdr.flags = LE32(pkt->hdr.flags);
+    bb.hdr.pkt_len = LE16(0x0028);
+    bb.type = SUBCMD_WORD_SELECT;
+    bb.size = 0x08;
+    bb.client_id = pkt->client_id_gc;
+    bb.client_id_gc = 0;
+    bb.num_words = pkt->num_words;
+    bb.unused1 = 0;
+    bb.ws_type = pkt->ws_type;
+    bb.unused2 = 0;
 
     for(i = 0; i < 12; ++i) {
         gcw = LE16(pkt->words[i]);
@@ -295,6 +352,7 @@ int word_select_send_gc(ship_client_t *c, subcmd_word_select_t *pkt) {
         /* Throw them into the packets */
         pc.words[i] = LE16(pcw);
         dc.words[i] = LE16(dcw);
+        bb.words[i] = LE16(gcw);
     }
 
     /* Send the packet to everyone we can */
@@ -322,6 +380,10 @@ int word_select_send_gc(ship_client_t *c, subcmd_word_select_t *pkt) {
                 case CLIENT_VERSION_GC:
                 case CLIENT_VERSION_EP3:
                     send_pkt_dc(l->clients[i], (dc_pkt_hdr_t *)pkt);
+                    break;
+
+                case CLIENT_VERSION_BB:
+                    send_pkt_bb(l->clients[i], (bb_pkt_hdr_t *)&bb);
                     break;
             }
         }

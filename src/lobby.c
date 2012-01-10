@@ -16,6 +16,7 @@
 */
 
 #include <stdio.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -39,7 +40,8 @@ lobby_t *lobby_create_default(block_t *block, uint32_t lobby_id, uint8_t ev) {
 
     /* If we don't have a lobby, bail. */
     if(!l) {
-        perror("malloc");
+        debug(DBG_WARN, "Couldn't allocate space for default lobby!\n");
+        debug(DBG_WARN, "%s", strerror(errno));
         return NULL;
     }
 
@@ -103,7 +105,8 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
 
     /* If we don't have a lobby, bail. */
     if(!l) {
-        perror("malloc");
+        debug(DBG_WARN, "Couldn't allocate space for game lobby!\n");
+        debug(DBG_WARN, "%s", strerror(errno));
         return NULL;
     }
 
@@ -157,6 +160,7 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
 
     /* Initialize the packet queue */
     STAILQ_INIT(&l->pkt_queue);
+    TAILQ_INIT(&l->item_queue);
 
     /* Initialize the lobby mutex. */
     pthread_mutex_init(&l->mutex, NULL);
@@ -236,7 +240,8 @@ lobby_t *lobby_create_ep3_game(block_t *block, char *name, char *passwd,
 
     /* If we don't have a lobby, bail. */
     if(!l) {
-        perror("malloc");
+        debug(DBG_WARN, "Couldn't allocate space for Episode 3 game lobby!\n");
+        debug(DBG_WARN, "%s", strerror(errno));
         return NULL;
     }
 
@@ -299,6 +304,7 @@ static void lobby_empty_pkt_queue(lobby_t *l) {
 
 static void lobby_destroy_locked(lobby_t *l, int remove) {
     pthread_mutex_t m = l->mutex;
+    lobby_item_t *i, *tmp;
 
     /* TAILQ_REMOVE may or may not be safe to use if the item was never actually
        inserted in a list, so don't remove it if it wasn't. */
@@ -313,6 +319,14 @@ static void lobby_destroy_locked(lobby_t *l, int remove) {
     }
 
     lobby_empty_pkt_queue(l);
+
+    /* Free up any items left in the lobby for Blue Burst. */
+    i = TAILQ_FIRST(&l->item_queue);
+    while(i) {
+        tmp = TAILQ_NEXT(i, qentry);
+        free(i);
+        i = tmp;
+    }
 
     free(l);
 
@@ -1247,4 +1261,32 @@ int lobby_enqueue_pkt(lobby_t *l, ship_client_t *c, dc_pkt_hdr_t *p) {
 out:
     pthread_mutex_unlock(&l->mutex);
     return rv;
+}
+
+/* Add an item to the lobby's inventory. The caller must hold the lobby's mutex
+   before calling this. Returns NULL if there is no space in the lobby's
+   inventory for the new item. */
+item_t *lobby_add_item_locked(lobby_t *l, uint32_t item_data[4]) {
+    lobby_item_t *item;
+
+    /* Sanity check... */
+    if(l->version != CLIENT_VERSION_BB)
+        return NULL;
+
+    if(!(item = (lobby_item_t *)malloc(sizeof(lobby_item_t))))
+        return NULL;
+
+    memset(item, 0, sizeof(lobby_item_t));
+
+    /* Copy the item data in. */
+    item->d.item_id = LE32(l->item_id);
+    item->d.data_l[0] = LE32(item_data[0]);
+    item->d.data_l[1] = LE32(item_data[1]);
+    item->d.data_l[2] = LE32(item_data[2]);
+    item->d.data2_l = LE32(item_data[3]);
+
+    /* Increment the item ID, add it to the queue, and return the new item */
+    ++l->item_id;
+    TAILQ_INSERT_HEAD(&l->item_queue, item, qentry);
+    return &item->d;
 }
