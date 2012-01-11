@@ -117,6 +117,12 @@ struct ship_client {
 
     uint32_t last_info_req;
 
+    float drop_x;
+    float drop_z;
+    uint32_t drop_area;
+    uint32_t drop_item;
+    uint32_t drop_amt;
+
     uint8_t privilege;
     uint8_t cc_char;
     uint8_t q_lang;

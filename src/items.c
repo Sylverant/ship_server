@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2010 Lawrence Sebald
+    Copyright (C) 2010, 2012 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -679,12 +679,12 @@ int item_remove_from_inv(item_t *inv, int inv_count, uint32_t item_id,
 
     /* Check if the item is stackable, since we may have to do some stuff
        differently... */
-    if(item_is_stackable(LE32(inv[i].data_l[0]))) {
-        tmp = LE32(inv[i].data_l[1]);
+    if(item_is_stackable(LE32(inv[i].data_l[0])) && amt != 0xFFFFFFFF) {
+        tmp = inv[i].data_b[5];
 
-        if(amt < (tmp >> 8)) {
-            tmp -= amt << 8;
-            inv[i].data_l[1] = LE32(tmp);
+        if(amt < tmp) {
+            tmp -= amt;
+            inv[i].data_b[5] = tmp;
             return 0;
         }
     }
@@ -692,6 +692,40 @@ int item_remove_from_inv(item_t *inv, int inv_count, uint32_t item_id,
     /* Move the rest of the items down to take over the place that the item in
        question used to occupy. */
     memmove(inv + i, inv + i + 1, (inv_count - i - 1) * sizeof(item_t));
+    return 1;
+}
+
+int item_add_to_inv(item_t *inv, int inv_count, item_t *it) {
+    int i;
+
+    /* Make sure there's space first. */
+    if(inv_count == 30) {
+        return -1;
+    }
+
+    /* Look for the item in question. If it exists, we're in trouble! */
+    for(i = 0; i < inv_count; ++i) {
+        if(inv[i].item_id == it->item_id) {
+            return -1;
+        }
+    }
+    
+    /* Check if the item is stackable, since we may have to do some stuff
+       differently... */
+    if(item_is_stackable(LE32(it->data_l[0]))) {
+        /* Look for anything that matches this item in the inventory. */
+        for(i = 0; i < inv_count; ++i) {
+            if(inv[i].data_l[0] == it->data_l[0]) {
+                inv[i].data_b[5] += it->data_b[5];
+                return 0;
+            }
+        }
+    }
+
+    /* Copy the new item in at the end. */
+    inv[inv_count] = *it;
+    inv[inv_count].equipped = inv[inv_count].tech = 0;
+    inv[inv_count].flags = 0;
     return 1;
 }
 

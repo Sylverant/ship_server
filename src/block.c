@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -55,6 +55,7 @@ static void *block_thd(void *d) {
     struct sockaddr_storage addr;
     struct sockaddr *addr_p = (struct sockaddr *)&addr;
     char ipstr[INET6_ADDRSTRLEN];
+    char nm[64];
     int sock;
     ssize_t sent;
     time_t now;
@@ -86,7 +87,6 @@ static void *block_thd(void *d) {
                Disconnect it. */
             if(now > it->last_message + 120) {
                 if(it->bb_pl) {
-                    char nm[64];
                     istrncpy16(ic_utf16_to_utf8, nm,
                                &it->pl->bb.character.name[2], 64);
                     debug(DBG_LOG, "Ping Timeout: %s(%d)\n", nm, it->guildcard);
@@ -297,7 +297,6 @@ static void *block_thd(void *d) {
 
             if(it->flags & CLIENT_FLAG_DISCONNECTED) {
                 if(it->bb_pl) {
-                    char nm[64];
                     istrncpy16(ic_utf16_to_utf8, nm,
                                &it->pl->bb.character.name[2], 64);
                     debug(DBG_LOG, "Disconnecting %s(%d)\n", nm, it->guildcard);
@@ -706,15 +705,30 @@ static int join_game(ship_client_t *c, lobby_t *l) {
                       __(c, "\tC7This game is\nfull."));
     }
     else {
-        /* Fix up the inventory for their new lobby */
-        id = 0x00010000 | (c->client_id << 21) |
-            (l->highest_item[c->client_id]);
+        if(c->version == CLIENT_VERSION_BB) {
+            /* Fix up the inventory for their new lobby */
+            id = 0x00010000 | (c->client_id << 21) |
+                (l->highest_item[c->client_id]);
 
-        for(i = 0; i < c->item_count; ++i, ++id) {
-            c->items[i].item_id = LE32(id);
+            for(i = 0; i < c->bb_pl->inv.item_count; ++i, ++id) {
+                c->bb_pl->inv.items[i].item_id = LE32(id);
+            }
+
+            --id;
+            l->highest_item[c->client_id] = id;
         }
+        else {
+            /* Fix up the inventory for their new lobby */
+            id = 0x00010000 | (c->client_id << 21) |
+                (l->highest_item[c->client_id]);
 
-        l->highest_item[c->client_id] = (uint16_t)id;
+            for(i = 0; i < c->item_count; ++i, ++id) {
+                c->items[i].item_id = LE32(id);
+            }
+
+            --id;
+            l->highest_item[c->client_id] = id;
+        }
     }
 
     /* Try to backup their character data */

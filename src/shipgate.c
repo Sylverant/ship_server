@@ -868,6 +868,11 @@ static int handle_creq(shipgate_conn_t *conn, shipgate_char_data_pkt *pkt) {
                     }
                     else if(c->bb_pl) {
                         memcpy(c->bb_pl, pkt->data, clen);
+
+                        /* Clear the item ids from the inventory. */
+                        for(i = 0; i < 30; ++i) {
+                            c->bb_pl->inv.items[i].item_id = 0xFFFFFFFF;
+                        }
                     }
 
                     done = 1;

@@ -1380,13 +1380,17 @@ static int handle_dumpinv(ship_client_t *c, const char *params) {
     int i;
     lobby_t *l = c->cur_lobby;
     lobby_item_t *j;
+    int is_char;
+    char name[64];
 
     /* Make sure the requester is a GM. */
     if(!LOCAL_GM(c)) {
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
-    if(!params || strcmp(params, "lobby")) {
+    is_char = !params || strcmp(params, "lobby");
+
+    if(is_char && c->version != CLIENT_VERSION_BB) {
         debug(DBG_LOG, "Inventory dump for %s (%d)\n", c->pl->v1.name,
               c->guildcard);
 
@@ -1395,6 +1399,20 @@ static int handle_dumpinv(ship_client_t *c, const char *params) {
                    LE32(c->items[i].item_id), LE32(c->items[i].data_l[0]),
                    LE32(c->items[i].data_l[1]), LE32(c->items[i].data_l[2]),
                    LE32(c->items[i].data2_l), item_get_name(&c->items[i]));
+        }
+    }
+    else if(is_char) {
+        istrncpy16(ic_utf16_to_utf8, name, &c->bb_pl->character.name[2], 64);
+        debug(DBG_LOG, "Inventory dump for %s (%d)\n", name, c->guildcard);
+
+        for(i = 0; i < c->bb_pl->inv.item_count; ++i) {
+            debug(DBG_LOG, "%d (%08x): %08x %08x %08x %08x: %s\n", i, 
+                  LE32(c->bb_pl->inv.items[i].item_id),
+                  LE32(c->bb_pl->inv.items[i].data_l[0]),
+                  LE32(c->bb_pl->inv.items[i].data_l[1]),
+                  LE32(c->bb_pl->inv.items[i].data_l[2]),
+                  LE32(c->bb_pl->inv.items[i].data2_l),
+                  item_get_name(&c->bb_pl->inv.items[i]));
         }
     }
     else {

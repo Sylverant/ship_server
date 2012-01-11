@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -104,7 +104,7 @@ struct lobby {
     char name[65];
     char passwd[65];
     uint32_t maps[0x20];
-    uint16_t highest_item[4];
+    uint32_t highest_item[4];
 
     ship_client_t *clients[LOBBY_MAX_CLIENTS];
 
@@ -220,5 +220,8 @@ int lobby_enqueue_pkt(lobby_t *l, ship_client_t *c, dc_pkt_hdr_t *p);
 /* Add an item to the lobby's inventory. The caller must hold the lobby's mutex
    before calling this. Returns NULL on any problems... */
 item_t *lobby_add_item_locked(lobby_t *l, uint32_t item_data[4]);
+item_t *lobby_add_item2_locked(lobby_t *l, item_t *item);
+
+int lobby_remove_item_locked(lobby_t *l, uint32_t item_id, item_t *rv);
 
 #endif /* !LOBBY_H */

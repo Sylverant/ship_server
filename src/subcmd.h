@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -209,6 +209,20 @@ typedef struct subcmd_drop_item {
     float z;
 } PACKED subcmd_drop_item_t;
 
+typedef struct subcmd_bb_drop_item {
+    bb_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint8_t client_id;
+    uint8_t unused;
+    uint16_t unk;
+    uint16_t area;
+    uint32_t item_id;
+    float x;
+    float y;
+    float z;
+} PACKED subcmd_bb_drop_item_t;
+
 /* Packet used to destroy an item on the map or to remove an item from a
    client's inventory */
 typedef struct subcmd_destroy_item {
@@ -220,6 +234,40 @@ typedef struct subcmd_destroy_item {
     uint32_t item_id;
     uint32_t amount;
 } PACKED subcmd_destroy_item_t;
+
+typedef struct subcmd_bb_destroy_item {
+    bb_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint8_t client_id;
+    uint8_t unused;
+    uint32_t item_id;
+    uint32_t amount;
+} PACKED subcmd_bb_destroy_item_t;
+
+typedef struct subcmd_bb_pick_up {
+    bb_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint8_t client_id;
+    uint8_t unused;
+    uint32_t item_id;
+    uint8_t area;
+    uint8_t unused2[3];
+} PACKED subcmd_bb_pick_up_t;
+
+typedef struct subcmd_bb_destroy_map_item {
+    bb_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint8_t client_id;
+    uint8_t unused;
+    uint8_t client_id2;
+    uint8_t unused2;
+    uint8_t area;
+    uint8_t unused3;
+    uint32_t item_id;
+} PACKED subcmd_bb_destroy_map_item_t;
 
 /* Packet used when dropping part of a stack of items */
 typedef struct subcmd_drop_stack {
@@ -237,6 +285,20 @@ typedef struct subcmd_drop_stack {
     uint32_t item2;
     uint32_t two;
 } PACKED subcmd_drop_stack_t;
+
+typedef struct subcmd_bb_drop_stack {
+    bb_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint8_t client_id;
+    uint8_t unused;
+    uint32_t area;
+    float x;
+    float z;
+    uint32_t item[3];
+    uint32_t item_id;
+    uint32_t item2;
+} PACKED subcmd_bb_drop_stack_t;
 
 /* Packet used to update other people when a player warps to another area */
 typedef struct subcmd_set_area {
@@ -454,6 +516,35 @@ typedef struct subcmd_bb_shop_buy {
     uint8_t unused3;
 } PACKED subcmd_bb_shop_buy_t;
 
+/* Packet sent by the client to notify that they're dropping part of a stack of
+   items and tell where they're dropping them. (Blue Burst) */
+typedef struct subcmd_bb_drop_pos {
+    bb_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint8_t client_id;
+    uint8_t unused;
+    uint32_t area;
+    float x;
+    float z;
+    uint32_t item_id;
+    uint32_t amount;
+} PACKED subcmd_bb_drop_pos_t;
+
+/* Packet sent to clients to let them know that an item got picked up off of
+   the ground. (Blue Burst) */
+typedef struct subcmd_bb_create_item {
+    bb_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint8_t client_id;
+    uint8_t unused;
+    uint32_t item[3];
+    uint32_t item_id;
+    uint32_t item2;
+    uint32_t unused2;
+} PACKED subcmd_bb_create_item_t;
+
 #undef PACKED
 
 /* Subcommand types we care about (0x62/0x6D). */
@@ -474,7 +565,7 @@ typedef struct subcmd_bb_shop_buy {
 #define SUBCMD_REMOVE_EQUIP 0x26
 #define SUBCMD_USE_ITEM     0x27
 #define SUBCMD_DELETE_ITEM  0x29    /* Selling, deposit in bank, etc */
-#define SUBCMD_DROP_ITEM    0x2A
+#define SUBCMD_DROP_ITEM    0x2A    /* Drop full stack or non-stack item */
 #define SUBCMD_TAKE_ITEM    0x2B
 #define SUBCMD_TALK_NPC     0x2C    /* Maybe this is talking to an NPC? */
 #define SUBCMD_DONE_NPC     0x2D    /* Shows up when you're done with an NPC */
@@ -506,6 +597,8 @@ typedef struct subcmd_bb_shop_buy {
 #define SUBCMD_CHAIR_DIR    0xAF
 #define SUBCMD_CHAIR_MOVE   0xB0
 #define SUBCMD_SHOPINV      0xB6    /* Blue Burst - shop inventory */
+#define SUBCMD_CREATE_ITEM  0xBE    /* Blue Burst - create new inventory item */
+#define SUBCMD_DROP_POS     0xC3    /* Blue Burst - Drop part of stack coords */
 
 /* The commands OK to send during bursting (0x62/0x6D). These are named for the
    order in which they're sent, hence why the names are out of order... */

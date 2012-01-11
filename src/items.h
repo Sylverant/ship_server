@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2010 Lawrence Sebald
+    Copyright (C) 2010, 2012 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -611,6 +611,7 @@ const char *item_get_name_by_code(item_code_t code);
 const char *item_get_name(item_t *item);
 int item_remove_from_inv(item_t *inv, int inv_count, uint32_t item_id,
                          uint32_t amt);
+int item_add_to_inv(item_t *inv, int inv_count, item_t *it);
 int item_is_stackable(uint32_t code);
 
 #endif /* !ITEMS_H */

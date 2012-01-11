@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -32,6 +32,13 @@
 
 /* Forward declarations */
 static int subcmd_send_shop_inv(ship_client_t *c, subcmd_bb_shop_req_t *req);
+static int subcmd_send_drop_stack(ship_client_t *c, uint32_t area, float x,
+                                  float z, item_t *item);
+static int subcmd_send_picked_up(ship_client_t *c, uint32_t item_data[3],
+                                 uint32_t item_id, uint32_t item_data2,
+                                 int send_to_client);
+static int subcmd_send_destroy_map_item(ship_client_t *c, uint8_t area,
+                                        uint32_t item_id);
 
 /* Handle a Guild card send packet. */
 int handle_dc_gcsend(ship_client_t *d, subcmd_dc_gcsend_t *pkt) {
@@ -1022,7 +1029,7 @@ static int handle_buy(ship_client_t *c, subcmd_buy_t *pkt) {
     }
 
     /* Make a note of the item ID, and add to the inventory */
-    l->highest_item[c->client_id] = (uint16_t)LE32(pkt->item_id);
+    l->highest_item[c->client_id] = LE32(pkt->item_id);
 #if 0
     ic = LE32(pkt->item[0]);
 
@@ -1075,6 +1082,298 @@ static int handle_use_item(ship_client_t *c, subcmd_use_item_t *pkt) {
 #endif
 
     return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt, 0);
+}
+
+static int handle_bb_drop_item(ship_client_t *c, subcmd_bb_drop_item_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+    int i, found = -1;
+
+    /* We can't get these in default lobbies without someone messing with
+       something that they shouldn't be... Disconnect anyone that tries. */
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " tried to drop item in lobby!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* Sanity check... Make sure the size of the subcommand and the client id
+       match with what we expect. Disconnect the client if not. */
+    if(pkt->hdr.pkt_len != LE16(0x20) || pkt->size != 0x06 ||
+       pkt->client_id != c->client_id) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " sent bad item drop!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* Look for the item in the user's inventory. */
+    for(i = 0; i < c->bb_pl->inv.item_count; ++i) {
+        if(c->bb_pl->inv.items[i].item_id == pkt->item_id) {
+            found = i;
+            break;
+        }
+    }
+
+    /* If the item isn't found, then punt the user from the ship. */
+    if(found == -1) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " dropped invalid item id!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* We have the item... Add it to the lobby's inventory. */
+    if(!lobby_add_item2_locked(l, &c->bb_pl->inv.items[found])) {
+        /* *Gulp* The lobby is probably toast... At least make sure this user is
+           still (mostly) safe... */
+        debug(DBG_WARN, "Couldn't add item to lobby inventory!\n");
+        return -1;
+    }
+
+    /* Remove the item from the user's inventory. */
+    if(item_remove_from_inv(c->bb_pl->inv.items, c->bb_pl->inv.item_count,
+                            pkt->item_id, 0xFFFFFFFF) < 1) {
+        debug(DBG_WARN, "Couldn't remove item from client's inventory!\n");
+        return -1;
+    }
+
+    --c->bb_pl->inv.item_count;
+
+    /* Done. Send the packet on to the lobby. */
+    return lobby_send_pkt_bb(l, c, (bb_pkt_hdr_t *)pkt, 0);
+}
+
+static int handle_bb_drop_pos(ship_client_t *c, subcmd_bb_drop_pos_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+    int i, found = -1;
+    uint32_t meseta, amt;
+
+    /* We can't get these in default lobbies without someone messing with
+       something that they shouldn't be... Disconnect anyone that tries. */
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " set drop pos in lobby!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* Sanity check... Make sure the size of the subcommand and the client id
+       match with what we expect. Disconnect the client if not. */
+    if(pkt->hdr.pkt_len != LE16(0x20) || pkt->size != 0x06 ||
+       pkt->client_id != c->client_id) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " sent bad drop pos!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* Look for the item in the user's inventory. */
+    if(pkt->item_id != 0xFFFFFFFF) {
+        for(i = 0; i < c->bb_pl->inv.item_count; ++i) {
+            if(c->bb_pl->inv.items[i].item_id == pkt->item_id) {
+                found = i;
+                break;
+            }
+        }
+
+        /* If the item isn't found, then punt the user from the ship. */
+        if(found == -1) {
+            debug(DBG_WARN, "Guildcard %" PRIu32 " dropped invalid item id!\n",
+                  c->guildcard);
+            return -1;
+        }
+    }
+    else {
+        meseta = LE32(c->bb_pl->character.meseta);
+        amt = LE32(pkt->amount);
+
+        if(meseta < amt) { 
+            debug(DBG_WARN, "Guildcard %" PRIu32 " droppped too much money!\n",
+                  c->guildcard);
+            return -1;
+        }
+    }
+
+    /* We have the item... Record the information for use with the subcommand
+       0x29 that should follow. */
+    c->drop_x = pkt->x;
+    c->drop_z = pkt->z;
+    c->drop_area = pkt->area;
+    c->drop_item = pkt->item_id;
+    c->drop_amt = pkt->amount;
+
+    /* Done. Send the packet on to the lobby. */
+    return lobby_send_pkt_bb(l, c, (bb_pkt_hdr_t *)pkt, 0);
+}
+
+static int handle_bb_drop_stack(ship_client_t *c,
+                                subcmd_bb_destroy_item_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+    int i, found = -1;
+    uint32_t tmp, tmp2;
+    item_t item_data;
+    item_t *it;
+
+    /* We can't get these in default lobbies without someone messing with
+       something that they shouldn't be... Disconnect anyone that tries. */
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " drop stack in lobby!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* Sanity check... Make sure the size of the subcommand and the client id
+       match with what we expect. Disconnect the client if not. */
+    if(pkt->hdr.pkt_len != LE16(0x14) || pkt->size != 0x03 ||
+       pkt->client_id != c->client_id) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " sent bad drop stack!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    if(pkt->item_id != 0xFFFFFFFF) {
+        /* Look for the item in the user's inventory. */
+        for(i = 0; i < c->bb_pl->inv.item_count; ++i) {
+            if(c->bb_pl->inv.items[i].item_id == pkt->item_id) {
+                found = i;
+                break;
+            }
+        }
+
+        /* If the item isn't found, then punt the user from the ship. */
+        if(found == -1) {
+            debug(DBG_WARN, "Guildcard %" PRIu32 " dropped invalid item "
+                  "stack!\n", c->guildcard);
+            return -1;
+        }
+
+        /* Grab the item from the client's inventory and set up the split */
+        item_data = c->items[found];
+        item_data.item_id = LE32((++l->highest_item[c->client_id]));
+
+        /* Put the right amount in */
+        tmp = LE32(item_data.data_l[1]) & 0xFFFF00FF;
+        tmp |= ((uint32_t)((uint8_t)LE32(pkt->amount))) << 8;
+        item_data.data_l[1] = LE32(tmp);
+    }
+    else {
+        item_data.data_l[0] = LE32(Item_Meseta);
+        item_data.data_l[1] = item_data.data_l[2] = 0;
+        item_data.data2_l = pkt->amount;
+        item_data.item_id = LE32((++l->highest_item[c->client_id]));
+    }
+
+    /* Make sure the item id and amount match the most recent 0xC3. */
+    if(pkt->item_id != c->drop_item || pkt->amount != c->drop_amt) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " dropped different item stack!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* We have the item... Add it to the lobby's inventory. */
+    if(!(it = lobby_add_item2_locked(l, &item_data))) {
+        /* *Gulp* The lobby is probably toast... At least make sure this user is
+           still (mostly) safe... */
+        debug(DBG_WARN, "Couldn't add item to lobby inventory!\n");
+        return -1;
+    }
+
+    if(pkt->item_id != 0xFFFFFFFF) {
+        /* Remove the item from the user's inventory. */
+        if(item_remove_from_inv(c->bb_pl->inv.items, c->bb_pl->inv.item_count,
+                                pkt->item_id, LE32(pkt->amount)) < 0) {
+            debug(DBG_WARN, "Couldn't remove item from client's inventory!\n");
+            return -1;
+        }
+    }
+    else {
+        /* Remove the meseta from the character data */
+        tmp = LE32(pkt->amount);
+        tmp2 = LE32(c->bb_pl->character.meseta);
+
+        if(tmp > tmp2) {
+            debug(DBG_WARN, "Guildcard %" PRIu32 " dropping too much meseta\n",
+                  c->guildcard);
+            return -1;
+        }
+
+        c->bb_pl->character.meseta = LE32(tmp2 - tmp);
+        c->pl->bb.character.meseta = c->bb_pl->character.meseta;
+    }
+
+    /* Now we have two packets to send on. First, send the one telling everyone
+       that there's an item dropped. Then, send the one removing the item from
+       the client's inventory. The first must go to everybody, the second to
+       everybody except the person who sent this packet in the first place. */
+    subcmd_send_drop_stack(c, c->drop_area, c->drop_x, c->drop_z, it);
+
+    /* Done. Send the packet on to the lobby. */
+    return lobby_send_pkt_bb(l, c, (bb_pkt_hdr_t *)pkt, 0);
+}
+
+static int handle_bb_pick_up(ship_client_t *c, subcmd_bb_pick_up_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+    int found;
+    uint32_t item, tmp;
+    item_t item_data;
+    
+    /* We can't get these in default lobbies without someone messing with
+       something that they shouldn't be... Disconnect anyone that tries. */
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " picked up item in lobby!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* Sanity check... Make sure the size of the subcommand and the client id
+       match with what we expect. Disconnect the client if not. */
+    if(pkt->hdr.pkt_len != LE16(0x14) || pkt->size != 0x03 ||
+       pkt->client_id != c->client_id) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " send back pick up line!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* Try to remove the item from the lobby... */
+    found = lobby_remove_item_locked(l, pkt->item_id, &item_data);
+    if(found < 0) {
+        return -1;
+    }
+    else if(found > 0) {
+        /* Assume someone else already picked it up, and just ignore it... */
+        return 0;
+    }
+    else {
+        item = LE32(item_data.data_l[0]);
+
+        /* Is it meseta, or an item? */
+        if(item == Item_Meseta) {
+            tmp = LE32(item_data.data2_l) + LE32(c->bb_pl->character.meseta);
+
+            /* Cap at 999,999 meseta. */
+            if(tmp > 999999)
+                tmp = 999999;
+
+            c->bb_pl->character.meseta = LE32(tmp);
+            c->pl->bb.character.meseta = c->bb_pl->character.meseta;
+        }
+        else {
+            /* Add the item to the client's inventory. */
+            found = item_add_to_inv(c->bb_pl->inv.items,
+                                    c->bb_pl->inv.item_count, &item_data);
+
+            if(found == -1) {
+                debug(DBG_WARN, "Guildcard %" PRIu32 " has no item space!\n",
+                      c->guildcard);
+                return -1;
+            }
+
+            c->bb_pl->inv.item_count += found;
+        }
+    }
+
+    /* Let everybody know that the client picked it up, and remove it from the
+       view. */
+    subcmd_send_picked_up(c, item_data.data_l, item_data.item_id,
+                          item_data.data2_l, 1);
+
+    return subcmd_send_destroy_map_item(c, pkt->area, item_data.item_id);
 }
 
 static int handle_word_select(ship_client_t *c, subcmd_word_select_t *pkt) {
@@ -1418,6 +1717,10 @@ int subcmd_bb_handle_one(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
             rv = handle_bb_gcsend(c, dest);
             break;
 
+        case SUBCMD_PICK_UP:
+            rv = handle_bb_pick_up(c, (subcmd_bb_pick_up_t *)pkt);
+            break;
+
         case SUBCMD_SHOPREQ:
             rv = subcmd_send_shop_inv(c, (subcmd_bb_shop_req_t *)pkt);
             break;
@@ -1588,6 +1891,10 @@ int subcmd_bb_handle_bcast(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
             rv = handle_bb_set_area(c, (subcmd_bb_set_area_t *)pkt);
             break;
 
+        case SUBCMD_DROP_ITEM:
+            rv = handle_bb_drop_item(c, (subcmd_bb_drop_item_t *)pkt);
+            break;
+
         case SUBCMD_SET_POS_3E:
         case SUBCMD_SET_POS_3F:
             rv = handle_bb_set_pos(c, (subcmd_bb_set_pos_t *)pkt);
@@ -1598,8 +1905,16 @@ int subcmd_bb_handle_bcast(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
             rv = handle_bb_move(c, (subcmd_bb_move_t *)pkt);
             break;
 
+        case SUBCMD_DELETE_ITEM:
+            rv = handle_bb_drop_stack(c, (subcmd_bb_destroy_item_t *)pkt);
+            break;
+
         case SUBCMD_WORD_SELECT:
             rv = handle_bb_word_select(c, (subcmd_bb_word_select_t *)pkt);
+            break;
+
+        case SUBCMD_DROP_POS:
+            rv = handle_bb_drop_pos(c, (subcmd_bb_drop_pos_t *)pkt);
             break;
 
         default:
@@ -1712,6 +2027,77 @@ static int subcmd_send_shop_inv(ship_client_t *c, subcmd_bb_shop_req_t *req) {
         shop.items[i].cost = LE32((genrand_int32() % 255));
     }
 
-    send_pkt_bb(c, (bb_pkt_hdr_t *)&shop);
-    return 0;
+    return send_pkt_bb(c, (bb_pkt_hdr_t *)&shop);
+}
+
+/* It is assumed that all parameters are already in little-endian order. */
+static int subcmd_send_drop_stack(ship_client_t *c, uint32_t area, float x,
+                                  float z, item_t *item) {
+    subcmd_bb_drop_stack_t drop;
+
+    /* Fill in the packet... */
+    drop.hdr.pkt_len = LE16(0x2C);
+    drop.hdr.pkt_type = LE16(GAME_COMMAND0_TYPE);
+    drop.hdr.flags = 0;
+    drop.type = SUBCMD_DROP_STACK;
+    drop.size = 0x09;
+    drop.client_id = c->client_id;
+    drop.unused = 0;
+    drop.area = area;
+    drop.x = x;
+    drop.z = z;
+    drop.item[0] = item->data_l[0];
+    drop.item[1] = item->data_l[1];
+    drop.item[2] = item->data_l[2];
+    drop.item_id = item->item_id;
+    drop.item2 = item->data2_l;
+
+    return lobby_send_pkt_bb(c->cur_lobby, NULL, &drop, 0);
+}
+
+static int subcmd_send_picked_up(ship_client_t *c, uint32_t data_l[3],
+                                 uint32_t item_id, uint32_t data2_l,
+                                 int send_to_client) {
+    subcmd_bb_create_item_t pick;
+
+    /* Fill in the packet. */
+    pick.hdr.pkt_len = LE16(0x24);
+    pick.hdr.pkt_type = LE16(GAME_COMMAND0_TYPE);
+    pick.hdr.flags = 0;
+    pick.type = SUBCMD_CREATE_ITEM;
+    pick.size = 0x07;
+    pick.client_id = c->client_id;
+    pick.unused = 0;
+    pick.item[0] = data_l[0];
+    pick.item[1] = data_l[1];
+    pick.item[2] = data_l[2];
+    pick.item_id = item_id;
+    pick.item2 = data2_l;
+    pick.unused2 = 0;
+
+    if(send_to_client)
+        return lobby_send_pkt_bb(c->cur_lobby, NULL, &pick, 0);
+    else
+        return lobby_send_pkt_bb(c->cur_lobby, c, &pick, 0);
+}
+
+static int subcmd_send_destroy_map_item(ship_client_t *c, uint8_t area,
+                                        uint32_t item_id) {
+    subcmd_bb_destroy_map_item_t d;
+
+    /* Fill in the packet. */
+    d.hdr.pkt_len = LE16(0x14);
+    d.hdr.pkt_type = LE16(GAME_COMMAND0_TYPE);
+    d.hdr.flags = 0;
+    d.type = SUBCMD_DEL_MAP_ITEM;
+    d.size = 0x03;
+    d.client_id = c->client_id;
+    d.unused = 0;
+    d.client_id2 = c->client_id;
+    d.unused2 = 0;
+    d.area = area;
+    d.unused3 = 0;
+    d.item_id = item_id;
+
+    return lobby_send_pkt_bb(c->cur_lobby, NULL, &d, 0);
 }

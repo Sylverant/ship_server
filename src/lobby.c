@@ -32,6 +32,7 @@
 #include "subcmd.h"
 #include "ship.h"
 #include "shipgate.h"
+#include "items.h"
 
 static int td(lobby_t *l, void *req);
 
@@ -1289,4 +1290,50 @@ item_t *lobby_add_item_locked(lobby_t *l, uint32_t item_data[4]) {
     ++l->item_id;
     TAILQ_INSERT_HEAD(&l->item_queue, item, qentry);
     return &item->d;
+}
+
+item_t *lobby_add_item2_locked(lobby_t *l, item_t *it) {
+    lobby_item_t *item;
+
+    /* Sanity check... */
+    if(l->version != CLIENT_VERSION_BB)
+        return NULL;
+
+    if(!(item = (lobby_item_t *)malloc(sizeof(lobby_item_t))))
+        return NULL;
+
+    memset(item, 0, sizeof(lobby_item_t));
+
+    /* Copy the item data in. */
+    memcpy(&item->d, it, sizeof(item_t));
+
+    /* Add it to the queue, and return the new item */
+    TAILQ_INSERT_HEAD(&l->item_queue, item, qentry);
+    return &item->d;
+}
+
+int lobby_remove_item_locked(lobby_t *l, uint32_t item_id, item_t *rv) {
+    lobby_item_t *i, *tmp;
+
+    if(l->version != CLIENT_VERSION_BB)
+        return -1;
+
+    memset(rv, 0, sizeof(item_t));
+    rv->data_l[0] = LE32(Item_NoSuchItem);
+
+    i = TAILQ_FIRST(&l->item_queue);
+    while(i) {
+        tmp = TAILQ_NEXT(i, qentry);
+
+        if(i->d.item_id == item_id) {
+            memcpy(rv, &i->d, sizeof(item_t));
+            TAILQ_REMOVE(&l->item_queue, i, qentry);
+            free(i);
+            return 0;
+        }
+
+        i = tmp;
+    }
+
+    return 1;
 }
