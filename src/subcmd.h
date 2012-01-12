@@ -18,6 +18,8 @@
 #ifndef SUBCMD_H
 #define SUBCMD_H
 
+#include <sylverant/characters.h>
+
 #include "clients.h"
 
 #ifdef PACKED
@@ -545,6 +547,40 @@ typedef struct subcmd_bb_create_item {
     uint32_t unused2;
 } PACKED subcmd_bb_create_item_t;
 
+/* Packet sent by clients to open the bank menu. (Blue Burst) */
+typedef struct subcmd_bb_bank_open {
+    bb_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint16_t unused;                    /* 0xFFFF */
+    uint32_t unk;                       /* Maybe a checksum or somesuch? */
+} PACKED subcmd_bb_bank_open_t;
+
+/* Packet sent to clients to tell them what's in their bank. (Blue Burst) */
+typedef struct subcmd_bb_bank_inv {
+    bb_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t unused[3];                  /* No size here, apparently. */
+    uint32_t size;
+    uint32_t checksum;
+    uint32_t item_count;
+    uint32_t meseta;
+    sylverant_bitem_t items[];
+} PACKED subcmd_bb_bank_inv_t;
+
+/* Packet sent by clients to do something at the bank. (Blue Burst) */
+typedef struct subcmd_bb_bank_act {
+    bb_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint16_t unused;                    /* 0xFFFF */
+    uint32_t item_id;
+    uint32_t meseta_amount;
+    uint8_t action;
+    uint8_t item_amount;
+    uint16_t unused2;                   /* 0xFFFF */
+} PACKED subcmd_bb_bank_act_t;
+
 #undef PACKED
 
 /* Subcommand types we care about (0x62/0x6D). */
@@ -553,8 +589,10 @@ typedef struct subcmd_bb_create_item {
 #define SUBCMD_ITEMREQ      0x60
 #define SUBCMD_SHOPREQ      0xB5    /* Blue Burst - Request shop inventory */
 #define SUBCMD_SHOPBUY      0xB7    /* Blue Burst - Buy an item from the shop */
+#define SUBCMD_OPEN_BANK    0xBB    /* Blue Burst - open the bank menu */
+#define SUBCMD_BANK_ACTION  0xBD    /* Blue Burst - do something at the bank */
 
-/* Subcommand types we might care about (0x60). */
+/* Subcommand types we might care about (0x60/0x6C). */
 #define SUBCMD_SYMBOL_CHAT  0x07
 #define SUBCMD_TELEPORT     0x17
 #define SUBCMD_SET_AREA     0x1F
@@ -597,6 +635,7 @@ typedef struct subcmd_bb_create_item {
 #define SUBCMD_CHAIR_DIR    0xAF
 #define SUBCMD_CHAIR_MOVE   0xB0
 #define SUBCMD_SHOPINV      0xB6    /* Blue Burst - shop inventory */
+#define SUBCMD_BANK_INV     0xBC    /* Blue Burst - bank inventory */
 #define SUBCMD_CREATE_ITEM  0xBE    /* Blue Burst - create new inventory item */
 #define SUBCMD_DROP_POS     0xC3    /* Blue Burst - Drop part of stack coords */
 
@@ -620,6 +659,12 @@ typedef struct subcmd_bb_create_item {
 #define SUBCMD_STAT_MESDOWN 2
 #define SUBCMD_STAT_HPUP    3
 #define SUBCMD_STAT_TPUP    4
+
+/* Actions that can be performed at the bank with Subcommand 0xBD (0x62) */
+#define SUBCMD_BANK_ACT_DEPOSIT 0
+#define SUBCMD_BANK_ACT_TAKE    1
+#define SUBCMD_BANK_ACT_DONE    2
+#define SUBCMD_BANK_ACT_CLOSE   3
 
 /* Handle a 0x62/0x6D packet. */
 int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt);

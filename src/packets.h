@@ -1420,6 +1420,7 @@ typedef struct bb_guildcard_comment {
 #define LOBBY_JOIN_TYPE                 0x0067
 #define LOBBY_ADD_PLAYER_TYPE           0x0068
 #define LOBBY_LEAVE_TYPE                0x0069
+#define GAME_COMMANDC_TYPE              0x006C
 #define GAME_COMMANDD_TYPE              0x006D
 #define DONE_BURSTING_TYPE              0x006F
 #define SIMPLE_MAIL_TYPE                0x0081

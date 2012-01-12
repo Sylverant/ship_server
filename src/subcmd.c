@@ -39,6 +39,8 @@ static int subcmd_send_picked_up(ship_client_t *c, uint32_t item_data[3],
                                  int send_to_client);
 static int subcmd_send_destroy_map_item(ship_client_t *c, uint8_t area,
                                         uint32_t item_id);
+static int subcmd_send_destroy_item(ship_client_t *c, uint32_t item_id,
+                                    uint8_t amt);
 
 /* Handle a Guild card send packet. */
 int handle_dc_gcsend(ship_client_t *d, subcmd_dc_gcsend_t *pkt) {
@@ -1246,11 +1248,7 @@ static int handle_bb_drop_stack(ship_client_t *c,
         /* Grab the item from the client's inventory and set up the split */
         item_data = c->items[found];
         item_data.item_id = LE32((++l->highest_item[c->client_id]));
-
-        /* Put the right amount in */
-        tmp = LE32(item_data.data_l[1]) & 0xFFFF00FF;
-        tmp |= ((uint32_t)((uint8_t)LE32(pkt->amount))) << 8;
-        item_data.data_l[1] = LE32(tmp);
+        item_data.data_b[5] = (uint8_t)(LE32(pkt->amount));
     }
     else {
         item_data.data_l[0] = LE32(Item_Meseta);
@@ -1325,7 +1323,7 @@ static int handle_bb_pick_up(ship_client_t *c, subcmd_bb_pick_up_t *pkt) {
        match with what we expect. Disconnect the client if not. */
     if(pkt->hdr.pkt_len != LE16(0x14) || pkt->size != 0x03 ||
        pkt->client_id != c->client_id) {
-        debug(DBG_WARN, "Guildcard %" PRIu32 " send back pick up line!\n",
+        debug(DBG_WARN, "Guildcard %" PRIu32 " sent back pick up line!\n",
               c->guildcard);
         return -1;
     }
@@ -1586,6 +1584,244 @@ static int handle_cmode_grave(ship_client_t *c, subcmd_pkt_t *pkt) {
     return 0;
 }
 
+static int handle_bb_bank(ship_client_t *c, subcmd_bb_bank_open_t *req) {
+    lobby_t *l = c->cur_lobby;
+    uint8_t *sendbuf = get_sendbuf();
+    subcmd_bb_bank_inv_t *pkt = (subcmd_bb_bank_inv_t *)sendbuf;
+    uint32_t num_items = LE32(c->bb_pl->bank.item_count);
+    uint16_t size = sizeof(subcmd_bb_bank_inv_t) + num_items *
+        sizeof(sylverant_bitem_t);
+
+    /* We can't get these in default lobbies without someone messing with
+       something that they shouldn't be... Disconnect anyone that tries. */
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " opened bank in lobby!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* Sanity check... Make sure the size of the subcommand and the client id
+       match with what we expect. Disconnect the client if not. */
+    if(req->hdr.pkt_len != LE16(0x10) || req->size != 0x02) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " sent bad bank open request!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* Clean up the user's bank first... */
+    cleanup_bb_bank(c);
+
+    /* Fill in the packet. */
+    pkt->hdr.pkt_len = LE16(size);
+    pkt->hdr.pkt_type = LE16(GAME_COMMANDC_TYPE);
+    pkt->hdr.flags = 0;
+    pkt->type = SUBCMD_BANK_INV;
+    pkt->unused[0] = pkt->unused[1] = pkt->unused[2] = 0;
+    pkt->size = LE32(size);
+    pkt->checksum = genrand_int32();  /* Client doesn't care */
+    memcpy(&pkt->item_count, &c->bb_pl->bank, sizeof(sylverant_bank_t));
+
+    return crypt_send(c, (int)size, sendbuf);
+}
+
+static int handle_bb_bank_action(ship_client_t *c, subcmd_bb_bank_act_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+    uint32_t item_id;
+    uint32_t amt, bank, inv, i;
+    int found = -1, stack;
+    item_t item;
+    sylverant_bitem_t bitem;
+
+    /* We can't get these in default lobbies without someone messing with
+       something that they shouldn't be... Disconnect anyone that tries. */
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " did bank action in lobby!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* Sanity check... Make sure the size of the subcommand and the client id
+       match with what we expect. Disconnect the client if not. */
+    if(pkt->hdr.pkt_len != LE16(0x18) || pkt->size != 0x04) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " sent bad bank action!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    switch(pkt->action) {
+        case SUBCMD_BANK_ACT_CLOSE:
+        case SUBCMD_BANK_ACT_DONE:
+            return 0;
+
+        case SUBCMD_BANK_ACT_DEPOSIT:
+            item_id = LE32(pkt->item_id);
+
+            /* Are they depositing meseta or an item? */
+            if(item_id == 0xFFFFFFFF) {
+                amt = LE32(pkt->meseta_amount);
+                inv = LE32(c->bb_pl->character.meseta);
+
+                /* Make sure they aren't trying to do something naughty... */
+                if(amt > inv) {
+                    debug(DBG_WARN, "Guildcard %" PRIu32 " depositing more "
+                          "meseta than they have!\n", c->guildcard);
+                    return -1;
+                }
+
+                bank = LE32(c->bb_pl->bank.meseta);
+                if(amt + bank > 999999) {
+                    debug(DBG_WARN, "Guildcard %" PRIu32 " depositing too much "
+                          "money at the bank!\n", c->guildcard);
+                    return -1;
+                }
+
+                c->bb_pl->character.meseta = LE32((inv - amt));
+                c->pl->bb.character.meseta = c->bb_pl->character.meseta;
+                c->bb_pl->bank.meseta = LE32((bank + amt));
+
+                /* No need to tell everyone else, I guess? */
+                return 0;
+            }
+            else {
+                /* Look for the item in the user's inventory. */
+                inv = LE32(c->bb_pl->inv.item_count);
+                for(i = 0; i < inv; ++i) {
+                    if(c->bb_pl->inv.items[i].item_id == pkt->item_id) {
+                        item = c->bb_pl->inv.items[i];
+                        found = i;
+                        break;
+                    }
+                }
+
+                /* If the item isn't found, then punt the user from the ship. */
+                if(found == -1) {
+                    debug(DBG_WARN, "Guildcard %" PRIu32 " banked item that "
+                          "they do not have!\n", c->guildcard);
+                    return -1;
+                }
+
+                stack = item_is_stackable(item.data_l[0]);
+
+                if(!stack && pkt->item_amount > 1) {
+                    debug(DBG_WARN, "Guildcard %" PRIu32 " banking multiple of "
+                          "a non-stackable item!\n", c->guildcard);
+                    return -1;
+                }
+
+                found = item_remove_from_inv(c->bb_pl->inv.items, inv,
+                                             pkt->item_id, pkt->item_amount);
+                if(found < 0 || found > 1) {
+                    debug(DBG_WARN, "Error removing item from inventory for "
+                          "banking!\n", c->guildcard);
+                    return -1;
+                }
+
+                inv -= found;
+                c->bb_pl->inv.item_count = LE32(inv);
+
+                /* Fill in the bank item. */
+                if(stack) {
+                    item.data_b[5] = pkt->item_amount;
+                    bitem.amount = LE16(pkt->item_amount);
+                }
+                else {
+                    bitem.amount = LE16(1);
+                }
+
+                bitem.flags = LE16(1);
+                bitem.data_l[0] = item.data_l[0];
+                bitem.data_l[1] = item.data_l[1];
+                bitem.data_l[2] = item.data_l[2];
+                bitem.item_id = item.item_id;
+                bitem.data2_l = item.data2_l;
+
+                /* Deposit it! */
+                if(item_deposit_to_bank(c, &bitem) < 0) {
+                    debug(DBG_WARN, "Error depositing to bank for guildcard %"
+                          PRIu32 "!\n", c->guildcard);
+                    return -1;
+                }
+
+                return subcmd_send_destroy_item(c, item.item_id,
+                                                pkt->item_amount);
+            }
+
+        case SUBCMD_BANK_ACT_TAKE:
+            item_id = LE32(pkt->item_id);
+
+            /* Are they taking meseta or an item? */
+            if(item_id == 0xFFFFFFFF) {
+                amt = LE32(pkt->meseta_amount);
+                inv = LE32(c->bb_pl->character.meseta);
+
+                /* Make sure they aren't trying to do something naughty... */
+                if(amt + inv > 999999) {
+                    debug(DBG_WARN, "Guildcard %" PRIu32 " taking too much "
+                          "money out of bank!\n", c->guildcard);
+                    return -1;
+                }
+
+                bank = LE32(c->bb_pl->bank.meseta);
+                if(amt > bank) {
+                    debug(DBG_WARN, "Guildcard %" PRIu32 " taking out more "
+                          "money than they have in the bank!\n", c->guildcard);
+                    return -1;
+                }
+
+                c->bb_pl->character.meseta = LE32((inv + amt));
+                c->pl->bb.character.meseta = c->bb_pl->character.meseta;
+                c->bb_pl->bank.meseta = LE32((bank - amt));
+
+                /* No need to tell everyone else... */
+                return 0;
+            }
+            else {
+                /* Try to take the item out of the bank. */
+                found = item_take_from_bank(c, pkt->item_id, pkt->item_amount,
+                                            &bitem);
+                if(found < 0) {
+                    debug(DBG_WARN, "Guildcard %" PRIu32 " taking invalid item "
+                          "from bank!\n", c->guildcard);
+                    return -1;
+                }
+
+                /* Ok, we have the item... Convert the bank item to an inventory
+                   one... */
+                item.equipped = LE16(0x0001);
+                item.tech = LE16(0x0001);
+                item.flags = 0;
+                item.data_l[0] = bitem.data_l[0];
+                item.data_l[1] = bitem.data_l[1];
+                item.data_l[2] = bitem.data_l[2];
+                item.item_id = LE32(l->item_id);
+                item.data2_l = bitem.data2_l;
+                ++l->item_id;
+
+                /* Time to add it to the inventory... */
+                inv = LE32(c->bb_pl->inv.item_count);
+                found = item_add_to_inv(c->bb_pl->inv.items, inv, &item);
+                if(found < 0) {
+                    /* Uh oh... Guess we should put it back in the bank... */
+                    item_deposit_to_bank(c, &bitem);
+                    return -1;
+                }
+
+                inv += found;
+                c->bb_pl->inv.item_count = LE32(inv);
+
+                /* Let everyone know about it. */
+                return subcmd_send_picked_up(c, item.data_l, item.item_id,
+                                             item.data2_l, 1);
+            }
+
+        default:
+            debug(DBG_WARN, "Guildcard %" PRIu32 " sent unk bank action: %d!\n",
+                  c->guildcard, pkt->action);
+            print_packet((unsigned char *)pkt, 0x18);
+            return -1;
+    }
+}
+
 /* Handle a 0x62/0x6D packet. */
 int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
     lobby_t *l = c->cur_lobby;
@@ -1723,6 +1959,14 @@ int subcmd_bb_handle_one(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
 
         case SUBCMD_SHOPREQ:
             rv = subcmd_send_shop_inv(c, (subcmd_bb_shop_req_t *)pkt);
+            break;
+
+        case SUBCMD_OPEN_BANK:
+            rv = handle_bb_bank(c, (subcmd_bb_bank_open_t *)pkt);
+            break;
+
+        case SUBCMD_BANK_ACTION:
+            rv = handle_bb_bank_action(c, (subcmd_bb_bank_act_t *)pkt);
             break;
 
         default:
@@ -2100,4 +2344,22 @@ static int subcmd_send_destroy_map_item(ship_client_t *c, uint8_t area,
     d.item_id = item_id;
 
     return lobby_send_pkt_bb(c->cur_lobby, NULL, &d, 0);
+}
+
+static int subcmd_send_destroy_item(ship_client_t *c, uint32_t item_id,
+                                    uint8_t amt) {
+    subcmd_bb_destroy_item_t d;
+
+    /* Fill in the packet. */
+    d.hdr.pkt_len = LE16(0x14);
+    d.hdr.pkt_type = LE16(GAME_COMMAND0_TYPE);
+    d.hdr.flags = 0;
+    d.type = SUBCMD_DELETE_ITEM;
+    d.size = 0x03;
+    d.client_id = c->client_id;
+    d.unused = 0;
+    d.item_id = item_id;
+    d.amount = LE32(amt);
+
+    return lobby_send_pkt_bb(c->cur_lobby, c, &d, 0);
 }

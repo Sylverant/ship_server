@@ -729,6 +729,101 @@ int item_add_to_inv(item_t *inv, int inv_count, item_t *it) {
     return 1;
 }
 
+void cleanup_bb_bank(ship_client_t *c) {
+    uint32_t item_id = 0x80010000 | (c->client_id << 21);
+    uint32_t count = LE32(c->bb_pl->bank.item_count), i;
+
+    for(i = 0; i < count; ++i) {
+        c->bb_pl->bank.items[i].item_id = LE32(item_id);
+        ++item_id;
+    }
+
+    /* Clear all the rest of them... */
+    for(; i < 200; ++i) {
+        memset(&c->bb_pl->bank.items[i], 0, sizeof(sylverant_bitem_t));
+        c->bb_pl->bank.items[i].item_id = 0xFFFFFFFF;
+    }
+}
+
+int item_deposit_to_bank(ship_client_t *c, sylverant_bitem_t *it) {
+    uint32_t i, count = LE32(c->bb_pl->bank.item_count);
+    int amount;
+
+    /* Make sure there's space first. */
+    if(count == 200) {
+        return -1;
+    }
+
+    /* Check if the item is stackable, since we may have to do some stuff
+       differently... */
+    if(item_is_stackable(LE32(it->data_l[0]))) {
+        /* Look for anything that matches this item in the inventory. */
+        for(i = 0; i < count; ++i) {
+            if(c->bb_pl->bank.items[i].data_l[0] == it->data_l[0]) {
+                amount = c->bb_pl->bank.items[i].data_b[5] += it->data_b[5];
+                c->bb_pl->bank.items[i].amount = LE16(amount);
+                return 0;
+            }
+        }
+    }
+
+    /* Copy the new item in at the end. */
+    c->bb_pl->bank.items[count] = *it;
+    ++count;
+    c->bb_pl->bank.item_count = count;
+
+    return 1;
+}
+
+int item_take_from_bank(ship_client_t *c, uint32_t item_id, uint8_t amt,
+                        sylverant_bitem_t *rv) {
+    uint32_t i, count = LE32(c->bb_pl->bank.item_count);
+    sylverant_bitem_t *it;
+
+    /* Look for the item in question */
+    for(i = 0; i < count; ++i) {
+        if(c->bb_pl->bank.items[i].item_id == item_id) {
+            break;
+        }
+    }
+
+    /* Did we find it? If not, return error. */
+    if(i == count) {
+        return -1;
+    }
+
+    /* Grab the item in question, and copy the data to the return pointer. */
+    it = &c->bb_pl->bank.items[i];
+    *rv = *it;
+
+    /* Check if the item is stackable, since we may have to do some stuff
+       differently... */
+    if(item_is_stackable(LE32(it->data_l[0]))) {
+        if(amt < it->data_b[5]) {
+            it->data_b[5] -= amt;
+            it->amount = LE16(it->data_b[5]);
+
+            /* Fix the amount on the returned value, and return. */
+            rv->data_b[5] = amt;
+            rv->amount = LE16(amt);
+
+            return 0;
+        }
+        else if(amt > it->data_b[5]) {
+            return -1;
+        }
+    }
+
+    /* Move the rest of the items down to take over the place that the item in
+       question used to occupy. */
+    memmove(c->bb_pl->bank.items + i, c->bb_pl->bank.items + i + 1,
+            (count - i - 1) * sizeof(sylverant_bitem_t));
+    --count;
+    c->bb_pl->bank.item_count = LE32(count);
+
+    return 1;
+}
+
 int item_is_stackable(uint32_t code) {
     if((code & 0x000000FF) == 0x03) {
         code = (code >> 8) & 0xFF;

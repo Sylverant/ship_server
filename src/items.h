@@ -18,7 +18,10 @@
 #ifndef ITEMS_H
 #define ITEMS_H
 
+#include <sylverant/characters.h>
+
 #include "player.h"
+#include "clients.h"
 
 /* Master list of item codes. */
 typedef enum item_code_e {
@@ -613,5 +616,11 @@ int item_remove_from_inv(item_t *inv, int inv_count, uint32_t item_id,
                          uint32_t amt);
 int item_add_to_inv(item_t *inv, int inv_count, item_t *it);
 int item_is_stackable(uint32_t code);
+
+/* Blue Burst bank management */
+void cleanup_bb_bank(ship_client_t *c);
+int item_deposit_to_bank(ship_client_t *c, sylverant_bitem_t *it);
+int item_take_from_bank(ship_client_t *c, uint32_t item_id, uint8_t amt,
+                        sylverant_bitem_t *rv);
 
 #endif /* !ITEMS_H */
