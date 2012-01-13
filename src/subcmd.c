@@ -22,6 +22,7 @@
 
 #include <sylverant/debug.h>
 #include <sylverant/mtwist.h>
+#include <sylverant/items.h>
 
 #include "subcmd.h"
 #include "clients.h"
@@ -1088,7 +1089,8 @@ static int handle_use_item(ship_client_t *c, subcmd_use_item_t *pkt) {
 
 static int handle_bb_drop_item(ship_client_t *c, subcmd_bb_drop_item_t *pkt) {
     lobby_t *l = c->cur_lobby;
-    int i, found = -1;
+    int found = -1, isframe;
+    uint32_t i, inv;
 
     /* We can't get these in default lobbies without someone messing with
        something that they shouldn't be... Disconnect anyone that tries. */
@@ -1108,9 +1110,20 @@ static int handle_bb_drop_item(ship_client_t *c, subcmd_bb_drop_item_t *pkt) {
     }
 
     /* Look for the item in the user's inventory. */
-    for(i = 0; i < c->bb_pl->inv.item_count; ++i) {
+    inv = c->bb_pl->inv.item_count;
+
+    for(i = 0; i < inv; ++i) {
         if(c->bb_pl->inv.items[i].item_id == pkt->item_id) {
             found = i;
+
+            /* If it is an equipped frame, we need to unequip all the units
+               that are attached to it. */
+            if(c->bb_pl->inv.items[i].data_b[0] == ITEM_TYPE_GUARD &&
+               c->bb_pl->inv.items[i].data_b[1] == ITEM_SUBTYPE_FRAME &&
+               (c->bb_pl->inv.items[i].flags & LE32(0x00000008))) {
+                isframe = 1;
+            }
+
             break;
         }
     }
@@ -1120,6 +1133,19 @@ static int handle_bb_drop_item(ship_client_t *c, subcmd_bb_drop_item_t *pkt) {
         debug(DBG_WARN, "Guildcard %" PRIu32 " dropped invalid item id!\n",
               c->guildcard);
         return -1;
+    }
+
+    /* Clear the equipped flag. */
+    c->bb_pl->inv.items[found].flags &= LE32(0xFFFFFFF7);
+
+    /* Unequip any units, if the item was equipped and a frame. */
+    if(isframe) {
+        for(i = 0; i < inv; ++i) {
+            if(c->bb_pl->inv.items[i].data_b[0] == ITEM_TYPE_GUARD &&
+               c->bb_pl->inv.items[i].data_b[1] == ITEM_SUBTYPE_UNIT) {
+                c->bb_pl->inv.items[i].flags &= LE32(0xFFFFFFF7);
+            }
+        }
     }
 
     /* We have the item... Add it to the lobby's inventory. */
@@ -1145,8 +1171,8 @@ static int handle_bb_drop_item(ship_client_t *c, subcmd_bb_drop_item_t *pkt) {
 
 static int handle_bb_drop_pos(ship_client_t *c, subcmd_bb_drop_pos_t *pkt) {
     lobby_t *l = c->cur_lobby;
-    int i, found = -1;
-    uint32_t meseta, amt;
+    int found = -1;
+    uint32_t i, meseta, amt;
 
     /* We can't get these in default lobbies without someone messing with
        something that they shouldn't be... Disconnect anyone that tries. */
@@ -1207,8 +1233,8 @@ static int handle_bb_drop_pos(ship_client_t *c, subcmd_bb_drop_pos_t *pkt) {
 static int handle_bb_drop_stack(ship_client_t *c,
                                 subcmd_bb_destroy_item_t *pkt) {
     lobby_t *l = c->cur_lobby;
-    int i, found = -1;
-    uint32_t tmp, tmp2;
+    int found = -1;
+    uint32_t i, tmp, tmp2;
     item_t item_data;
     item_t *it;
 
@@ -1274,11 +1300,15 @@ static int handle_bb_drop_stack(ship_client_t *c,
 
     if(pkt->item_id != 0xFFFFFFFF) {
         /* Remove the item from the user's inventory. */
-        if(item_remove_from_inv(c->bb_pl->inv.items, c->bb_pl->inv.item_count,
-                                pkt->item_id, LE32(pkt->amount)) < 0) {
+        found = item_remove_from_inv(c->bb_pl->inv.items,
+                                     c->bb_pl->inv.item_count, pkt->item_id,
+                                     LE32(pkt->amount));
+        if(found < 0) {
             debug(DBG_WARN, "Couldn't remove item from client's inventory!\n");
             return -1;
         }
+
+        c->bb_pl->inv.item_count -= found;
     }
     else {
         /* Remove the meseta from the character data */
@@ -1352,6 +1382,10 @@ static int handle_bb_pick_up(ship_client_t *c, subcmd_bb_pick_up_t *pkt) {
             c->pl->bb.character.meseta = c->bb_pl->character.meseta;
         }
         else {
+            item_data.flags = 0;
+            item_data.equipped = LE16(1);
+            item_data.tech = 0;
+
             /* Add the item to the client's inventory. */
             found = item_add_to_inv(c->bb_pl->inv.items,
                                     c->bb_pl->inv.item_count, &item_data);
@@ -1628,7 +1662,7 @@ static int handle_bb_bank_action(ship_client_t *c, subcmd_bb_bank_act_t *pkt) {
     lobby_t *l = c->cur_lobby;
     uint32_t item_id;
     uint32_t amt, bank, inv, i;
-    int found = -1, stack;
+    int found = -1, stack, isframe = 0;
     item_t item;
     sylverant_bitem_t bitem;
 
@@ -1684,11 +1718,20 @@ static int handle_bb_bank_action(ship_client_t *c, subcmd_bb_bank_act_t *pkt) {
             }
             else {
                 /* Look for the item in the user's inventory. */
-                inv = LE32(c->bb_pl->inv.item_count);
+                inv = c->bb_pl->inv.item_count;
                 for(i = 0; i < inv; ++i) {
                     if(c->bb_pl->inv.items[i].item_id == pkt->item_id) {
                         item = c->bb_pl->inv.items[i];
                         found = i;
+
+                        /* If it is an equipped frame, we need to unequip all
+                           the units that are attached to it. */
+                        if(item.data_b[0] == ITEM_TYPE_GUARD &&
+                           item.data_b[1] == ITEM_SUBTYPE_FRAME &&
+                           (item.flags & LE32(0x00000008))) {
+                            isframe = 1;
+                        }
+
                         break;
                     }
                 }
@@ -1716,8 +1759,7 @@ static int handle_bb_bank_action(ship_client_t *c, subcmd_bb_bank_act_t *pkt) {
                     return -1;
                 }
 
-                inv -= found;
-                c->bb_pl->inv.item_count = LE32(inv);
+                c->bb_pl->inv.item_count = (inv -= found);
 
                 /* Fill in the bank item. */
                 if(stack) {
@@ -1734,6 +1776,17 @@ static int handle_bb_bank_action(ship_client_t *c, subcmd_bb_bank_act_t *pkt) {
                 bitem.data_l[2] = item.data_l[2];
                 bitem.item_id = item.item_id;
                 bitem.data2_l = item.data2_l;
+
+                /* Unequip any units, if the item was equipped and a frame. */
+                if(isframe) {
+                    for(i = 0; i < inv; ++i) {
+                        item = c->bb_pl->inv.items[i];
+                        if(item.data_b[0] == ITEM_TYPE_GUARD &&
+                           item.data_b[1] == ITEM_SUBTYPE_UNIT) {
+                            c->bb_pl->inv.items[i].flags &= LE32(0xFFFFFFF7);
+                        }
+                    }
+                }
 
                 /* Deposit it! */
                 if(item_deposit_to_bank(c, &bitem) < 0) {
@@ -1788,7 +1841,7 @@ static int handle_bb_bank_action(ship_client_t *c, subcmd_bb_bank_act_t *pkt) {
                 /* Ok, we have the item... Convert the bank item to an inventory
                    one... */
                 item.equipped = LE16(0x0001);
-                item.tech = LE16(0x0001);
+                item.tech = LE16(0x0000);
                 item.flags = 0;
                 item.data_l[0] = bitem.data_l[0];
                 item.data_l[1] = bitem.data_l[1];
@@ -1798,16 +1851,15 @@ static int handle_bb_bank_action(ship_client_t *c, subcmd_bb_bank_act_t *pkt) {
                 ++l->item_id;
 
                 /* Time to add it to the inventory... */
-                inv = LE32(c->bb_pl->inv.item_count);
-                found = item_add_to_inv(c->bb_pl->inv.items, inv, &item);
+                found = item_add_to_inv(c->bb_pl->inv.items,
+                                        c->bb_pl->inv.item_count, &item);
                 if(found < 0) {
                     /* Uh oh... Guess we should put it back in the bank... */
                     item_deposit_to_bank(c, &bitem);
                     return -1;
                 }
 
-                inv += found;
-                c->bb_pl->inv.item_count = LE32(inv);
+                c->bb_pl->inv.item_count += found;
 
                 /* Let everyone know about it. */
                 return subcmd_send_picked_up(c, item.data_l, item.item_id,
@@ -1820,6 +1872,107 @@ static int handle_bb_bank_action(ship_client_t *c, subcmd_bb_bank_act_t *pkt) {
             print_packet((unsigned char *)pkt, 0x18);
             return -1;
     }
+}
+
+static int handle_bb_equip(ship_client_t *c, subcmd_bb_equip_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+    uint32_t inv, i;
+
+    /* We can't get these in default lobbies without someone messing with
+       something that they shouldn't be... Disconnect anyone that tries. */
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " eqipped in lobby!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* Sanity check... Make sure the size of the subcommand and the client id
+       match with what we expect. Disconnect the client if not. */
+    if(pkt->hdr.pkt_len != LE16(0x14) || pkt->size != 0x03 ||
+       pkt->client_id != c->client_id) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " sent bad equip message!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* Find the item and equip it. */
+    inv = c->bb_pl->inv.item_count;
+    for(i = 0; i < inv; ++i) {
+        if(c->bb_pl->inv.items[i].item_id == pkt->item_id) {
+            /* XXXX: Should really make sure we can equip it first... */
+            c->bb_pl->inv.items[i].flags |= LE32(0x00000008);
+            break;
+        }
+    }
+
+    /* Did we find something to equip? */
+    if(i >= inv) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " equipped unknown item!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* Done, let everyone else know. */
+    return lobby_send_pkt_bb(l, c, (bb_pkt_hdr_t *)pkt, 0);
+}
+
+static int handle_bb_unequip(ship_client_t *c, subcmd_bb_equip_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+    uint32_t inv, i, isframe = 0;
+
+    /* We can't get these in default lobbies without someone messing with
+       something that they shouldn't be... Disconnect anyone that tries. */
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " uneqipped in lobby!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* Sanity check... Make sure the size of the subcommand and the client id
+       match with what we expect. Disconnect the client if not. */
+    if(pkt->hdr.pkt_len != LE16(0x14) || pkt->size != 0x03 ||
+       pkt->client_id != c->client_id) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " sent bad unequip message!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* Find the item and remove the equip flag. */
+    inv = c->bb_pl->inv.item_count;
+    for(i = 0; i < inv; ++i) {
+        if(c->bb_pl->inv.items[i].item_id == pkt->item_id) {
+            c->bb_pl->inv.items[i].flags &= LE32(0xFFFFFFF7);
+
+            /* If its a frame, we have to make sure to unequip any units that
+               may be equipped as well. */
+            if(c->bb_pl->inv.items[i].data_b[0] == ITEM_TYPE_GUARD &&
+               c->bb_pl->inv.items[i].data_b[1] == ITEM_SUBTYPE_FRAME) {
+                isframe = 1;
+            }
+
+            break;
+        }
+    }
+
+    /* Did we find something to equip? */
+    if(i >= inv) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " unequipped unknown item!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* Clear any units if we unequipped a frame. */
+    if(isframe) {
+        for(i = 0; i < inv; ++i) {
+            if(c->bb_pl->inv.items[i].data_b[0] == ITEM_TYPE_GUARD &&
+               c->bb_pl->inv.items[i].data_b[1] == ITEM_SUBTYPE_UNIT) {
+                c->bb_pl->inv.items[i].flags &= LE32(0xFFFFFFF7);
+            }
+        }
+    }
+
+    /* Done, let everyone else know. */
+    return lobby_send_pkt_bb(l, c, (bb_pkt_hdr_t *)pkt, 0);
 }
 
 /* Handle a 0x62/0x6D packet. */
@@ -2133,6 +2286,14 @@ int subcmd_bb_handle_bcast(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
 
         case SUBCMD_SET_AREA:
             rv = handle_bb_set_area(c, (subcmd_bb_set_area_t *)pkt);
+            break;
+
+        case SUBCMD_EQUIP:
+            rv = handle_bb_equip(c, (subcmd_bb_equip_t *)pkt);
+            break;
+
+        case SUBCMD_REMOVE_EQUIP:
+            rv = handle_bb_unequip(c, (subcmd_bb_equip_t *)pkt);
             break;
 
         case SUBCMD_DROP_ITEM:

@@ -1413,6 +1413,10 @@ static int handle_dumpinv(ship_client_t *c, const char *params) {
                   LE32(c->bb_pl->inv.items[i].data_l[2]),
                   LE32(c->bb_pl->inv.items[i].data2_l),
                   item_get_name(&c->bb_pl->inv.items[i]));
+            debug(DBG_LOG, "\tFlags: %08x %04x %04x\n",
+                  LE32(c->bb_pl->inv.items[i].flags),
+                  LE16(c->bb_pl->inv.items[i].equipped),
+                  LE16(c->bb_pl->inv.items[i].tech));
         }
     }
     else {

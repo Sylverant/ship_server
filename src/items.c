@@ -724,8 +724,6 @@ int item_add_to_inv(item_t *inv, int inv_count, item_t *it) {
 
     /* Copy the new item in at the end. */
     inv[inv_count] = *it;
-    inv[inv_count].equipped = inv[inv_count].tech = 0;
-    inv[inv_count].flags = 0;
     return 1;
 }
 

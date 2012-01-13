@@ -581,6 +581,17 @@ typedef struct subcmd_bb_bank_act {
     uint16_t unused2;                   /* 0xFFFF */
 } PACKED subcmd_bb_bank_act_t;
 
+/* Packet sent by clients to equip/unequip an item. */
+typedef struct subcmd_bb_equip {
+    bb_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint8_t client_id;
+    uint8_t unused;
+    uint32_t item_id;
+    uint32_t unk;
+} PACKED subcmd_bb_equip_t;
+
 #undef PACKED
 
 /* Subcommand types we care about (0x62/0x6D). */
