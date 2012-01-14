@@ -9325,6 +9325,39 @@ static int send_dc_mod_stat(ship_client_t *d, ship_client_t *s, int stat,
     return crypt_send(d, len, sendbuf);
 }
 
+static int send_bb_mod_stat(ship_client_t *d, ship_client_t *s, int stat,
+                            int amt) {
+    uint8_t *sendbuf = get_sendbuf();
+    bb_subcmd_pkt_t *pkt = (bb_subcmd_pkt_t *)sendbuf;
+    int len = 8;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Fill in the main part of the packet */
+    while(amt > 0) {
+        sendbuf[len++] = SUBCMD_CHANGE_STAT;
+        sendbuf[len++] = 2;
+        sendbuf[len++] = s->client_id;
+        sendbuf[len++] = 0;
+        sendbuf[len++] = 0;
+        sendbuf[len++] = 0;
+        sendbuf[len++] = stat;
+        sendbuf[len++] = (amt > 0xFF) ? 0xFF : amt;
+        amt -= 0xFF;
+    }
+
+    /* Fill in the header */
+    pkt->hdr.pkt_len = LE16(len);
+    pkt->hdr.pkt_type = LE16(GAME_COMMAND0_TYPE);
+    pkt->hdr.flags = 0;
+
+    /* Send the packet away */
+    return crypt_send(d, len, sendbuf);
+}
+
 int send_lobby_mod_stat(lobby_t *l, ship_client_t *c, int stat, int amt) {
     int i;
 
@@ -9354,6 +9387,9 @@ int send_lobby_mod_stat(lobby_t *l, ship_client_t *c, int stat, int amt) {
                 case CLIENT_VERSION_EP3:
                     send_dc_mod_stat(l->clients[i], c, stat, amt);
                     break;
+
+                case CLIENT_VERSION_BB:
+                    send_bb_mod_stat(l->clients[i], c, stat, amt);
             }
 
             pthread_mutex_unlock(&l->clients[i]->mutex);

@@ -592,6 +592,15 @@ typedef struct subcmd_bb_equip {
     uint32_t unk;
 } PACKED subcmd_bb_equip_t;
 
+/* Packet sent by clients to sort their inventory. (Blue Burst) */
+typedef struct subcmd_bb_sort_inv {
+    bb_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint16_t unused;                    /* 0xFFFF */
+    uint32_t item_ids[30];
+} PACKED subcmd_bb_sort_inv_t;
+
 #undef PACKED
 
 /* Subcommand types we care about (0x62/0x6D). */
@@ -649,6 +658,8 @@ typedef struct subcmd_bb_equip {
 #define SUBCMD_BANK_INV     0xBC    /* Blue Burst - bank inventory */
 #define SUBCMD_CREATE_ITEM  0xBE    /* Blue Burst - create new inventory item */
 #define SUBCMD_DROP_POS     0xC3    /* Blue Burst - Drop part of stack coords */
+#define SUBCMD_SORT_INV     0xC4    /* Blue Burst - Sort inventory */
+#define SUBCMD_MEDIC        0xC5    /* Blue Burst - Use the medical center */
 
 /* The commands OK to send during bursting (0x62/0x6D). These are named for the
    order in which they're sent, hence why the names are out of order... */

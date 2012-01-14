@@ -1975,6 +1975,108 @@ static int handle_bb_unequip(ship_client_t *c, subcmd_bb_equip_t *pkt) {
     return lobby_send_pkt_bb(l, c, (bb_pkt_hdr_t *)pkt, 0);
 }
 
+static int handle_bb_medic(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+
+    /* We can't get these in default lobbies without someone messing with
+       something that they shouldn't be... Disconnect anyone that tries. */
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " used medical center in lobby!\n",
+              c->guildcard);
+        return -1;
+    }
+    
+    /* Sanity check... Make sure the size of the subcommand and the client id
+       match with what we expect. Disconnect the client if not. */
+    if(pkt->hdr.pkt_len != LE16(0x0C) || pkt->size != 0x01 ||
+       pkt->data[0] != c->client_id) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " sent bad medic message!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* Subtract 10 meseta from the client. */
+    c->bb_pl->character.meseta -= 10;
+    c->pl->bb.character.meseta -= 10;
+
+    /* Send it along to the rest of the lobby. */
+    return lobby_send_pkt_bb(l, c, (bb_pkt_hdr_t *)pkt, 0);
+}
+
+static int handle_bb_sort_inv(ship_client_t *c, subcmd_bb_sort_inv_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+    sylverant_inventory_t inv;
+    int i, j;
+    int item_used[30] = { 0 };
+
+    /* We can't get these in default lobbies without someone messing with
+       something that they shouldn't be... Disconnect anyone that tries. */
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " sorted inventory in lobby!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* Sanity check... Make sure the size of the subcommand matches with what we
+       expect. Disconnect the client if not. */
+    if(pkt->hdr.pkt_len != LE16(0x84) || pkt->size != 0x1F) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " sent bad sort message!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* Copy over the beginning of the inventory... */
+    inv.item_count = c->bb_pl->inv.item_count;
+    inv.hpmats_used = c->bb_pl->inv.hpmats_used;
+    inv.tpmats_used = c->bb_pl->inv.tpmats_used;
+    inv.language = c->bb_pl->inv.language;
+
+    /* Copy over each item as its in the sorted list. */
+    for(i = 0; i < 30; ++i) {
+        /* Have we reached the end of the list? */
+        if(pkt->item_ids[i] == 0xFFFFFFFF)
+            break;
+
+        /* Look for the item in question. */
+        for(j = 0; j < inv.item_count; ++j) {
+            if(c->bb_pl->inv.items[j].item_id == pkt->item_ids[i]) {
+                /* Make sure they haven't used this one yet. */
+                if(item_used[j]) {
+                    debug(DBG_WARN, "Guildcard %" PRIu32 " listed item twice "
+                          "in inventory sort!\n", c->guildcard);
+                    return -1;
+                }
+
+                /* Copy the item and set it as used in the list. */
+                memcpy(&inv.items[i], &c->bb_pl->inv.items[j], sizeof(item_t));
+                item_used[j] = 1;
+                break;
+            }
+        }
+
+        /* Make sure the item got sorted in right. */
+        if(j >= inv.item_count) {
+            debug(DBG_WARN, "Guildcard %" PRIu32 " sorted unknown item!\n",
+                  c->guildcard);
+            return -1;
+        }
+    }
+
+    /* Make sure we got everything... */
+    if(i != inv.item_count) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " forgot item in sort!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* We're good, so copy the inventory into the client's data. */
+    memcpy(&c->bb_pl->inv, &inv, sizeof(sylverant_inventory_t));
+    memcpy(&c->pl->bb.inv, &inv, sizeof(sylverant_inventory_t));
+
+    /* Nobody else really needs to care about this one... */
+    return 0;
+}
+
 /* Handle a 0x62/0x6D packet. */
 int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
     lobby_t *l = c->cur_lobby;
@@ -2320,6 +2422,14 @@ int subcmd_bb_handle_bcast(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
 
         case SUBCMD_DROP_POS:
             rv = handle_bb_drop_pos(c, (subcmd_bb_drop_pos_t *)pkt);
+            break;
+
+        case SUBCMD_SORT_INV:
+            rv = handle_bb_sort_inv(c, (subcmd_bb_sort_inv_t *)pkt);
+            break;
+
+        case SUBCMD_MEDIC:
+            rv = handle_bb_medic(c, (bb_subcmd_pkt_t *)pkt);
             break;
 
         default:
