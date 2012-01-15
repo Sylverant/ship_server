@@ -56,7 +56,7 @@ static int handle_warp(ship_client_t *c, const char *params) {
 
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
     if(l->type != LOBBY_TYPE_GAME) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game."));
     }
 
     /* Figure out the floor requested */
@@ -89,7 +89,7 @@ static int handle_warpall(ship_client_t *c, const char *params) {
 
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
     if(l->type != LOBBY_TYPE_GAME) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game."));
     }
 
     /* Figure out the floor requested */
@@ -145,7 +145,7 @@ static int handle_min_level(ship_client_t *c, const char *params) {
 
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
     if(l->type == LOBBY_TYPE_DEFAULT) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game."));
     }
 
     /* Make sure the requester is the leader of the team. */
@@ -190,7 +190,7 @@ static int handle_max_level(ship_client_t *c, const char *params) {
 
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
     if(l->type == LOBBY_TYPE_DEFAULT) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game."));
     }
 
     /* Make sure the requester is the leader of the team. */
@@ -254,8 +254,7 @@ static int handle_save(ship_client_t *c, const char *params) {
 
     /* Make sure that the requester is in a lobby lobby, not a game lobby */
     if(l->type != LOBBY_TYPE_DEFAULT) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a "
-                                    "non-game lobby."));
+        return send_txt(c, "%s", __(c, "\tE\tC7Not valid in a game."));
     }
 
     /* Not valid for Blue Burst clients */
@@ -294,8 +293,7 @@ static int handle_restore(ship_client_t *c, const char *params) {
 
     /* Make sure that the requester is in a lobby lobby, not a game lobby */
     if(l->type != LOBBY_TYPE_DEFAULT) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a "
-                                    "non-game lobby."));
+        return send_txt(c, "%s", __(c, "\tE\tC7Not valid in a game."));
     }
 
     /* Not valid for Blue Burst clients */
@@ -479,7 +477,7 @@ static int handle_passwd(ship_client_t *c, const char *params) {
 
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
     if(l->type == LOBBY_TYPE_DEFAULT) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game."));
     }
 
     /* Make sure the requester is the leader of the team. */
@@ -517,7 +515,7 @@ static int handle_lname(ship_client_t *c, const char *params) {
 
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
     if(l->type == LOBBY_TYPE_DEFAULT) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game."));
     }
 
     /* Make sure the requester is the leader of the team. */
@@ -736,7 +734,7 @@ static int handle_legit(ship_client_t *c, const char *params) {
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
     if(l->type != LOBBY_TYPE_GAME) {
         pthread_mutex_unlock(&l->mutex);
-        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game."));
     }
 
     /* Make sure the requester is the leader of the team. */
@@ -792,7 +790,7 @@ static int handle_normal(ship_client_t *c, const char *params) {
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
     if(l->type != LOBBY_TYPE_GAME) {
         pthread_mutex_unlock(&l->mutex);
-        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game."));
     }
 
     /* Make sure the requester is the leader of the team. */
@@ -1006,7 +1004,7 @@ static int handle_dconly(ship_client_t *c, const char *params) {
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
     if(l->type != LOBBY_TYPE_GAME) {
         pthread_mutex_unlock(&l->mutex);
-        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game."));
     }
 
     /* Make sure the requester is the leader of the team. */
@@ -1055,7 +1053,7 @@ static int handle_v1only(ship_client_t *c, const char *params) {
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
     if(l->type != LOBBY_TYPE_GAME) {
         pthread_mutex_unlock(&l->mutex);
-        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game."));
     }
 
     /* Make sure the requester is the leader of the team. */
@@ -1203,7 +1201,7 @@ static int handle_smite(ship_client_t *c, const char *params) {
 
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
     if(l->type != LOBBY_TYPE_GAME) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game."));
     }
 
     /* Copy over the item data. */
@@ -1263,7 +1261,7 @@ static int handle_makeitem(ship_client_t *c, const char *params) {
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
     if(l->type != LOBBY_TYPE_GAME) {
         pthread_mutex_unlock(&l->mutex);
-        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game."));
     }
 
     /* Make sure there's something set with /item */
@@ -1329,7 +1327,7 @@ static int handle_teleport(ship_client_t *c, const char *params) {
 
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
     if(l->type != LOBBY_TYPE_GAME) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game."));
     }
 
     /* Figure out the user requested */
@@ -1471,7 +1469,7 @@ static int handle_allowgc(ship_client_t *c, const char *params) {
     /* Make sure that the requester is in a game lobby, not a lobby lobby. */
     if(l->type != LOBBY_TYPE_GAME) {
         pthread_mutex_unlock(&l->mutex);
-        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game."));
     }
 
     /* Make sure the requester is the leader of the team. */
@@ -1622,7 +1620,7 @@ static int handle_npc(ship_client_t *c, const char *params) {
 
     if(l->type != LOBBY_TYPE_GAME) {
         pthread_mutex_unlock(&l->mutex);
-        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game."));
     }
 
     /* For now, limit only to lobbies with a single person in them... */
@@ -2242,8 +2240,7 @@ static int handle_override(ship_client_t *c, const char *params) {
 
     /* Make sure that the requester is in a lobby lobby, not a game lobby */
     if(l->type != LOBBY_TYPE_DEFAULT) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a non-game "
-                                    "lobby."));
+        return send_txt(c, "%s", __(c, "\tE\tC7Not valid in a game."));
     }
 
     /* Set the flag so we know when they join a lobby */
@@ -2393,7 +2390,7 @@ static int handle_showmaps(ship_client_t *c, const char *params) {
 
     if(l->type != LOBBY_TYPE_GAME) {
         pthread_mutex_unlock(&l->mutex);
-        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game lobby."));
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game."));
     }
 
     /* Build the string from the map list */
@@ -2413,8 +2410,7 @@ static int handle_restorebk(ship_client_t *c, const char *params) {
 
     /* Make sure that the requester is in a lobby lobby, not a game lobby */
     if(l->type != LOBBY_TYPE_DEFAULT) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a "
-                                    "non-game lobby."));
+        return send_txt(c, "%s", __(c, "\tE\tC7Not valid in a game."));
     }
 
     /* Not valid for Blue Burst clients */
@@ -2465,6 +2461,82 @@ static int handle_disablebk(ship_client_t *c, const char *params) {
                            USER_OPT_ENABLE_BACKUP, 1, &enable);
     c->flags &= ~(CLIENT_FLAG_AUTO_BACKUP);
     return send_txt(c, "%s", __(c, "\tE\tC7Character backups disabled."));
+}
+
+/* Usage: /exp [amount] */
+static int handle_exp(ship_client_t *c, const char *params) {
+    uint32_t amt;
+    lobby_t *l = c->cur_lobby;
+
+    /* Make sure the requester is a local GM, at least. */
+    if(!LOCAL_GM(c)) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
+    }
+
+    /* Make sure that the requester is in a game lobby, not a lobby lobby */
+    if(l->type != LOBBY_TYPE_GAME) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game."));
+    }
+
+    /* Make sure the requester is on Blue Burst */
+    if(c->version != CLIENT_VERSION_BB) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid on Blue Burst."));
+    }
+
+    /* Figure out the amount requested */
+    errno = 0;
+    amt = (uint32_t)strtoul(params, NULL, 10);
+
+    if(errno != 0) {
+        /* Send a message saying invalid amount */
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid amount."));
+    }
+
+    return client_give_exp(c, amt);
+}
+
+/* Usage: /level [destination level, or blank for one level up] */
+static int handle_level(ship_client_t *c, const char *params) {
+    uint32_t amt;
+    lobby_t *l = c->cur_lobby;
+
+    /* Make sure the requester is a local GM, at least. */
+    if(!LOCAL_GM(c)) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
+    }
+
+    /* Make sure that the requester is in a game lobby, not a lobby lobby */
+    if(l->type != LOBBY_TYPE_GAME) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game."));
+    }
+
+    /* Make sure the requester is on Blue Burst */
+    if(c->version != CLIENT_VERSION_BB) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid on Blue Burst."));
+    }
+
+    /* Figure out the level requested */
+    if(params && strlen(params)) {
+        errno = 0;
+        amt = (uint32_t)strtoul(params, NULL, 10);
+
+        if(errno != 0) {
+            /* Send a message saying invalid amount */
+            return send_txt(c, "%s", __(c, "\tE\tC7Invalid level."));
+        }
+
+        amt -= 1;
+    }
+    else {
+        amt = LE32(c->bb_pl->character.level) + 1;
+    }
+
+    /* If the level is too high, let them know. */
+    if(amt > 199) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid level."));
+    }
+
+    return client_give_level(c, amt);
 }
 
 static command_t cmds[] = {
@@ -2540,6 +2612,8 @@ static command_t cmds[] = {
     { "restorebk", handle_restorebk },
     { "enablebk" , handle_enablebk  },
     { "disablebk", handle_disablebk },
+    { "exp"      , handle_exp       },
+    { "level"    , handle_level     },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

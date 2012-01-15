@@ -37,6 +37,8 @@
 #include <sys/queue.h>
 #include <netinet/in.h>
 
+#include <sylverant/config.h>
+
 #include "ship.h"
 #include "block.h"
 #include "player.h"
@@ -71,6 +73,32 @@ typedef struct bb_security_data {
     uint8_t sel_char;                   /* Have they selected a character? */
     uint8_t reserved[34];               /* Set to 0 */
 } PACKED bb_security_data_t;
+
+typedef struct bb_level_entry {
+    uint8_t atp;
+    uint8_t mst;
+    uint8_t evp;
+    uint8_t hp;
+    uint8_t dfp;
+    uint8_t ata;
+    uint8_t unk[2];
+    uint32_t exp;
+} bb_level_entry_t;
+
+/* Level-up information table from PlyLevelTbl.prs */
+typedef struct bb_level_table {
+    struct {
+        uint16_t atp;
+        uint16_t mst;
+        uint16_t evp;
+        uint16_t hp;
+        uint16_t dfp;
+        uint16_t ata;
+        uint16_t lck;
+    } start_stats[12];
+    uint32_t unk[12];
+    bb_level_entry_t levels[12][200];
+} PACKED bb_level_table_t;
 
 #undef PACKED
 
@@ -250,7 +278,7 @@ static const char version_codes[][3] __attribute__((unused)) = {
 };
 
 /* Initialize the clients system, allocating any thread specific keys */
-int client_init(void);
+int client_init(sylverant_ship_t *cfg);
 
 /* Clean up the clients system. */
 void client_shutdown(void);
@@ -285,6 +313,12 @@ int client_has_ignored(ship_client_t *c, uint32_t gc);
 /* Send a message to a client telling them that a friend has logged on/off */
 void client_send_friendmsg(ship_client_t *c, int on, const char *fname,
                            const char *ship, uint32_t block, const char *nick);
+
+/* Give a Blue Burst client some experience. */
+int client_give_exp(ship_client_t *c, uint32_t exp);
+
+/* Give a Blue Burst client some free level ups. */
+int client_give_level(ship_client_t *c, uint32_t level_req);
 
 #ifdef HAVE_PYTHON
 

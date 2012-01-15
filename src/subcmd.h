@@ -601,6 +601,32 @@ typedef struct subcmd_bb_sort_inv {
     uint32_t item_ids[30];
 } PACKED subcmd_bb_sort_inv_t;
 
+/* Packet sent to clients to give them experience. (Blue Burst) */
+typedef struct subcmd_bb_exp {
+    bb_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint8_t client_id;
+    uint8_t unused;
+    uint32_t exp;
+} PACKED subcmd_bb_exp_t;
+
+/* Packet sent to clients regarding a level up. */
+typedef struct subcmd_bb_level {
+    bb_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint8_t client_id;
+    uint8_t unused;
+    uint16_t atp;
+    uint16_t mst;
+    uint16_t evp;
+    uint16_t hp;
+    uint16_t dfp;
+    uint16_t ata;
+    uint32_t level;
+} PACKED subcmd_bb_level_t;
+
 #undef PACKED
 
 /* Subcommand types we care about (0x62/0x6D). */
@@ -657,6 +683,7 @@ typedef struct subcmd_bb_sort_inv {
 #define SUBCMD_SHOPINV      0xB6    /* Blue Burst - shop inventory */
 #define SUBCMD_BANK_INV     0xBC    /* Blue Burst - bank inventory */
 #define SUBCMD_CREATE_ITEM  0xBE    /* Blue Burst - create new inventory item */
+#define SUBCMD_GIVE_EXP     0xBF    /* Blue Burst - give experience points */
 #define SUBCMD_DROP_POS     0xC3    /* Blue Burst - Drop part of stack coords */
 #define SUBCMD_SORT_INV     0xC4    /* Blue Burst - Sort inventory */
 #define SUBCMD_MEDIC        0xC5    /* Blue Burst - Use the medical center */
@@ -701,5 +728,8 @@ int subcmd_handle_ep3_bcast(ship_client_t *c, subcmd_pkt_t *pkt);
 
 int subcmd_send_lobby_item(lobby_t *l, subcmd_itemreq_t *req,
                            const uint32_t item[4]);
+
+int subcmd_send_bb_exp(ship_client_t *c, uint32_t exp);
+int subcmd_send_bb_level(ship_client_t *c);
 
 #endif /* !SUBCMD_H */

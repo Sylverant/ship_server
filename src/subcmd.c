@@ -2491,7 +2491,7 @@ int subcmd_send_lobby_item(lobby_t *l, subcmd_itemreq_t *req,
     /* Fill in the packet we'll send out. */
     gen.hdr.pkt_type = GAME_COMMAND0_TYPE;
     gen.hdr.flags = 0;
-    gen.hdr.pkt_len = LE16(0x30);
+    gen.hdr.pkt_len = LE16(0x0030);
     gen.type = SUBCMD_ITEMDROP;
     gen.size = 0x0B;
     gen.unused = 0;
@@ -2528,7 +2528,7 @@ static int subcmd_send_shop_inv(ship_client_t *c, subcmd_bb_shop_req_t *req) {
 
     memset(&shop, 0, sizeof(shop));
 
-    shop.hdr.pkt_len = LE16(0xEC);
+    shop.hdr.pkt_len = LE16(0x00EC);
     shop.hdr.pkt_type = LE16(GAME_COMMAND0_TYPE);
     shop.hdr.flags = 0;
     shop.type = SUBCMD_SHOPINV;
@@ -2551,7 +2551,7 @@ static int subcmd_send_drop_stack(ship_client_t *c, uint32_t area, float x,
     subcmd_bb_drop_stack_t drop;
 
     /* Fill in the packet... */
-    drop.hdr.pkt_len = LE16(0x2C);
+    drop.hdr.pkt_len = LE16(0x002C);
     drop.hdr.pkt_type = LE16(GAME_COMMAND0_TYPE);
     drop.hdr.flags = 0;
     drop.type = SUBCMD_DROP_STACK;
@@ -2576,7 +2576,7 @@ static int subcmd_send_picked_up(ship_client_t *c, uint32_t data_l[3],
     subcmd_bb_create_item_t pick;
 
     /* Fill in the packet. */
-    pick.hdr.pkt_len = LE16(0x24);
+    pick.hdr.pkt_len = LE16(0x0024);
     pick.hdr.pkt_type = LE16(GAME_COMMAND0_TYPE);
     pick.hdr.flags = 0;
     pick.type = SUBCMD_CREATE_ITEM;
@@ -2601,7 +2601,7 @@ static int subcmd_send_destroy_map_item(ship_client_t *c, uint8_t area,
     subcmd_bb_destroy_map_item_t d;
 
     /* Fill in the packet. */
-    d.hdr.pkt_len = LE16(0x14);
+    d.hdr.pkt_len = LE16(0x0014);
     d.hdr.pkt_type = LE16(GAME_COMMAND0_TYPE);
     d.hdr.flags = 0;
     d.type = SUBCMD_DEL_MAP_ITEM;
@@ -2622,7 +2622,7 @@ static int subcmd_send_destroy_item(ship_client_t *c, uint32_t item_id,
     subcmd_bb_destroy_item_t d;
 
     /* Fill in the packet. */
-    d.hdr.pkt_len = LE16(0x14);
+    d.hdr.pkt_len = LE16(0x0014);
     d.hdr.pkt_type = LE16(GAME_COMMAND0_TYPE);
     d.hdr.flags = 0;
     d.type = SUBCMD_DELETE_ITEM;
@@ -2633,4 +2633,70 @@ static int subcmd_send_destroy_item(ship_client_t *c, uint32_t item_id,
     d.amount = LE32(amt);
 
     return lobby_send_pkt_bb(c->cur_lobby, c, &d, 0);
+}
+
+int subcmd_send_bb_exp(ship_client_t *c, uint32_t exp) {
+    subcmd_bb_exp_t pkt;
+
+    /* Fill in the packet. */
+    pkt.hdr.pkt_len = LE16(0x0010);
+    pkt.hdr.pkt_type = LE16(GAME_COMMAND0_TYPE);
+    pkt.hdr.flags = 0;
+    pkt.type = SUBCMD_GIVE_EXP;
+    pkt.size = 0x02;
+    pkt.client_id = c->client_id;
+    pkt.unused = 0;
+    pkt.exp = LE32(exp);
+
+    return lobby_send_pkt_bb(c->cur_lobby, NULL, &pkt, 0);
+}
+
+int subcmd_send_bb_level(ship_client_t *c) {
+    subcmd_bb_level_t pkt;
+    int i;
+    uint16_t base, mag;
+
+    /* Fill in the packet. */
+    pkt.hdr.pkt_len = LE16(0x001C);
+    pkt.hdr.pkt_type = LE16(GAME_COMMAND0_TYPE);
+    pkt.hdr.flags = 0;
+    pkt.type = SUBCMD_LEVELUP;
+    pkt.size = 0x05;
+    pkt.client_id = c->client_id;
+    pkt.unused = 0;
+
+    /* Fill in the base statistics. These are all in little-endian already. */
+    pkt.atp = c->bb_pl->character.atp;
+    pkt.mst = c->bb_pl->character.mst;
+    pkt.evp = c->bb_pl->character.evp;
+    pkt.hp = c->bb_pl->character.hp;
+    pkt.dfp = c->bb_pl->character.dfp;
+    pkt.ata = c->bb_pl->character.ata;
+    pkt.level = c->bb_pl->character.level;
+
+    /* Add in the mag's bonus. */
+    for(i = 0; i < c->bb_pl->inv.item_count; ++i) {
+        if((c->bb_pl->inv.items[i].flags & LE32(0x00000008)) &&
+           c->bb_pl->inv.items[i].data_b[0] == 0x02) {
+            base = LE16(pkt.dfp);
+            mag = LE16(c->bb_pl->inv.items[i].data_w[2]) / 100;
+            pkt.dfp = LE16((base + mag));
+
+            base = LE16(pkt.atp);
+            mag = LE16(c->bb_pl->inv.items[i].data_w[3]) / 50;
+            pkt.atp = LE16((base + mag));
+
+            base = LE16(pkt.ata);
+            mag = LE16(c->bb_pl->inv.items[i].data_w[4]) / 200;
+            pkt.ata = LE16((base + mag));
+
+            base = LE16(pkt.mst);
+            mag = LE16(c->bb_pl->inv.items[i].data_w[5]) / 50;
+            pkt.mst = LE16((base + mag));
+
+            break;
+        }
+    }
+
+    return lobby_send_pkt_bb(c->cur_lobby, NULL, &pkt, 0);
 }

@@ -324,7 +324,7 @@ int main(int argc, char *argv[]) {
     }
 
     /* Set up things for clients to connect. */
-    if(client_init()) {
+    if(client_init(cfg)) {
         exit(EXIT_FAILURE);
     }
 

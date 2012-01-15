@@ -30,12 +30,14 @@
 #include <sylverant/encryption.h>
 #include <sylverant/mtwist.h>
 #include <sylverant/debug.h>
+#include <sylverant/prs.h>
 
 #include "ship.h"
 #include "utils.h"
 #include "clients.h"
 #include "ship_packets.h"
 #include "scripts.h"
+#include "subcmd.h"
 
 #ifdef UNUSED
 #undef UNUSED
@@ -49,6 +51,9 @@ static PyObject *client_pyobj_create(ship_client_t *c);
 static void client_pyobj_invalidate(ship_client_t *c);
 #endif
 
+/* Blue Burst levelup table */
+static bb_level_table_t char_stats;
+
 /* The key for accessing our thread-specific receive buffer. */
 pthread_key_t recvbuf_key;
 
@@ -61,7 +66,16 @@ static void buf_dtor(void *rb) {
 }
 
 /* Initialize the clients system, allocating any thread specific keys */
-int client_init(void) {
+int client_init(sylverant_ship_t *cfg) {
+    FILE *fp;
+    uint8_t *buf, *buf2;
+    long size;
+    uint32_t decsize;
+
+#if defined(WORDS_BIGENDIAN) || defined(__BIG_ENDIAN__)
+    int i, j;
+#endif
+
     if(pthread_key_create(&recvbuf_key, &buf_dtor)) {
         perror("pthread_key_create");
         return -1;
@@ -71,6 +85,64 @@ int client_init(void) {
         perror("pthread_key_create");
         return -1;
     }
+
+    /* Don't bother with Blue Burst-related stuff if Blue Burst is disabled. */
+    if((cfg->shipgate_flags & SHIPGATE_FLAG_NOBB))
+        return 0;
+
+    debug(DBG_LOG, "Loading Blue Burst levelup table.\n");
+    fp = fopen("blueburst/param/PlyLevelTbl.prs", "rb");
+
+    if(!fp) {
+        debug(DBG_WARN, "Missing Blue Burst levelup table! Disabling support "
+              "for Blue Burst!\n");
+        cfg->shipgate_flags |= SHIPGATE_FLAG_NOBB;
+        return 0;
+    }
+
+    /* Figure out how long it is and read it in... */
+    fseek(fp, 0, SEEK_END);
+    size = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+
+    buf = (uint8_t *)malloc(size);
+    if(!buf) {
+        debug(DBG_ERROR, "Couldn't allocate space for level table.\n%s\n",
+              strerror(errno));
+        fclose(fp);
+        return -3;
+    }
+
+    fread(buf, 1, size, fp);
+    fclose(fp);
+
+    /* Decompress the data */
+    decsize = prs_decompress_size(buf);
+    buf2 = (uint8_t *)malloc(decsize);
+
+    if(!buf2) {
+        debug(DBG_ERROR, "Couldn't allocate space for decompressing level "
+              "table.\n%s\n", strerror(errno));
+        fclose(fp);
+        free(buf);
+        return -4;
+    }
+
+    prs_decompress(buf, buf2);
+    memcpy(&char_stats, buf2, sizeof(bb_level_table_t));
+
+#if defined(WORDS_BIGENDIAN) || defined(__BIG_ENDIAN__)
+    /* Swap all the exp values */
+    for(j = 0; j < 12; ++j) {
+        for(i = 0; i < 200; ++i) {
+            char_stats[j][i].exp = LE32(char_stats[j][i].exp);
+        }
+    }
+#endif
+
+    /* Clean up... */
+    free(buf);
+    free(buf2);
 
     return 0;
 }
@@ -646,6 +718,110 @@ void client_send_friendmsg(ship_client_t *c, int on, const char *fname,
                  on ? __(c, "online") : __(c, "offline"), __(c, "Character:"),
                  fname + 2, ship, (int)block);
     }
+}
+
+static void give_stats(ship_client_t *c, bb_level_entry_t *ent) {
+    uint16_t tmp;
+
+    tmp = LE16(c->bb_pl->character.atp) + ent->atp;
+    c->bb_pl->character.atp = LE16(tmp);
+
+    tmp = LE16(c->bb_pl->character.mst) + ent->mst;
+    c->bb_pl->character.mst = LE16(tmp);
+
+    tmp = LE16(c->bb_pl->character.evp) + ent->evp;
+    c->bb_pl->character.evp = LE16(tmp);
+
+    tmp = LE16(c->bb_pl->character.hp) + ent->hp;
+    c->bb_pl->character.hp = LE16(tmp);
+
+    tmp = LE16(c->bb_pl->character.dfp) + ent->dfp;
+    c->bb_pl->character.dfp = LE16(tmp);
+
+    tmp = LE16(c->bb_pl->character.ata) + ent->ata;
+    c->bb_pl->character.ata = LE16(tmp);
+}
+
+/* Give a Blue Burst client some experience. */
+int client_give_exp(ship_client_t *c, uint32_t exp) {
+    uint32_t exp_total;
+    bb_level_entry_t *ent;
+    int need_lvlup = 0;
+    int cl;
+    uint32_t level;
+
+    if(c->version != CLIENT_VERSION_BB || !c->bb_pl)
+        return -1;
+
+    /* No need if they've already maxed out. */
+    if(c->bb_pl->character.level >= 199)
+        return 0;
+
+    /* Add in the experience to their total so far. */
+    exp_total = LE32(c->bb_pl->character.exp);
+    exp_total += exp;
+    c->bb_pl->character.exp = LE32(exp_total);
+    cl = c->bb_pl->character.ch_class;
+    level = LE32(c->bb_pl->character.level);
+
+    /* Send the packet telling them they've gotten experience. */
+    if(subcmd_send_bb_exp(c, exp))
+        return -1;
+
+    /* See if they got any level ups. */
+    do {
+        ent = &char_stats.levels[cl][level + 1];
+
+        if(exp_total >= ent->exp) {
+            need_lvlup = 1;
+            give_stats(c, ent);
+            ++level;
+        }
+    } while(exp_total >= ent->exp && level < 199);
+
+    /* If they got any level ups, send out the packet that says so. */
+    if(need_lvlup) {
+        c->bb_pl->character.level = LE32(level);
+        if(subcmd_send_bb_level(c))
+            return -1;
+    }
+
+    return 0;
+}
+
+/* Give a Blue Burst client some free level ups. */
+int client_give_level(ship_client_t *c, uint32_t level_req) {
+    uint32_t exp_total;
+    bb_level_entry_t *ent;
+    int cl;
+    uint32_t exp_gained;
+
+    if(c->version != CLIENT_VERSION_BB || !c->bb_pl || level_req > 199)
+        return -1;
+
+    /* No need if they've already at that level. */
+    if(c->bb_pl->character.level >= level_req)
+        return 0;
+
+    /* Grab the entry for that level... */
+    cl = c->bb_pl->character.ch_class;
+    ent = &char_stats.levels[cl][level_req];
+
+    /* Add in the experience to their total so far. */
+    exp_total = LE32(c->bb_pl->character.exp);
+    exp_gained = ent->exp - exp_total;
+    c->bb_pl->character.exp = LE32(ent->exp);
+
+    /* Send the packet telling them they've gotten experience. */
+    if(subcmd_send_bb_exp(c, exp_gained))
+        return -1;
+
+    /* Send the level-up packet. */
+    c->bb_pl->character.level = LE32(level_req);
+    if(subcmd_send_bb_level(c))
+        return -1;
+
+    return 0;
 }
 
 #ifdef HAVE_PYTHON
