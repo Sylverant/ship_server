@@ -37,11 +37,14 @@
 #include "shipgate.h"
 #include "utils.h"
 #include "scripts.h"
+#include "bbdata.h"
 
 /* The actual ship structures. */
 ship_t *ship;
 int enable_ipv6 = 1;
 int restart_on_shutdown = 0;
+uint32_t ship_ip4;
+uint8_t ship_ip6[16];
 
 /* TLS stuff */
 gnutls_certificate_credentials_t tls_cred;
@@ -142,44 +145,28 @@ static sylverant_ship_t *load_config(void) {
         exit(EXIT_FAILURE);
     }
 
-    /* If IPv6 support is disabled by the --no-ipv6 flag, clear this so that the
-       shipgate doesn't get confused later on. */
-    if(!enable_ipv6) {
-        memset(cfg->ship_ip6, 0, 16);
-    }
-
     return cfg;
 }
 
 static void print_config(sylverant_ship_t *cfg) {
-    char ipstr[INET6_ADDRSTRLEN] = { 0 };
     int i;
 
     /* Print out the configuration. */
     debug(DBG_LOG, "Configured parameters:\n");
 
-    if(cfg->shipgate_ip) {
-        inet_ntop(AF_INET, &cfg->shipgate_ip, ipstr, INET6_ADDRSTRLEN);
-    }
-    else {
-        inet_ntop(AF_INET6, cfg->shipgate_ip6, ipstr, INET6_ADDRSTRLEN);
-    }
-
-    debug(DBG_LOG, "Shipgate IP: %s\n", ipstr);
+    debug(DBG_LOG, "Shipgate Host: %s\n", cfg->shipgate_host);
     debug(DBG_LOG, "Shipgate Port: %d\n", (int)cfg->shipgate_port);
 
     /* Print out the ship's information. */
     debug(DBG_LOG, "Ship Name: %s\n", cfg->name);
 
-    inet_ntop(AF_INET, &cfg->ship_ip, ipstr, INET6_ADDRSTRLEN);
-    debug(DBG_LOG, "Ship IPv4 Address: %s\n", ipstr);
+    debug(DBG_LOG, "Ship IPv4 Host: %s\n", cfg->ship_host);
 
-    if(cfg->ship_ip6[0]) {
-        inet_ntop(AF_INET6, cfg->ship_ip6, ipstr, INET6_ADDRSTRLEN);
-        debug(DBG_LOG, "Ship IPv6 Address: %s\n", ipstr);
+    if(cfg->ship_host6) {
+        debug(DBG_LOG, "Ship IPv6 Host: %s\n", cfg->ship_host6);
     }
     else {
-        debug(DBG_LOG, "Ship IPv6 Address: None\n");
+        debug(DBG_LOG, "Ship IPv6 Host: Autoconfig or None\n");
     }
 
     debug(DBG_LOG, "Base Port: %d\n", (int)cfg->base_port);
@@ -203,6 +190,14 @@ static void print_config(sylverant_ship_t *cfg) {
     }
     else {
         debug(DBG_LOG, "Menu: Main\n");
+    }
+
+    if(cfg->bb_param_dir) {
+        debug(DBG_LOG, "BB Param Directory: %s\n", cfg->bb_param_dir);
+    }
+
+    if(cfg->bb_map_dir) {
+        debug(DBG_LOG, "BB Map Directory: %s\n", cfg->bb_map_dir);
     }
 
     debug(DBG_LOG, "Flags: 0x%08X\n", cfg->shipgate_flags);
@@ -277,11 +272,93 @@ static void cleanup_gnutls() {
     gnutls_global_deinit();
 }
 
+int setup_addresses(sylverant_ship_t *cfg) {
+    struct addrinfo hints;
+    struct addrinfo *server, *j;
+    char ipstr[INET6_ADDRSTRLEN];
+    struct sockaddr_in *addr4;
+    struct sockaddr_in6 *addr6;
+
+    /* Clear the addresses */
+    ship_ip4 = 0;
+    memset(ship_ip6, 0, 16);
+
+    debug(DBG_LOG, "Looking up ship address...\n");
+
+    memset(&hints, 0, sizeof(struct addrinfo));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+
+    if(getaddrinfo(cfg->ship_host, "9000", &hints, &server)) {
+        debug(DBG_ERROR, "Invalid ship address: %s\n", cfg->ship_host);
+        return -1;
+    }
+
+    for(j = server; j != NULL; j = j->ai_next) {
+        if(j->ai_family == AF_INET) {
+            addr4 = (struct sockaddr_in *)j->ai_addr;
+            inet_ntop(j->ai_family, &addr4->sin_addr, ipstr, INET6_ADDRSTRLEN);
+            debug(DBG_LOG, "    Found IPv4: %s\n", ipstr);
+            ship_ip4 = addr4->sin_addr.s_addr;
+            
+        }
+        else if(j->ai_family == AF_INET6) {
+            addr6 = (struct sockaddr_in6 *)j->ai_addr;
+            inet_ntop(j->ai_family, &addr6->sin6_addr, ipstr, INET6_ADDRSTRLEN);
+            debug(DBG_LOG, "    Found IPv6: %s\n", ipstr);
+            memcpy(ship_ip6, &addr6->sin6_addr, 16);
+        }
+    }
+
+    freeaddrinfo(server);
+
+    /* Make sure we found at least an IPv4 address */
+    if(!ship_ip4) {
+        debug(DBG_ERROR, "No IPv4 Address found!\n");
+        return -1;
+    }
+
+    /* If we don't have a separate IPv6 host set, we're done. */
+    if(!cfg->ship_host6) {
+        return 0;
+    }
+
+    /* Now try with IPv6 only */
+    memset(ship_ip6, 0, 16);
+    memset(&hints, 0, sizeof(struct addrinfo));
+    hints.ai_family = AF_INET6;
+    hints.ai_socktype = SOCK_STREAM;
+
+    if(getaddrinfo(cfg->ship_host6, "9000", &hints, &server)) {
+        debug(DBG_ERROR, "Invalid ship address (v6): %s\n", cfg->ship_host);
+        return -1;
+    }
+
+    for(j = server; j != NULL; j = j->ai_next) {
+        if(j->ai_family == AF_INET6) {
+            addr6 = (struct sockaddr_in6 *)j->ai_addr;
+            inet_ntop(j->ai_family, &addr6->sin6_addr, ipstr, INET6_ADDRSTRLEN);
+            debug(DBG_LOG, "    Found IPv6: %s\n", ipstr);
+            memcpy(ship_ip6, &addr6->sin6_addr, 16);
+        }
+    }
+
+    freeaddrinfo(server);
+
+    if(!ship_ip6[0]) {
+        debug(DBG_ERROR, "No IPv6 Address found (but addr6 configured)!\n");
+        return -1;
+    }
+
+    return 0;
+}
+
 int main(int argc, char *argv[]) {
     void *tmp;
     sylverant_ship_t *cfg;
     char *initial_path;
     long size;
+    int rv;
 
     /* Parse the command line... */
     parse_command_line(argc, argv);
@@ -318,6 +395,11 @@ int main(int argc, char *argv[]) {
 
     print_config(cfg);
 
+    /* Parse the addresses */
+    if(setup_addresses(cfg)) {
+        exit(EXIT_FAILURE);
+    }
+
     /* Initialize GnuTLS stuff... */
     if(init_gnutls(cfg)) {
         exit(EXIT_FAILURE);
@@ -326,6 +408,20 @@ int main(int argc, char *argv[]) {
     /* Set up things for clients to connect. */
     if(client_init(cfg)) {
         exit(EXIT_FAILURE);
+    }
+
+    /* If Blue Burst isn't disabled already, read the parameter data and map
+       data... */
+    if(!(cfg->shipgate_flags & SHIPGATE_FLAG_NOBB)) {
+        rv = bb_read_params(cfg);
+
+        /* Less than 0 = fatal error. Greater than 0 = Blue Burst problem. */
+        if(rv > 0) {
+            cfg->shipgate_flags |= SHIPGATE_FLAG_NOBB;
+        }
+        else if(rv < 0) {
+            exit(EXIT_FAILURE);
+        }
     }
 
     /* Initialize all the iconv contexts we'll need */

@@ -43,6 +43,8 @@
 #include "admin.h"
 
 extern int enable_ipv6;
+extern uint32_t ship_ip4;
+extern uint8_t ship_ip6[16];
 
 static void *block_thd(void *d) {
     block_t *b = (block_t *)d;
@@ -2061,13 +2063,13 @@ static int process_menu(ship_client_t *c, uint32_t menu_id, uint32_t item_id,
             /* Redirect the client where we want them to go. */
 #ifdef SYLVERANT_ENABLE_IPV6
             if(c->flags & CLIENT_FLAG_IPV6) {
-                return send_redirect6(c, ship->cfg->ship_ip6, port);
+                return send_redirect6(c, ship_ip6, port);
             }
             else {
-                return send_redirect(c, ship->cfg->ship_ip, port);
+                return send_redirect(c, ship_ip4, port);
             }
 #else
-            return send_redirect(c, ship->cfg->ship_ip, port);
+            return send_redirect(c, ship_ip4, port);
 #endif
         }
 

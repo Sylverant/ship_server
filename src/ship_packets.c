@@ -37,6 +37,9 @@
 #include "quests.h"
 #include "admin.h"
 
+extern uint32_t ship_ip4;
+extern uint8_t ship_ip6[16];
+
 /* Options for choice search. */
 typedef struct cs_opt {
     uint16_t menu_id;
@@ -2494,7 +2497,7 @@ static int send_dc_guild_reply(ship_client_t *c, ship_client_t *s) {
     pkt->tag = LE32(0x00010000);
     pkt->gc_search = LE32(c->guildcard);
     pkt->gc_target = LE32(s->guildcard);
-    pkt->ip = ship->cfg->ship_ip;
+    pkt->ip = ship_ip4;
     pkt->port = LE16(port);
     pkt->menu_id = LE32(MENU_ID_LOBBY);
     pkt->item_id = LE32(l->lobby_id);
@@ -2550,7 +2553,7 @@ static int send_pc_guild_reply(ship_client_t *c, ship_client_t *s) {
     pkt->tag = LE32(0x00010000);
     pkt->gc_search = LE32(c->guildcard);
     pkt->gc_target = LE32(s->guildcard);
-    pkt->ip = ship->cfg->ship_ip;
+    pkt->ip = ship_ip4;
     pkt->port = LE16(b->pc_port);
     pkt->menu_id = LE32(MENU_ID_LOBBY);
     pkt->item_id = LE32(l->lobby_id);
@@ -2597,7 +2600,7 @@ static int send_bb_guild_reply(ship_client_t *c, ship_client_t *s) {
     pkt->tag = LE32(0x00010000);
     pkt->gc_search = LE32(c->guildcard);
     pkt->gc_target = LE32(s->guildcard);
-    pkt->ip = ship->cfg->ship_ip;
+    pkt->ip = ship_ip4;
     pkt->port = LE16(b->bb_port);
     pkt->menu_id = LE32(MENU_ID_LOBBY);
     pkt->item_id = LE32(l->lobby_id);
@@ -2686,7 +2689,7 @@ static int send_dc_guild_reply6(ship_client_t *c, ship_client_t *s) {
     pkt->tag = LE32(0x00010000);
     pkt->gc_search = LE32(c->guildcard);
     pkt->gc_target = LE32(s->guildcard);
-    memcpy(pkt->ip, ship->cfg->ship_ip6, 16);
+    memcpy(pkt->ip, ship_ip6, 16);
     pkt->port = LE16(port);
     pkt->menu_id = LE32(MENU_ID_LOBBY);
     pkt->item_id = LE32(l->lobby_id);
@@ -2743,7 +2746,7 @@ static int send_pc_guild_reply6(ship_client_t *c, ship_client_t *s) {
     pkt->tag = LE32(0x00010000);
     pkt->gc_search = LE32(c->guildcard);
     pkt->gc_target = LE32(s->guildcard);
-    memcpy(pkt->ip, ship->cfg->ship_ip6, 16);
+    memcpy(pkt->ip, ship_ip6, 16);
     pkt->port = LE16(b->pc_port);
     pkt->menu_id = LE32(MENU_ID_LOBBY);
     pkt->item_id = LE32(l->lobby_id);
@@ -2792,7 +2795,7 @@ static int send_bb_guild_reply6(ship_client_t *c, ship_client_t *s) {
     pkt->tag = LE32(0x00010000);
     pkt->gc_search = LE32(c->guildcard);
     pkt->gc_target = LE32(s->guildcard);
-    memcpy(pkt->ip, ship->cfg->ship_ip6, 16);
+    memcpy(pkt->ip, ship_ip6, 16);
     pkt->port = LE16(b->bb_port);
     pkt->menu_id = LE32(MENU_ID_LOBBY);
     pkt->item_id = LE32(l->lobby_id);
@@ -7706,7 +7709,7 @@ static int fill_one_choice_entry(uint8_t *sendbuf, int version,
             istrncpy(ic_utf8_to_utf16, (char *)pkt->entries[entry].location,
                      tmp, 0x60);
 
-            pkt->entries[entry].ip = ship->cfg->ship_ip;
+            pkt->entries[entry].ip = ship_ip4;
             pkt->entries[entry].port = LE16(b->dc_port + port_off);
             pkt->entries[entry].menu_id = LE32(MENU_ID_LOBBY);
             pkt->entries[entry].item_id = LE32(it->cur_lobby->lobby_id);
@@ -7744,7 +7747,7 @@ static int fill_one_choice_entry(uint8_t *sendbuf, int version,
             sprintf(pkt->entries[entry].location, "%s,BLOCK%02d,%s", lname,
                     b->b, ship->cfg->name);
 
-            pkt->entries[entry].ip = ship->cfg->ship_ip;
+            pkt->entries[entry].ip = ship_ip4;
             pkt->entries[entry].port = LE16(b->dc_port + port_off);
             pkt->entries[entry].menu_id = LE32(MENU_ID_LOBBY);
             pkt->entries[entry].item_id = LE32(it->cur_lobby->lobby_id);
@@ -7785,7 +7788,7 @@ static int fill_one_choice6_entry(uint8_t *sendbuf, int version,
             istrncpy(ic_utf8_to_utf16, (char *)pkt->entries[entry].location,
                      tmp, 0x60);
 
-            memcpy(pkt->entries[entry].ip, ship->cfg->ship_ip6, 16);
+            memcpy(pkt->entries[entry].ip, ship_ip6, 16);
             pkt->entries[entry].port = LE16(b->dc_port + port_off);
             pkt->entries[entry].menu_id = LE32(MENU_ID_LOBBY);
             pkt->entries[entry].item_id = LE32(it->cur_lobby->lobby_id);
@@ -7823,7 +7826,7 @@ static int fill_one_choice6_entry(uint8_t *sendbuf, int version,
             sprintf(pkt->entries[entry].location, "%s,BLOCK%02d,%s", lname,
                     b->b, ship->cfg->name);
 
-            memcpy(pkt->entries[entry].ip, ship->cfg->ship_ip6, 16);
+            memcpy(pkt->entries[entry].ip, ship_ip6, 16);
             pkt->entries[entry].port = LE16(b->dc_port + port_off);
             pkt->entries[entry].menu_id = LE32(MENU_ID_LOBBY);
             pkt->entries[entry].item_id = LE32(it->cur_lobby->lobby_id);

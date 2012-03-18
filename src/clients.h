@@ -74,32 +74,6 @@ typedef struct bb_security_data {
     uint8_t reserved[34];               /* Set to 0 */
 } PACKED bb_security_data_t;
 
-typedef struct bb_level_entry {
-    uint8_t atp;
-    uint8_t mst;
-    uint8_t evp;
-    uint8_t hp;
-    uint8_t dfp;
-    uint8_t ata;
-    uint8_t unk[2];
-    uint32_t exp;
-} bb_level_entry_t;
-
-/* Level-up information table from PlyLevelTbl.prs */
-typedef struct bb_level_table {
-    struct {
-        uint16_t atp;
-        uint16_t mst;
-        uint16_t evp;
-        uint16_t hp;
-        uint16_t dfp;
-        uint16_t ata;
-        uint16_t lck;
-    } start_stats[12];
-    uint32_t unk[12];
-    bb_level_entry_t levels[12][200];
-} PACKED bb_level_table_t;
-
 #undef PACKED
 
 /* Ship server client structure. */

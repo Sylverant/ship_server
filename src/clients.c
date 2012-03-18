@@ -38,6 +38,7 @@
 #include "ship_packets.h"
 #include "scripts.h"
 #include "subcmd.h"
+#include "bbdata.h"
 
 #ifdef UNUSED
 #undef UNUSED
@@ -50,9 +51,6 @@
 static PyObject *client_pyobj_create(ship_client_t *c);
 static void client_pyobj_invalidate(ship_client_t *c);
 #endif
-
-/* Blue Burst levelup table */
-static bb_level_table_t char_stats;
 
 /* The key for accessing our thread-specific receive buffer. */
 pthread_key_t recvbuf_key;
@@ -67,15 +65,6 @@ static void buf_dtor(void *rb) {
 
 /* Initialize the clients system, allocating any thread specific keys */
 int client_init(sylverant_ship_t *cfg) {
-    FILE *fp;
-    uint8_t *buf, *buf2;
-    long size;
-    uint32_t decsize;
-
-#if defined(WORDS_BIGENDIAN) || defined(__BIG_ENDIAN__)
-    int i, j;
-#endif
-
     if(pthread_key_create(&recvbuf_key, &buf_dtor)) {
         perror("pthread_key_create");
         return -1;
@@ -85,64 +74,6 @@ int client_init(sylverant_ship_t *cfg) {
         perror("pthread_key_create");
         return -1;
     }
-
-    /* Don't bother with Blue Burst-related stuff if Blue Burst is disabled. */
-    if((cfg->shipgate_flags & SHIPGATE_FLAG_NOBB))
-        return 0;
-
-    debug(DBG_LOG, "Loading Blue Burst levelup table.\n");
-    fp = fopen("blueburst/param/PlyLevelTbl.prs", "rb");
-
-    if(!fp) {
-        debug(DBG_WARN, "Missing Blue Burst levelup table! Disabling support "
-              "for Blue Burst!\n");
-        cfg->shipgate_flags |= SHIPGATE_FLAG_NOBB;
-        return 0;
-    }
-
-    /* Figure out how long it is and read it in... */
-    fseek(fp, 0, SEEK_END);
-    size = ftell(fp);
-    fseek(fp, 0, SEEK_SET);
-
-    buf = (uint8_t *)malloc(size);
-    if(!buf) {
-        debug(DBG_ERROR, "Couldn't allocate space for level table.\n%s\n",
-              strerror(errno));
-        fclose(fp);
-        return -3;
-    }
-
-    fread(buf, 1, size, fp);
-    fclose(fp);
-
-    /* Decompress the data */
-    decsize = prs_decompress_size(buf);
-    buf2 = (uint8_t *)malloc(decsize);
-
-    if(!buf2) {
-        debug(DBG_ERROR, "Couldn't allocate space for decompressing level "
-              "table.\n%s\n", strerror(errno));
-        fclose(fp);
-        free(buf);
-        return -4;
-    }
-
-    prs_decompress(buf, buf2);
-    memcpy(&char_stats, buf2, sizeof(bb_level_table_t));
-
-#if defined(WORDS_BIGENDIAN) || defined(__BIG_ENDIAN__)
-    /* Swap all the exp values */
-    for(j = 0; j < 12; ++j) {
-        for(i = 0; i < 200; ++i) {
-            char_stats[j][i].exp = LE32(char_stats[j][i].exp);
-        }
-    }
-#endif
-
-    /* Clean up... */
-    free(buf);
-    free(buf2);
 
     return 0;
 }

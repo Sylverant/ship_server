@@ -21,6 +21,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <pthread.h>
+#include <netdb.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -38,6 +39,10 @@
 /* TLS stuff -- from ship_server.c */
 extern gnutls_certificate_credentials_t tls_cred;
 extern gnutls_priority_t tls_prio;
+
+extern int enable_ipv6;
+extern uint32_t ship_ip4;
+extern uint8_t ship_ip6[16];
 
 static inline ssize_t sg_recv(shipgate_conn_t *c, void *buffer, size_t len) {
     return gnutls_record_recv(c->session, buffer, len);
@@ -137,11 +142,14 @@ int shipgate_send_ping(shipgate_conn_t *c, int reply) {
 /* Attempt to connect to the shipgate. Returns < 0 on error, returns the socket
    for communciation on success. */
 static int shipgate_conn(ship_t *s, shipgate_conn_t *rv, int reconn) {
-    int sock, irv;
-    struct sockaddr_in addr;
-    struct sockaddr_in6 addr6;
+    int sock = -1, irv;
     unsigned int peer_status;
     miniship_t *i, *tmp;
+    struct addrinfo hints;
+    struct addrinfo *server, *j;
+    char sg_port[16];
+    char ipstr[INET6_ADDRSTRLEN];
+    void *addr;
 
     if(reconn) {
         /* Clear all ships so we don't keep around stale stuff */
@@ -160,50 +168,61 @@ static int shipgate_conn(ship_t *s, shipgate_conn_t *rv, int reconn) {
         memset(rv, 0, sizeof(shipgate_conn_t));
     }
 
+    debug(DBG_LOG, "%s: Looking up shipgate (%s)...\n", s->cfg->name,
+          s->cfg->shipgate_host);
+
+    memset(&hints, 0, sizeof(struct addrinfo));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    snprintf(sg_port, 16, "%hu", s->cfg->shipgate_port);
+
+    if(getaddrinfo(s->cfg->shipgate_host, sg_port, &hints, &server)) {
+        debug(DBG_ERROR, "%s: Invalid shipgate host: %s\n", s->cfg->name,
+              s->cfg->shipgate_host);
+        return -1;
+    }
+
     debug(DBG_LOG, "%s: Connecting to shipgate...\n", s->cfg->name);
 
-    /* Create the socket for the connection. */
-    if(s->cfg->shipgate_ip) {
-        sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+    for(j = server; j != NULL; j = j->ai_next) {
+        if(j->ai_family == AF_INET) {
+            addr = &((struct sockaddr_in *)j->ai_addr)->sin_addr;
+        }
+        else if(j->ai_family == AF_INET6) {
+            addr = &((struct sockaddr_in6 *)j->ai_addr)->sin6_addr;
+        }
+        else {
+            continue;
+        }
+
+        inet_ntop(j->ai_family, addr, ipstr, INET6_ADDRSTRLEN);
+        debug(DBG_LOG, "    Trying %s\n", ipstr);
+
+        sock = socket(j->ai_family, SOCK_STREAM, IPPROTO_TCP);
 
         if(sock < 0) {
-            perror("socket");
+            debug(DBG_ERROR, "socket: %s\n", strerror(errno));
+            freeaddrinfo(server);
             return -1;
         }
 
-        /* Connect the socket to the shipgate. */
-        memset(&addr, 0, sizeof(addr));
-        addr.sin_family = AF_INET;
-        addr.sin_addr.s_addr = s->cfg->shipgate_ip;
-        addr.sin_port = htons(s->cfg->shipgate_port);
-
-        if(connect(sock, (struct sockaddr *)&addr,
-                   sizeof(struct sockaddr_in))) {
-            perror("connect");
+        if(connect(sock, j->ai_addr, j->ai_addrlen)) {
+            debug(DBG_WARN, "connect: %s\n", strerror(errno));
             close(sock);
-            return -2;
+            sock = -1;
+            continue;
         }
+
+        debug(DBG_LOG, "        Success!\n");
+        break;
     }
-    else {
-        sock = socket(PF_INET6, SOCK_STREAM, IPPROTO_TCP);
 
-        if(sock < 0) {
-            perror("socket");
-            return -1;
-        }
+    freeaddrinfo(server);
 
-        /* Connect the socket to the shipgate. */
-        memset(&addr6, 0, sizeof(addr6));
-        addr6.sin6_family = AF_INET6;
-        memcpy(&addr6.sin6_addr, s->cfg->shipgate_ip6, 16);
-        addr6.sin6_port = htons(s->cfg->shipgate_port);
-
-        if(connect(sock, (struct sockaddr *)&addr6,
-                   sizeof(struct sockaddr_in6))) {
-            perror("connect");
-            close(sock);
-            return -2;
-        }
+    /* Did we connect? */
+    if(sock == -1) {
+        debug(DBG_ERROR, "Couldn't connect to shipgate!\n");
+        return -1;
     }
 
     /* Set up the TLS session */
@@ -2004,8 +2023,15 @@ int shipgate_send_ship_info(shipgate_conn_t *c, ship_t *ship) {
     pkt->proto_ver = htonl(SHIPGATE_PROTO_VER);
     pkt->flags = htonl(ship->cfg->shipgate_flags);
     memcpy(pkt->name, ship->cfg->name, 12);
-    pkt->ship_addr4 = ship->cfg->ship_ip;
-    memcpy(pkt->ship_addr6, ship->cfg->ship_ip6, 16);
+    pkt->ship_addr4 = ship_ip4;
+
+    if(enable_ipv6) {
+        memcpy(pkt->ship_addr6, ship_ip6, 16);
+    }
+    else {
+        memset(pkt->ship_addr6, 0, 16);
+    }
+
     pkt->ship_port = htons(ship->cfg->base_port);
     pkt->ship_key = htons(c->key_idx);
     pkt->clients = htons(ship->num_clients);
