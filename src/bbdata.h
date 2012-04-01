@@ -89,10 +89,10 @@ typedef struct bb_map_enemy {
 
 /* Enemy data as used in the game. */
 typedef struct bb_game_enemy {
-    uint32_t exp;
+    uint32_t bp_entry;
+    uint16_t rt_index;
     uint8_t clients_hit;
     uint8_t last_client;
-    uint16_t reserved;
 } bb_game_enemy_t;
 
 typedef struct bb_game_enemies {
@@ -108,6 +108,12 @@ typedef struct bb_parsed_map {
 
 #undef PACKED
 
+#ifndef LOBBY_DEFINED
+#define LOBBY_DEFINED
+struct lobby;
+typedef struct lobby lobby_t;
+#endif
+
 /* Enemy battle parameters */
 extern bb_battle_param_t battle_params[2][3][4][0x60];
 
@@ -115,5 +121,8 @@ extern bb_battle_param_t battle_params[2][3][4][0x60];
 extern bb_level_table_t char_stats;
 
 int bb_read_params(sylverant_ship_t *cfg);
+
+int bb_load_game_enemies(lobby_t *l);
+void bb_free_game_enemies(lobby_t *l);
 
 #endif /* !BBDATA_H */

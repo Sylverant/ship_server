@@ -217,6 +217,14 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
         c->next_maps = NULL;
     }
 
+    /* If its a Blue Burst lobby, set up the enemy data. */
+    if(version == CLIENT_VERSION_BB && bb_load_game_enemies(l)) {
+        debug(DBG_WARN, "Error setting up blue burst enemies!\n");
+        pthread_mutex_destroy(&l->mutex);
+        free(l);
+        return NULL;
+    }
+
     /* Add it to the list of lobbies, and increment the game count. */
     if(version != CLIENT_VERSION_PC || battle || chal || difficulty == 3) {
         pthread_rwlock_wrlock(&block->lobby_lock);
@@ -327,6 +335,11 @@ static void lobby_destroy_locked(lobby_t *l, int remove) {
         tmp = TAILQ_NEXT(i, qentry);
         free(i);
         i = tmp;
+    }
+
+    /* Free up the Blue Burst enemy data */
+    if(l->bb_enemies) {
+        bb_free_game_enemies(l);
     }
 
     free(l);

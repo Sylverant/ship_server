@@ -2077,6 +2077,96 @@ static int handle_bb_sort_inv(ship_client_t *c, subcmd_bb_sort_inv_t *pkt) {
     return 0;
 }
 
+static int handle_bb_mhit(ship_client_t *c, subcmd_bb_mhit_pkt_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+    uint16_t mid;
+
+    /* We can't get these in default lobbies without someone messing with
+       something that they shouldn't be... Disconnect anyone that tries. */
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " hit monster in lobby!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* Sanity check... Make sure the size of the subcommand matches with what we
+       expect. Disconnect the client if not. */
+    if(pkt->hdr.pkt_len != LE16(0x0014) || pkt->size != 0x03) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " sent bad mhit message!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* Make sure the enemy is in range. */
+    mid = LE16(pkt->enemy_id);
+    if(mid > l->bb_enemies->count) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " hit invalid enemy (%d -- max: "
+              "%d)!\n", c->guildcard, mid, l->bb_enemies->count);
+        return -1;
+    }
+
+    /* Save the hit, assuming the enemy isn't already dead. */
+    if(!(l->bb_enemies->enemies[mid].clients_hit & 0x80)) {
+        l->bb_enemies->enemies[mid].clients_hit |= (1 << c->client_id);
+        l->bb_enemies->enemies[mid].last_client = c->client_id;
+    }
+
+    return 0;    
+}
+
+static int handle_bb_req_exp(ship_client_t *c, subcmd_bb_req_exp_pkt_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+    uint16_t mid;
+    uint32_t bp, exp;
+    bb_game_enemy_t *en;
+
+    /* We can't get these in default lobbies without someone messing with
+       something that they shouldn't be... Disconnect anyone that tries. */
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " requested exp in lobby!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* Sanity check... Make sure the size of the subcommand matches with what we
+       expect. Disconnect the client if not. */
+    if(pkt->hdr.pkt_len != LE16(0x0014) || pkt->size != 0x03) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " sent bad exp req message!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* Make sure the enemy is in range. */
+    mid = LE16(pkt->enemy_id);
+    if(mid > l->bb_enemies->count) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " killed invalid enemy (%d -- "
+              "max: %d)!\n", c->guildcard, mid, l->bb_enemies->count);
+        return -1;
+    }
+
+    /* Make sure this client actually hit the enemy and that the client didn't
+       already claim their experience. */
+    en = &l->bb_enemies->enemies[mid];
+
+    if(!(en->clients_hit & (1 << c->client_id))) {
+        return 0;
+    }
+
+    /* Set that the client already got their experience and that the monster is
+       indeed dead. */
+    en->clients_hit = (en->clients_hit & (1 << c->client_id)) | 0x80;
+
+    /* Give the client their experience! */
+    bp = en->bp_entry;
+    exp = l->bb_params[bp].exp;
+
+    if(!pkt->last_hitter) {
+        exp = (exp * 77) / 100;
+    }
+
+    return client_give_exp(c, exp);
+}
+    
 /* Handle a 0x62/0x6D packet. */
 int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
     lobby_t *l = c->cur_lobby;
@@ -2386,6 +2476,10 @@ int subcmd_bb_handle_bcast(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
             rv = handle_bb_symbol_chat(c, pkt);
             break;
 
+        case SUBCMD_HIT_MONSTER:
+            rv = handle_bb_mhit(c, (subcmd_bb_mhit_pkt_t *)pkt);
+            break;
+
         case SUBCMD_SET_AREA:
             rv = handle_bb_set_area(c, (subcmd_bb_set_area_t *)pkt);
             break;
@@ -2430,6 +2524,10 @@ int subcmd_bb_handle_bcast(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
 
         case SUBCMD_MEDIC:
             rv = handle_bb_medic(c, (bb_subcmd_pkt_t *)pkt);
+            break;
+
+        case SUBCMD_REQ_EXP:
+            rv = handle_bb_req_exp(c, (subcmd_bb_req_exp_pkt_t *)pkt);
             break;
 
         default:

@@ -627,6 +627,30 @@ typedef struct subcmd_bb_level {
     uint32_t level;
 } PACKED subcmd_bb_level_t;
 
+/* Packet sent by Blue Burst clients to request experience after killing an
+   enemy. */
+typedef struct subcmd_bb_req_exp {
+    bb_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint16_t enemy_id2;
+    uint16_t enemy_id;
+    uint16_t killer;
+    uint8_t last_hitter;
+    uint8_t unused[3];
+} PACKED subcmd_bb_req_exp_pkt_t;
+
+/* Packet sent by clients to say that a monster has been hit. */
+typedef struct subcmd_bb_mhit {
+    bb_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint16_t enemy_id2;
+    uint16_t enemy_id;
+    uint16_t damage;
+    uint32_t flags;
+} PACKED subcmd_bb_mhit_pkt_t;
+
 #undef PACKED
 
 /* Subcommand types we care about (0x62/0x6D). */
@@ -640,6 +664,7 @@ typedef struct subcmd_bb_level {
 
 /* Subcommand types we might care about (0x60/0x6C). */
 #define SUBCMD_SYMBOL_CHAT  0x07
+#define SUBCMD_HIT_MONSTER  0x0A
 #define SUBCMD_TELEPORT     0x17
 #define SUBCMD_SET_AREA     0x1F
 #define SUBCMD_SET_AREA_21  0x21    /* Seems to match 0x1F */
@@ -687,6 +712,7 @@ typedef struct subcmd_bb_level {
 #define SUBCMD_DROP_POS     0xC3    /* Blue Burst - Drop part of stack coords */
 #define SUBCMD_SORT_INV     0xC4    /* Blue Burst - Sort inventory */
 #define SUBCMD_MEDIC        0xC5    /* Blue Burst - Use the medical center */
+#define SUBCMD_REQ_EXP      0xC8    /* Blue Burst - Request Experience */
 
 /* The commands OK to send during bursting (0x62/0x6D). These are named for the
    order in which they're sent, hence why the names are out of order... */

@@ -1847,6 +1847,13 @@ static int bb_process_game_create(ship_client_t *c, bb_game_create_pkt *pkt) {
     uint8_t event = ship->game_event;
     char name[65], passwd[65];
 
+    if(pkt->battle || pkt->challenge) {
+        return send_message1(c, "%s\n%s",
+                             __(c, "\tE\tC4Can't create game!"),
+                             __(c, "\tC7Battle and Challenge\nmodes are not\n"
+                                "currently supported on\nBlue Burst!"));
+    }
+
     /* Check the user's ability to create a game of that difficulty. */
     if(!(c->flags & CLIENT_FLAG_OVERRIDE_GAME)) {
         if((LE32(c->pl->v1.level) + 1) < game_required_level[pkt->difficulty]) {

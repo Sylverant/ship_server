@@ -28,6 +28,7 @@
 #undef PACKETS_H_HEADERS_ONLY
 
 #include "player.h"
+#include "bbdata.h"
 
 #define LOBBY_MAX_CLIENTS   12
 
@@ -111,6 +112,9 @@ struct lobby {
     struct lobby_pkt_queue pkt_queue;
     struct lobby_item_queue item_queue;
     time_t create_time;
+
+    bb_game_enemies_t *bb_enemies;
+    bb_battle_param_t *bb_params;
 
     int (*dropfunc)(struct lobby *l, void *req);
 };
