@@ -2022,7 +2022,7 @@ int shipgate_send_ship_info(shipgate_conn_t *c, ship_t *ship) {
     /* Fill in the packet. */
     pkt->proto_ver = htonl(SHIPGATE_PROTO_VER);
     pkt->flags = htonl(ship->cfg->shipgate_flags);
-    memcpy(pkt->name, ship->cfg->name, 12);
+    strncpy((char *)pkt->name, ship->cfg->name, 12);
     pkt->ship_addr4 = ship_ip4;
 
     if(enable_ipv6) {

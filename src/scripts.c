@@ -464,7 +464,7 @@ void init_scripts(ship_t *s) {
     /* Add the scripts directory to the path */
     origpath = Py_GetPath();
     scriptdir = (char *)malloc(strlen(origpath) + 1 +
-                               strlen(sylverant_directory) + 8);
+                               strlen(sylverant_directory) + 9);
 
 #ifndef _WIN32
     sprintf(scriptdir, "%s:%s/scripts", origpath, sylverant_directory);

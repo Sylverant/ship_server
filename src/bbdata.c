@@ -31,7 +31,7 @@
 
 /* Enemy battle parameters. The array is organized in the following levels:
    multi/single player, episode, difficulty, entry.*/
-bb_battle_param_t battle_params[2][3][4][0x60];
+static bb_battle_param_t battle_params[2][3][4][0x60];
 
 /* Player levelup data */
 bb_level_table_t char_stats;
@@ -39,7 +39,7 @@ bb_level_table_t char_stats;
 /* Parsed enemy data. Organized similarly to the battle parameters, except that
    the last level is the actual areas themselves (and there's no difficulty
    level in there). */
-bb_parsed_map_t parsed_maps[2][3][0x10];
+static bb_parsed_map_t parsed_maps[2][3][0x10];
 
 static int read_param_file(bb_battle_param_t dst[4][0x60], const char *fn) {
     FILE *fp;
@@ -852,6 +852,29 @@ bail:
     /* Clean up and return. */
     free(buf);
     return rv;
+}
+
+void bb_free_params(void) {
+    int i, j, k;
+    uint32_t l, nmaps;
+    bb_parsed_map_t *m;
+
+    for(i = 0; i < 2; ++i) {
+        for(j = 0; j < 3; ++j) {
+            for(k = 0; k < 0x10; ++k) {
+                m = &parsed_maps[i][j][k];
+                nmaps = m->map_count * m->variation_count;
+
+                for(l = 0; l < nmaps; ++l) {
+                    free(m->data[l].enemies);
+                }
+
+                free(m->data);
+                m->data = NULL;
+                m->map_count = m->variation_count = 0;
+            }
+        }
+    }
 }
 
 int bb_load_game_enemies(lobby_t *l) {

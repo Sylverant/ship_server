@@ -1911,6 +1911,10 @@ static int dc_process_done_burst(ship_client_t *c) {
     l->flags &= ~LOBBY_FLAG_BURSTING;
     c->flags &= ~CLIENT_FLAG_BURSTING;
 
+    if(l->version == CLIENT_VERSION_BB) {
+        send_lobby_end_burst(l);
+    }
+
     /* Handle the end of burst stuff with the lobby */
     rv = send_simple(c, PING_TYPE, 0) | lobby_handle_done_burst(l);
 

@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -263,5 +263,8 @@ int send_bb_full_char(ship_client_t *c);
 
 /* Send a GM Menu to a client. */
 int send_gm_menu(ship_client_t *c, uint32_t menu_id);
+
+/* Send a done bursting message to Blue Burst clients in a game. */
+int send_lobby_end_burst(lobby_t *l);
 
 #endif /* !SHIP_PACKETS_H */

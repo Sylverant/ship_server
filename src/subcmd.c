@@ -2111,7 +2111,7 @@ static int handle_bb_mhit(ship_client_t *c, subcmd_bb_mhit_pkt_t *pkt) {
         l->bb_enemies->enemies[mid].last_client = c->client_id;
     }
 
-    return 0;    
+    return lobby_send_pkt_bb(l, c, (bb_pkt_hdr_t *)pkt, 0);
 }
 
 static int handle_bb_req_exp(ship_client_t *c, subcmd_bb_req_exp_pkt_t *pkt) {
@@ -2154,14 +2154,14 @@ static int handle_bb_req_exp(ship_client_t *c, subcmd_bb_req_exp_pkt_t *pkt) {
 
     /* Set that the client already got their experience and that the monster is
        indeed dead. */
-    en->clients_hit = (en->clients_hit & (1 << c->client_id)) | 0x80;
+    en->clients_hit = (en->clients_hit & (~(1 << c->client_id))) | 0x80;
 
     /* Give the client their experience! */
     bp = en->bp_entry;
     exp = l->bb_params[bp].exp;
 
     if(!pkt->last_hitter) {
-        exp = (exp * 77) / 100;
+        exp = (exp * 80) / 100;
     }
 
     return client_give_exp(c, exp);

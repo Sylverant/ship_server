@@ -73,7 +73,7 @@ int word_select_send_dc(ship_client_t *c, subcmd_word_select_t *pkt) {
     bb.ws_type = pkt->ws_type;
     bb.unused2 = 0;
 
-    for(i = 0; i < 12; ++i) {
+    for(i = 0; i < 8; ++i) {
         dcw = LE16(pkt->words[i]);
 
         /* Make sure each word is valid */
@@ -104,6 +104,20 @@ int word_select_send_dc(ship_client_t *c, subcmd_word_select_t *pkt) {
         gc.words[i] = LE16(gcw);
         bb.words[i] = LE16(gcw);
     }
+
+    /* Deal with amounts and such... */
+    pc.words[8] = pkt->words[8];
+    pc.words[9] = pkt->words[9];
+    pc.words[10] = pkt->words[10];
+    pc.words[11] = pkt->words[11];
+    gc.words[8] = pkt->words[8];
+    gc.words[9] = pkt->words[9];
+    gc.words[10] = pkt->words[10];
+    gc.words[11] = pkt->words[11];
+    bb.words[8] = pkt->words[8];
+    bb.words[9] = pkt->words[9];
+    bb.words[10] = pkt->words[10];
+    bb.words[11] = pkt->words[11];
 
     /* Send the packet to everyone we can */
     for(i = 0; i < l->max_clients; ++i) {
@@ -198,7 +212,7 @@ int word_select_send_pc(ship_client_t *c, subcmd_word_select_t *pkt) {
     bb.ws_type = pkt->ws_type;
     bb.unused2 = 0;
 
-    for(i = 0; i < 12; ++i) {
+    for(i = 0; i < 8; ++i) {
         pcw = LE16(pkt->words[i]);
 
         /* Make sure each word is valid */
@@ -229,6 +243,20 @@ int word_select_send_pc(ship_client_t *c, subcmd_word_select_t *pkt) {
         gc.words[i] = LE16(gcw);
         bb.words[i] = LE16(gcw);
     }
+
+    /* Deal with amounts and such... */
+    dc.words[8] = pkt->words[8];
+    dc.words[9] = pkt->words[9];
+    dc.words[10] = pkt->words[10];
+    dc.words[11] = pkt->words[11];
+    gc.words[8] = pkt->words[8];
+    gc.words[9] = pkt->words[9];
+    gc.words[10] = pkt->words[10];
+    gc.words[11] = pkt->words[11];
+    bb.words[8] = pkt->words[8];
+    bb.words[9] = pkt->words[9];
+    bb.words[10] = pkt->words[10];
+    bb.words[11] = pkt->words[11];
 
     /* Send the packet to everyone we can */
     for(i = 0; i < l->max_clients; ++i) {
@@ -323,7 +351,7 @@ int word_select_send_gc(ship_client_t *c, subcmd_word_select_t *pkt) {
     bb.ws_type = pkt->ws_type;
     bb.unused2 = 0;
 
-    for(i = 0; i < 12; ++i) {
+    for(i = 0; i < 8; ++i) {
         gcw = LE16(pkt->words[i]);
 
         /* Make sure each word is valid */
@@ -354,6 +382,20 @@ int word_select_send_gc(ship_client_t *c, subcmd_word_select_t *pkt) {
         dc.words[i] = LE16(dcw);
         bb.words[i] = LE16(gcw);
     }
+
+    /* Deal with amounts and such... */
+    dc.words[8] = pkt->words[8];
+    dc.words[9] = pkt->words[9];
+    dc.words[10] = pkt->words[10];
+    dc.words[11] = pkt->words[11];
+    pc.words[8] = pkt->words[8];
+    pc.words[9] = pkt->words[9];
+    pc.words[10] = pkt->words[10];
+    pc.words[11] = pkt->words[11];
+    bb.words[8] = pkt->words[8];
+    bb.words[9] = pkt->words[9];
+    bb.words[10] = pkt->words[10];
+    bb.words[11] = pkt->words[11];
 
     /* Send the packet to everyone we can */
     for(i = 0; i < l->max_clients; ++i) {

@@ -32,6 +32,8 @@
 #include <sylverant/debug.h>
 #include <sylverant/mtwist.h>
 
+#include <libxml/parser.h>
+
 #include "ship.h"
 #include "clients.h"
 #include "shipgate.h"
@@ -223,6 +225,7 @@ static void open_log(sylverant_ship_t *cfg) {
 static void install_signal_handlers() {
     struct sigaction sa;
 
+    memset(&sa, 0, sizeof(struct sigaction));
     sigemptyset(&sa.sa_mask);
 
     /* Ignore SIGPIPEs */
@@ -456,6 +459,7 @@ int main(int argc, char *argv[]) {
     client_shutdown();
     cleanup_gnutls();
     sylverant_free_ship_config(cfg);
+    bb_free_params();
 
     if(restart_on_shutdown) {
         chdir(initial_path);
@@ -469,6 +473,7 @@ int main(int argc, char *argv[]) {
     }
 
     free(initial_path);
+    xmlCleanupParser();
 
     return 0;
 }

@@ -477,10 +477,10 @@ int open_sock(int family, uint16_t port) {
     }
 
     if(family == AF_INET) {
+        memset(&addr, 0, sizeof(struct sockaddr_in));
         addr.sin_family = family;
         addr.sin_addr.s_addr = INADDR_ANY;
         addr.sin_port = htons(port);
-        memset(addr.sin_zero, 0, 8);
 
         if(bind(sock, (struct sockaddr *)&addr, sizeof(struct sockaddr_in))) {
             perror("bind");

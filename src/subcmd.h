@@ -635,9 +635,10 @@ typedef struct subcmd_bb_req_exp {
     uint8_t size;
     uint16_t enemy_id2;
     uint16_t enemy_id;
-    uint16_t killer;
+    uint8_t client_id;
+    uint8_t unused;
     uint8_t last_hitter;
-    uint8_t unused[3];
+    uint8_t unused2[3];
 } PACKED subcmd_bb_req_exp_pkt_t;
 
 /* Packet sent by clients to say that a monster has been hit. */

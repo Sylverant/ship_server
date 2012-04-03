@@ -9083,11 +9083,9 @@ static int send_gc_lobby_c_rank(ship_client_t *c, lobby_t *l) {
             pthread_mutex_lock(&c2->mutex);
 
             /* Copy over this character's data... */
-            if(c2->c_rank) {
-                copy_c_rank_gc(pkt, entries, c2);
-                ++entries;
-                size += 0x011C;
-            }
+            copy_c_rank_gc(pkt, entries, c2);
+            ++entries;
+            size += 0x011C;
 
             pthread_mutex_unlock(&c2->mutex);
         }
@@ -9119,11 +9117,9 @@ static int send_dc_lobby_c_rank(ship_client_t *c, lobby_t *l) {
             pthread_mutex_lock(&c2->mutex);
 
             /* Copy this character's data... */
-            if(c2->c_rank) {
-                copy_c_rank_dc(pkt, entries, c2);
-                ++entries;
-                size += 0xBC;
-            }
+            copy_c_rank_dc(pkt, entries, c2);
+            ++entries;
+            size += 0xBC;
 
             pthread_mutex_unlock(&c2->mutex);
         }
@@ -9155,11 +9151,9 @@ static int send_pc_lobby_c_rank(ship_client_t *c, lobby_t *l) {
             pthread_mutex_lock(&c2->mutex);
 
             /* Copy over this character's data... */
-            if(c2->c_rank) {
-                copy_c_rank_pc(pkt, entries, c2);
-                ++entries;
-                size += 0xF4;
-            }
+            copy_c_rank_pc(pkt, entries, c2);
+            ++entries;
+            size += 0xF4;
 
             pthread_mutex_unlock(&c2->mutex);
         }
@@ -9253,11 +9247,6 @@ static int send_pc_c_rank_update(ship_client_t *d, ship_client_t *s) {
 
 int send_c_rank_update(ship_client_t *c, lobby_t *l) {
     int i;
-
-    /* Don't even bother if we don't have something to send. */
-    if(!c->c_rank) {
-        return 0;
-    }
 
     for(i = 0; i < l->max_clients; ++i) {
         if(l->clients[i] != NULL && l->clients[i] != c) {
@@ -9718,4 +9707,40 @@ int send_gm_menu(ship_client_t *c, uint32_t menu_id) {
     }
 
     return -1;
+}
+
+static int send_bb_end_burst(ship_client_t *c) {
+    uint8_t *sendbuf = get_sendbuf();
+    bb_subcmd_pkt_t *pkt = (bb_subcmd_pkt_t *)sendbuf;
+
+    /* Make sure we got the sendbuf */
+    if(!sendbuf)
+        return -1;
+
+    /* Fill in the packet. */
+    pkt->hdr.pkt_type = LE16(GAME_COMMAND0_TYPE);
+    pkt->hdr.pkt_len = LE16(0x000C);
+    pkt->hdr.flags = 0;
+    pkt->type = SUBCMD_BURST_DONE;
+    pkt->size = 0x03;
+    pkt->data[0] = 0x18;
+    pkt->data[1] = 0x08;
+
+    return crypt_send(c, 0x000C, sendbuf);
+}
+
+int send_lobby_end_burst(lobby_t *l) {
+    int i;
+
+    /* Only send these to Blue Burst game lobbies */
+    if(!(l->type & LOBBY_TYPE_GAME) || l->version != CLIENT_VERSION_BB)
+        return 0;
+
+    for(i = 0; i < l->max_clients; ++i) {
+        if(l->clients[i]) {
+            send_bb_end_burst(l->clients[i]);
+        }
+    }
+
+    return 0;
 }

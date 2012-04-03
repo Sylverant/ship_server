@@ -114,13 +114,11 @@ struct lobby;
 typedef struct lobby lobby_t;
 #endif
 
-/* Enemy battle parameters */
-extern bb_battle_param_t battle_params[2][3][4][0x60];
-
 /* Player levelup data */
 extern bb_level_table_t char_stats;
 
 int bb_read_params(sylverant_ship_t *cfg);
+void bb_free_params(void);
 
 int bb_load_game_enemies(lobby_t *l);
 void bb_free_game_enemies(lobby_t *l);
