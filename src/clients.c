@@ -148,7 +148,7 @@ ship_client_t *client_create_connection(int sock, int version, int type,
     rv->version = version;
     rv->cur_block = block;
     rv->arrow = 1;
-    rv->last_message = time(NULL);
+    rv->last_message = rv->login_time = time(NULL);
     rv->hdr_size = 4;
 
     /* Create the mutex */
@@ -285,7 +285,7 @@ err:
    must always be called with the appropriate lock held for the list! */
 void client_destroy_connection(ship_client_t *c,
                                struct client_queue *clients) {
-    time_t now;
+    time_t now = time(NULL);
     char tstr[26];
 
     TAILQ_REMOVE(clients, c, qentry);
@@ -293,6 +293,7 @@ void client_destroy_connection(ship_client_t *c,
     /* If the client was on Blue Burst, update their db character */
     if(c->version == CLIENT_VERSION_BB &&
        !(c->flags & CLIENT_FLAG_TYPE_SHIP)) {
+        c->bb_pl->character.play_time += now - c->login_time;
         shipgate_send_cdata(&ship->sg, c->guildcard, c->sec_data.slot,
                             c->bb_pl, sizeof(sylverant_bb_db_char_t),
                             c->cur_block->b);
@@ -329,7 +330,6 @@ void client_destroy_connection(ship_client_t *c,
 
     /* If we were logging the user, close the file */
     if(c->logfile) {
-        now = time(NULL);
         ctime_r(&now, tstr);
         tstr[strlen(tstr) - 1] = 0;
         fprintf(c->logfile, "[%s] Connection closed\n", tstr);

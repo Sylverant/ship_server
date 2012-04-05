@@ -151,6 +151,7 @@ struct ship_client {
     time_t last_message;
     time_t last_sent;
     time_t join_time;
+    time_t login_time;
 
     bb_security_data_t sec_data;
     sylverant_bb_db_char_t *bb_pl;
