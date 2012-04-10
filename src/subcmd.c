@@ -623,7 +623,7 @@ static int handle_itemreq(ship_client_t *c, subcmd_itemreq_t *req) {
     gen.item2[0] = LE32(c->next_item[3]);
     gen.item2[1] = LE32(0x00000002);
 
-    /* Who knows if this is right? It works though, so we'll go with it. */
+    /* Obviously not "right", but it works though, so we'll go with it. */
     gen.item_id = LE32((r | 0x06010100));
 
     /* Send the packet to every client in the lobby. */
@@ -670,7 +670,9 @@ static int handle_take_item(ship_client_t *c, subcmd_take_item_t *pkt) {
     lobby_t *l = c->cur_lobby;
     sylverant_iitem_t item;
     uint32_t v;
+#ifdef NONBB_ITEM_TRACKING
     int i;
+#endif
 
     /* We can't get these in default lobbies without someone messing with
        something that they shouldn't be... Disconnect anyone that tries. */
@@ -732,7 +734,7 @@ static int handle_take_item(ship_client_t *c, subcmd_take_item_t *pkt) {
        actually legit, so make a note of the ID, add it to the inventory and
        forward the packet on. */
     l->highest_item[c->client_id] = (uint16_t)LE32(pkt->item_id);
-#if 0
+#ifdef NONBB_ITEM_TRACKING
     v = LE32(pkt->data_l[0]);
 
     /* See if its a stackable item, since we have to treat them differently. */
@@ -751,7 +753,7 @@ static int handle_take_item(ship_client_t *c, subcmd_take_item_t *pkt) {
            sizeof(uint32_t) * 5);
 
 send_pkt:
-#endif
+#endif /* NONBB_ITEM_TRACKING */
     return lobby_send_pkt_dc(c->cur_lobby, c, (dc_pkt_hdr_t *)pkt, 0);
 }
 
@@ -982,7 +984,9 @@ static int handle_bb_move(ship_client_t *c, subcmd_bb_move_t *pkt) {
 
 static int handle_delete_inv(ship_client_t *c, subcmd_destroy_item_t *pkt) {
     lobby_t *l = c->cur_lobby;
+#ifdef NONBB_ITEM_TRACKING
     int num;
+#endif
 
     /* We can't get these in default lobbies without someone messing with
        something that they shouldn't be... Disconnect anyone that tries. */
@@ -996,7 +1000,7 @@ static int handle_delete_inv(ship_client_t *c, subcmd_destroy_item_t *pkt) {
         return -1;
     }
 
-#if 0
+#ifdef NONBB_ITEM_TRACKING
     /* Ignore meseta */
     if(pkt->item_id != 0xFFFFFFFF) {
         /* Remove the item from the user's inventory */
@@ -1009,15 +1013,17 @@ static int handle_delete_inv(ship_client_t *c, subcmd_destroy_item_t *pkt) {
             c->item_count -= num;
         }
     }
-#endif
+#endif /* NONBB_ITEM_TRACKING */
 
     return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt, 0);
 }
 
 static int handle_buy(ship_client_t *c, subcmd_buy_t *pkt) {
     lobby_t *l = c->cur_lobby;
+#ifdef NONBB_ITEM_TRACKING
     uint32_t ic;
     int i;
+#endif
 
     /* We can't get these in default lobbies without someone messing with
        something that they shouldn't be... Disconnect anyone that tries. */
@@ -1033,7 +1039,7 @@ static int handle_buy(ship_client_t *c, subcmd_buy_t *pkt) {
 
     /* Make a note of the item ID, and add to the inventory */
     l->highest_item[c->client_id] = LE32(pkt->item_id);
-#if 0
+#ifdef NONBB_ITEM_TRACKING
     ic = LE32(pkt->item[0]);
 
     /* See if its a stackable item, since we have to treat them differently. */
@@ -1053,13 +1059,15 @@ static int handle_buy(ship_client_t *c, subcmd_buy_t *pkt) {
     c->items[c->item_count++].data2_l = 0;
 
 send_pkt:
-#endif
+#endif /* NONBB_ITEM_TRACKING */
     return lobby_send_pkt_dc(c->cur_lobby, c, (dc_pkt_hdr_t *)pkt, 0);
 }
 
 static int handle_use_item(ship_client_t *c, subcmd_use_item_t *pkt) {
     lobby_t *l = c->cur_lobby;
+#ifdef NONBB_ITEM_TRACKING
     int num;
+#endif
 
     /* We can't get these in default lobbies without someone messing with
        something that they shouldn't be... Disconnect anyone that tries. */
@@ -1073,7 +1081,7 @@ static int handle_use_item(ship_client_t *c, subcmd_use_item_t *pkt) {
         return -1;
     }
 
-#if 0
+#ifdef NONBB_ITEM_TRACKING
     /* Remove the item from the user's inventory */
     num = item_remove_from_inv(c->items, c->item_count, pkt->item_id, 1);
     if(num < 0) {
@@ -1082,7 +1090,7 @@ static int handle_use_item(ship_client_t *c, subcmd_use_item_t *pkt) {
     else {
         c->item_count -= num;
     }
-#endif
+#endif /* NONBB_ITEM_TRACKING */
 
     return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt, 0);
 }
