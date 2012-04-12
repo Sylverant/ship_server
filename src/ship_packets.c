@@ -3568,7 +3568,7 @@ static int send_dc_game_list(ship_client_t *c, block_t *b) {
         /* Lock the lobby */
         pthread_mutex_lock(&l->mutex);
 
-        /* Ignore default lobbies and Gamecube games */
+        /* Ignore default lobbies and Gamecube/Blue Burst games */
         if(l->type != LOBBY_TYPE_GAME || l->episode) {
             pthread_mutex_unlock(&l->mutex);
             continue;
@@ -3669,7 +3669,7 @@ static int send_pc_game_list(ship_client_t *c, block_t *b) {
         /* Lock the lobby */
         pthread_mutex_lock(&l->mutex);
 
-        /* Ignore default lobbies and Gamecube games */
+        /* Ignore default lobbies and Gamecube/Blue Burst games */
         if(l->type != LOBBY_TYPE_GAME || l->episode) {
             pthread_mutex_unlock(&l->mutex);
             continue;
@@ -3753,6 +3753,12 @@ static int send_gc_game_list(ship_client_t *c, block_t *b) {
 
         /* Ignore default lobbies */
         if(l->type != LOBBY_TYPE_GAME) {
+            pthread_mutex_unlock(&l->mutex);
+            continue;
+        }
+
+        /* Ignore Blue Burst lobbies */
+        if(l->version == CLIENT_VERSION_BB) {
             pthread_mutex_unlock(&l->mutex);
             continue;
         }
