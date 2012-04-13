@@ -33,6 +33,7 @@
 #include "ship.h"
 #include "shipgate.h"
 #include "items.h"
+#include "ptdata.h"
 
 static int td(lobby_t *l, void *req);
 
@@ -76,8 +77,24 @@ lobby_t *lobby_create_default(block_t *block, uint32_t lobby_id, uint8_t ev) {
 }
 
 static void lobby_setup_drops(lobby_t *l, uint32_t rs) {
+    if(l->version == CLIENT_VERSION_BB) {
+        l->dropfunc = pt_generate_bb_drop;
+        return;
+    }
+
     if(rs == 0x9C350DD4) {
-        l->dropfunc = td;
+        if(l->version == CLIENT_VERSION_GC) {
+            if(pt_v3_enabled())
+                l->dropfunc = pt_generate_v3_drop;
+            else
+                l->dropfunc = td;
+        }
+        else {
+            if(pt_v2_enabled())
+                l->dropfunc = pt_generate_v2_drop;
+            else
+                l->dropfunc = td;
+        }
     }
 }
 

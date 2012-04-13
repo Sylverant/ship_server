@@ -120,12 +120,25 @@ typedef struct subcmd_itemreq {
     uint8_t size;
     uint16_t unused;
     uint8_t area;
-    uint8_t unk1;
+    uint8_t pt_index;
     uint16_t req;
     float x;
     float y;
     uint32_t unk2[2];
 } PACKED subcmd_itemreq_t;
+
+typedef struct subcmd_bb_itemreq {
+    bb_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint16_t unused;
+    uint8_t area;
+    uint8_t pt_index;
+    uint16_t req;
+    float x;
+    float y;
+    uint32_t unk2[2];
+} PACKED subcmd_bb_itemreq_t;
 
 typedef struct subcmd_itemgen {
     dc_pkt_hdr_t hdr;
@@ -142,6 +155,22 @@ typedef struct subcmd_itemgen {
     uint32_t item_id;
     uint32_t item2[2];
 } PACKED subcmd_itemgen_t;
+
+typedef struct subcmd_bb_itemgen {
+    bb_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint16_t unused;
+    uint8_t area;
+    uint8_t what;
+    uint16_t req;
+    float x;
+    float y;
+    uint32_t unk1;
+    uint32_t item[3];
+    uint32_t item_id;
+    uint32_t item2;
+} PACKED subcmd_bb_itemgen_t;
 
 typedef struct subcmd_levelup {
     dc_pkt_hdr_t hdr;
@@ -755,6 +784,8 @@ int subcmd_handle_ep3_bcast(ship_client_t *c, subcmd_pkt_t *pkt);
 
 int subcmd_send_lobby_item(lobby_t *l, subcmd_itemreq_t *req,
                            const uint32_t item[4]);
+int subcmd_send_bb_lobby_item(lobby_t *l, subcmd_bb_itemreq_t *req,
+                              const item_t *item);
 
 int subcmd_send_bb_exp(ship_client_t *c, uint32_t exp);
 int subcmd_send_bb_level(ship_client_t *c);

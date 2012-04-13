@@ -32,7 +32,8 @@ ship_server_SOURCES = src/block.c src/block.h src/clients.c src/clients.h \
                       src/word_select-pc.h src/word_select-gc.h \
                       src/quests.c src/quests.h src/bans.c src/bans.h \
                       src/lookup3.c src/scripts.h src/scripts.c \
-                      src/admin.h src/admin.c src/bbdata.h src/bbdata.c
+                      src/admin.h src/admin.c src/bbdata.h src/bbdata.c \
+                      src/ptdata.h src/ptdata.c
 
 datarootdir = @datarootdir@
 SUBDIRS = l10n

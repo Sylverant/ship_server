@@ -40,6 +40,7 @@
 #include "utils.h"
 #include "scripts.h"
 #include "bbdata.h"
+#include "ptdata.h"
 
 /* The actual ship structures. */
 ship_t *ship;
@@ -200,6 +201,14 @@ static void print_config(sylverant_ship_t *cfg) {
 
     if(cfg->bb_map_dir) {
         debug(DBG_LOG, "BB Map Directory: %s\n", cfg->bb_map_dir);
+    }
+
+    if(cfg->v2_ptdata_file) {
+        debug(DBG_LOG, "v2 ItemPT file: %s\n", cfg->v2_ptdata_file);
+    }
+
+    if(cfg->v3_ptdata_file) {
+        debug(DBG_LOG, "v3 ItemPT file: %s\n", cfg->v3_ptdata_file);
     }
 
     debug(DBG_LOG, "Flags: 0x%08X\n", cfg->shipgate_flags);
@@ -411,6 +420,30 @@ int main(int argc, char *argv[]) {
     /* Set up things for clients to connect. */
     if(client_init(cfg)) {
         exit(EXIT_FAILURE);
+    }
+
+    /* Try to read the v2 ItemPT data... */
+    if(cfg->v2_ptdata_file) {
+        debug(DBG_LOG, "Reading v2 ItemPT file: %s\n", cfg->v2_ptdata_file);
+        if(pt_read_v2(cfg->v2_ptdata_file)) {
+            debug(DBG_WARN, "Couldn't read v2 ItemPT data!\n");
+        }
+    }
+
+    /* Read the v3 ItemPT data, which is needed for Blue Burst... */
+    if(cfg->v3_ptdata_file) {
+        debug(DBG_LOG, "Reading v3 ItemPT file: %s\n", cfg->v3_ptdata_file);
+
+        if(pt_read_v3(cfg->v3_ptdata_file)) {
+            debug(DBG_WARN, "Couldn't read v3 ItemPT data, disabling Blue "
+                  "Burst support!\n");
+            cfg->shipgate_flags |= SHIPGATE_FLAG_NOBB;
+        }
+    }
+    else {
+        debug(DBG_WARN, "No v3 ItemPT file specified, disabling Blue Burst "
+              "support!\n");
+        cfg->shipgate_flags |= SHIPGATE_FLAG_NOBB;
     }
 
     /* If Blue Burst isn't disabled already, read the parameter data and map

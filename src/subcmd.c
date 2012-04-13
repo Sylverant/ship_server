@@ -2322,6 +2322,11 @@ int subcmd_bb_handle_one(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
             rv = handle_bb_bank_action(c, (subcmd_bb_bank_act_t *)pkt);
             break;
 
+        case SUBCMD_ITEMREQ:
+            /* Unlike earlier versions, we have to handle this here... */
+            rv = l->dropfunc(l, pkt);
+            break;
+
         default:
 #ifdef BB_LOG_UNKNOWN_SUBS
             debug(DBG_LOG, "Unknown 0x62/0x6D: 0x%02X\n", type);
@@ -2602,7 +2607,7 @@ int subcmd_send_lobby_item(lobby_t *l, subcmd_itemreq_t *req,
     gen.size = 0x0B;
     gen.unused = 0;
     gen.area = req->area;
-    gen.what = 0x02;            /* 0x02 for boxes, 0x01 for monsters? */
+    gen.what = req->pt_index;   /* Probably not right... but whatever. */
     gen.req = req->req;
     gen.x = req->x;
     gen.y = req->y;
@@ -2621,6 +2626,43 @@ int subcmd_send_lobby_item(lobby_t *l, subcmd_itemreq_t *req,
     for(i = 0; i < l->max_clients; ++i) {
         if(l->clients[i]) {
             send_pkt_dc(l->clients[i], (dc_pkt_hdr_t *)&gen);
+        }
+    }
+
+    return 0;
+}
+
+int subcmd_send_bb_lobby_item(lobby_t *l, subcmd_bb_itemreq_t *req,
+                              const item_t *item) {
+    subcmd_bb_itemgen_t gen;
+    int i;
+    uint32_t tmp = LE32(req->unk2[0]) & 0x0000FFFF;
+
+    /* Fill in the packet we'll send out. */
+    gen.hdr.pkt_type = GAME_COMMAND0_TYPE;
+    gen.hdr.flags = 0;
+    gen.hdr.pkt_len = LE16(0x0030);
+    gen.type = SUBCMD_ITEMDROP;
+    gen.size = 0x0B;
+    gen.unused = 0;
+    gen.area = req->area;
+    gen.what = req->pt_index;   /* Probably not right... but whatever. */
+    gen.req = req->req;
+    gen.x = req->x;
+    gen.y = req->y;
+    gen.unk1 = LE32(tmp);       /* ??? */
+
+    gen.item[0] = LE32(item->data_l[0]);
+    gen.item[1] = LE32(item->data_l[1]);
+    gen.item[2] = LE32(item->data_l[2]);
+    gen.item2 = LE32(item->data2_l);
+
+    gen.item_id = LE32(item->item_id);
+
+    /* Send the packet to every client in the lobby. */
+    for(i = 0; i < l->max_clients; ++i) {
+        if(l->clients[i]) {
+            send_pkt_bb(l->clients[i], (bb_pkt_hdr_t *)&gen);
         }
     }
 
