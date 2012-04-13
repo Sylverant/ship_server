@@ -39,7 +39,7 @@
 #include "shipgate.h"
 #include "utils.h"
 #include "scripts.h"
-#include "bbdata.h"
+#include "mapdata.h"
 #include "ptdata.h"
 
 /* The actual ship structures. */

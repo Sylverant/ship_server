@@ -25,7 +25,7 @@
 #include <sylverant/debug.h>
 #include <sylverant/prs.h>
 
-#include "bbdata.h"
+#include "mapdata.h"
 #include "lobby.h"
 #include "clients.h"
 

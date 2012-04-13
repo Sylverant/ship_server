@@ -28,7 +28,7 @@
 #undef PACKETS_H_HEADERS_ONLY
 
 #include "player.h"
-#include "bbdata.h"
+#include "mapdata.h"
 
 #define LOBBY_MAX_CLIENTS   12
 

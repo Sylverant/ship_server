@@ -15,8 +15,8 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef BBDATA_H
-#define BBDATA_H
+#ifndef MAPDATA_H
+#define MAPDATA_H
 
 #include <stdint.h>
 
@@ -123,4 +123,4 @@ void bb_free_params(void);
 int bb_load_game_enemies(lobby_t *l);
 void bb_free_game_enemies(lobby_t *l);
 
-#endif /* !BBDATA_H */
+#endif /* !MAPDATA_H */

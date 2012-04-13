@@ -38,7 +38,7 @@
 #include "ship_packets.h"
 #include "scripts.h"
 #include "subcmd.h"
-#include "bbdata.h"
+#include "mapdata.h"
 
 #ifdef UNUSED
 #undef UNUSED
