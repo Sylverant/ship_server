@@ -75,7 +75,7 @@ typedef struct bb_level_table {
 
 /* Enemy data in the map files. This the same as the ENEMY_ENTRY struct from
    newserv. */
-typedef struct bb_map_enemy {
+typedef struct map_enemy {
     uint32_t base;
     uint16_t reserved0;
     uint16_t num_clones;
@@ -85,26 +85,26 @@ typedef struct bb_map_enemy {
     uint32_t reserved14;
     uint32_t skin;
     uint32_t reserved15;
-} PACKED bb_map_enemy_t;
+} PACKED map_enemy_t;
 
 /* Enemy data as used in the game. */
-typedef struct bb_game_enemy {
+typedef struct game_enemy {
     uint32_t bp_entry;
     uint16_t rt_index;
     uint8_t clients_hit;
     uint8_t last_client;
-} bb_game_enemy_t;
+} game_enemy_t;
 
-typedef struct bb_game_enemies {
+typedef struct game_enemies {
     uint32_t count;
-    bb_game_enemy_t *enemies;
-} bb_game_enemies_t;
+    game_enemy_t *enemies;
+} game_enemies_t;
 
-typedef struct bb_parsed_map {
+typedef struct parsed_map {
     uint32_t map_count;
     uint32_t variation_count;
-    bb_game_enemies_t *data;
-} bb_parsed_map_t;
+    game_enemies_t *data;
+} parsed_map_t;
 
 #undef PACKED
 
@@ -121,6 +121,6 @@ int bb_read_params(sylverant_ship_t *cfg);
 void bb_free_params(void);
 
 int bb_load_game_enemies(lobby_t *l);
-void bb_free_game_enemies(lobby_t *l);
+void free_game_enemies(lobby_t *l);
 
 #endif /* !MAPDATA_H */

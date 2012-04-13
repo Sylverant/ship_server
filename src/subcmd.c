@@ -2107,16 +2107,16 @@ static int handle_bb_mhit(ship_client_t *c, subcmd_bb_mhit_pkt_t *pkt) {
 
     /* Make sure the enemy is in range. */
     mid = LE16(pkt->enemy_id);
-    if(mid > l->bb_enemies->count) {
+    if(mid > l->map_enemies->count) {
         debug(DBG_WARN, "Guildcard %" PRIu32 " hit invalid enemy (%d -- max: "
-              "%d)!\n", c->guildcard, mid, l->bb_enemies->count);
+              "%d)!\n", c->guildcard, mid, l->map_enemies->count);
         return -1;
     }
 
     /* Save the hit, assuming the enemy isn't already dead. */
-    if(!(l->bb_enemies->enemies[mid].clients_hit & 0x80)) {
-        l->bb_enemies->enemies[mid].clients_hit |= (1 << c->client_id);
-        l->bb_enemies->enemies[mid].last_client = c->client_id;
+    if(!(l->map_enemies->enemies[mid].clients_hit & 0x80)) {
+        l->map_enemies->enemies[mid].clients_hit |= (1 << c->client_id);
+        l->map_enemies->enemies[mid].last_client = c->client_id;
     }
 
     return lobby_send_pkt_bb(l, c, (bb_pkt_hdr_t *)pkt, 0);
@@ -2126,7 +2126,7 @@ static int handle_bb_req_exp(ship_client_t *c, subcmd_bb_req_exp_pkt_t *pkt) {
     lobby_t *l = c->cur_lobby;
     uint16_t mid;
     uint32_t bp, exp;
-    bb_game_enemy_t *en;
+    game_enemy_t *en;
 
     /* We can't get these in default lobbies without someone messing with
        something that they shouldn't be... Disconnect anyone that tries. */
@@ -2146,15 +2146,15 @@ static int handle_bb_req_exp(ship_client_t *c, subcmd_bb_req_exp_pkt_t *pkt) {
 
     /* Make sure the enemy is in range. */
     mid = LE16(pkt->enemy_id);
-    if(mid > l->bb_enemies->count) {
+    if(mid > l->map_enemies->count) {
         debug(DBG_WARN, "Guildcard %" PRIu32 " killed invalid enemy (%d -- "
-              "max: %d)!\n", c->guildcard, mid, l->bb_enemies->count);
+              "max: %d)!\n", c->guildcard, mid, l->map_enemies->count);
         return -1;
     }
 
     /* Make sure this client actually hit the enemy and that the client didn't
        already claim their experience. */
-    en = &l->bb_enemies->enemies[mid];
+    en = &l->map_enemies->enemies[mid];
 
     if(!(en->clients_hit & (1 << c->client_id))) {
         return 0;

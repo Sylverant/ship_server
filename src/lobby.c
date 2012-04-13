@@ -355,8 +355,8 @@ static void lobby_destroy_locked(lobby_t *l, int remove) {
     }
 
     /* Free up the Blue Burst enemy data */
-    if(l->bb_enemies) {
-        bb_free_game_enemies(l);
+    if(l->map_enemies) {
+        free_game_enemies(l);
     }
 
     free(l);

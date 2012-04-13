@@ -113,7 +113,7 @@ struct lobby {
     struct lobby_item_queue item_queue;
     time_t create_time;
 
-    bb_game_enemies_t *bb_enemies;
+    game_enemies_t *map_enemies;
     bb_battle_param_t *bb_params;
 
     int (*dropfunc)(struct lobby *l, void *req);

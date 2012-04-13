@@ -39,7 +39,7 @@ bb_level_table_t char_stats;
 /* Parsed enemy data. Organized similarly to the battle parameters, except that
    the last level is the actual areas themselves (and there's no difficulty
    level in there). */
-static bb_parsed_map_t parsed_maps[2][3][0x10];
+static parsed_map_t bb_parsed_maps[2][3][0x10];
 
 static int read_param_file(bb_battle_param_t dst[4][0x60], const char *fn) {
     FILE *fp;
@@ -155,22 +155,22 @@ static const uint32_t sp_maps[3][0x20] = {
 
 static const int max_area[3] = { 0x0E, 0x0F, 0x09 };
 
-static int parse_map(bb_map_enemy_t *en, int en_ct, bb_game_enemies_t *game,
+static int parse_map(map_enemy_t *en, int en_ct, game_enemies_t *game,
                      int ep, int alt) {
     int i, j;
-    bb_game_enemy_t *gen;
+    game_enemy_t *gen;
     void *tmp;
     uint32_t count = 0;
     int acc;
 
     /* Allocate the space first */
-    if(!(gen = (bb_game_enemy_t *)malloc(sizeof(bb_game_enemy_t) * 0xB50))) {
+    if(!(gen = (game_enemy_t *)malloc(sizeof(game_enemy_t) * 0xB50))) {
         debug(DBG_ERROR, "Cannot allocate enemies: %s\n", strerror(errno));
         return -1;
     }
 
     /* Clear it */
-    memset(gen, 0, sizeof(bb_game_enemy_t) * 0xB50);
+    memset(gen, 0, sizeof(game_enemy_t) * 0xB50);
 
     /* Parse each enemy. */
     for(i = 0; i < en_ct; ++i) {
@@ -620,25 +620,25 @@ static int parse_map(bb_map_enemy_t *en, int en_ct, bb_game_enemies_t *game,
     }
 
     /* Resize, so as not to waste space */
-    if(!(tmp = realloc(gen, sizeof(bb_game_enemy_t) * count))) {
+    if(!(tmp = realloc(gen, sizeof(game_enemy_t) * count))) {
         debug(DBG_WARN, "Cannot resize enemies: %s\n", strerror(errno));
         tmp = gen;
     }
 
-    game->enemies = (bb_game_enemy_t *)tmp;
+    game->enemies = (game_enemy_t *)tmp;
     game->count = count;
 
     return 0;
 }
 
-static int read_map_set(int solo, int i, int j) {
+static int read_bb_map_set(int solo, int i, int j) {
     int srv;
     char fn[256];
     int k, l, nmaps, nvars;
     FILE *fp;
     long sz;
-    bb_map_enemy_t *en;
-    bb_game_enemies_t *tmp;
+    map_enemy_t *en;
+    game_enemies_t *tmp;
 
     if(!solo) {
         nmaps = maps[i][j << 1];
@@ -649,17 +649,17 @@ static int read_map_set(int solo, int i, int j) {
         nvars = sp_maps[i][(j << 1) + 1];
     }
 
-    parsed_maps[solo][i][j].map_count = nmaps;
-    parsed_maps[solo][i][j].variation_count = nvars;
+    bb_parsed_maps[solo][i][j].map_count = nmaps;
+    bb_parsed_maps[solo][i][j].variation_count = nvars;
 
-    if(!(tmp = (bb_game_enemies_t *)malloc(sizeof(bb_game_enemies_t) *
-                                           nmaps * nvars))) {
+    if(!(tmp = (game_enemies_t *)malloc(sizeof(game_enemies_t) * nmaps *
+                                        nvars))) {
         debug(DBG_ERROR, "Cannot allocate for maps: %s\n",
               strerror(errno));
         return 10;
     }
 
-    parsed_maps[solo][i][j].data = tmp;
+    bb_parsed_maps[solo][i][j].data = tmp;
 
     for(k = 0; k < nmaps; ++k) {                /* Map Number */
         for(l = 0; l < nvars; ++l) {            /* Variation */
@@ -719,7 +719,7 @@ static int read_map_set(int solo, int i, int j) {
             }
 
             /* Allocate memory and read in the file. */
-            if(!(en = (bb_map_enemy_t *)malloc(sz))) {
+            if(!(en = (map_enemy_t *)malloc(sz))) {
                 debug(DBG_ERROR, "malloc: %s\n", strerror(errno));
                 fclose(fp);
                 return 7;
@@ -756,9 +756,9 @@ static int read_map_files(void) {
     for(i = 0; i < 3; ++i) {                            /* Episode */
         for(j = 0; j < 16 && j <= max_area[i]; ++j) {   /* Area */
             /* Read both the multi-player and single-player maps. */
-            if((srv = read_map_set(0, i, j)))
+            if((srv = read_bb_map_set(0, i, j)))
                 return srv;
-            if((srv = read_map_set(1, i, j)))
+            if((srv = read_bb_map_set(1, i, j)))
                 return srv;
         }
     }
@@ -857,12 +857,12 @@ bail:
 void bb_free_params(void) {
     int i, j, k;
     uint32_t l, nmaps;
-    bb_parsed_map_t *m;
+    parsed_map_t *m;
 
     for(i = 0; i < 2; ++i) {
         for(j = 0; j < 3; ++j) {
             for(k = 0; k < 0x10; ++k) {
-                m = &parsed_maps[i][j][k];
+                m = &bb_parsed_maps[i][j][k];
                 nmaps = m->map_count * m->variation_count;
 
                 for(l = 0; l < nmaps; ++l) {
@@ -878,18 +878,18 @@ void bb_free_params(void) {
 }
 
 int bb_load_game_enemies(lobby_t *l) {
-    bb_game_enemies_t *en;
+    game_enemies_t *en;
     int solo = (l->flags & LOBBY_FLAG_SINGLEPLAYER) ? 1 : 0, i;
     uint32_t enemies = 0, index;
-    bb_parsed_map_t *maps;
-    bb_game_enemies_t *sets[0x10];
+    parsed_map_t *maps;
+    game_enemies_t *sets[0x10];
 
     /* Figure out the parameter set that will be in use first... */
     l->bb_params = battle_params[solo][l->episode - 1][l->difficulty];
 
     /* Figure out the total number of enemies that the game will have... */
     for(i = 0; i < 0x20; i += 2) {
-        maps = &parsed_maps[solo][l->episode - 1][i >> 1];
+        maps = &bb_parsed_maps[solo][l->episode - 1][i >> 1];
 
         /* If we hit zeroes, then we're done already... */
         if(maps->map_count == 0 && maps->variation_count == 0) {
@@ -911,13 +911,13 @@ int bb_load_game_enemies(lobby_t *l) {
     }
 
     /* Allocate space for the enemy set and the enemies therein. */
-    if(!(en = (bb_game_enemies_t *)malloc(sizeof(bb_game_enemies_t)))) {
+    if(!(en = (game_enemies_t *)malloc(sizeof(game_enemies_t)))) {
         debug(DBG_ERROR, "Error allocating enemy set: %s\n", strerror(errno));
         return -2;
     }
 
-    if(!(en->enemies = (bb_game_enemy_t *)malloc(sizeof(bb_game_enemy_t) *
-                                                 enemies))) {
+    if(!(en->enemies = (game_enemy_t *)malloc(sizeof(game_enemy_t) *
+                                              enemies))) {
         debug(DBG_ERROR, "Error allocating enemies: %s\n", strerror(errno));
         free(en);
         return -3;
@@ -932,7 +932,7 @@ int bb_load_game_enemies(lobby_t *l) {
             break;
 
         memcpy(&en->enemies[index], sets[i]->enemies,
-               sizeof(bb_game_enemy_t) * sets[i]->count);
+               sizeof(game_enemy_t) * sets[i]->count);
         index += sets[i]->count;
     }
 
@@ -961,13 +961,13 @@ int bb_load_game_enemies(lobby_t *l) {
     }
 
     /* Done! */
-    l->bb_enemies = en;
+    l->map_enemies = en;
     return 0;
 }
 
-void bb_free_game_enemies(lobby_t *l) {
-    free(l->bb_enemies->enemies);
-    free(l->bb_enemies);
-    l->bb_enemies = NULL;
+void free_game_enemies(lobby_t *l) {
+    free(l->map_enemies->enemies);
+    free(l->map_enemies);
+    l->map_enemies = NULL;
     l->bb_params = NULL;
 }
