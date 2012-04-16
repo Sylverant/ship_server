@@ -310,7 +310,7 @@ static uint32_t generate_tool(uint16_t freqs[28][10], int area) {
     int i;
 
     for(i = 0; i < 28; ++i) {
-        if((rnd -= freqs[i][area]) > 10000) {
+        if((rnd -= LE16(freqs[i][area])) > 10000) {
             return tool_base[i];
         }
     }
@@ -337,7 +337,7 @@ static int generate_tech(uint8_t freqs[19][10], int8_t levels[19][20],
                 return -1;
 
             if(t1 < t2)
-                level = (rnd % (t2 - t1)) + t1;
+                level = (rnd % ((t2 + 1) - t1)) + t1;
             else
                 level = t1;
 
@@ -379,10 +379,10 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
         return 0;
 
     /* XXXX: For now, just drop meseta... We'll worry about the rest later. */
-    t1 = ent->enemy_meseta[req->pt_index][0];
-    t2 = ent->enemy_meseta[req->pt_index][1];
+    t1 = LE16(ent->enemy_meseta[req->pt_index][0]);
+    t2 = LE16(ent->enemy_meseta[req->pt_index][1]);
     if(t1 < t2)
-        rnd = (genrand_int32() % (t2 - t1)) + t1;
+        rnd = (genrand_int32() % ((t2 + 1) - t1)) + t1;
     else
         rnd = (uint32_t)t1;
 
@@ -405,6 +405,7 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
     uint32_t rnd, t1, t2;
     int area;
     uint32_t item[4];
+    float f1, f2;
 
     /* Make sure this is actually a box drop... */
     if(req->pt_index != 0x30)
@@ -449,10 +450,14 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
     --area;
 
     /* See if the object is fixed-type box */
-    if(obj->skin == 0x00000092 && obj->sp[0] < 1.0f + EPSILON &&
-       obj->sp[0] > 1.0f - EPSILON) {
+    t1 = LE32(obj->dword[0]);
+    t2 = LE32(obj->dword[1]);
+    f1 = *((float *)&t1);
+    f2 = *((float *)&t2);
+    if(obj->skin == LE32(0x00000092) && f1 < 1.0f + EPSILON &&
+       f1 > 1.0f - EPSILON) {
         /* See if it is a fully-fixed item */
-        if(obj->sp[1] < 1.0f + EPSILON && obj->sp[1] > 1.0f - EPSILON) {
+        if(f2 < 1.0f + EPSILON && f2 > 1.0f - EPSILON) {
             /* Drop the requested item */
             item[0] = BE32(obj->dword[2]);
             item[1] = item[2] = item[3] = 0;
@@ -464,8 +469,26 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
             return subcmd_send_lobby_item(l, req, item);
         }
 
-        /* XXXX */
-        return 0;
+        t1 = BE32(obj->dword[2]);
+        switch(t1 & 0xFF) {
+            case 0:
+                /* XXXX: Generate a weapon */
+                return 0;
+
+            case 1:
+                /* XXXX: Generate a guard */
+                return 0;
+
+            case 3:
+                goto generate_tool;
+
+            case 4:
+                goto generate_meseta;
+
+            default:
+                debug(DBG_WARN, "Invalid type detected from fixed-type box!\n");
+                return 0;
+        }
     }
 
     /* XXXX: Make sure we don't need to drop a rare */
@@ -490,6 +513,7 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
         return 0;
     }
     else if((rnd -= ent->box_drop[BOX_TYPE_TOOL][area]) > 100) {
+generate_tool:
         /* Generate a tool */
         item[0] = generate_tool(ent->tool_frequency, area);
 
@@ -519,12 +543,13 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
         return subcmd_send_lobby_item(l, req, item);
     }
     else if((rnd -= ent->box_drop[BOX_TYPE_MESETA][area]) > 100) {
+generate_meseta:
         /* Generate money! */
         t1 = ent->box_meseta[area][0];
         t2 = ent->box_meseta[area][1];
 
         if(t1 < t2)
-            rnd = (genrand_int32() % (t2 - t1)) + t1;
+            rnd = (genrand_int32() % ((t2 + 1) - t1)) + t1;
         else
             rnd = t1;
 
