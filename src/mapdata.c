@@ -41,6 +41,14 @@ bb_level_table_t char_stats;
    level in there). */
 static parsed_map_t bb_parsed_maps[2][3][0x10];
 
+/* V2 Parsed enemy data. This is much simpler, since there's no episodes nor
+   single-player mode to worry about. */
+static parsed_map_t v2_parsed_maps[0x10];
+static parsed_objs_t v2_parsed_objs[0x10];
+
+/* Did we read in v2 map data? */
+static int have_v2_maps = 0;
+
 static int read_param_file(bb_battle_param_t dst[4][0x60], const char *fn) {
     FILE *fp;
     const size_t sz = 0x60 * sizeof(bb_battle_param_t);
@@ -690,8 +698,6 @@ static int read_bb_map_set(int solo, int i, int j) {
                 }
             }
 
-            debug(DBG_LOG, "Reading map %s\n", fn);
-
             /* Figure out how long the file is, so we know what to read in... */
             if(fseek(fp, 0, SEEK_END) < 0) {
                 debug(DBG_ERROR, "Cannot seek: %s\n", strerror(errno));
@@ -750,7 +756,170 @@ static int read_bb_map_set(int solo, int i, int j) {
     return 0;
 }
 
-static int read_map_files(void) {
+static int read_v2_map_set(int j) {
+    int srv;
+    char fn[256];
+    int k, l, nmaps, nvars;
+    FILE *fp;
+    long sz;
+    map_enemy_t *en;
+    map_object_t *obj;
+    game_enemies_t *tmp;
+    game_objs_t *tmp2;
+
+    nmaps = maps[0][j << 1];
+    nvars = maps[0][(j << 1) + 1];
+
+    v2_parsed_maps[j].map_count = nmaps;
+    v2_parsed_maps[j].variation_count = nvars;
+    v2_parsed_objs[j].map_count = nmaps;
+    v2_parsed_objs[j].variation_count = nvars;
+
+    if(!(tmp = (game_enemies_t *)malloc(sizeof(game_enemies_t) * nmaps *
+                                        nvars))) {
+        debug(DBG_ERROR, "Cannot allocate for maps: %s\n", strerror(errno));
+        return 10;
+    }
+
+    v2_parsed_maps[j].data = tmp;
+
+    if(!(tmp2 = (game_objs_t *)malloc(sizeof(game_objs_t) * nmaps * nvars))) {
+        debug(DBG_ERROR, "Cannot allocate for objs: %s\n", strerror(errno));
+        return 11;
+    }
+
+    v2_parsed_objs[j].data = tmp2;
+
+    for(k = 0; k < nmaps; ++k) {                /* Map Number */
+        for(l = 0; l < nvars; ++l) {            /* Variation */
+            tmp[k * nvars + l].count = 0;
+
+            srv = snprintf(fn, 256, "m%X%d%d.dat", j, k, l);
+            if(srv >= 256) {
+                return 1;
+            }
+
+            if(!(fp = fopen(fn, "rb"))) {
+                debug(DBG_ERROR, "Cannot read map: %s\n", strerror(errno));
+                return 2;
+            }
+
+            /* Figure out how long the file is, so we know what to read in... */
+            if(fseek(fp, 0, SEEK_END) < 0) {
+                debug(DBG_ERROR, "Cannot seek: %s\n", strerror(errno));
+                fclose(fp);
+                return 3;
+            }
+
+            if((sz = ftell(fp)) < 0) {
+                debug(DBG_ERROR, "ftell: %s\n", strerror(errno));
+                fclose(fp);
+                return 4;
+            }
+
+            if(fseek(fp, 0, SEEK_SET) < 0) {
+                debug(DBG_ERROR, "Cannot seek: %s\n", strerror(errno));
+                fclose(fp);
+                return 5;
+            }
+
+            /* Make sure the size is sane */
+            if(sz % 0x48) {
+                debug(DBG_ERROR, "Invalid map size!\n");
+                fclose(fp);
+                return 6;
+            }
+
+            /* Allocate memory and read in the file. */
+            if(!(en = (map_enemy_t *)malloc(sz))) {
+                debug(DBG_ERROR, "malloc: %s\n", strerror(errno));
+                fclose(fp);
+                return 7;
+            }
+
+            if(fread(en, 1, sz, fp) != (size_t)sz) {
+                debug(DBG_ERROR, "Cannot read file!\n");
+                free(en);
+                fclose(fp);
+                return 8;
+            }
+
+            /* We're done with the file, so close it */
+            fclose(fp);
+
+            /* Parse */
+            if(parse_map(en, sz / 0x48, &tmp[k * nvars + l], 1, 0)) {
+                free(en);
+                return 9;
+            }
+
+            /* Clean up, we're done with this for now... */
+            free(en);
+
+            /* Now, grab the objects */
+            srv = snprintf(fn, 256, "m%X%d%d_o.dat", j, k, l);
+            if(srv >= 256) {
+                return 1;
+            }
+
+            if(!(fp = fopen(fn, "rb"))) {
+                debug(DBG_ERROR, "Cannot read objects: %s\n", strerror(errno));
+                return 2;
+            }
+
+            /* Figure out how long the file is, so we know what to read in... */
+            if(fseek(fp, 0, SEEK_END) < 0) {
+                debug(DBG_ERROR, "Cannot seek: %s\n", strerror(errno));
+                fclose(fp);
+                return 3;
+            }
+
+            if((sz = ftell(fp)) < 0) {
+                debug(DBG_ERROR, "ftell: %s\n", strerror(errno));
+                fclose(fp);
+                return 4;
+            }
+
+            if(fseek(fp, 0, SEEK_SET) < 0) {
+                debug(DBG_ERROR, "Cannot seek: %s\n", strerror(errno));
+                fclose(fp);
+                return 5;
+            }
+
+            /* Make sure the size is sane */
+            if(sz % 0x44) {
+                debug(DBG_ERROR, "Invalid map size!\n");
+                fclose(fp);
+                return 6;
+            }
+
+            /* Allocate memory and read in the file. */
+            if(!(obj = (map_object_t *)malloc(sz))) {
+                debug(DBG_ERROR, "malloc: %s\n", strerror(errno));
+                fclose(fp);
+                return 7;
+            }
+
+            if(fread(obj, 1, sz, fp) != (size_t)sz) {
+                debug(DBG_ERROR, "Cannot read file!\n");
+                free(obj);
+                fclose(fp);
+                return 8;
+            }
+
+            /* We're done with the file, so close it */
+            fclose(fp);
+
+            /* Save it into the struct */
+            tmp2[k * nvars + l].count = sz / 0x44;
+            tmp2[k * nvars + l].objs = obj;
+        }
+    }
+
+    return 0;
+}
+
+static int read_bb_map_files(void) {
     int srv, i, j;
 
     for(i = 0; i < 3; ++i) {                            /* Episode */
@@ -761,6 +930,17 @@ static int read_map_files(void) {
             if((srv = read_bb_map_set(1, i, j)))
                 return srv;
         }
+    }
+
+    return 0;
+}
+
+static int read_v2_map_files(void) {
+    int srv, j;
+
+    for(j = 0; j < 16 && j <= max_area[0]; ++j) {
+        if((srv = read_v2_map_set(j)))
+            return srv;
     }
 
     return 0;
@@ -833,7 +1013,7 @@ int bb_read_params(sylverant_ship_t *cfg) {
     }
 
     debug(DBG_LOG, "Loading Blue Burst Map Enemy Data...\n");
-    rv = read_map_files();
+    rv = read_bb_map_files();
 
     /* Change back to the original directory */
     if(chdir(path)) {
@@ -847,6 +1027,64 @@ bail:
     if(rv) {
         debug(DBG_ERROR, "Error reading Blue Burst data, disabling Blue Burst "
               "support!\n");
+    }
+
+    /* Clean up and return. */
+    free(buf);
+    return rv;
+}
+
+int v2_read_params(sylverant_ship_t *cfg) {
+    int rv = 0;
+    long sz;
+    char *buf, *path;
+
+    /* Make sure we have a directory set... */
+    if(!cfg->v2_map_dir) {
+        debug(DBG_WARN, "No V2 map directory set. Will disable server-side "
+              "drop support.\n");
+        return 1;
+    }
+
+    /* Save the current working directory, so we can do this a bit easier. */
+    sz = pathconf(".", _PC_PATH_MAX);
+    if(!(buf = malloc(sz))) {
+        debug(DBG_ERROR, "Error allocating memory: %s\n", strerror(errno));
+        return -1;
+    }
+
+    if(!(path = getcwd(buf, (size_t)sz))) {
+        debug(DBG_ERROR, "Error getting current dir: %s\n", strerror(errno));
+        free(buf);
+        return -1;
+    }
+
+    /* Next, try to read the map data */
+    if(chdir(cfg->v2_map_dir)) {
+        debug(DBG_ERROR, "Error changing to V2 map dir: %s\n",
+              strerror(errno));
+        rv = 1;
+        goto bail;
+    }
+
+    debug(DBG_LOG, "Loading V2 Map Enemy Data...\n");
+    rv = read_v2_map_files();
+
+    /* Change back to the original directory */
+    if(chdir(path)) {
+        debug(DBG_ERROR, "Cannot change back to original dir: %s\n",
+              strerror(errno));
+        free(buf);
+        return -1;
+    }
+
+bail:
+    if(rv) {
+        debug(DBG_ERROR, "Error reading V2 parameter data. Server-side drops "
+              "will be disabled for v1/v2.\n");
+    }
+    else {
+        have_v2_maps = 1;
     }
 
     /* Clean up and return. */
@@ -874,6 +1112,25 @@ void bb_free_params(void) {
                 m->map_count = m->variation_count = 0;
             }
         }
+    }
+}
+
+void v2_free_params(void) {
+    int k;
+    uint32_t l, nmaps;
+    parsed_map_t *m;
+
+    for(k = 0; k < 0x10; ++k) {
+        m = &v2_parsed_maps[k];
+        nmaps = m->map_count * m->variation_count;
+
+        for(l = 0; l < nmaps; ++l) {
+            free(m->data[l].enemies);
+        }
+
+        free(m->data);
+        m->data = NULL;
+        m->map_count = m->variation_count = 0;
     }
 }
 
@@ -965,9 +1222,117 @@ int bb_load_game_enemies(lobby_t *l) {
     return 0;
 }
 
+int v2_load_game_enemies(lobby_t *l) {
+    game_enemies_t *en;
+    game_objs_t *ob;
+    int i;
+    uint32_t enemies = 0, index, objects = 0, index2;
+    parsed_map_t *maps;
+    parsed_objs_t *objs;
+    game_enemies_t *sets[0x10];
+    game_objs_t *osets[0x10];
+
+    /* Figure out the total number of enemies that the game will have... */
+    for(i = 0; i < 0x20; i += 2) {
+        maps = &v2_parsed_maps[i >> 1];
+        objs = &v2_parsed_objs[i >> 1];
+
+        /* If we hit zeroes, then we're done already... */
+        if(maps->map_count == 0 && maps->variation_count == 0) {
+            sets[i >> 1] = NULL;
+            break;
+        }
+
+        /* Sanity Check! */
+        if(l->maps[i] > maps->map_count ||
+           l->maps[i + 1] > maps->variation_count) {
+            debug(DBG_ERROR, "Invalid map set generated for level %d (ep %d): "
+                  "(%d %d)\n", i, l->episode, l->maps[i], l->maps[i + 1]);
+            return -1;
+        }
+
+        index = l->maps[i] * maps->variation_count + l->maps[i + 1];
+        enemies += maps->data[index].count;
+        objects += objs->data[index].count;
+        sets[i >> 1] = &maps->data[index];
+        osets[i >> 1] = &objs->data[index];
+    }
+
+    /* Allocate space for the enemy set and the enemies therein. */
+    if(!(en = (game_enemies_t *)malloc(sizeof(game_enemies_t)))) {
+        debug(DBG_ERROR, "Error allocating enemy set: %s\n", strerror(errno));
+        return -2;
+    }
+
+    if(!(en->enemies = (game_enemy_t *)malloc(sizeof(game_enemy_t) *
+                                              enemies))) {
+        debug(DBG_ERROR, "Error allocating enemies: %s\n", strerror(errno));
+        free(en);
+        return -3;
+    }
+
+    /* Allocate space for the object set and the objects therein. */
+    if(!(ob = (game_objs_t *)malloc(sizeof(game_objs_t)))) {
+        debug(DBG_ERROR, "Error allocating object set: %s\n", strerror(errno));
+        free(en->enemies);
+        free(en);
+        return -4;
+    }
+
+    if(!(ob->objs = (map_object_t *)malloc(sizeof(map_object_t) * objects))) {
+        debug(DBG_ERROR, "Error allocating objects: %s\n", strerror(errno));
+        free(ob);
+        free(en->enemies);
+        free(en);
+        return -5;
+    }
+
+    en->count = enemies;
+    ob->count = objects;
+    index = index2 = 0;
+
+    /* Copy in the enemy data. */
+    for(i = 0; i < 0x10; ++i) {
+        if(!sets[i] || !osets[i])
+            break;
+
+        memcpy(&en->enemies[index], sets[i]->enemies,
+               sizeof(game_enemy_t) * sets[i]->count);
+        index += sets[i]->count;
+
+        memcpy(&ob->objs[index2], osets[i]->objs,
+               sizeof(map_object_t) * osets[i]->count);
+        index2 += osets[i]->count;
+    }
+
+    /* Fixup Dark Falz' data for difficulties other than normal... */
+    for(i = 0; i < en->count; ++i) {
+        if(en->enemies[i].bp_entry == 0x37 && l->difficulty) {
+            en->enemies[i].bp_entry = 0x38;
+        }
+    }
+
+    /* Done! */
+    l->map_enemies = en;
+    l->map_objs = ob;
+    return 0;
+}
+
 void free_game_enemies(lobby_t *l) {
-    free(l->map_enemies->enemies);
-    free(l->map_enemies);
+    if(l->map_enemies) {
+        free(l->map_enemies->enemies);
+        free(l->map_enemies);
+    }
+
+    if(l->map_objs) {
+        free(l->map_objs->objs);
+        free(l->map_objs);
+    }
+
     l->map_enemies = NULL;
     l->bb_params = NULL;
+}
+
+int map_have_v2_maps(void) {
+    return have_v2_maps;
 }

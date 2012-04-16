@@ -114,9 +114,10 @@ struct lobby {
     time_t create_time;
 
     game_enemies_t *map_enemies;
+    game_objs_t *map_objs;
     bb_battle_param_t *bb_params;
 
-    int (*dropfunc)(struct lobby *l, void *req);
+    int (*dropfunc)(ship_client_t *c, struct lobby *l, void *req);
 };
 
 #ifndef LOBBY_DEFINED
@@ -144,6 +145,7 @@ TAILQ_HEAD(lobby_queue, lobby);
 #define LOBBY_FLAG_GC_ALLOWED   0x00000200
 #define LOBBY_FLAG_SINGLEPLAYER 0x00000400
 #define LOBBY_FLAG_EP3          0x00000800
+#define LOBBY_FLAG_SERVER_DROPS 0x00001000
 
 /* Events that can be set on games */
 #define GAME_EVENT_NONE         0

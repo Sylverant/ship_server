@@ -2252,7 +2252,7 @@ int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
                 rv = handle_itemreq(c, (subcmd_itemreq_t *)pkt);
             }
             else if(l->dropfunc) {
-                rv = l->dropfunc(l, (subcmd_itemreq_t *)pkt);
+                rv = l->dropfunc(c, l, (subcmd_itemreq_t *)pkt);
             }
             else {
                 rv = send_pkt_dc(dest, (dc_pkt_hdr_t *)pkt);
@@ -2324,7 +2324,7 @@ int subcmd_bb_handle_one(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
 
         case SUBCMD_ITEMREQ:
             /* Unlike earlier versions, we have to handle this here... */
-            rv = l->dropfunc(l, pkt);
+            rv = l->dropfunc(c, l, pkt);
             break;
 
         default:

@@ -600,8 +600,13 @@ typedef enum item_code_e {
     Item_Cake                         = 0x220E03,
     Item_Accessories                  = 0x230E03,
     Item_Mr_Nakas_Business_Card       = 0x240E03,
+    Item_AddSlot                      = 0x000F03,
+    Item_Photon_Drop                  = 0x001003,
     Item_Meseta                       = 0x000004,
-    Item_NoSuchItem                   = 0xFFFFFF
+    Item_NoSuchItem                   = 0xFFFFFF,
+    /* Some odd special cases... */
+    Item_Luck_Material_v3             = Item_Hit_Material,
+    Item_Invalid_Material_v3          = Item_Luck_Material
 } item_code_t;
 
 /* Item code to string mapping */

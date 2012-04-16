@@ -195,6 +195,10 @@ static void print_config(sylverant_ship_t *cfg) {
         debug(DBG_LOG, "Menu: Main\n");
     }
 
+    if(cfg->v2_map_dir) {
+        debug(DBG_LOG, "V2 Map Directory: %s\n", cfg->v2_map_dir);
+    }
+
     if(cfg->bb_param_dir) {
         debug(DBG_LOG, "BB Param Directory: %s\n", cfg->bb_param_dir);
     }
@@ -446,18 +450,24 @@ int main(int argc, char *argv[]) {
         cfg->shipgate_flags |= SHIPGATE_FLAG_NOBB;
     }
 
+    /* If we could read the v2 ItemPT file, try to read its maps too. */
+    if(pt_v2_enabled() && cfg->v2_map_dir) {
+        rv = v2_read_params(cfg);
+
+        if(rv < 0)
+            exit(EXIT_FAILURE);
+    }
+
     /* If Blue Burst isn't disabled already, read the parameter data and map
        data... */
     if(!(cfg->shipgate_flags & SHIPGATE_FLAG_NOBB)) {
         rv = bb_read_params(cfg);
 
         /* Less than 0 = fatal error. Greater than 0 = Blue Burst problem. */
-        if(rv > 0) {
+        if(rv > 0)
             cfg->shipgate_flags |= SHIPGATE_FLAG_NOBB;
-        }
-        else if(rv < 0) {
+        else if(rv < 0)
             exit(EXIT_FAILURE);
-        }
     }
 
     /* Initialize all the iconv contexts we'll need */
@@ -493,6 +503,7 @@ int main(int argc, char *argv[]) {
     cleanup_gnutls();
     sylverant_free_ship_config(cfg);
     bb_free_params();
+    v2_free_params();
 
     if(restart_on_shutdown) {
         chdir(initial_path);

@@ -28,6 +28,14 @@
 
 #define PACKED __attribute__((packed))
 
+#define BOX_TYPE_WEAPON     0
+#define BOX_TYPE_ARMOR      1
+#define BOX_TYPE_SHIELD     2
+#define BOX_TYPE_UNIT       3
+#define BOX_TYPE_TOOL       4
+#define BOX_TYPE_MESETA     5
+#define BOX_TYPE_NOTHING    6
+
 /* Entry in one of the ItemPT files. Mostly adapted from Tethealla... In the
    file itself, each of these fields is stored in big-endian byter order.
    Some of this data also comes from a post by Lee on the PSOBB Eden forums:
@@ -52,7 +60,7 @@ typedef struct pt_v3_entry {
     uint16_t enemy_meseta[100][2];          /* 0x06AC */
     int8_t enemy_drop[100];                 /* 0x083C */
     uint16_t box_meseta[10][2];             /* 0x08A0 */
-    uint8_t box_drop[10][7];                /* 0x08C8 */
+    uint8_t box_drop[7][10];                /* 0x08C8 */
     uint16_t padding;                       /* 0x090E */
     uint32_t pointers[18];                  /* 0x0910 */
     uint32_t armor_level;                   /* 0x0958 */
@@ -85,7 +93,7 @@ typedef struct pt_v2_entry {
     uint16_t enemy_meseta[100][2];          /* 0x060C */
     int8_t enemy_drop[100];                 /* 0x079C */
     uint16_t box_meseta[10][2];             /* 0x0800 */
-    uint8_t box_drop[10][7];                /* 0x0828 */
+    uint8_t box_drop[7][10];                /* 0x0828 */
     uint16_t padding2;                      /* 0x086E */
     uint32_t pointers[18];                  /* 0x0870 */
     uint32_t armor_level;                   /* 0x08B8 */
@@ -107,14 +115,15 @@ int pt_v3_enabled(void);
 
 /* Generate an item drop from the PT data. This version uses the v2 PT data set,
    and thus is appropriate for any version before PSOGC. */
-int pt_generate_v2_drop(lobby_t *l, void *r);
+int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r);
+int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r);
 
 /* Generate an item drop from the PT data. This version uses the v3 PT data set.
    This function only works for PSOGC. */
-int pt_generate_v3_drop(lobby_t *l, void *req);
+int pt_generate_v3_drop(ship_client_t *c, lobby_t *l, void *r);
 
 /* Generate an item drop from the PT data. This version uses the v3 PT data set.
    This function only works for PSOBB. */
-int pt_generate_bb_drop(lobby_t *l, void *r);
+int pt_generate_bb_drop(ship_client_t *c, lobby_t *l, void *r);
 
 #endif /* !PTDATA_H */

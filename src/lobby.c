@@ -35,7 +35,7 @@
 #include "items.h"
 #include "ptdata.h"
 
-static int td(lobby_t *l, void *req);
+static int td(ship_client_t *c, lobby_t *l, void *req);
 
 lobby_t *lobby_create_default(block_t *block, uint32_t lobby_id, uint8_t ev) {
     lobby_t *l = (lobby_t *)malloc(sizeof(lobby_t));
@@ -79,6 +79,7 @@ lobby_t *lobby_create_default(block_t *block, uint32_t lobby_id, uint8_t ev) {
 static void lobby_setup_drops(lobby_t *l, uint32_t rs) {
     if(l->version == CLIENT_VERSION_BB) {
         l->dropfunc = pt_generate_bb_drop;
+        l->flags |= LOBBY_FLAG_SERVER_DROPS;
         return;
     }
 
@@ -90,11 +91,13 @@ static void lobby_setup_drops(lobby_t *l, uint32_t rs) {
                 l->dropfunc = td;
         }
         else {
-            if(pt_v2_enabled())
+            if(pt_v2_enabled() && map_have_v2_maps())
                 l->dropfunc = pt_generate_v2_drop;
             else
                 l->dropfunc = td;
         }
+
+        l->flags |= LOBBY_FLAG_SERVER_DROPS;
     }
 }
 
@@ -237,6 +240,13 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
     /* If its a Blue Burst lobby, set up the enemy data. */
     if(version == CLIENT_VERSION_BB && bb_load_game_enemies(l)) {
         debug(DBG_WARN, "Error setting up blue burst enemies!\n");
+        pthread_mutex_destroy(&l->mutex);
+        free(l);
+        return NULL;
+    }
+    else if(version <= CLIENT_VERSION_PC && map_have_v2_maps() && !battle &&
+            !chal && v2_load_game_enemies(l)) {
+        debug(DBG_WARN, "Error setting up v1/v2 enemy data!\n");
         pthread_mutex_destroy(&l->mutex);
         free(l);
         return NULL;
@@ -431,7 +441,7 @@ static uint8_t lobby_find_max_challenge(lobby_t *l) {
     return (uint8_t)(min_lev + 1);
 }
 
-static int td(lobby_t *l, void *req) {
+static int td(ship_client_t *c, lobby_t *l, void *req) {
     uint32_t r = genrand_int32();
     uint32_t i[4] = { 4, 0, 0, 0 };
 
@@ -1014,7 +1024,7 @@ int lobby_info_reply(ship_client_t *c, uint32_t lobby) {
     player_t *pl;
     time_t t;
     int h, m, s;
-    int legit, questing;
+    int legit, questing, drops;
 
     if(!l) {
         return send_info_reply(c, __(c, "\tEThis game is no\nlonger active."));
@@ -1032,16 +1042,19 @@ int lobby_info_reply(ship_client_t *c, uint32_t lobby) {
         s = t % 60;
         legit = l->flags & LOBBY_FLAG_LEGIT_MODE;
         questing = l->flags & LOBBY_FLAG_QUESTING;
+        drops = l->flags & LOBBY_FLAG_SERVER_DROPS;
 
         sprintf(msg, "%s: %d:%02d:%02d\n"   /* Game time */
                 "%s: %s\n"                  /* Legit/normal mode */
                 "%s\n"                      /* Questing/Free adventure */
                 "%s: %d-%d\n"               /* Levels allowed */
+                "%s: %s\n"                  /* Client/Server Drops */
                 "%s:\n",                    /* Versions allowed */
                 __(c, "\tETime"), h, m, s,
                 __(c, "Mode"), legit ? __(c, "Legit") : __(c, "Normal"),
                 questing ? __(c, "Questing") : __(c, "Free Adventure"),
-                __(c, "Level Range"), l->min_level, l->max_level,
+                __(c, "Levels"), l->min_level, l->max_level,
+                __(c, "Drops"), drops ? __(c, "Server") : __(c, "Client"),
                 __(c, "Versions Allowed"));
 
         /* Figure out what versions are allowed. */
@@ -1061,7 +1074,7 @@ int lobby_info_reply(ship_client_t *c, uint32_t lobby) {
             /* Slightly more interesting here... */
             if(l->v2) {
                 if(!(l->flags & LOBBY_FLAG_PCONLY)) {
-                    sprintf(msg, "%s DCv2", msg);
+                    sprintf(msg, "%s V2", msg);
                 }
                 if(!(l->flags & LOBBY_FLAG_DCONLY)) {
                     sprintf(msg, "%s PC", msg);
@@ -1069,10 +1082,10 @@ int lobby_info_reply(ship_client_t *c, uint32_t lobby) {
             }
             else {
                 if(!(l->flags & LOBBY_FLAG_PCONLY)) {
-                    sprintf(msg, "%s DCv1", msg);
+                    sprintf(msg, "%s V1", msg);
 
                     if(!(l->flags & LOBBY_FLAG_V1ONLY)) {
-                        sprintf(msg, "%s DCv2", msg);
+                        sprintf(msg, "%s V2", msg);
                     }
                 }
                 if(!(l->flags & LOBBY_FLAG_DCONLY) &&

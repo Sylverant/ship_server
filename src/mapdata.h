@@ -87,6 +87,26 @@ typedef struct map_enemy {
     uint32_t reserved15;
 } PACKED map_enemy_t;
 
+/* Object data in the map object files. */
+typedef struct map_object {
+    uint32_t skin;
+    uint32_t unk1;
+    uint32_t unk2;
+    uint32_t obj_id;
+    uint32_t appear;
+    uint32_t map_section;
+    uint32_t unk3;
+    float x;
+    float y;
+    float z;
+    uint32_t yrot;
+    /* Everything beyond this point depends on the object type. */
+    union {
+        float sp[6];
+        uint32_t dword[6];
+    };
+} PACKED map_object_t;
+
 /* Enemy data as used in the game. */
 typedef struct game_enemy {
     uint32_t bp_entry;
@@ -106,6 +126,17 @@ typedef struct parsed_map {
     game_enemies_t *data;
 } parsed_map_t;
 
+typedef struct game_objects {
+    uint32_t count;
+    map_object_t *objs;
+} game_objs_t;
+
+typedef struct parsed_objects {
+    uint32_t map_count;
+    uint32_t variation_count;
+    game_objs_t *data;
+} parsed_objs_t;
+
 #undef PACKED
 
 #ifndef LOBBY_DEFINED
@@ -120,7 +151,13 @@ extern bb_level_table_t char_stats;
 int bb_read_params(sylverant_ship_t *cfg);
 void bb_free_params(void);
 
+int v2_read_params(sylverant_ship_t *cfg);
+void v2_free_params(void);
+
 int bb_load_game_enemies(lobby_t *l);
+int v2_load_game_enemies(lobby_t *l);
 void free_game_enemies(lobby_t *l);
+
+int map_have_v2_maps(void);
 
 #endif /* !MAPDATA_H */
