@@ -41,29 +41,29 @@
    Some of this data also comes from a post by Lee on the PSOBB Eden forums:
    http://edenserv.net/forum/viewtopic.php?p=19305#p19305 */
 typedef struct pt_v3_entry {
-    uint8_t weapon_ratio[12];               /* 0x0000 */
+    int8_t weapon_ratio[12];                /* 0x0000 */
     int8_t weapon_minrank[12];              /* 0x000C */
-    uint8_t weapon_maxfloor[12];            /* 0x0018 */
-    uint8_t power_pattern[9][4];            /* 0x0024 */
+    int8_t weapon_upgfloor[12];             /* 0x0018 */
+    int8_t power_pattern[9][4];             /* 0x0024 */
     uint16_t percent_pattern[23][6];        /* 0x0048 */
-    uint8_t area_pattern[30];               /* 0x015C */
-    uint8_t percent_attachment[6][10];      /* 0x017A */
-    uint8_t element_ranking[10];            /* 0x01B6 */
-    uint8_t element_probability[10];        /* 0x01C0 */
-    uint8_t armor_ranking[5];               /* 0x01CA */
-    uint8_t slot_ranking[5];                /* 0x01CF */
-    uint8_t unit_level[10];                 /* 0x01D4 */
+    int8_t area_pattern[3][10];             /* 0x015C */
+    int8_t percent_attachment[6][10];       /* 0x017A */
+    int8_t element_ranking[10];             /* 0x01B6 */
+    int8_t element_probability[10];         /* 0x01C0 */
+    int8_t armor_ranking[5];                /* 0x01CA */
+    int8_t slot_ranking[5];                 /* 0x01CF */
+    int8_t unit_level[10];                  /* 0x01D4 */
     uint16_t tool_frequency[28][10];        /* 0x01DE */
     uint8_t tech_frequency[19][10];         /* 0x040E */
     int8_t tech_levels[19][20];             /* 0x04CC */
-    uint8_t enemy_dar[100];                 /* 0x0648 */
+    int8_t enemy_dar[100];                  /* 0x0648 */
     uint16_t enemy_meseta[100][2];          /* 0x06AC */
     int8_t enemy_drop[100];                 /* 0x083C */
     uint16_t box_meseta[10][2];             /* 0x08A0 */
     uint8_t box_drop[7][10];                /* 0x08C8 */
     uint16_t padding;                       /* 0x090E */
     uint32_t pointers[18];                  /* 0x0910 */
-    uint32_t armor_level;                   /* 0x0958 */
+    int32_t armor_level;                    /* 0x0958 */
     /* There is a bit more data here... Dunno what it is. No reason to store it
        if I don't know how to use it. */
 } pt_v3_entry_t;
@@ -73,30 +73,30 @@ typedef struct pt_v3_entry {
    structure. In the file itself, each of these fields is stored in
    little-endian byte order. */
 typedef struct pt_v2_entry {
-    uint8_t weapon_ratio[12];               /* 0x0000 */
+    int8_t weapon_ratio[12];                /* 0x0000 */
     int8_t weapon_minrank[12];              /* 0x000C */
-    uint8_t weapon_maxfloor[12];            /* 0x0018 */
-    uint8_t power_pattern[9][4];            /* 0x0024 */
+    int8_t weapon_upgfloor[12];             /* 0x0018 */
+    int8_t power_pattern[9][4];             /* 0x0024 */
     uint8_t percent_pattern[23][5];         /* 0x0048 */
-    uint8_t area_pattern[30];               /* 0x00BB */
-    uint8_t percent_attachment[6][10];      /* 0x00D9 */
-    uint8_t element_ranking[10];            /* 0x0115 */
-    uint8_t element_probability[10];        /* 0x011F */
-    uint8_t armor_ranking[5];               /* 0x0129 */
-    uint8_t slot_ranking[5];                /* 0x012E */
-    uint8_t unit_level[10];                 /* 0x0133 */
+    int8_t area_pattern[3][10];             /* 0x00BB */
+    int8_t percent_attachment[6][10];       /* 0x00D9 */
+    int8_t element_ranking[10];             /* 0x0115 */
+    int8_t element_probability[10];         /* 0x011F */
+    int8_t armor_ranking[5];                /* 0x0129 */
+    int8_t slot_ranking[5];                 /* 0x012E */
+    int8_t unit_level[10];                  /* 0x0133 */
     uint8_t padding;                        /* 0x013D */
     uint16_t tool_frequency[28][10];        /* 0x013E */
     uint8_t tech_frequency[19][10];         /* 0x036E */
     int8_t tech_levels[19][20];             /* 0x042C */
-    uint8_t enemy_dar[100];                 /* 0x05A8 */
+    int8_t enemy_dar[100];                  /* 0x05A8 */
     uint16_t enemy_meseta[100][2];          /* 0x060C */
     int8_t enemy_drop[100];                 /* 0x079C */
     uint16_t box_meseta[10][2];             /* 0x0800 */
     uint8_t box_drop[7][10];                /* 0x0828 */
     uint16_t padding2;                      /* 0x086E */
     uint32_t pointers[18];                  /* 0x0870 */
-    uint32_t armor_level;                   /* 0x08B8 */
+    int32_t armor_level;                    /* 0x08B8 */
     /* There is a bit more data here... Dunno what it is. No reason to store it
        if I don't know how to use it. */
 } pt_v2_entry_t;

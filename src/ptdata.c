@@ -26,6 +26,8 @@
 #include "subcmd.h"
 #include "items.h"
 
+#define MIN(x, y) (x < y ? x : y)
+
 static int have_v2pt = 0;
 static int have_v3pt = 0;
 
@@ -305,6 +307,146 @@ int pt_v3_enabled(void) {
     return have_v3pt;
 }
 
+/*
+   Generate a random weapon, based off of data for PSOv2. This is a rather ugly
+   process, so here's a "short" description of how it actually works (note, the
+   code itself will probably end up being shorter than the description (at least
+   in number of bytes), but I felt this was needed to explain the insanity
+   below)...
+
+   First, we have to decide what weapon types are actually going to be available
+   to generate. This involves looking at three things, the weapon ratio for the
+   weapon type in the PT data, the minimum rank information (also in the PT
+   data) and the area we're generating for. If the weapon ratio is zero, we
+   don't have to look any further (this is expected to be a somewhat rare
+   occurance, hence why its actually checked second in the code). Next, take the
+   minimum rank and add the area number to it (where 0 = Forest 1, 9 = Ruins 3
+   boss areas use the area that comes immediately after them, except Falz, which
+   uses Ruins 3). If that result is greater than or equal to zero, then we can
+   actually generate this type of weapon, so we add it to the list of weapons we
+   might generate, and add its ratio into the total.
+
+   The next thing we have to do is to decide what rank of weapon will be
+   generated for each valid weapon type. To do this, we need to look at three
+   pieces of data again: the weapon type's minimum rank, the weapon type's
+   upgrade floor value (once again, in the PT data), and the area number. If the
+   minimum rank is greater than or equal to zero, start with that value as the
+   rank that will be generated. Otherwise, start with 0. Next, calculate the
+   effective area for the rest of the calculation. For weapon types where the
+   minimum rank is greater than or equal to zero, this will be the area number
+   itself. For those where the minimum rank is less than zero, this will be the
+   sum of the minimum rank and the area. Next, take the upgrade floor value and
+   subtract it from the effective area. If the result is greater than or equal
+   to zero, add one to the weapon's rank. Continue doing this until the result
+   is less than zero.
+
+   From here, we can actually decide what weapon itself to generate. To do this,
+   simply take sum of the chances of all valid weapon types and generate a
+   random number between 0 and that sum (including 0, excluding the sum). Then,
+   run through and compare with the chances that each type has until you figure
+   out what type to generate. Shift the weapon rank that was calculated above
+   into place with the weapon type value, and there you go.
+
+   To pick a grind value, take the remainder from the upgrade floor/effective
+   area calculation above, and use that as an index into the power patterns in
+   the PT data (the second index, not the first one). If this value is greater
+   than 3 for some reason, cap it at 3. The power paterns in here should be used
+   to decide what grind value to use. Pick a random number between 0 and 100
+   (not including 100, but including 0) and see where you end up in the array.
+   Whatever index you end up on is the grind value to use.
+
+   Note: This does not take percentages and elements into account at all. Those
+   will come later...
+*/
+static int generate_weapon_v2(pt_v2_entry_t *ent, int area, uint32_t item[4]) {
+    uint32_t rnd;
+    int i, j = 0, wchance = 0, warea = 0;
+    int wtypes[12] = { 0 }, wranks[12] = { 0 }, gptrn[12] = { 0 };
+
+    item[0] = item[1] = item[2] = item[3] = 0;
+
+    /* Go through each weapon type to see what ones we actually will have to
+       work with right now... */
+    for(i = 0; i < 12; ++i) {
+        if((ent->weapon_minrank[i] + area) >= 0 && ent->weapon_ratio[i] > 0) {
+            wtypes[j] = i;
+            wchance += ent->weapon_ratio[i];
+
+            if(ent->weapon_minrank[i] >= 0) {
+                warea = area;
+                wranks[j] = ent->weapon_minrank[i];
+            }
+            else {
+                warea = ent->weapon_minrank[i] + area;
+                wranks[j] = 0;
+            }
+
+            /* Sanity check... Make sure this is sane before we go to the loop
+               below, since it will end up being an infinite loop if its not
+               sane... */
+            if(ent->weapon_upgfloor[i] <= 0) {
+                debug(DBG_WARN, "Invalid v2 weapon upgrade floor value for "
+                      "floor %d, weapon type %d. Please check your ItemPT.afs "
+                      "file for validity!\n", area, i);
+                return -1;
+            }
+
+            while((warea - ent->weapon_upgfloor[i]) >= 0) {
+                ++wranks[j];
+                warea -= ent->weapon_upgfloor[i];
+            }
+
+            gptrn[j] = MIN(warea, 3);
+            ++j;
+        }
+    }
+
+    /* Sanity check... This shouldn't happen! */
+    if(!j) {
+        debug(DBG_WARN, "No v2 weapon to generate on floor %d, please check "
+              "your ItemPT.afs file for validity!\n", area);
+        return -1;
+    }
+
+    /* Roll the dice! */
+    rnd = genrand_int32() % wchance;
+    for(i = 0; i < j; ++i) {
+        if((rnd -= ent->weapon_ratio[wtypes[i]]) > wchance) {
+            item[0] = ((wtypes[i] + 1) << 8) | (wranks[i] << 16);
+
+            /* Save off the grind pattern to use... */
+            warea = gptrn[i];
+            break;
+        }
+    }
+
+    /* Sanity check... Once again, this shouldn't happen! */
+    if(!item[0]) {
+        debug(DBG_WARN, "Generated invalid v2 weapon. Please report this "
+              "error!\n");
+        return -1;
+    }
+
+    /* Next up, determine the grind value. */
+    rnd = genrand_int32() % 100;
+    for(i = 0; i < 9; ++i) {
+        if((rnd -= ent->power_pattern[i][warea]) > 100) {
+            item[0] |= (i << 24);
+            break;
+        }
+    }
+
+    /* Sanity check... */
+    if(i >= 9) {
+        debug(DBG_WARN, "Invalid power pattern for floor %d, pattern number "
+              "%d. Please check your ItemPT.afs for validity!\n", area, gptrn);
+        return -1;
+    }
+
+    /* XXXX: Handle elements and percentages */
+    return 0;
+}
+
 static uint32_t generate_tool(uint16_t freqs[28][10], int area) {
     uint32_t rnd = genrand_int32() % 10000;
     int i;
@@ -451,12 +593,13 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
 
     /* See if the object is fixed-type box */
     t1 = LE32(obj->dword[0]);
-    t2 = LE32(obj->dword[1]);
     f1 = *((float *)&t1);
-    f2 = *((float *)&t2);
-    if(obj->skin == LE32(0x00000092) && f1 < 1.0f + EPSILON &&
-       f1 > 1.0f - EPSILON) {
+    if((obj->skin == LE32(0x00000092) || obj->skin == LE32(0x00000161)) &&
+       f1 < 1.0f + EPSILON && f1 > 1.0f - EPSILON) {
         /* See if it is a fully-fixed item */
+        t2 = LE32(obj->dword[1]);
+        f2 = *((float *)&t2);
+
         if(f2 < 1.0f + EPSILON && f2 > 1.0f - EPSILON) {
             /* Drop the requested item */
             item[0] = BE32(obj->dword[2]);
@@ -472,8 +615,7 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
         t1 = BE32(obj->dword[2]);
         switch(t1 & 0xFF) {
             case 0:
-                /* XXXX: Generate a weapon */
-                return 0;
+                goto generate_weapon;
 
             case 1:
                 /* XXXX: Generate a guard */
@@ -497,8 +639,13 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
     rnd = genrand_int32() % 100;
 
     if((rnd -= ent->box_drop[BOX_TYPE_WEAPON][area]) > 100) {
-        /* XXXX: Generate a weapon */
-        return 0;
+generate_weapon:
+        /* Generate a weapon */
+        if(generate_weapon_v2(ent, area, item)) {
+            return 0;
+        }
+
+        return subcmd_send_lobby_item(l, req, item);
     }
     else if((rnd -= ent->box_drop[BOX_TYPE_ARMOR][area]) > 100) {
         /* XXXX: Generate an armor */
