@@ -694,10 +694,26 @@ static int lobby_remove_client_locked(ship_client_t *c, int client_id,
 }
 
 /* Add the client to any available lobby on the current block. */
-int lobby_add_to_any(ship_client_t *c) {
+int lobby_add_to_any(ship_client_t *c, lobby_t *req) {
     block_t *b = c->cur_block;
     lobby_t *l;
     int added = 0;
+
+    /* If a specific lobby was requested, try that one first. */
+    if(req) {
+        pthread_mutex_lock(&req->mutex);
+
+        if(req->type == LOBBY_TYPE_DEFAULT &&
+           req->num_clients < req->max_clients) {
+            /* They should be OK to join this one... */
+            if(!lobby_add_client_locked(c, req)) {
+                pthread_mutex_unlock(&req->mutex);
+                return 0;
+            }
+        }
+
+        pthread_mutex_unlock(&req->mutex);
+    }
 
     /* Add to the first available default lobby. */
     TAILQ_FOREACH(l, &b->lobbies, qentry) {
@@ -738,7 +754,7 @@ int lobby_change_lobby(ship_client_t *c, lobby_t *req) {
     /* If they're not in a lobby, add them to the first available default
        lobby. */
     if(!l) {
-        if(lobby_add_to_any(c)) {
+        if(lobby_add_to_any(c, req)) {
             return -11;
         }
 

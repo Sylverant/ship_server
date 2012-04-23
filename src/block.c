@@ -1041,7 +1041,7 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
     /* If the client isn't in a lobby already, then add them to the first
        available default lobby. */
     if(!c->cur_lobby) {
-        if(lobby_add_to_any(c)) {
+        if(lobby_add_to_any(c, NULL)) {
             pthread_mutex_unlock(&c->mutex);
             return -1;
         }
@@ -1121,7 +1121,7 @@ static int bb_process_char(ship_client_t *c, bb_char_data_pkt *pkt) {
     /* If the client isn't in a lobby already, then add them to the first
        available default lobby. */
     if(!c->cur_lobby) {
-        if(lobby_add_to_any(c)) {
+        if(lobby_add_to_any(c, NULL)) {
             pthread_mutex_unlock(&c->mutex);
             return -1;
         }

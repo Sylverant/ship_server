@@ -189,7 +189,7 @@ void lobby_destroy(lobby_t *l);
 void lobby_destroy_noremove(lobby_t *l);
 
 /* Add the client to any available lobby on the current block. */
-int lobby_add_to_any(ship_client_t *c);
+int lobby_add_to_any(ship_client_t *c, lobby_t *req);
 
 /* Send a packet to all people in a lobby. */
 int lobby_send_pkt_dc(lobby_t *l, ship_client_t *c, void *hdr, int igcheck);
