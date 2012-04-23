@@ -19,6 +19,7 @@
 #include <errno.h>
 #include <string.h>
 
+#include <sylverant/items.h>
 #include <sylverant/debug.h>
 #include <sylverant/mtwist.h>
 
@@ -46,6 +47,38 @@ static const int tool_base[28] = {
     Item_Scape_Doll, Item_Disk_Lv01, Item_Photon_Drop,
     Item_NoSuchItem
 };
+
+/* Elemental attributes, sorted by their ranking. This is based on the table
+   that is in Tethealla. This is probably in some data file somewhere, and we
+   should probably read it from that data file, but this will work for now. */
+static const sylverant_weapon_attr_t attr_list[4][12] = {
+    {   
+        Weapon_Attr_Draw, Weapon_Attr_Heart, Weapon_Attr_Ice,
+        Weapon_Attr_Bind, Weapon_Attr_Heat, Weapon_Attr_Shock,
+        Weapon_Attr_Dim, Weapon_Attr_Panic, Weapon_Attr_None,
+        Weapon_Attr_None, Weapon_Attr_None, Weapon_Attr_None
+    },
+    {
+        Weapon_Attr_Drain, Weapon_Attr_Mind, Weapon_Attr_Frost,
+        Weapon_Attr_Hold, Weapon_Attr_Fire, Weapon_Attr_Thunder,
+        Weapon_Attr_Shadow, Weapon_Attr_Riot, Weapon_Attr_Masters,
+        Weapon_Attr_Charge, Weapon_Attr_None, Weapon_Attr_None
+    },
+    {
+        Weapon_Attr_Fill, Weapon_Attr_Soul, Weapon_Attr_Freeze,
+        Weapon_Attr_Seize, Weapon_Attr_Flame, Weapon_Attr_Storm,
+        Weapon_Attr_Dark, Weapon_Attr_Havoc, Weapon_Attr_Lords,
+        Weapon_Attr_Charge, Weapon_Attr_Spirit, Weapon_Attr_Devils
+    },
+    {
+        Weapon_Attr_Gush, Weapon_Attr_Geist, Weapon_Attr_Blizzard,
+        Weapon_Attr_Arrest, Weapon_Attr_Burning, Weapon_Attr_Tempest,
+        Weapon_Attr_Hell, Weapon_Attr_Chaos, Weapon_Attr_Kings,
+        Weapon_Attr_Charge, Weapon_Attr_Berserk, Weapon_Attr_Demons
+    }
+};
+
+static const int attr_count[4] = { 8, 10, 12, 12 };
 
 #define EPSILON 0.001f
 
@@ -355,13 +388,46 @@ int pt_v3_enabled(void) {
    (not including 100, but including 0) and see where you end up in the array.
    Whatever index you end up on is the grind value to use.
 
-   Note: This does not take percentages and elements into account at all. Those
-   will come later...
+   To deal with percentages, we have a few things from the PT data to look at.
+   For each of the three percentage slots, look at the "area pattern" element
+   for the slot and the area the weapon is being generated for. This controls
+   which set of items in the percent pattern to look at. If this is less than
+   zero, move onto the next possible slot. From there, generate a random number
+   between 0 and 100 (not including 100, including 0) and look through that
+   column of the matrix formed by the percent pattern to figure out where you
+   fall. The value of the percentage will be five times the quantity of whatever
+   row of the matrix the random number ends up resulting in being selected,
+   minus two. If its zero, you can obviously stop processing here, and move onto
+   the next possible slot. Next, generate a new random number between 0 and 100,
+   following the same rules as always. For this one, look through the percent
+   attachment matrix with the random number (with the area as the column, as
+   usual). If you end up in the zeroth row, then you won't actually apply a
+   percentage. If not, set the value in the weapon in the appropriate place and
+   put the percentage in too. Now you can finally move onto the next slot!
+   Wasn't that fun? Yes, you could rearrange the random choices in here to be a
+   bit more sane, but that's less fun!
+
+   To pick an element, first check if the area has elements available. This is
+   done by looking at the PT data's element ranking and element probability for
+   the area. If either is 0, then there shall be no elements on weapons made on
+   that floor. If both are non-zero, then generate a random number between 0 and
+   100 (not including 100, but including 0). If that value is less than the
+   elemental probability for the floor, then look and see how many elements are
+   on the ranking level for the floor. Generate a random number to index into
+   the elemental grid for that ranking level, and set that as the elemental
+   attribute byte. Also, set the high-order bit of that byte so that the user
+   has to take the item to the tekker.
+
+   That takes care of all of the tasks with generating a random common weapon!
+   If you're still reading this at the end of this comment, I sorta feel a bit
+   sorry for you. Just think how I feel while writing the comment and the code
+   below. :P
 */
 static int generate_weapon_v2(pt_v2_entry_t *ent, int area, uint32_t item[4]) {
-    uint32_t rnd;
-    int i, j = 0, wchance = 0, warea = 0;
+    uint32_t rnd, upcts = 0;
+    int i, j = 0, k, wchance = 0, warea = 0, npcts = 0;
     int wtypes[12] = { 0 }, wranks[12] = { 0 }, gptrn[12] = { 0 };
+    uint8_t *item_b = (uint8_t *)item;
 
     item[0] = item[1] = item[2] = item[3] = 0;
 
@@ -443,11 +509,59 @@ static int generate_weapon_v2(pt_v2_entry_t *ent, int area, uint32_t item[4]) {
         return -1;
     }
 
-    /* XXXX: Handle elements and percentages */
+    /* Let's generate us some percentages, shall we? This isn't necessarily the
+       way I would have designed this, but based on the way the data is laid
+       out in the PT file, this is the implied structure of it... */
+    for(i = 0; i < 3; ++i) {
+        if(ent->area_pattern[i][area] < 0)
+            continue;
+
+        rnd = genrand_int32() % 100;
+        warea = ent->area_pattern[i][area];
+
+        for(j = 0; j < 23; ++j) {
+            /* See if we're going to generate this one... */
+            if((rnd -= ent->percent_pattern[j][warea]) > 100) {
+                /* If it would be 0%, don't bother... */
+                if(j == 2) {
+                    break;
+                }
+
+                /* Lets see what type we'll generate now... */
+                rnd = genrand_int32() % 100;
+                for(k = 0; k < 6; ++k) {
+                    if((rnd -= ent->percent_attachment[k][area]) > 100) {
+                        if(k == 0 || (upcts & (1 << k)))
+                            break;
+
+                        j = (j - 2) * 5;
+                        item_b[(npcts << 1) + 6] = k;
+                        item_b[(npcts << 1) + 7] = (uint8_t)j;
+                        ++npcts;
+                        upcts |= 1 << k;
+                        break;
+                    }
+                }
+
+                break;
+            }
+        }
+    }
+
+    /* Finally, lets see if there's going to be an elemental attribute applied
+       to this weapon... */
+    if(ent->element_ranking[area]) {
+        rnd = genrand_int32() % 100;
+        if(rnd < ent->element_probability[area]) {
+            rnd = genrand_int32() % attr_count[ent->element_ranking[area] - 1];
+            item[1] = 0x80 | attr_list[ent->element_ranking[area] - 1][rnd];
+        }
+    }
+
     return 0;
 }
 
-static uint32_t generate_tool(uint16_t freqs[28][10], int area) {
+static uint32_t generate_tool_base(uint16_t freqs[28][10], int area) {
     uint32_t rnd = genrand_int32() % 10000;
     int i;
 
@@ -493,15 +607,61 @@ static int generate_tech(uint8_t freqs[19][10], int8_t levels[19][20],
     return -1;
 }
 
+static int generate_tool_v2(pt_v2_entry_t *ent, int area, uint32_t item[4]) {
+    item[0] = generate_tool_base(ent->tool_frequency, area);
+
+    /* Neither of these should happen, but just in case... */
+    if(item[0] == Item_Photon_Drop || item[0] == Item_NoSuchItem) {
+        debug(DBG_WARN, "Generated invalid v2 tool! Please check your "
+              "ItemPT.afs file for validity!\n");
+        return -1;
+    }
+
+    /* Clear the rest of the item. */
+    item[1] = item[2] = item[3] = 0;
+
+    /* If its a stackable item, make sure to give it a quantity of 1 */
+    if(item_is_stackable(item[0]))
+        item[1] = (1 << 8);
+
+    if(item[0] == Item_Disk_Lv01) {
+        if(generate_tech(ent->tech_frequency, ent->tech_levels, area,
+                         item)) {
+            debug(DBG_WARN, "Generated invalid technique! Please check "
+                  "your ItemPT.afs file for validity!\n");
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+static int generate_meseta(int min, int max, uint32_t item[4]) {
+    uint32_t rnd;
+
+    if(min < max)
+        rnd = (genrand_int32() % ((max + 1) - min)) + min;
+    else
+        rnd = min;
+
+    if(rnd) {
+        item[0] = 0x00000004;
+        item[1] = item[2] = 0x00000000;
+        item[3] = rnd;
+        return 0;
+    }
+
+    return -1;
+}
+
 /* Generate an item drop from the PT data. This version uses the v2 PT data set,
    and thus is appropriate for any version before PSOGC. */
 int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
     subcmd_itemreq_t *req = (subcmd_itemreq_t *)r;
-    const pt_v2_entry_t *ent = &v2_ptdata[l->difficulty][l->section];
-    uint8_t dar;
+    pt_v2_entry_t *ent = &v2_ptdata[l->difficulty][l->section];
     uint32_t rnd;
-    uint16_t t1, t2;
-    uint32_t i[4];
+    uint32_t item[4];
+    int area;
 
     /* Make sure the PT index in the packet is sane */
     if(req->pt_index > 0x30)
@@ -511,31 +671,101 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
     if(req->pt_index == 0x30)
         return pt_generate_v2_boxdrop(c, l, r);
 
-    dar = ent->enemy_dar[req->pt_index];
-
     /* See if the enemy is going to drop anything at all this time... */
     rnd = genrand_int32() % 100;
 
-    if(rnd >= dar)
+    if(rnd >= ent->enemy_dar[req->pt_index])
         /* Nope. You get nothing! */
         return 0;
 
-    /* XXXX: For now, just drop meseta... We'll worry about the rest later. */
-    t1 = LE16(ent->enemy_meseta[req->pt_index][0]);
-    t2 = LE16(ent->enemy_meseta[req->pt_index][1]);
-    if(t1 < t2)
-        rnd = (genrand_int32() % ((t2 + 1) - t1)) + t1;
-    else
-        rnd = (uint32_t)t1;
+    /* Figure out the area we'll be worried with */
+    area = c->cur_area;
 
-    if(rnd) {
-        i[0] = 4;
-        i[1] = i[2] = 0;
-        i[3] = rnd;
-
-        return subcmd_send_lobby_item(l, req, i);
+    /* Dragon -> Cave 1 */
+    if(area == 11)
+        area = 3;
+    /* De Rol Le -> Mine 1 */
+    else if(area == 12)
+        area = 6;
+    /* Vol Opt -> Ruins 1 */
+    else if(area == 13)
+        area = 8;
+    /* Dark Falz -> Ruins 3 */
+    else if(area == 14)
+        area = 10;
+    /* Everything after Dark Falz -> Ruins 3 */
+    else if(area > 14)
+        area = 10;
+    /* Invalid areas... */
+    else if(area == 0) {
+        debug(DBG_WARN, "Guildcard %u requested enemy drop on Pioneer 2\n",
+              c->guildcard);
+        return -1;
     }
 
+    /* Subtract one, since we want the index in the box_drop array */
+    --area;
+
+    /* Figure out what type to drop... */
+    rnd = genrand_int32() % 3;
+    switch(rnd) {
+        case 0:
+            /* Drop the enemy's designated type of item. */
+            switch(ent->enemy_drop[req->pt_index]) {
+                case BOX_TYPE_WEAPON:
+                    /* Drop a weapon */
+                    if(generate_weapon_v2(ent, area, item)) {
+                        return 0;
+                    }
+
+                    return subcmd_send_lobby_item(l, req, item);
+
+                case BOX_TYPE_ARMOR:
+                    /* Drop an armor */
+                    goto drop_meseta;
+
+                case BOX_TYPE_SHIELD:
+                    /* Drop a shield */
+                    goto drop_meseta;
+
+                case BOX_TYPE_UNIT:
+                    /* Drop a unit */
+                    goto drop_meseta;
+
+                case -1:
+                    /* This shouldn't happen, but if it does, don't drop
+                       anything at all. */
+                    return 0;
+
+                default:
+                    debug(DBG_WARN, "Unknown/Invalid enemy drop (%d) for index "
+                          "%d\n", ent->enemy_drop[req->pt_index],
+                          req->pt_index);
+                    return 0;
+            }
+
+            break;
+
+        case 1:
+            /* Drop a tool */
+            if(generate_tool_v2(ent, area, item)) {
+                return 0;
+            }
+
+            return subcmd_send_lobby_item(l, req, item);
+
+        case 2:
+drop_meseta:
+            /* Drop meseta */
+            if(generate_meseta(ent->enemy_meseta[req->pt_index][0],
+                               ent->enemy_meseta[req->pt_index][1], item)) {
+                return 0;
+            }
+
+            return subcmd_send_lobby_item(l, req, item);
+    }
+
+    /* Shouldn't ever get here... */
     return 0;
 }
 
@@ -662,29 +892,8 @@ generate_weapon:
     else if((rnd -= ent->box_drop[BOX_TYPE_TOOL][area]) > 100) {
 generate_tool:
         /* Generate a tool */
-        item[0] = generate_tool(ent->tool_frequency, area);
-
-        /* Neither of these should happen, but just in case... */
-        if(item[0] == Item_Photon_Drop || item[0] == Item_NoSuchItem) {
-            debug(DBG_WARN, "Generated invalid v2 tool! Please check your "
-                  "ItemPT.afs file for validity!\n");
+        if(generate_tool_v2(ent, area, item)) {
             return 0;
-        }
-
-        /* Clear the rest of the item. */
-        item[1] = item[2] = item[3] = 0;
-
-        /* If its a stackable item, make sure to give it a quantity of 1 */
-        if(item_is_stackable(item[0]))
-            item[1] = (1 << 8);
-
-        if(item[0] == Item_Disk_Lv01) {
-            if(generate_tech(ent->tech_frequency, ent->tech_levels, area,
-                             item)) {
-                debug(DBG_WARN, "Generated invalid technique! Please check "
-                      "your ItemPT.afs file for validity!\n");
-                return 0;
-            }
         }
 
         return subcmd_send_lobby_item(l, req, item);
@@ -692,22 +901,12 @@ generate_tool:
     else if((rnd -= ent->box_drop[BOX_TYPE_MESETA][area]) > 100) {
 generate_meseta:
         /* Generate money! */
-        t1 = ent->box_meseta[area][0];
-        t2 = ent->box_meseta[area][1];
-
-        if(t1 < t2)
-            rnd = (genrand_int32() % ((t2 + 1) - t1)) + t1;
-        else
-            rnd = t1;
-
-        if(rnd) {
-            item[0] = 4;
-            item[1] = item[2] = 0;
-            item[3] = rnd;
-            return subcmd_send_lobby_item(l, req, item);
+        if(generate_meseta(ent->box_meseta[area][0], ent->box_meseta[area][1],
+                           item)) {
+            return 0;
         }
 
-        return 0;
+        return subcmd_send_lobby_item(l, req, item);
     }
 
     /* You get nothing! */
