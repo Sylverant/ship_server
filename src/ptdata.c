@@ -27,6 +27,7 @@
 #include "subcmd.h"
 #include "items.h"
 
+#define MAX(x, y) (x > y ? x : y)
 #define MIN(x, y) (x < y ? x : y)
 
 static int have_v2pt = 0;
@@ -561,6 +562,110 @@ static int generate_weapon_v2(pt_v2_entry_t *ent, int area, uint32_t item[4]) {
     return 0;
 }
 
+/* 
+   Generate a random armor, based on data for PSOv2. Luckily, this is a lot
+   simpler than the case for weapons, so it needs a lot less explanation.
+
+   Each floor has 5 "virtual slots" for different armor types that can be
+   dropped on the floor. The armors that are in these slots depends on two
+   things: the index of the floor (0-9) and the armor level value in the ItemPT
+   file. The basic pattern for a slot is as follows (for i in [0, 4]):
+     slot[i] = MAX(0, armor_level - 3 + floor + i)
+   So, for example, using a Whitill Section ID character on Normal difficulty
+   (where the armor level = 0), the slots for Forest 1 would be filled as
+   follows: { 0, 0, 0, 0, 1 }. The first three slots all generate negative
+   values which get clipped off to 0 by the MAX operator above.
+
+   The values in the slots correspond to the low-order byte of the high-order
+   word of the first dword of the item data (or the 3rd byte of the item data,
+   in other words). The low-order word of the first dword is always 0x0101, to
+   say that it is a frame/armor.
+
+   The probability of getting each of the armors above is controlled by the
+   armor ranking array in the ItemPT data. This is just a list of probabilities
+   (out of 100) for each slot, much like what is done with the weapon data. I
+   won't bother to explain how to pick random numbers here again.
+
+   Each armor has up to 4 unit slots in it. The amount of unit slots is
+   determined by looking at the probabilities in the slot ranking array in the
+   ItemPT data. Once again, this is a list of probabilities out of 100. The
+   index you end up in determines how many unit slots you get, from 0 to 4.
+
+   Random DFP and EVP boosts require data from the ItemPMT.prs file, which is
+   not currently implemented here.
+*/
+static int generate_armor_v2(pt_v2_entry_t *ent, int area, uint32_t item[4]) {
+    uint32_t rnd;
+    int i, armor = -1;
+    uint8_t *item_b = (uint8_t *)item;
+
+    /* Go through each slot in the armor rankings to figure out which one that
+       we'll be generating. */
+    rnd = genrand_int32() % 100;
+    for(i = 0; i < 5; ++i) {
+        if((rnd -= ent->armor_ranking[i]) > 100) {
+            armor = i;
+            break;
+        }
+    }
+
+    /* Sanity check... */
+    if(armor == -1) {
+        debug(DBG_WARN, "Couldn't find a v2 armor to generate. Please check "
+              "your ItemPT.afs file for validity!\n");
+        return -1;
+    }
+
+    /* Figure out what the byte we'll use is */
+    armor = MAX(0, (ent->armor_level - 3 + area + armor));
+    item[0] = 0x00000101 | (armor << 16);
+
+    /* Pick a number of unit slots */
+    rnd = genrand_int32() % 100;
+    for(i = 0; i < 5; ++i) {
+        if((rnd -= ent->slot_ranking[i]) > 100) {
+            item_b[5] = i;
+            break;
+        }
+    }
+
+    /* XXXX: Handle DFP/EVP boosts */
+
+    return 0;
+}
+
+/* Generate a random shield, based on data for PSOv2. This is exactly the same
+   as the armor version, but without unit slots. */
+static int generate_shield_v2(pt_v2_entry_t *ent, int area, uint32_t item[4]) {
+    uint32_t rnd;
+    int i, armor = -1;
+
+    /* Go through each slot in the armor rankings to figure out which one that
+       we'll be generating. */
+    rnd = genrand_int32() % 100;
+    for(i = 0; i < 5; ++i) {
+        if((rnd -= ent->armor_ranking[i]) > 100) {
+            armor = i;
+            break;
+        }
+    }
+
+    /* Sanity check... */
+    if(armor == -1) {
+        debug(DBG_WARN, "Couldn't find a v2 shield to generate. Please check "
+              "your ItemPT.afs file for validity!\n");
+        return -1;
+    }
+
+    /* Figure out what the byte we'll use is */
+    armor = MAX(0, (ent->armor_level - 3 + area + armor));
+    item[0] = 0x00000201 | (armor << 16);
+
+    /* XXXX: Handle DFP/EVP boosts */
+
+    return 0;
+}
+
 static uint32_t generate_tool_base(uint16_t freqs[28][10], int area) {
     uint32_t rnd = genrand_int32() % 10000;
     int i;
@@ -722,11 +827,19 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
 
                 case BOX_TYPE_ARMOR:
                     /* Drop an armor */
-                    goto drop_meseta;
+                    if(generate_armor_v2(ent, area, item)) {
+                        return 0;
+                    }
+
+                    return subcmd_send_lobby_item(l, req, item);
 
                 case BOX_TYPE_SHIELD:
                     /* Drop a shield */
-                    goto drop_meseta;
+                    if(generate_shield_v2(ent, area, item)) {
+                        return 0;
+                    }
+
+                    return subcmd_send_lobby_item(l, req, item);
 
                 case BOX_TYPE_UNIT:
                     /* Drop a unit */
@@ -848,8 +961,7 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
                 goto generate_weapon;
 
             case 1:
-                /* XXXX: Generate a guard */
-                return 0;
+                goto generate_armor;
 
             case 3:
                 goto generate_tool;
@@ -878,12 +990,21 @@ generate_weapon:
         return subcmd_send_lobby_item(l, req, item);
     }
     else if((rnd -= ent->box_drop[BOX_TYPE_ARMOR][area]) > 100) {
-        /* XXXX: Generate an armor */
-        return 0;
+generate_armor:
+        /* Generate an armor */
+        if(generate_armor_v2(ent, area, item)) {
+            return 0;
+        }
+
+        return subcmd_send_lobby_item(l, req, item);
     }
     else if((rnd -= ent->box_drop[BOX_TYPE_SHIELD][area]) > 100) {
-        /* XXXX: Generate a shield */
-        return 0;
+        /* Generate a shield */
+        if(generate_shield_v2(ent, area, item)) {
+            return 0;
+        }
+
+        return subcmd_send_lobby_item(l, req, item);
     }
     else if((rnd -= ent->box_drop[BOX_TYPE_UNIT][area]) > 100) {
         /* XXXX: Generate a unit */
