@@ -24,8 +24,10 @@
 #include <sylverant/mtwist.h>
 
 #include "ptdata.h"
+#include "pmtdata.h"
 #include "subcmd.h"
 #include "items.h"
+#include "utils.h"
 
 #define MAX(x, y) (x > y ? x : y)
 #define MIN(x, y) (x < y ? x : y)
@@ -82,17 +84,6 @@ static const sylverant_weapon_attr_t attr_list[4][12] = {
 static const int attr_count[4] = { 8, 10, 12, 12 };
 
 #define EPSILON 0.001f
-
-#if !defined(__BIG_ENDIAN__) && !defined(WORDS_BIGENDIAN)
-#define BE16(x) (((x >> 8) & 0xFF) | ((x & 0xFF) << 8))
-#define BE32(x) (((x >> 24) & 0x00FF) | \
-                 ((x >>  8) & 0xFF00) | \
-                 ((x & 0xFF00) <<  8) | \
-                 ((x & 0x00FF) << 24))
-#else
-#define BE16(x) x
-#define BE32(x) x
-#endif
 
 int pt_read_v2(const char *fn) {
     FILE *fp;
@@ -591,13 +582,17 @@ static int generate_weapon_v2(pt_v2_entry_t *ent, int area, uint32_t item[4]) {
    ItemPT data. Once again, this is a list of probabilities out of 100. The
    index you end up in determines how many unit slots you get, from 0 to 4.
 
-   Random DFP and EVP boosts require data from the ItemPMT.prs file, which is
-   not currently implemented here.
+   Random DFP and EVP boosts require data from the ItemPMT.prs file (see the
+   pmtdata.[ch] files for more information about that). Basically, they're
+   handled by generating a random number in [0, max] where max is the dfp or
+   evp range defined in the PMT data.
 */
 static int generate_armor_v2(pt_v2_entry_t *ent, int area, uint32_t item[4]) {
     uint32_t rnd;
     int i, armor = -1;
     uint8_t *item_b = (uint8_t *)item;
+    uint16_t *item_w = (uint16_t *)item;
+    pmt_guard_v2_t guard;
 
     /* Go through each slot in the armor rankings to figure out which one that
        we'll be generating. */
@@ -629,7 +624,23 @@ static int generate_armor_v2(pt_v2_entry_t *ent, int area, uint32_t item[4]) {
         }
     }
 
-    /* XXXX: Handle DFP/EVP boosts */
+    /* Look up the item in the ItemPMT data so we can see what boosts we might
+       apply... */
+    if(pmt_lookup_guard_v2(item[0], &guard)) {
+        debug(DBG_WARN, "ItemPMT.prs file for v2 seems to be missing an armor "
+              "type item (code %08x).\n", item[0]);
+        return -2;
+    }
+
+    if(guard.dfp_range) {
+        rnd = genrand_int32() % (guard.dfp_range + 1);
+        item_w[3] = (uint16_t)rnd;
+    }
+
+    if(guard.evp_range) {
+        rnd = genrand_int32() % (guard.evp_range + 1);
+        item_w[4] = (uint16_t)rnd;
+    }
 
     return 0;
 }
@@ -639,6 +650,8 @@ static int generate_armor_v2(pt_v2_entry_t *ent, int area, uint32_t item[4]) {
 static int generate_shield_v2(pt_v2_entry_t *ent, int area, uint32_t item[4]) {
     uint32_t rnd;
     int i, armor = -1;
+    uint16_t *item_w = (uint16_t *)item;
+    pmt_guard_v2_t guard;
 
     /* Go through each slot in the armor rankings to figure out which one that
        we'll be generating. */
@@ -661,7 +674,23 @@ static int generate_shield_v2(pt_v2_entry_t *ent, int area, uint32_t item[4]) {
     armor = MAX(0, (ent->armor_level - 3 + area + armor));
     item[0] = 0x00000201 | (armor << 16);
 
-    /* XXXX: Handle DFP/EVP boosts */
+    /* Look up the item in the ItemPMT data so we can see what boosts we might
+       apply... */
+    if(pmt_lookup_guard_v2(item[0], &guard)) {
+        debug(DBG_WARN, "ItemPMT.prs file for v2 seems to be missing an shield "
+              "type item (code %08x).\n", item[0]);
+        return -2;
+    }
+
+    if(guard.dfp_range) {
+        rnd = genrand_int32() % (guard.dfp_range + 1);
+        item_w[3] = (uint16_t)rnd;
+    }
+
+    if(guard.evp_range) {
+        rnd = genrand_int32() % (guard.evp_range + 1);
+        item_w[4] = (uint16_t)rnd;
+    }
 
     return 0;
 }

@@ -34,6 +34,7 @@
 #include "shipgate.h"
 #include "items.h"
 #include "ptdata.h"
+#include "pmtdata.h"
 
 static int td(ship_client_t *c, lobby_t *l, void *req);
 
@@ -91,7 +92,7 @@ static void lobby_setup_drops(lobby_t *l, uint32_t rs) {
                 l->dropfunc = td;
         }
         else {
-            if(pt_v2_enabled() && map_have_v2_maps())
+            if(pt_v2_enabled() && map_have_v2_maps() && pmt_v2_enabled())
                 l->dropfunc = pt_generate_v2_drop;
             else
                 l->dropfunc = td;

@@ -41,6 +41,7 @@
 #include "scripts.h"
 #include "mapdata.h"
 #include "ptdata.h"
+#include "pmtdata.h"
 
 /* The actual ship structures. */
 ship_t *ship;
@@ -213,6 +214,14 @@ static void print_config(sylverant_ship_t *cfg) {
 
     if(cfg->v3_ptdata_file) {
         debug(DBG_LOG, "v3 ItemPT file: %s\n", cfg->v3_ptdata_file);
+    }
+
+    if(cfg->v2_pmtdata_file) {
+        debug(DBG_LOG, "v2 ItemPMT file: %s\n", cfg->v2_pmtdata_file);
+    }
+    
+    if(cfg->v3_pmtdata_file) {
+        debug(DBG_LOG, "v3 ItemPMT file: %s\n", cfg->v3_pmtdata_file);
     }
 
     debug(DBG_LOG, "Flags: 0x%08X\n", cfg->shipgate_flags);
@@ -431,6 +440,14 @@ int main(int argc, char *argv[]) {
         debug(DBG_LOG, "Reading v2 ItemPT file: %s\n", cfg->v2_ptdata_file);
         if(pt_read_v2(cfg->v2_ptdata_file)) {
             debug(DBG_WARN, "Couldn't read v2 ItemPT data!\n");
+        }
+    }
+
+    /* Read the v2 ItemPMT file... */
+    if(cfg->v2_pmtdata_file) {
+        debug(DBG_LOG, "Reading v2 ItemPMT file: %s\n", cfg->v2_pmtdata_file);
+        if(pmt_read_v2(cfg->v2_pmtdata_file)) {
+            debug(DBG_WARN, "Couldn't read v2 ItemPMT file!\n");
         }
     }
 
