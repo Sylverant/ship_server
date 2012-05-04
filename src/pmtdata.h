@@ -31,7 +31,7 @@ typedef struct pmt_guard_v2 {
     uint16_t unused1;
     uint16_t base_dfp;
     uint16_t base_evp;
-    uint8_t unused2[2];
+    uint16_t unused2;
     uint8_t equip_flag;
     uint8_t unused3;
     uint8_t level_req;
@@ -45,6 +45,15 @@ typedef struct pmt_guard_v2 {
     uint32_t unused4;
 } PACKED pmt_guard_v2_t;
 
+typedef struct pmt_unit_v2 {
+    uint16_t index;
+    uint16_t unused1;
+    uint16_t stat;
+    uint16_t amount;
+    uint8_t pm_range;
+    uint8_t unused2[3];
+} PACKED pmt_unit_v2_t;
+
 #undef PACKED
 
 int pmt_read_v2(const char *fn);
@@ -53,5 +62,6 @@ int pmt_v2_enabled(void);
 void pmt_cleanup(void);
 
 int pmt_lookup_guard_v2(uint32_t code, pmt_guard_v2_t *rv);
+int pmt_lookup_unit_v2(uint32_t code, pmt_unit_v2_t *rv);
 
 #endif /* !PMTDATA_H */

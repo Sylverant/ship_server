@@ -31,6 +31,10 @@
 static pmt_guard_v2_t **guards = NULL;
 static uint32_t *num_guards = NULL;
 static uint32_t num_guard_types = 0;
+
+static pmt_unit_v2_t *units = NULL;
+static uint32_t num_units = 0;
+
 static int have_v2_pmt = 0;
 
 /* The parsing code in here is based on some code/information from Lee. Thanks
@@ -77,9 +81,8 @@ static int read_v2_guards(const uint8_t *pmt, uint32_t sz,
     /* Figure out how many tables we have... */
     num_guard_types = cnt = (ptrs[3] - ptrs[2]) / 8;
 
-    /* Make sure its sane... No idea why we might ever have more than two, but
-       lets do it this way to be safe. */
-    if(cnt < 2) {
+    /* Make sure its sane... Should always be 2. */
+    if(cnt != 2) {
         debug(DBG_ERROR, "ItemPMT.prs file for v2 does not have two guard "
               "tables. Please check it for validity!\n");
         num_guard_types = 0;
@@ -114,7 +117,7 @@ static int read_v2_guards(const uint8_t *pmt, uint32_t sz,
 
         /* Make sure we have enough file... */
         if(values[1] + sizeof(pmt_guard_v2_t) * values[0] > sz) {
-            debug(DBG_ERROR, "ItemPMT.prs file for v2 has armor table outside "
+            debug(DBG_ERROR, "ItemPMT.prs file for v2 has guard table outside "
                   "of file bounds! Please check the file for validity!\n");
             return -5;
         }
@@ -137,6 +140,52 @@ static int read_v2_guards(const uint8_t *pmt, uint32_t sz,
         }
 #endif
     }
+
+    return 0;
+}
+
+static int read_v2_units(const uint8_t *pmt, uint32_t sz,
+                         const uint32_t ptrs[21]) {
+    uint32_t values[2];
+#if defined(__BIG_ENDIAN__) || defined(WORDS_BIGENDIAN)
+    uint32_t i;
+#endif
+
+    /* Make sure the pointers are sane... */
+    if(ptrs[3] > sz) {
+        debug(DBG_ERROR, "ItemPMT.prs file for v2 has invalid unit pointers. "
+              "Please check it for validity!\n");
+        return -1;
+    }
+
+    /* Read the pointer and the size... */
+    memcpy(values, pmt + ptrs[3], sizeof(uint32_t) * 2);
+    values[0] = LE32(values[0]);
+    values[1] = LE32(values[1]);
+
+    /* Make sure we have enough file... */
+    if(values[1] + sizeof(pmt_unit_v2_t) * values[0] > sz) {
+        debug(DBG_ERROR, "ItemPMT.prs file for v2 has unit table outside "
+              "of file bounds! Please check the file for validity!\n");
+        return -2;
+    }
+
+    num_units = values[0];
+    if(!(units = (pmt_unit_v2_t *)malloc(sizeof(pmt_unit_v2_t) * values[0]))) {
+        debug(DBG_ERROR, "Cannot allocate space for v2 units: %s\n",
+              strerror(errno));
+        return -3;
+    }
+
+    memcpy(units, pmt + values[1], sizeof(pmt_unit_v2_t) * values[0]);
+
+#if defined(__BIG_ENDIAN__) || defined(WORDS_BIGENDIAN)
+    for(i = 0; i < values[0]; ++i) {
+        units[i].index = LE16(units[i].index);
+        units[i].stat = LE16(units[i].stat);
+        units[i].amount = LE16(units[i].amount);
+    }
+#endif
 
     return 0;
 }
@@ -219,10 +268,16 @@ int pmt_read_v2(const char *fn) {
         return -9;
     }
 
-    /* For now, all we care about is the guards... */
+    /* Read in guards first... */
     if(read_v2_guards(ucbuf, ucsz, ptrs)) {
         free(ucbuf);
         return -10;
+    }
+
+    /* Next, read in the units... */
+    if(read_v2_units(ucbuf, ucsz, ptrs)) {
+        free(ucbuf);
+        return -11;
     }
 
     /* Clean up the rest of the stuff we can */
@@ -280,11 +335,38 @@ int pmt_lookup_guard_v2(uint32_t code, pmt_guard_v2_t *rv) {
         return -4;
     }
 
-    if(parts[2] >= num_guards[parts[2]]) {
+    if(parts[2] >= num_guards[parts[1]]) {
         return -5;
     }
 
     /* Grab the data and copy it out */
     memcpy(rv, &guards[parts[1] - 1][parts[2]], sizeof(pmt_guard_v2_t));
+    return 0;
+}
+
+int pmt_lookup_unit_v2(uint32_t code, pmt_unit_v2_t *rv) {
+    uint8_t parts[3];
+
+    /* Make sure we loaded the PMT stuff to start with and that there is a place
+       to put the returned value */
+    if(!have_v2_pmt || !rv) {
+        return -1;
+    }
+
+    parts[0] = (uint8_t)(code & 0xFF);
+    parts[1] = (uint8_t)((code >> 8) & 0xFF);
+    parts[2] = (uint8_t)((code >> 16) & 0xFF);
+
+    /* Make sure we're looking up a unit */
+    if(parts[0] != 0x01 || parts[1] != 0x03) {
+        return -2;
+    }
+
+    if(parts[2] >= num_units) {
+        return -3;
+    }
+
+    /* Grab the data and copy it out */
+    memcpy(rv, &units[parts[2]], sizeof(pmt_unit_v2_t));
     return 0;
 }
