@@ -26,6 +26,24 @@
 
 #define PACKED __attribute__((packed))
 
+typedef struct pmt_weapon_v2 {
+    uint16_t index;
+    uint16_t unused1;
+    uint8_t classes;
+    uint8_t unused2;
+    uint16_t atp_min;
+    uint16_t atp_max;
+    uint16_t atp_req;
+    uint16_t mst_req;
+    uint16_t ata_req;
+    uint8_t max_grind;
+    uint8_t photon;
+    uint8_t special;
+    uint8_t ata;
+    uint8_t stat_boost;
+    uint8_t unused3[3];
+} PACKED pmt_weapon_v2_t;
+
 typedef struct pmt_guard_v2 {
     uint16_t index;
     uint16_t unused1;
@@ -61,6 +79,7 @@ int pmt_v2_enabled(void);
 
 void pmt_cleanup(void);
 
+int pmt_lookup_weapon_v2(uint32_t code, pmt_weapon_v2_t *rv);
 int pmt_lookup_guard_v2(uint32_t code, pmt_guard_v2_t *rv);
 int pmt_lookup_unit_v2(uint32_t code, pmt_unit_v2_t *rv);
 

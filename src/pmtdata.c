@@ -28,6 +28,10 @@
 #include "utils.h"
 #include "packets.h"
 
+static pmt_weapon_v2_t **weapons = NULL;
+static uint32_t *num_weapons = NULL;
+static uint32_t num_weapon_types = 0;
+
 static pmt_guard_v2_t **guards = NULL;
 static uint32_t *num_guards = NULL;
 static uint32_t num_guard_types = 0;
@@ -60,6 +64,83 @@ static int read_ptr_tbl(const uint8_t *pmt, uint32_t sz, uint32_t ptrs[21]) {
         ptrs[i] = LE32(ptrs[i]);
     }
 #endif
+
+    return 0;
+}
+
+static int read_v2_weapons(const uint8_t *pmt, uint32_t sz,
+                           const uint32_t ptrs[21]) {
+    uint32_t cnt, i, values[2];
+#if defined(__BIG_ENDIAN__) || defined(WORDS_BIGENDIAN)
+    uint32_t j;
+#endif
+
+    /* Make sure the pointers are sane... */
+    if(ptrs[1] > sz || ptrs[1] > ptrs[11]) {
+        debug(DBG_ERROR, "ItemPMT.prs file for v2 has invalid weapon pointers. "
+              "Please check it for validity!\n");
+        return -1;
+    }
+
+    /* Figure out how many tables we have... */
+    num_weapon_types = cnt = (ptrs[11] - ptrs[1]) / 8;
+
+    /* Allocate the stuff we need to allocate... */
+    if(!(num_weapons = (uint32_t *)malloc(sizeof(uint32_t) * cnt))) {
+        debug(DBG_ERROR, "Cannot allocate space for v2 weapon count: %s\n",
+              strerror(errno));
+        num_weapon_types = 0;
+        return -2;
+    }
+
+    if(!(weapons = (pmt_weapon_v2_t **)malloc(sizeof(pmt_weapon_v2_t *) *
+                                              cnt))) {
+        debug(DBG_ERROR, "Cannot allocate space for v2 weapon list: %s\n",
+              strerror(errno));
+        free(num_weapons);
+        num_weapons = NULL;
+        num_weapon_types = 0;
+        return -3;
+    }
+
+    memset(weapons, 0, sizeof(pmt_weapon_v2_t *) * cnt);
+
+    /* Read in each table... */
+    for(i = 0; i < cnt; ++i) {
+        /* Read the pointer and the size... */
+        memcpy(values, pmt + ptrs[1] + (i << 3), sizeof(uint32_t) * 2);
+        values[0] = LE32(values[0]);
+        values[1] = LE32(values[1]);
+
+        /* Make sure we have enough file... */
+        if(values[1] + sizeof(pmt_weapon_v2_t) * values[0] > sz) {
+            debug(DBG_ERROR, "ItemPMT.prs file for v2 has weapon table outside "
+                  "of file bounds! Please check the file for validity!\n");
+            return -4;
+        }
+
+        num_weapons[i] = values[0];
+        if(!(weapons[i] = (pmt_weapon_v2_t *)malloc(sizeof(pmt_weapon_v2_t) *
+                                                    values[0]))) {
+            debug(DBG_ERROR, "Cannot allocate space for v2 weapons: %s\n",
+                  strerror(errno));
+            return -5;
+        }
+
+        memcpy(weapons[i], pmt + values[1],
+               sizeof(pmt_weapon_v2_t) * values[0]);
+
+#if defined(__BIG_ENDIAN__) || defined(WORDS_BIGENDIAN)
+        for(j = 0; j < values[0]; ++j) {
+            weapons[i][j].index = LE16(weapons[i][j].index);
+            weapons[i][j].atp_min = LE16(weapons[i][j].atp_min);
+            weapons[i][j].atp_max = LE16(weapons[i][j].atp_max);
+            weapons[i][j].atp_req = LE16(weapons[i][j].atp_req);
+            weapons[i][j].mst_req = LE16(weapons[i][j].mst_req);
+            weapons[i][j].ata_req = LE16(weapons[i][j].ata_req);
+        }
+#endif
+    }
 
     return 0;
 }
@@ -268,16 +349,22 @@ int pmt_read_v2(const char *fn) {
         return -9;
     }
 
-    /* Read in guards first... */
-    if(read_v2_guards(ucbuf, ucsz, ptrs)) {
+    /* Let's start with weapons... */
+    if(read_v2_weapons(ucbuf, ucsz, ptrs)) {
         free(ucbuf);
         return -10;
+    }
+
+    /* Grab the guards... */
+    if(read_v2_guards(ucbuf, ucsz, ptrs)) {
+        free(ucbuf);
+        return -11;
     }
 
     /* Next, read in the units... */
     if(read_v2_units(ucbuf, ucsz, ptrs)) {
         free(ucbuf);
-        return -11;
+        return -12;
     }
 
     /* Clean up the rest of the stuff we can */
@@ -294,17 +381,62 @@ int pmt_v2_enabled(void) {
 void pmt_cleanup(void) {
     uint32_t i;
 
+    for(i = 0; i < num_weapon_types; ++i) {
+        free(weapons[i]);
+    }
+
+    free(weapons);
+    free(num_weapons);
+
     for(i = 0; i < num_guard_types; ++i) {
         free(guards[i]);
     }
 
     free(guards);
     free(num_guards);
+    free(units);
 
+    weapons = NULL;
+    num_weapons = NULL;
     guards = NULL;
     num_guards = NULL;
+    units = NULL;
+    num_weapon_types = 0;
     num_guard_types = 0;
+    num_units = 0;
     have_v2_pmt = 0;
+}
+
+int pmt_lookup_weapon_v2(uint32_t code, pmt_weapon_v2_t *rv) {
+    uint8_t parts[3];
+
+    /* Make sure we loaded the PMT stuff to start with and that there is a place
+       to put the returned value */
+    if(!have_v2_pmt || !rv) {
+        return -1;
+    }
+
+    parts[0] = (uint8_t)(code & 0xFF);
+    parts[1] = (uint8_t)((code >> 8) & 0xFF);
+    parts[2] = (uint8_t)((code >> 16) & 0xFF);
+
+    /* Make sure we're looking up a weapon */
+    if(parts[0] != 0x00) {
+        return -2;
+    }
+
+    /* Make sure that we don't go out of bounds anywhere */
+    if(parts[1] > num_weapon_types) {
+        return -3;
+    }
+
+    if(parts[2] >= num_weapons[parts[1]]) {
+        return -4;
+    }
+
+    /* Grab the data and copy it out */
+    memcpy(rv, &weapons[parts[1] - 1][parts[2]], sizeof(pmt_weapon_v2_t));
+    return 0;
 }
 
 int pmt_lookup_guard_v2(uint32_t code, pmt_guard_v2_t *rv) {
