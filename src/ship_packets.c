@@ -2522,7 +2522,7 @@ static int send_dc_guild_reply(ship_client_t *c, ship_client_t *s) {
     lname[16] = 0;
 
     /* Fill in the location string. Everything here is ASCII, so this is safe */
-    sprintf(pkt->location, "%s,BLOCK%02d,%s", lname, b->b, ship->cfg->name);
+    sprintf(pkt->location, "%s,BLOCK%02d, ,%s", lname, b->b, ship->cfg->name);
 
     /* Send it away */
     return crypt_send(c, DC_GUILD_REPLY_LENGTH, sendbuf);
@@ -2532,6 +2532,7 @@ static int send_pc_guild_reply(ship_client_t *c, ship_client_t *s) {
     uint8_t *sendbuf = get_sendbuf();
     pc_guild_reply_pkt *pkt = (pc_guild_reply_pkt *)sendbuf;
     char tmp[0x44];
+    size_t len;
     lobby_t *l = s->cur_lobby;
     block_t *b = s->cur_block;
 
@@ -2560,8 +2561,13 @@ static int send_pc_guild_reply(ship_client_t *c, ship_client_t *s) {
 
     /* Fill in the location string. The lobby name is UTF-8 and everything
        else is ASCII (which is safe to use as UTF-8). */
-    sprintf(tmp, "%s,BLOCK%02d,%s", l->name, b->b, ship->cfg->name);
-    istrncpy(ic_utf8_to_utf16, (char *)pkt->location, tmp, 0x88);
+    istrncpy(ic_utf8_to_utf16, (char *)pkt->location, l->name, 0x1C);
+    pkt->location[14] = pkt->location[15] = 0;
+    len = strlen16(pkt->location);
+
+    sprintf(tmp, ",BLOCK%02d,%d,%s", b->b, l->lobby_id, ship->cfg->name);
+    istrncpy(ic_utf8_to_utf16, (char *)(pkt->location + len), tmp,
+             0x88 - len * 2);
 
     /* ...and the name. */
     if(s->version == CLIENT_VERSION_BB) {
@@ -2607,7 +2613,7 @@ static int send_bb_guild_reply(ship_client_t *c, ship_client_t *s) {
 
     /* Fill in the location string. The lobby name is UTF-8 and everything
        else is ASCII (which is safe to use as UTF-8). */
-    sprintf(tmp, "%s,BLOCK%02d,%s", l->name, b->b, ship->cfg->name);
+    sprintf(tmp, "%s,BLOCK%02d, ,%s", l->name, b->b, ship->cfg->name);
     istrncpy(ic_utf8_to_utf16, (char *)pkt->location, tmp, 0x88);
 
     /* ...and the name. */
@@ -2714,7 +2720,7 @@ static int send_dc_guild_reply6(ship_client_t *c, ship_client_t *s) {
     lname[16] = 0;
 
     /* Fill in the location string. Everything here is ASCII, so this is safe */
-    sprintf(pkt->location, "%s,BLOCK%02d,%s", lname, b->b, ship->cfg->name);
+    sprintf(pkt->location, "%s,BLOCK%02d, ,%s", lname, b->b, ship->cfg->name);
 
     /* Send it away */
     return crypt_send(c, DC_GUILD_REPLY6_LENGTH, sendbuf);
@@ -2724,6 +2730,7 @@ static int send_pc_guild_reply6(ship_client_t *c, ship_client_t *s) {
     uint8_t *sendbuf = get_sendbuf();
     pc_guild_reply6_pkt *pkt = (pc_guild_reply6_pkt *)sendbuf;
     char tmp[0x44];
+    size_t len;
     lobby_t *l = s->cur_lobby;
     block_t *b = s->cur_block;
 
@@ -2753,8 +2760,13 @@ static int send_pc_guild_reply6(ship_client_t *c, ship_client_t *s) {
 
     /* Fill in the location string. The lobby name is UTF-8 and everything
        else is ASCII (which is safe to use as UTF-8). */
-    sprintf(tmp, "%s,BLOCK%02d,%s", l->name, b->b, ship->cfg->name);
-    istrncpy(ic_utf8_to_utf16, (char *)pkt->location, tmp, 0x88);
+    istrncpy(ic_utf8_to_utf16, (char *)pkt->location, l->name, 0x1C);
+    pkt->location[14] = pkt->location[15] = 0;
+    len = strlen16(pkt->location);
+
+    sprintf(tmp, ",BLOCK%02d, ,%s", b->b, ship->cfg->name);
+    istrncpy(ic_utf8_to_utf16, (char *)(pkt->location + len), tmp,
+             0x88 - len * 2);
 
     /* ...and the name. */
     if(s->version == CLIENT_VERSION_BB) {
@@ -2802,7 +2814,7 @@ static int send_bb_guild_reply6(ship_client_t *c, ship_client_t *s) {
 
     /* Fill in the location string. The lobby name is UTF-8 and everything
        else is ASCII (which is safe to use as UTF-8). */
-    sprintf(tmp, "%s,BLOCK%02d,%s", l->name, b->b, ship->cfg->name);
+    sprintf(tmp, "%s,BLOCK%02d, ,%s", l->name, b->b, ship->cfg->name);
     istrncpy(ic_utf8_to_utf16, (char *)pkt->location, tmp, 0x88);
 
     /* ...and the name. */
@@ -3700,9 +3712,10 @@ static int send_pc_game_list(ship_client_t *c, block_t *b) {
             (l->battle ? 0x10 : 0x00) | (l->passwd[0] ? 2 : 0) |
             (l->v2 ? 0x40 : 0x00);
 
-        /* Copy the name */
+        /* Copy the name. For some unknown reason, PSOPC needs two NULs at the
+           end of names, or something... */
         istrncpy(ic_utf8_to_utf16, (char *)pkt->entries[entries].name, l->name,
-                 0x20);
+                 0x1C);
 
         /* Unlock the lobby */
         pthread_mutex_unlock(&l->mutex);
@@ -7697,6 +7710,7 @@ static int fill_one_choice_entry(uint8_t *sendbuf, int version,
         {
             pc_choice_reply_pkt *pkt = (pc_choice_reply_pkt *)sendbuf;
             char tmp[64];
+            size_t len;
 
             memset(&pkt->entries[entry], 0, 0x154);
             pkt->entries[entry].guildcard = LE32(it->guildcard);
@@ -7710,10 +7724,16 @@ static int fill_one_choice_entry(uint8_t *sendbuf, int version,
             istrncpy(ic_8859_to_utf16, (char *)pkt->entries[entry].cl_lvl, tmp,
                      0x40);
 
-            sprintf(tmp, "%s,BLOCK%02d,%s", it->cur_lobby->name, b->b,
-                    ship->cfg->name);
             istrncpy(ic_utf8_to_utf16, (char *)pkt->entries[entry].location,
-                     tmp, 0x60);
+                     it->cur_lobby->name, 0x1C);
+            pkt->entries[entry].location[14] = 0;
+            pkt->entries[entry].location[15] = 0;
+            len = strlen16(pkt->entries[entry].location);            
+
+            sprintf(tmp, ",BLOCK%02d,%s", b->b, ship->cfg->name);
+            istrncpy(ic_utf8_to_utf16,
+                     (char *)(pkt->entries[entry].location + len), tmp,
+                     0x60 - (len * 2));
 
             pkt->entries[entry].ip = ship_ip4;
             pkt->entries[entry].port = LE16(b->dc_port + port_off);
@@ -7776,6 +7796,7 @@ static int fill_one_choice6_entry(uint8_t *sendbuf, int version,
         {
             pc_choice_reply6_pkt *pkt = (pc_choice_reply6_pkt *)sendbuf;
             char tmp[64];
+            size_t len;
 
             memset(&pkt->entries[entry], 0, 0x160);
             pkt->entries[entry].guildcard = LE32(it->guildcard);
@@ -7789,10 +7810,16 @@ static int fill_one_choice6_entry(uint8_t *sendbuf, int version,
             istrncpy(ic_8859_to_utf16, (char *)pkt->entries[entry].cl_lvl, tmp,
                      0x40);
 
-            sprintf(tmp, "%s,BLOCK%02d,%s", it->cur_lobby->name, b->b,
-                    ship->cfg->name);
             istrncpy(ic_utf8_to_utf16, (char *)pkt->entries[entry].location,
-                     tmp, 0x60);
+                     it->cur_lobby->name, 0x1C);
+            pkt->entries[entry].location[14] = 0;
+            pkt->entries[entry].location[15] = 0;
+            len = strlen16(pkt->entries[entry].location);            
+
+            sprintf(tmp, ",BLOCK%02d,%s", b->b, ship->cfg->name);
+            istrncpy(ic_utf8_to_utf16,
+                     (char *)(pkt->entries[entry].location + len), tmp,
+                     0x60 - (len * 2));
 
             memcpy(pkt->entries[entry].ip, ship_ip6, 16);
             pkt->entries[entry].port = LE16(b->dc_port + port_off);
