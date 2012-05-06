@@ -1660,7 +1660,7 @@ static int bb_process_mail(ship_client_t *c, bb_simple_mail_pkt *pkt) {
 static int dc_process_game_create(ship_client_t *c, dc_game_create_pkt *pkt) {
     lobby_t *l;
     uint8_t event = ship->game_event;
-    char name[32];
+    char name[32], tmp[17];
 
     /* Check the user's ability to create a game of that difficulty. */
     if(!(c->flags & CLIENT_FLAG_OVERRIDE_GAME)) {
@@ -1673,11 +1673,14 @@ static int dc_process_game_create(ship_client_t *c, dc_game_create_pkt *pkt) {
     }
 
     /* Convert the team name to UTF-8 */
+    memcpy(tmp, pkt->name, 16);
+    tmp[16] = 0;
+
     if(pkt->name[1] == 'J') {
-        istrncpy(ic_sjis_to_utf8, name, pkt->name, 32);
+        istrncpy(ic_sjis_to_utf8, name, tmp, 32);
     }
     else {
-        istrncpy(ic_8859_to_utf8, name, pkt->name, 32);
+        istrncpy(ic_8859_to_utf8, name, tmp, 32);
     }
 
     /* Create the lobby structure. */
@@ -1760,7 +1763,7 @@ static int pc_process_game_create(ship_client_t *c, pc_game_create_pkt *pkt) {
 static int gc_process_game_create(ship_client_t *c, gc_game_create_pkt *pkt) {
     lobby_t *l;
     uint8_t event = ship->game_event;
-    char name[32];
+    char name[32], tmp[17];
 
     /* Check the user's ability to create a game of that difficulty. */
     if(!(c->flags & CLIENT_FLAG_OVERRIDE_GAME)) {
@@ -1773,11 +1776,14 @@ static int gc_process_game_create(ship_client_t *c, gc_game_create_pkt *pkt) {
     }
 
     /* Convert the team name to UTF-8 */
+    memcpy(tmp, pkt->name, 16);
+    tmp[16] = 0;
+
     if(pkt->name[1] == 'J') {
-        istrncpy(ic_sjis_to_utf8, name, pkt->name, 32);
+        istrncpy(ic_sjis_to_utf8, name, tmp, 32);
     }
     else {
-        istrncpy(ic_8859_to_utf8, name, pkt->name, 32);
+        istrncpy(ic_8859_to_utf8, name, tmp, 32);
     }
 
     /* Create the lobby structure. */
@@ -1808,14 +1814,17 @@ static int gc_process_game_create(ship_client_t *c, gc_game_create_pkt *pkt) {
 
 static int ep3_process_game_create(ship_client_t *c, ep3_game_create_pkt *pkt) {
     lobby_t *l;
-    char name[32];
+    char name[32], tmp[17];
 
     /* Convert the team name to UTF-8 */
+    memcpy(tmp, pkt->name, 16);
+    tmp[16] = 0;
+
     if(pkt->name[1] == 'J') {
-        istrncpy(ic_sjis_to_utf8, name, pkt->name, 32);
+        istrncpy(ic_sjis_to_utf8, name, tmp, 32);
     }
     else {
-        istrncpy(ic_8859_to_utf8, name, pkt->name, 32);
+        istrncpy(ic_8859_to_utf8, name, tmp, 32);
     }
 
     /* Create the lobby structure. */
