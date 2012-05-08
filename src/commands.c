@@ -172,13 +172,13 @@ static int handle_min_level(ship_client_t *c, const char *params) {
 
     /* Make sure the requested level is less than or equal to the game's maximum
        level. */
-    if(lvl > l->max_level + 1) {
+    if(lvl > l->max_level) {
         return send_txt(c, "%s",
                         __(c, "\tE\tC7Minimum level must be <= maximum."));
     }
 
     /* Set the value in the structure, and be on our way. */
-    l->min_level = lvl - 1;
+    l->min_level = lvl;
 
     return send_txt(c, "%s", __(c, "\tE\tC7Minimum level set."));
 }
@@ -210,13 +210,13 @@ static int handle_max_level(ship_client_t *c, const char *params) {
 
     /* Make sure the requested level is greater than or equal to the value for
        the game's minimum level. */
-    if(lvl < l->min_level + 1) {
+    if(lvl < l->min_level) {
         return send_txt(c, "%s",
                         __(c, "\tE\tC7Maximum level must be >= minimum."));
     }
     
     /* Set the value in the structure, and be on our way. */
-    l->max_level = lvl - 1;
+    l->max_level = lvl;
 
     return send_txt(c, "%s", __(c, "\tE\tC7Maximum level set."));
 }
