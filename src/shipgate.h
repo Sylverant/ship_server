@@ -45,7 +45,7 @@ typedef struct ship ship_t;
 
 #define PACKED __attribute__((packed))
 
-#define SHIPGATE_PROTO_VER  11
+#define SHIPGATE_PROTO_VER  12
 
 /* New header in protocol version 10 and newer. */
 typedef struct shipgate_hdr {
@@ -317,6 +317,8 @@ typedef struct shipgate_block_clients {
     struct {
         uint32_t guildcard;
         uint32_t lobby;
+        uint32_t dlobby;
+        uint32_t reserved;
         char ch_name[32];
         char lobby_name[32];
     } entries[0];
@@ -485,6 +487,7 @@ static const char shipgate_login_msg[] =
 
 /* Possible values for the fw_flags on a forwarded packet */
 #define FW_FLAG_PREFER_IPV6     0x00000001  /* Prefer IPv6 on reply */
+#define FW_FLAG_IS_PSOPC        0x00000002  /* Client is on PSOPC */
 
 /* Attempt to connect to the shipgate. Returns < 0 on error, returns 0 on
    success. */

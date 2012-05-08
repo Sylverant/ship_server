@@ -2461,7 +2461,7 @@ static int send_dc_guild_reply(ship_client_t *c, ship_client_t *s) {
     lobby_t *l = s->cur_lobby;
     block_t *b = s->cur_block;
     uint16_t port = 0;
-    char lname[17];
+    char lname[17], lobby_name[32];
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -2500,7 +2500,7 @@ static int send_dc_guild_reply(ship_client_t *c, ship_client_t *s) {
     pkt->ip = ship_ip4;
     pkt->port = LE16(port);
     pkt->menu_id = LE32(MENU_ID_LOBBY);
-    pkt->item_id = LE32(l->lobby_id);
+    pkt->item_id = LE32(s->lobby_id);
 
     /* iconv the name, if needed... */
     if(s->version == CLIENT_VERSION_BB) {
@@ -2511,18 +2511,34 @@ static int send_dc_guild_reply(ship_client_t *c, ship_client_t *s) {
         strcpy(pkt->name, s->pl->v1.name);
     }
 
-    /* iconv the lobby name */
-    if(l->name[0] == '\t' && l->name[1] == 'J') {
-        istrncpy(ic_utf8_to_sjis, lname, l->name, 16);
+    /* Fill in the location string. The lobby name is UTF-8 and everything
+       else is ASCII (which is safe to use as Shift-JIS or ISO-8859-1). */
+    if(s->lobby_id <= 15) {
+        sprintf(lobby_name, "BLOCK%02d-%02d", b->b, s->lobby_id);
     }
     else {
-        istrncpy(ic_utf8_to_8859, lname, l->name, 16);
+        sprintf(lobby_name, "BLOCK%02d-C%d", b->b, s->lobby_id - 15);
     }
 
-    lname[16] = 0;
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        sprintf(pkt->location, "%s, ,%s", lobby_name, ship->cfg->name);
+    }
+    else {
+        /* iconv the lobby name */
+        if(l->name[0] == '\t' && l->name[1] == 'J') {
+            istrncpy(ic_utf8_to_sjis, lname, l->name, 16);
+        }
+        else {
+            istrncpy(ic_utf8_to_8859, lname, l->name, 16);
+        }
 
-    /* Fill in the location string. Everything here is ASCII, so this is safe */
-    sprintf(pkt->location, "%s,BLOCK%02d, ,%s", lname, b->b, ship->cfg->name);
+        lname[16] = 0;
+
+        /* Fill in the location string. Everything here is ASCII, so this is
+           safe */
+        sprintf(pkt->location, "%s,%s, ,%s", lname, lobby_name,
+                ship->cfg->name);
+    }
 
     /* Send it away */
     return crypt_send(c, DC_GUILD_REPLY_LENGTH, sendbuf);
@@ -2531,7 +2547,7 @@ static int send_dc_guild_reply(ship_client_t *c, ship_client_t *s) {
 static int send_pc_guild_reply(ship_client_t *c, ship_client_t *s) {
     uint8_t *sendbuf = get_sendbuf();
     pc_guild_reply_pkt *pkt = (pc_guild_reply_pkt *)sendbuf;
-    char tmp[0x44];
+    char tmp[0x44], lobby_name[32];
     size_t len;
     lobby_t *l = s->cur_lobby;
     block_t *b = s->cur_block;
@@ -2557,17 +2573,30 @@ static int send_pc_guild_reply(ship_client_t *c, ship_client_t *s) {
     pkt->ip = ship_ip4;
     pkt->port = LE16(b->pc_port);
     pkt->menu_id = LE32(MENU_ID_LOBBY);
-    pkt->item_id = LE32(l->lobby_id);
+    pkt->item_id = LE32(s->lobby_id);
 
     /* Fill in the location string. The lobby name is UTF-8 and everything
        else is ASCII (which is safe to use as UTF-8). */
-    istrncpy(ic_utf8_to_utf16, (char *)pkt->location, l->name, 0x1C);
-    pkt->location[14] = pkt->location[15] = 0;
-    len = strlen16(pkt->location);
+    if(s->lobby_id <= 15) {
+        sprintf(lobby_name, "BLOCK%02d-%02d", b->b, s->lobby_id);
+    }
+    else {
+        sprintf(lobby_name, "BLOCK%02d-C%d", b->b, s->lobby_id - 15);
+    }
 
-    sprintf(tmp, ",BLOCK%02d,%d,%s", b->b, l->lobby_id, ship->cfg->name);
-    istrncpy(ic_utf8_to_utf16, (char *)(pkt->location + len), tmp,
-             0x88 - len * 2);
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        sprintf(tmp, "%s, ,%s", lobby_name, ship->cfg->name);
+        istrncpy(ic_utf8_to_utf16, (char *)pkt->location, tmp, 0x88);
+    }
+    else {
+        istrncpy(ic_utf8_to_utf16, (char *)pkt->location, l->name, 0x1C);
+        pkt->location[14] = pkt->location[15] = 0;
+        len = strlen16(pkt->location);
+
+        sprintf(tmp, ",%s, ,%s", lobby_name, ship->cfg->name);
+        istrncpy(ic_utf8_to_utf16, (char *)(pkt->location + len), tmp,
+                 0x88 - len * 2);
+    }
 
     /* ...and the name. */
     if(s->version == CLIENT_VERSION_BB) {
@@ -2584,7 +2613,7 @@ static int send_pc_guild_reply(ship_client_t *c, ship_client_t *s) {
 static int send_bb_guild_reply(ship_client_t *c, ship_client_t *s) {
     uint8_t *sendbuf = get_sendbuf();
     bb_guild_reply_pkt *pkt = (bb_guild_reply_pkt *)sendbuf;
-    char tmp[0x44];
+    char tmp[0x44], lobby_name[32];
     lobby_t *l = s->cur_lobby;
     block_t *b = s->cur_block;
 
@@ -2609,11 +2638,24 @@ static int send_bb_guild_reply(ship_client_t *c, ship_client_t *s) {
     pkt->ip = ship_ip4;
     pkt->port = LE16(b->bb_port);
     pkt->menu_id = LE32(MENU_ID_LOBBY);
-    pkt->item_id = LE32(l->lobby_id);
+    pkt->item_id = LE32(s->lobby_id);
 
     /* Fill in the location string. The lobby name is UTF-8 and everything
        else is ASCII (which is safe to use as UTF-8). */
-    sprintf(tmp, "%s,BLOCK%02d, ,%s", l->name, b->b, ship->cfg->name);
+    if(s->lobby_id <= 15) {
+        sprintf(lobby_name, "BLOCK%02d-%02d", b->b, s->lobby_id);
+    }
+    else {
+        sprintf(lobby_name, "BLOCK%02d-C%d", b->b, s->lobby_id - 15);
+    }
+
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        sprintf(tmp, "%s, , %s", lobby_name, ship->cfg->name);
+    }
+    else {
+        sprintf(tmp, "%s,%s, ,%s", l->name, lobby_name, ship->cfg->name);
+    }
+
     istrncpy(ic_utf8_to_utf16, (char *)pkt->location, tmp, 0x88);
 
     /* ...and the name. */
@@ -2658,7 +2700,7 @@ static int send_dc_guild_reply6(ship_client_t *c, ship_client_t *s) {
     lobby_t *l = s->cur_lobby;
     block_t *b = s->cur_block;
     uint16_t port = 0;
-    char lname[17];
+    char lname[17], lobby_name[32];
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -2698,7 +2740,7 @@ static int send_dc_guild_reply6(ship_client_t *c, ship_client_t *s) {
     memcpy(pkt->ip, ship_ip6, 16);
     pkt->port = LE16(port);
     pkt->menu_id = LE32(MENU_ID_LOBBY);
-    pkt->item_id = LE32(l->lobby_id);
+    pkt->item_id = LE32(s->lobby_id);
 
     /* iconv the name, if needed... */
     if(s->version == CLIENT_VERSION_BB) {
@@ -2709,18 +2751,34 @@ static int send_dc_guild_reply6(ship_client_t *c, ship_client_t *s) {
         strcpy(pkt->name, s->pl->v1.name);
     }
 
-    /* iconv the lobby name */
-    if(l->name[0] == '\t' && l->name[1] == 'J') {
-        istrncpy(ic_utf8_to_sjis, lname, l->name, 16);
+    /* Fill in the location string. The lobby name is UTF-8 and everything
+       else is ASCII (which is safe to use as Shift-JIS or ISO-8859-1). */
+    if(s->lobby_id <= 15) {
+        sprintf(lobby_name, "BLOCK%02d-%02d", b->b, s->lobby_id);
     }
     else {
-        istrncpy(ic_utf8_to_8859, lname, l->name, 16);
+        sprintf(lobby_name, "BLOCK%02d-C%d", b->b, s->lobby_id - 15);
     }
 
-    lname[16] = 0;
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        sprintf(pkt->location, "%s, ,%s", lobby_name, ship->cfg->name);
+    }
+    else {
+        /* iconv the lobby name */
+        if(l->name[0] == '\t' && l->name[1] == 'J') {
+            istrncpy(ic_utf8_to_sjis, lname, l->name, 16);
+        }
+        else {
+            istrncpy(ic_utf8_to_8859, lname, l->name, 16);
+        }
+        
+        lname[16] = 0;
 
-    /* Fill in the location string. Everything here is ASCII, so this is safe */
-    sprintf(pkt->location, "%s,BLOCK%02d, ,%s", lname, b->b, ship->cfg->name);
+        /* Fill in the location string. Everything here is ASCII, so this is
+           safe */
+        sprintf(pkt->location, "%s,%s, ,%s", lname, lobby_name,
+                ship->cfg->name);
+    }
 
     /* Send it away */
     return crypt_send(c, DC_GUILD_REPLY6_LENGTH, sendbuf);
@@ -2729,7 +2787,7 @@ static int send_dc_guild_reply6(ship_client_t *c, ship_client_t *s) {
 static int send_pc_guild_reply6(ship_client_t *c, ship_client_t *s) {
     uint8_t *sendbuf = get_sendbuf();
     pc_guild_reply6_pkt *pkt = (pc_guild_reply6_pkt *)sendbuf;
-    char tmp[0x44];
+    char tmp[0x44], lobby_name[32];
     size_t len;
     lobby_t *l = s->cur_lobby;
     block_t *b = s->cur_block;
@@ -2756,17 +2814,30 @@ static int send_pc_guild_reply6(ship_client_t *c, ship_client_t *s) {
     memcpy(pkt->ip, ship_ip6, 16);
     pkt->port = LE16(b->pc_port);
     pkt->menu_id = LE32(MENU_ID_LOBBY);
-    pkt->item_id = LE32(l->lobby_id);
+    pkt->item_id = LE32(s->lobby_id);
 
     /* Fill in the location string. The lobby name is UTF-8 and everything
        else is ASCII (which is safe to use as UTF-8). */
-    istrncpy(ic_utf8_to_utf16, (char *)pkt->location, l->name, 0x1C);
-    pkt->location[14] = pkt->location[15] = 0;
-    len = strlen16(pkt->location);
+    if(s->lobby_id <= 15) {
+        sprintf(lobby_name, "BLOCK%02d-%02d", b->b, s->lobby_id);
+    }
+    else {
+        sprintf(lobby_name, "BLOCK%02d-C%d", b->b, s->lobby_id - 15);
+    }
 
-    sprintf(tmp, ",BLOCK%02d, ,%s", b->b, ship->cfg->name);
-    istrncpy(ic_utf8_to_utf16, (char *)(pkt->location + len), tmp,
-             0x88 - len * 2);
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        sprintf(tmp, "%s, ,%s", lobby_name, ship->cfg->name);
+        istrncpy(ic_utf8_to_utf16, (char *)pkt->location, tmp, 0x88);
+    }
+    else {
+        istrncpy(ic_utf8_to_utf16, (char *)pkt->location, l->name, 0x1C);
+        pkt->location[14] = pkt->location[15] = 0;
+        len = strlen16(pkt->location);
+
+        sprintf(tmp, ",%s, ,%s", lobby_name, ship->cfg->name);
+        istrncpy(ic_utf8_to_utf16, (char *)(pkt->location + len), tmp,
+                 0x88 - len * 2);
+    }
 
     /* ...and the name. */
     if(s->version == CLIENT_VERSION_BB) {
@@ -2784,7 +2855,7 @@ static int send_pc_guild_reply6(ship_client_t *c, ship_client_t *s) {
 static int send_bb_guild_reply6(ship_client_t *c, ship_client_t *s) {
     uint8_t *sendbuf = get_sendbuf();
     bb_guild_reply6_pkt *pkt = (bb_guild_reply6_pkt *)sendbuf;
-    char tmp[0x44];
+    char tmp[0x44], lobby_name[32];
     lobby_t *l = s->cur_lobby;
     block_t *b = s->cur_block;
 
@@ -2810,11 +2881,24 @@ static int send_bb_guild_reply6(ship_client_t *c, ship_client_t *s) {
     memcpy(pkt->ip, ship_ip6, 16);
     pkt->port = LE16(b->bb_port);
     pkt->menu_id = LE32(MENU_ID_LOBBY);
-    pkt->item_id = LE32(l->lobby_id);
+    pkt->item_id = LE32(s->lobby_id);
 
     /* Fill in the location string. The lobby name is UTF-8 and everything
        else is ASCII (which is safe to use as UTF-8). */
-    sprintf(tmp, "%s,BLOCK%02d, ,%s", l->name, b->b, ship->cfg->name);
+    if(s->lobby_id <= 15) {
+        sprintf(lobby_name, "BLOCK%02d-%02d", b->b, s->lobby_id);
+    }
+    else {
+        sprintf(lobby_name, "BLOCK%02d-C%d", b->b, s->lobby_id - 15);
+    }
+
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        sprintf(tmp, "%s, , %s", lobby_name, ship->cfg->name);
+    }
+    else {
+        sprintf(tmp, "%s,%s, ,%s", l->name, lobby_name, ship->cfg->name);
+    }
+
     istrncpy(ic_utf8_to_utf16, (char *)pkt->location, tmp, 0x88);
 
     /* ...and the name. */

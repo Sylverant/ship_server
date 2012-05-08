@@ -162,6 +162,14 @@ static int shipgate_conn(ship_t *s, shipgate_conn_t *rv, int reconn) {
         }
 
         rv->has_key = 0;
+        rv->hdr_read = 0;
+        free(rv->recvbuf);
+        rv->recvbuf = NULL;
+        rv->recvbuf_cur = rv->recvbuf_size = 0;
+
+        free(rv->sendbuf);
+        rv->sendbuf = NULL;
+        rv->sendbuf_cur = rv->sendbuf_size = 0;
     }
     else {
         /* Clear it first. */
@@ -2417,6 +2425,7 @@ int shipgate_send_clients(shipgate_conn_t *c) {
 
                     /* Fill in what we have */
                     pkt->entries[count].guildcard = htonl(cl->guildcard);
+                    pkt->entries[count].dlobby = htonl(cl->lobby_id);
 
                     if(cl->version != CLIENT_VERSION_BB) {
                         strncpy(pkt->entries[count].ch_name, cl->pl->v1.name,
@@ -2438,7 +2447,7 @@ int shipgate_send_clients(shipgate_conn_t *c) {
 
                     /* Increment the counter/size */
                     ++count;
-                    size += 72;
+                    size += 80;
                 }
 
                 pthread_mutex_unlock(&cl->mutex);

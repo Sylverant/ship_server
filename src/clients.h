@@ -102,6 +102,7 @@ struct ship_client {
     int item_count;
 
     int autoreply_len;
+    int lobby_id;
 
     float x;
     float y;

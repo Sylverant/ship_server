@@ -708,6 +708,7 @@ int lobby_add_to_any(ship_client_t *c, lobby_t *req) {
            req->num_clients < req->max_clients) {
             /* They should be OK to join this one... */
             if(!lobby_add_client_locked(c, req)) {
+                c->lobby_id = req->lobby_id;
                 pthread_mutex_unlock(&req->mutex);
                 return 0;
             }
@@ -729,6 +730,7 @@ int lobby_add_to_any(ship_client_t *c, lobby_t *req) {
             /* We've got a candidate, add away. */
             if(!lobby_add_client_locked(c, l)) {
                 added = 1;
+                c->lobby_id = l->lobby_id;
             }
         }
 
@@ -768,6 +770,8 @@ int lobby_change_lobby(ship_client_t *c, lobby_t *req) {
         if(send_lobby_add_player(l, c)) {
             return -11;
         }
+
+        c->lobby_id = l->lobby_id;
 
         /* Send the message to the shipgate */
         shipgate_send_lobby_chg(&ship->sg, c->guildcard, l->lobby_id,
@@ -889,6 +893,7 @@ int lobby_change_lobby(ship_client_t *c, lobby_t *req) {
     /* ...tell the client they've changed lobbies successfully... */
     if(c->cur_lobby->type == LOBBY_TYPE_DEFAULT) {
         send_lobby_join(c, c->cur_lobby);
+        c->lobby_id = c->cur_lobby->lobby_id;
     }
     else {
         send_game_join(c, c->cur_lobby);
