@@ -94,6 +94,7 @@ ship_client_t *client_create_connection(int sock, int version, int type,
     uint8_t client_seed_bb[48], server_seed_bb[48];
     int i;
     pthread_mutexattr_t attr;
+    struct mt19937_state *rng;
 
     if(!rv) {
         perror("malloc");
@@ -169,6 +170,10 @@ ship_client_t *client_create_connection(int sock, int version, int type,
 
     if(type == CLIENT_TYPE_SHIP) {
         rv->flags |= CLIENT_FLAG_TYPE_SHIP;
+        rng = &ship->rng;
+    }
+    else {
+        rng = &block->rng;
     }
 
 #ifdef HAVE_PYTHON
@@ -191,8 +196,8 @@ ship_client_t *client_create_connection(int sock, int version, int type,
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_PC:
             /* Generate the encryption keys for the client and server. */
-            client_seed_dc = genrand_int32();
-            server_seed_dc = genrand_int32();
+            client_seed_dc = mt19937_genrand_int32(rng);
+            server_seed_dc = mt19937_genrand_int32(rng);
 
             CRYPT_CreateKeys(&rv->skey, &server_seed_dc, CRYPT_PC);
             CRYPT_CreateKeys(&rv->ckey, &client_seed_dc, CRYPT_PC);
@@ -207,8 +212,8 @@ ship_client_t *client_create_connection(int sock, int version, int type,
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
             /* Generate the encryption keys for the client and server. */
-            client_seed_dc = genrand_int32();
-            server_seed_dc = genrand_int32();
+            client_seed_dc = mt19937_genrand_int32(rng);
+            server_seed_dc = mt19937_genrand_int32(rng);
 
             CRYPT_CreateKeys(&rv->skey, &server_seed_dc, CRYPT_GAMECUBE);
             CRYPT_CreateKeys(&rv->ckey, &client_seed_dc, CRYPT_GAMECUBE);
@@ -223,8 +228,8 @@ ship_client_t *client_create_connection(int sock, int version, int type,
         case CLIENT_VERSION_BB:
             /* Generate the encryption keys for the client and server. */
             for(i = 0; i < 48; i += 4) {
-                client_seed_dc = genrand_int32();
-                server_seed_dc = genrand_int32();
+                client_seed_dc = mt19937_genrand_int32(rng);
+                server_seed_dc = mt19937_genrand_int32(rng);
 
                 client_seed_bb[i + 0] = (uint8_t)(client_seed_dc >>  0);
                 client_seed_bb[i + 1] = (uint8_t)(client_seed_dc >>  8);

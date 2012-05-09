@@ -732,6 +732,9 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
         }
     }
 
+    /* Create the random number generator state */
+    mt19937_init(&rv->rng, (uint32_t)time(NULL));
+
     /* Connect to the shipgate. */
     if(shipgate_connect(rv, &rv->sg)) {
         debug(DBG_ERROR, "%s: Couldn't connect to shipgate!\n", s->name);

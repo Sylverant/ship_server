@@ -333,6 +333,7 @@ block_t *block_server_start(ship_t *s, int b, uint16_t port) {
     int gcsock[2] = { -1, -1 }, ep3sock[2] = { -1, -1 };
     int bbsock[2] = { -1, -1 }, i;
     lobby_t *l, *l2;
+    uint32_t rng_seed;
 
     debug(DBG_LOG, "%s: Starting server for block %d...\n", s->cfg->name, b);
 
@@ -451,6 +452,12 @@ block_t *block_server_start(ship_t *s, int b, uint16_t port) {
     /* Create the reader-writer locks */
     pthread_rwlock_init(&rv->lock, NULL);
     pthread_rwlock_init(&rv->lobby_lock, NULL);
+
+    /* Initialize the random number generator. The seed value is the current
+       UNIX time, xored with the port (so that each block will use a different
+       seed even though they'll probably get the same timestamp). */
+    rng_seed = (uint32_t)(time(NULL) ^ port);
+    mt19937_init(&rv->rng, rng_seed);
 
     /* Start up the thread for this block. */
     if(pthread_create(&rv->thd, NULL, &block_thd, rv)) {

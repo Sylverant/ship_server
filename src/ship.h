@@ -25,6 +25,7 @@
 #include <sylverant/config.h>
 #include <sylverant/quest.h>
 #include <sylverant/items.h>
+#include <sylverant/mtwist.h>
 
 #include "gm.h"
 #include "block.h"
@@ -109,6 +110,8 @@ struct ship {
     struct miniship_queue ships;
     int mccount;
     uint16_t *menu_codes;
+
+    struct mt19937_state rng;
 };
 
 #ifndef SHIP_DEFINED

@@ -1633,6 +1633,7 @@ static int handle_bb_bank(ship_client_t *c, subcmd_bb_bank_open_t *req) {
     uint32_t num_items = LE32(c->bb_pl->bank.item_count);
     uint16_t size = sizeof(subcmd_bb_bank_inv_t) + num_items *
         sizeof(sylverant_bitem_t);
+    block_t *b = c->cur_block;
 
     /* We can't get these in default lobbies without someone messing with
        something that they shouldn't be... Disconnect anyone that tries. */
@@ -1660,7 +1661,7 @@ static int handle_bb_bank(ship_client_t *c, subcmd_bb_bank_open_t *req) {
     pkt->type = SUBCMD_BANK_INV;
     pkt->unused[0] = pkt->unused[1] = pkt->unused[2] = 0;
     pkt->size = LE32(size);
-    pkt->checksum = genrand_int32();  /* Client doesn't care */
+    pkt->checksum = mt19937_genrand_int32(&b->rng); /* Client doesn't care */
     memcpy(&pkt->item_count, &c->bb_pl->bank, sizeof(sylverant_bank_t));
 
     return crypt_send(c, (int)size, sendbuf);
@@ -2673,6 +2674,7 @@ static int subcmd_send_shop_inv(ship_client_t *c, subcmd_bb_shop_req_t *req) {
     /* XXXX: Hard coded for now... */
     subcmd_bb_shop_inv_t shop;
     int i;
+    block_t *b = c->cur_block;
 
     memset(&shop, 0, sizeof(shop));
 
@@ -2687,7 +2689,7 @@ static int subcmd_send_shop_inv(ship_client_t *c, subcmd_bb_shop_req_t *req) {
     for(i = 0; i < 0x0B; ++i) {
         shop.items[i].item_data[0] = LE32((0x03 | (i << 8)));
         shop.items[i].reserved = 0xFFFFFFFF;
-        shop.items[i].cost = LE32((genrand_int32() % 255));
+        shop.items[i].cost = LE32((mt19937_genrand_int32(&b->rng) % 255));
     }
 
     return send_pkt_bb(c, (bb_pkt_hdr_t *)&shop);

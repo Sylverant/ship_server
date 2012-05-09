@@ -415,7 +415,8 @@ int pt_v3_enabled(void) {
    sorry for you. Just think how I feel while writing the comment and the code
    below. :P
 */
-static int generate_weapon_v2(pt_v2_entry_t *ent, int area, uint32_t item[4]) {
+static int generate_weapon_v2(pt_v2_entry_t *ent, int area, uint32_t item[4],
+                              struct mt19937_state *rng) {
     uint32_t rnd, upcts = 0;
     int i, j = 0, k, wchance = 0, warea = 0, npcts = 0;
     int wtypes[12] = { 0 }, wranks[12] = { 0 }, gptrn[12] = { 0 };
@@ -467,7 +468,7 @@ static int generate_weapon_v2(pt_v2_entry_t *ent, int area, uint32_t item[4]) {
     }
 
     /* Roll the dice! */
-    rnd = genrand_int32() % wchance;
+    rnd = mt19937_genrand_int32(rng) % wchance;
     for(i = 0; i < j; ++i) {
         if((rnd -= ent->weapon_ratio[wtypes[i]]) > wchance) {
             item[0] = ((wtypes[i] + 1) << 8) | (wranks[i] << 16);
@@ -486,7 +487,7 @@ static int generate_weapon_v2(pt_v2_entry_t *ent, int area, uint32_t item[4]) {
     }
 
     /* Next up, determine the grind value. */
-    rnd = genrand_int32() % 100;
+    rnd = mt19937_genrand_int32(rng) % 100;
     for(i = 0; i < 9; ++i) {
         if((rnd -= ent->power_pattern[i][warea]) > 100) {
             item[0] |= (i << 24);
@@ -508,7 +509,7 @@ static int generate_weapon_v2(pt_v2_entry_t *ent, int area, uint32_t item[4]) {
         if(ent->area_pattern[i][area] < 0)
             continue;
 
-        rnd = genrand_int32() % 100;
+        rnd = mt19937_genrand_int32(rng) % 100;
         warea = ent->area_pattern[i][area];
 
         for(j = 0; j < 23; ++j) {
@@ -520,7 +521,7 @@ static int generate_weapon_v2(pt_v2_entry_t *ent, int area, uint32_t item[4]) {
                 }
 
                 /* Lets see what type we'll generate now... */
-                rnd = genrand_int32() % 100;
+                rnd = mt19937_genrand_int32(rng) % 100;
                 for(k = 0; k < 6; ++k) {
                     if((rnd -= ent->percent_attachment[k][area]) > 100) {
                         if(k == 0 || (upcts & (1 << k)))
@@ -543,9 +544,10 @@ static int generate_weapon_v2(pt_v2_entry_t *ent, int area, uint32_t item[4]) {
     /* Finally, lets see if there's going to be an elemental attribute applied
        to this weapon... */
     if(ent->element_ranking[area]) {
-        rnd = genrand_int32() % 100;
+        rnd = mt19937_genrand_int32(rng) % 100;
         if(rnd < ent->element_probability[area]) {
-            rnd = genrand_int32() % attr_count[ent->element_ranking[area] - 1];
+            rnd = mt19937_genrand_int32(rng) %
+                attr_count[ent->element_ranking[area] - 1];
             item[1] = 0x80 | attr_list[ent->element_ranking[area] - 1][rnd];
         }
     }
@@ -587,7 +589,8 @@ static int generate_weapon_v2(pt_v2_entry_t *ent, int area, uint32_t item[4]) {
    handled by generating a random number in [0, max] where max is the dfp or
    evp range defined in the PMT data.
 */
-static int generate_armor_v2(pt_v2_entry_t *ent, int area, uint32_t item[4]) {
+static int generate_armor_v2(pt_v2_entry_t *ent, int area, uint32_t item[4],
+                             struct mt19937_state *rng) {
     uint32_t rnd;
     int i, armor = -1;
     uint8_t *item_b = (uint8_t *)item;
@@ -596,7 +599,7 @@ static int generate_armor_v2(pt_v2_entry_t *ent, int area, uint32_t item[4]) {
 
     /* Go through each slot in the armor rankings to figure out which one that
        we'll be generating. */
-    rnd = genrand_int32() % 100;
+    rnd = mt19937_genrand_int32(rng) % 100;
     for(i = 0; i < 5; ++i) {
         if((rnd -= ent->armor_ranking[i]) > 100) {
             armor = i;
@@ -616,7 +619,7 @@ static int generate_armor_v2(pt_v2_entry_t *ent, int area, uint32_t item[4]) {
     item[0] = 0x00000101 | (armor << 16);
 
     /* Pick a number of unit slots */
-    rnd = genrand_int32() % 100;
+    rnd = mt19937_genrand_int32(rng) % 100;
     for(i = 0; i < 5; ++i) {
         if((rnd -= ent->slot_ranking[i]) > 100) {
             item_b[5] = i;
@@ -633,12 +636,12 @@ static int generate_armor_v2(pt_v2_entry_t *ent, int area, uint32_t item[4]) {
     }
 
     if(guard.dfp_range) {
-        rnd = genrand_int32() % (guard.dfp_range + 1);
+        rnd =mt19937_genrand_int32(rng) % (guard.dfp_range + 1);
         item_w[3] = (uint16_t)rnd;
     }
 
     if(guard.evp_range) {
-        rnd = genrand_int32() % (guard.evp_range + 1);
+        rnd = mt19937_genrand_int32(rng) % (guard.evp_range + 1);
         item_w[4] = (uint16_t)rnd;
     }
 
@@ -647,7 +650,8 @@ static int generate_armor_v2(pt_v2_entry_t *ent, int area, uint32_t item[4]) {
 
 /* Generate a random shield, based on data for PSOv2. This is exactly the same
    as the armor version, but without unit slots. */
-static int generate_shield_v2(pt_v2_entry_t *ent, int area, uint32_t item[4]) {
+static int generate_shield_v2(pt_v2_entry_t *ent, int area, uint32_t item[4],
+                              struct mt19937_state *rng) {
     uint32_t rnd;
     int i, armor = -1;
     uint16_t *item_w = (uint16_t *)item;
@@ -655,7 +659,7 @@ static int generate_shield_v2(pt_v2_entry_t *ent, int area, uint32_t item[4]) {
 
     /* Go through each slot in the armor rankings to figure out which one that
        we'll be generating. */
-    rnd = genrand_int32() % 100;
+    rnd = mt19937_genrand_int32(rng) % 100;
     for(i = 0; i < 5; ++i) {
         if((rnd -= ent->armor_ranking[i]) > 100) {
             armor = i;
@@ -683,20 +687,21 @@ static int generate_shield_v2(pt_v2_entry_t *ent, int area, uint32_t item[4]) {
     }
 
     if(guard.dfp_range) {
-        rnd = genrand_int32() % (guard.dfp_range + 1);
+        rnd = mt19937_genrand_int32(rng) % (guard.dfp_range + 1);
         item_w[3] = (uint16_t)rnd;
     }
 
     if(guard.evp_range) {
-        rnd = genrand_int32() % (guard.evp_range + 1);
+        rnd = mt19937_genrand_int32(rng) % (guard.evp_range + 1);
         item_w[4] = (uint16_t)rnd;
     }
 
     return 0;
 }
 
-static uint32_t generate_tool_base(uint16_t freqs[28][10], int area) {
-    uint32_t rnd = genrand_int32() % 10000;
+static uint32_t generate_tool_base(uint16_t freqs[28][10], int area,
+                                   struct mt19937_state *rng) {
+    uint32_t rnd = mt19937_genrand_int32(rng) % 10000;
     int i;
 
     for(i = 0; i < 28; ++i) {
@@ -709,12 +714,13 @@ static uint32_t generate_tool_base(uint16_t freqs[28][10], int area) {
 }
 
 static int generate_tech(uint8_t freqs[19][10], int8_t levels[19][20],
-                         int area, uint32_t item[4]) {
+                         int area, uint32_t item[4],
+                         struct mt19937_state *rng) {
     uint32_t rnd, tech, level;
     uint32_t t1, t2;
     int i;
 
-    rnd = genrand_int32();
+    rnd = mt19937_genrand_int32(rng);
     tech = rnd % 1000;
     rnd /= 1000;
 
@@ -741,8 +747,9 @@ static int generate_tech(uint8_t freqs[19][10], int8_t levels[19][20],
     return -1;
 }
 
-static int generate_tool_v2(pt_v2_entry_t *ent, int area, uint32_t item[4]) {
-    item[0] = generate_tool_base(ent->tool_frequency, area);
+static int generate_tool_v2(pt_v2_entry_t *ent, int area, uint32_t item[4],
+                            struct mt19937_state *rng) {
+    item[0] = generate_tool_base(ent->tool_frequency, area, rng);
 
     /* Neither of these should happen, but just in case... */
     if(item[0] == Item_Photon_Drop || item[0] == Item_NoSuchItem) {
@@ -760,7 +767,7 @@ static int generate_tool_v2(pt_v2_entry_t *ent, int area, uint32_t item[4]) {
 
     if(item[0] == Item_Disk_Lv01) {
         if(generate_tech(ent->tech_frequency, ent->tech_levels, area,
-                         item)) {
+                         item, rng)) {
             debug(DBG_WARN, "Generated invalid technique! Please check "
                   "your ItemPT.afs file for validity!\n");
             return -1;
@@ -770,11 +777,12 @@ static int generate_tool_v2(pt_v2_entry_t *ent, int area, uint32_t item[4]) {
     return 0;
 }
 
-static int generate_meseta(int min, int max, uint32_t item[4]) {
+static int generate_meseta(int min, int max, uint32_t item[4],
+                           struct mt19937_state *rng) {
     uint32_t rnd;
 
     if(min < max)
-        rnd = (genrand_int32() % ((max + 1) - min)) + min;
+        rnd = (mt19937_genrand_int32(rng) % ((max + 1) - min)) + min;
     else
         rnd = min;
 
@@ -796,6 +804,7 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
     uint32_t rnd;
     uint32_t item[4];
     int area;
+    struct mt19937_state *rng = &c->cur_block->rng;
 
     /* Make sure the PT index in the packet is sane */
     if(req->pt_index > 0x30)
@@ -806,7 +815,7 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
         return pt_generate_v2_boxdrop(c, l, r);
 
     /* See if the enemy is going to drop anything at all this time... */
-    rnd = genrand_int32() % 100;
+    rnd = mt19937_genrand_int32(rng) % 100;
 
     if(rnd >= ent->enemy_dar[req->pt_index])
         /* Nope. You get nothing! */
@@ -841,14 +850,14 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
     --area;
 
     /* Figure out what type to drop... */
-    rnd = genrand_int32() % 3;
+    rnd = mt19937_genrand_int32(rng) % 3;
     switch(rnd) {
         case 0:
             /* Drop the enemy's designated type of item. */
             switch(ent->enemy_drop[req->pt_index]) {
                 case BOX_TYPE_WEAPON:
                     /* Drop a weapon */
-                    if(generate_weapon_v2(ent, area, item)) {
+                    if(generate_weapon_v2(ent, area, item, rng)) {
                         return 0;
                     }
 
@@ -856,7 +865,7 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
 
                 case BOX_TYPE_ARMOR:
                     /* Drop an armor */
-                    if(generate_armor_v2(ent, area, item)) {
+                    if(generate_armor_v2(ent, area, item, rng)) {
                         return 0;
                     }
 
@@ -864,7 +873,7 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
 
                 case BOX_TYPE_SHIELD:
                     /* Drop a shield */
-                    if(generate_shield_v2(ent, area, item)) {
+                    if(generate_shield_v2(ent, area, item, rng)) {
                         return 0;
                     }
 
@@ -890,7 +899,7 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
 
         case 1:
             /* Drop a tool */
-            if(generate_tool_v2(ent, area, item)) {
+            if(generate_tool_v2(ent, area, item, rng)) {
                 return 0;
             }
 
@@ -900,7 +909,8 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
 drop_meseta:
             /* Drop meseta */
             if(generate_meseta(ent->enemy_meseta[req->pt_index][0],
-                               ent->enemy_meseta[req->pt_index][1], item)) {
+                               ent->enemy_meseta[req->pt_index][1],
+                               item, rng)) {
                 return 0;
             }
 
@@ -920,6 +930,7 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
     int area;
     uint32_t item[4];
     float f1, f2;
+    struct mt19937_state *rng = &c->cur_block->rng;
 
     /* Make sure this is actually a box drop... */
     if(req->pt_index != 0x30)
@@ -1007,12 +1018,12 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
     /* XXXX: Make sure we don't need to drop a rare */
 
     /* Generate an item, according to the PT data */
-    rnd = genrand_int32() % 100;
+    rnd = mt19937_genrand_int32(rng) % 100;
 
     if((rnd -= ent->box_drop[BOX_TYPE_WEAPON][area]) > 100) {
 generate_weapon:
         /* Generate a weapon */
-        if(generate_weapon_v2(ent, area, item)) {
+        if(generate_weapon_v2(ent, area, item, rng)) {
             return 0;
         }
 
@@ -1021,7 +1032,7 @@ generate_weapon:
     else if((rnd -= ent->box_drop[BOX_TYPE_ARMOR][area]) > 100) {
 generate_armor:
         /* Generate an armor */
-        if(generate_armor_v2(ent, area, item)) {
+        if(generate_armor_v2(ent, area, item, rng)) {
             return 0;
         }
 
@@ -1029,7 +1040,7 @@ generate_armor:
     }
     else if((rnd -= ent->box_drop[BOX_TYPE_SHIELD][area]) > 100) {
         /* Generate a shield */
-        if(generate_shield_v2(ent, area, item)) {
+        if(generate_shield_v2(ent, area, item, rng)) {
             return 0;
         }
 
@@ -1042,7 +1053,7 @@ generate_armor:
     else if((rnd -= ent->box_drop[BOX_TYPE_TOOL][area]) > 100) {
 generate_tool:
         /* Generate a tool */
-        if(generate_tool_v2(ent, area, item)) {
+        if(generate_tool_v2(ent, area, item, rng)) {
             return 0;
         }
 
@@ -1052,7 +1063,7 @@ generate_tool:
 generate_meseta:
         /* Generate money! */
         if(generate_meseta(ent->box_meseta[area][0], ent->box_meseta[area][1],
-                           item)) {
+                           item, rng)) {
             return 0;
         }
 
@@ -1072,11 +1083,12 @@ int pt_generate_v3_drop(ship_client_t *c, lobby_t *l, void *r) {
     uint32_t rnd;
     uint16_t t1, t2;
     uint32_t i[4];
+    struct mt19937_state *rng = &c->cur_block->rng;
 
     dar = ent->enemy_dar[req->pt_index];
 
     /* See if the enemy is going to drop anything at all this time... */
-    rnd = genrand_int32() % 100;
+    rnd = mt19937_genrand_int32(rng) % 100;
 
     if(rnd >= dar)
         /* Nope. You get nothing! */
@@ -1086,7 +1098,7 @@ int pt_generate_v3_drop(ship_client_t *c, lobby_t *l, void *r) {
     t1 = ent->enemy_meseta[req->pt_index][0];
     t2 = ent->enemy_meseta[req->pt_index][1];
     if(t1 < t2)
-        rnd = (genrand_int32() % (t2 - t1)) + t1;
+        rnd = (mt19937_genrand_int32(rng) % (t2 - t1)) + t1;
     else
         rnd = (uint32_t)t1;
 
@@ -1112,6 +1124,7 @@ int pt_generate_bb_drop(ship_client_t *c, lobby_t *l, void *r) {
     uint32_t i[4];
     item_t *item;
     int rv;
+    struct mt19937_state *rng = &c->cur_block->rng;
 
     /* XXXX: Handle Episode 4! */
     if(l->episode == 3)
@@ -1121,7 +1134,7 @@ int pt_generate_bb_drop(ship_client_t *c, lobby_t *l, void *r) {
     dar = ent->enemy_dar[req->pt_index];
 
     /* See if the enemy is going to drop anything at all this time... */
-    rnd = genrand_int32() % 100;
+    rnd = mt19937_genrand_int32(rng) % 100;
 
     if(rnd >= dar)
         /* Nope. You get nothing! */
@@ -1131,7 +1144,7 @@ int pt_generate_bb_drop(ship_client_t *c, lobby_t *l, void *r) {
     t1 = ent->enemy_meseta[req->pt_index][0];
     t2 = ent->enemy_meseta[req->pt_index][1];
     if(t1 < t2)
-        rnd = (genrand_int32() % (t2 - t1)) + t1;
+        rnd = (mt19937_genrand_int32(rng) % (t2 - t1)) + t1;
     else
         rnd = (uint32_t)t1;
 

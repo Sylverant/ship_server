@@ -19,8 +19,10 @@
 #define BLOCK_H
 
 #include <pthread.h>
-#include <inttypes.h>
+#include <stdint.h>
+
 #include <sylverant/config.h>
+#include <sylverant/mtwist.h>
 
 #include "lobby.h"
 
@@ -69,6 +71,9 @@ struct block {
     pthread_rwlock_t lobby_lock;
     struct lobby_queue lobbies;
     int num_games;
+
+    /* Random number generator state */
+    struct mt19937_state rng;
 };
 
 #ifndef BLOCK_DEFINED

@@ -30,7 +30,6 @@
 
 #include <sylverant/config.h>
 #include <sylverant/debug.h>
-#include <sylverant/mtwist.h>
 
 #include <libxml/parser.h>
 
@@ -495,8 +494,7 @@ int main(int argc, char *argv[]) {
     /* Init mini18n if we have it */
     init_i18n();
 
-    /* Initialize the random number generator and install signal handlers */
-    init_genrand(time(NULL));
+    /* Install signal handlers */
     install_signal_handlers();
 
     /* Set up the ship and start it. */
