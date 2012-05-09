@@ -23,6 +23,7 @@
 
 #include <sylverant/prs.h>
 #include <sylverant/debug.h>
+#include <sylverant/mtwist.h>
 
 #include "pmtdata.h"
 #include "utils.h"
@@ -31,13 +32,19 @@
 static pmt_weapon_v2_t **weapons = NULL;
 static uint32_t *num_weapons = NULL;
 static uint32_t num_weapon_types = 0;
+static uint16_t weapon_lowest = 0xFFFF;
 
 static pmt_guard_v2_t **guards = NULL;
 static uint32_t *num_guards = NULL;
 static uint32_t num_guard_types = 0;
+static uint16_t guard_lowest = 0xFFFF;
 
 static pmt_unit_v2_t *units = NULL;
 static uint32_t num_units = 0;
+static uint16_t unit_lowest = 0xFFFF;
+
+static uint8_t *star_table = NULL;
+static uint32_t star_max = 0;
 
 static int have_v2_pmt = 0;
 
@@ -70,10 +77,7 @@ static int read_ptr_tbl(const uint8_t *pmt, uint32_t sz, uint32_t ptrs[21]) {
 
 static int read_v2_weapons(const uint8_t *pmt, uint32_t sz,
                            const uint32_t ptrs[21]) {
-    uint32_t cnt, i, values[2];
-#if defined(__BIG_ENDIAN__) || defined(WORDS_BIGENDIAN)
-    uint32_t j;
-#endif
+    uint32_t cnt, i, values[2], j;
 
     /* Make sure the pointers are sane... */
     if(ptrs[1] > sz || ptrs[1] > ptrs[11]) {
@@ -130,16 +134,19 @@ static int read_v2_weapons(const uint8_t *pmt, uint32_t sz,
         memcpy(weapons[i], pmt + values[1],
                sizeof(pmt_weapon_v2_t) * values[0]);
 
-#if defined(__BIG_ENDIAN__) || defined(WORDS_BIGENDIAN)
         for(j = 0; j < values[0]; ++j) {
+#if defined(__BIG_ENDIAN__) || defined(WORDS_BIGENDIAN)
             weapons[i][j].index = LE16(weapons[i][j].index);
             weapons[i][j].atp_min = LE16(weapons[i][j].atp_min);
             weapons[i][j].atp_max = LE16(weapons[i][j].atp_max);
             weapons[i][j].atp_req = LE16(weapons[i][j].atp_req);
             weapons[i][j].mst_req = LE16(weapons[i][j].mst_req);
             weapons[i][j].ata_req = LE16(weapons[i][j].ata_req);
-        }
 #endif
+
+            if(weapons[i][j].index < weapon_lowest)
+                weapon_lowest = weapons[i][j].index;
+        }
     }
 
     return 0;
@@ -147,10 +154,7 @@ static int read_v2_weapons(const uint8_t *pmt, uint32_t sz,
 
 static int read_v2_guards(const uint8_t *pmt, uint32_t sz,
                           const uint32_t ptrs[21]) {
-    uint32_t cnt, i, values[2];
-#if defined(__BIG_ENDIAN__) || defined(WORDS_BIGENDIAN)
-    uint32_t j;
-#endif
+    uint32_t cnt, i, values[2], j;
 
     /* Make sure the pointers are sane... */
     if(ptrs[3] > sz || ptrs[2] > ptrs[3]) {
@@ -213,13 +217,16 @@ static int read_v2_guards(const uint8_t *pmt, uint32_t sz,
 
         memcpy(guards[i], pmt + values[1], sizeof(pmt_guard_v2_t) * values[0]);
 
-#if defined(__BIG_ENDIAN__) || defined(WORDS_BIGENDIAN)
         for(j = 0; j < values[0]; ++j) {
+#if defined(__BIG_ENDIAN__) || defined(WORDS_BIGENDIAN)
             guards[i][j].index = LE16(guards[i][j].index);
             guards[i][j].base_dfp = LE16(guards[i][j].base_dfp);
             guards[i][j].base_evp = LE16(guards[i][j].base_evp);
-        }
 #endif
+
+            if(guards[i][j].index < guard_lowest)
+                guard_lowest = guards[i][j].index;
+        }
     }
 
     return 0;
@@ -227,10 +234,7 @@ static int read_v2_guards(const uint8_t *pmt, uint32_t sz,
 
 static int read_v2_units(const uint8_t *pmt, uint32_t sz,
                          const uint32_t ptrs[21]) {
-    uint32_t values[2];
-#if defined(__BIG_ENDIAN__) || defined(WORDS_BIGENDIAN)
-    uint32_t i;
-#endif
+    uint32_t values[2], i;
 
     /* Make sure the pointers are sane... */
     if(ptrs[3] > sz) {
@@ -260,14 +264,47 @@ static int read_v2_units(const uint8_t *pmt, uint32_t sz,
 
     memcpy(units, pmt + values[1], sizeof(pmt_unit_v2_t) * values[0]);
 
-#if defined(__BIG_ENDIAN__) || defined(WORDS_BIGENDIAN)
     for(i = 0; i < values[0]; ++i) {
+#if defined(__BIG_ENDIAN__) || defined(WORDS_BIGENDIAN)
         units[i].index = LE16(units[i].index);
         units[i].stat = LE16(units[i].stat);
         units[i].amount = LE16(units[i].amount);
-    }
 #endif
 
+        if(units[i].index < unit_lowest)
+            unit_lowest = units[i].index;
+    }
+
+    return 0;
+}
+
+static int read_v2_stars(const uint8_t *pmt, uint32_t sz,
+                         const uint32_t ptrs[21]) {
+    /* Make sure the pointers are sane... */
+    if(ptrs[12] > sz || ptrs[13] > sz || ptrs[13] < ptrs[12]) {
+        debug(DBG_ERROR, "ItemPMT.prs file for v2 has invalid star pointers. "
+              "Please check it for validity!\n");
+        return -1;
+    }
+
+    /* Save how big it is, allocate the space, and copy it in */
+    star_max = ptrs[13] - ptrs[12];
+
+    if(star_max < unit_lowest + num_units - weapon_lowest) {
+        debug(DBG_ERROR, "Star table doesn't have enough entries!\n"
+              "Expected at least %u, got %u\n",
+              unit_lowest + num_units - weapon_lowest, star_max);
+        star_max = 0;
+        return -2;
+    }
+
+    if(!(star_table = (uint8_t *)malloc(star_max))) {
+        debug(DBG_ERROR, "Cannot allocate star table: %s\n", strerror(errno));
+        star_max = 0;
+        return -3;
+    }
+
+    memcpy(star_table, pmt + ptrs[12], star_max);
     return 0;
 }
 
@@ -367,6 +404,12 @@ int pmt_read_v2(const char *fn) {
         return -12;
     }
 
+    /* Read in the star values... */
+    if(read_v2_stars(ucbuf, ucsz, ptrs)) {
+        free(ucbuf);
+        return -13;
+    }
+
     /* Clean up the rest of the stuff we can */
     free(ucbuf);
     have_v2_pmt = 1;
@@ -395,6 +438,7 @@ void pmt_cleanup(void) {
     free(guards);
     free(num_guards);
     free(units);
+    free(star_table);
 
     weapons = NULL;
     num_weapons = NULL;
@@ -404,6 +448,8 @@ void pmt_cleanup(void) {
     num_weapon_types = 0;
     num_guard_types = 0;
     num_units = 0;
+    weapon_lowest = guard_lowest = unit_lowest = 0xFFFF;
+    star_max = 0;
     have_v2_pmt = 0;
 }
 
@@ -501,4 +547,54 @@ int pmt_lookup_unit_v2(uint32_t code, pmt_unit_v2_t *rv) {
     /* Grab the data and copy it out */
     memcpy(rv, &units[parts[2]], sizeof(pmt_unit_v2_t));
     return 0;
+}
+
+uint8_t pmt_lookup_stars_v2(uint32_t code) {
+    uint8_t parts[3];
+    pmt_weapon_v2_t weap;
+    pmt_guard_v2_t guard;
+    pmt_unit_v2_t unit;
+
+    /* Make sure we loaded the PMT stuff to start with. */
+    if(!have_v2_pmt)
+        return (uint8_t)-1;
+
+    parts[0] = (uint8_t)(code & 0xFF);
+    parts[1] = (uint8_t)((code >> 8) & 0xFF);
+    parts[2] = (uint8_t)((code >> 16) & 0xFF);
+
+    switch(parts[0]) {
+        case 0x00:                      /* Weapons */
+            if(pmt_lookup_weapon_v2(code, &weap))
+                return (uint8_t)-1;
+
+            if(weap.index - weapon_lowest > star_max)
+                return (uint8_t)-1;
+
+            return star_table[weap.index - weapon_lowest];
+
+        case 0x01:                      /* Guards */
+            switch(parts[1]) {
+                case 0x01:              /* Armors */
+                case 0x02:              /* Shields */
+                    if(pmt_lookup_guard_v2(code, &guard))
+                        return (uint8_t)-1;
+
+                    if(guard.index - weapon_lowest > star_max)
+                        return (uint8_t)-1;
+
+                    return star_table[guard.index - weapon_lowest];
+
+                case 0x03:              /* Units */
+                    if(pmt_lookup_unit_v2(code, &unit))
+                        return (uint8_t)-1;
+
+                    if(unit.index - weapon_lowest > star_max)
+                        return (uint8_t)-1;
+
+                    return star_table[unit.index - weapon_lowest];
+            }
+    }
+
+    return (uint8_t)-1;
 }

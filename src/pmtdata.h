@@ -72,6 +72,24 @@ typedef struct pmt_unit_v2 {
     uint8_t unused2[3];
 } PACKED pmt_unit_v2_t;
 
+typedef struct pmt_mag_v2 {
+    uint16_t index;
+    uint16_t unused1;
+    uint16_t feed_table;
+    uint8_t photon_blast;
+    uint8_t activation;
+    uint8_t on_pb_full;
+    uint8_t on_low_hp;
+    uint8_t on_death;
+    uint8_t on_boss;
+    uint8_t pb_full_flag;
+    uint8_t low_hp_flag;
+    uint8_t death_flag;
+    uint8_t boss_flag;
+    uint8_t classes;
+    uint8_t unused2[3];
+} PACKED pmt_mag_v2_t;
+
 #undef PACKED
 
 int pmt_read_v2(const char *fn);
@@ -82,5 +100,7 @@ void pmt_cleanup(void);
 int pmt_lookup_weapon_v2(uint32_t code, pmt_weapon_v2_t *rv);
 int pmt_lookup_guard_v2(uint32_t code, pmt_guard_v2_t *rv);
 int pmt_lookup_unit_v2(uint32_t code, pmt_unit_v2_t *rv);
+
+uint8_t pmt_lookup_stars_v2(uint32_t code);
 
 #endif /* !PMTDATA_H */
