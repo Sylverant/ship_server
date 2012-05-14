@@ -57,6 +57,7 @@ static gnutls_dh_params_t dh_params;
 static const char *config_file = NULL;
 static const char *custom_dir = NULL;
 static int dont_daemonize = 0;
+static int check_only = 0;
 
 /* Print information about this program to stdout. */
 static void print_program_info(void) {
@@ -90,6 +91,9 @@ static void print_help(const char *bin) {
 #ifdef SYLVERANT_ENABLE_IPV6
            "--no-ipv6       Disable IPv6 support for incoming connections\n"
 #endif
+           "--check-config  Load and parse the configuration, but do not\n"
+           "                actually start the ship server. This implies the\n"
+           "                --nodaemon option as well.\n"
            "--help          Print this help and exit\n\n"
            "Note that if more than one verbosity level is specified, the last\n"
            "one specified will be used. The default is --verbose.\n", bin);
@@ -126,6 +130,10 @@ static void parse_command_line(int argc, char *argv[]) {
         }
         else if(!strcmp(argv[i], "--no-ipv6")) {
             enable_ipv6 = 0;
+        }
+        else if(!strcmp(argv[i], "--check-config")) {
+            check_only = 1;
+            dont_daemonize = 1;
         }
         else if(!strcmp(argv[i], "--help")) {
             print_help(argv[0]);
@@ -425,13 +433,15 @@ int main(int argc, char *argv[]) {
     }
 
     /* Initialize GnuTLS stuff... */
-    if(init_gnutls(cfg)) {
-        exit(EXIT_FAILURE);
-    }
+    if(!check_only) {
+        if(init_gnutls(cfg)) {
+            exit(EXIT_FAILURE);
+        }
 
-    /* Set up things for clients to connect. */
-    if(client_init(cfg)) {
-        exit(EXIT_FAILURE);
+        /* Set up things for clients to connect. */
+        if(client_init(cfg)) {
+            exit(EXIT_FAILURE);
+        }
     }
 
     /* Try to read the v2 ItemPT data... */
@@ -494,28 +504,37 @@ int main(int argc, char *argv[]) {
     /* Init mini18n if we have it */
     init_i18n();
 
-    /* Install signal handlers */
-    install_signal_handlers();
+    if(!check_only) {
+        /* Install signal handlers */
+        install_signal_handlers();
 
-    /* Set up the ship and start it. */
-    ship = ship_server_start(cfg);
-    pthread_join(ship->thd, NULL);
+        /* Set up the ship and start it. */
+        ship = ship_server_start(cfg);
+        pthread_join(ship->thd, NULL);
 
-    /* Clean up... */
-    if((tmp = pthread_getspecific(sendbuf_key))) {
-        free(tmp);
-        pthread_setspecific(sendbuf_key, NULL);
+        /* Clean up... */
+        if((tmp = pthread_getspecific(sendbuf_key))) {
+            free(tmp);
+            pthread_setspecific(sendbuf_key, NULL);
+        }
+
+        if((tmp = pthread_getspecific(recvbuf_key))) {
+            free(tmp);
+            pthread_setspecific(recvbuf_key, NULL);
+        }
     }
-
-    if((tmp = pthread_getspecific(recvbuf_key))) {
-        free(tmp);
-        pthread_setspecific(recvbuf_key, NULL);
+    else {
+        ship_check_cfg(cfg);
     }
 
     cleanup_i18n();
     cleanup_iconv();
-    client_shutdown();
-    cleanup_gnutls();
+
+    if(!check_only) {
+        client_shutdown();
+        cleanup_gnutls();
+    }
+
     sylverant_free_ship_config(cfg);
     bb_free_params();
     v2_free_params();

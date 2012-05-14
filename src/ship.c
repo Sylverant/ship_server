@@ -799,6 +799,88 @@ err_close_dc:
     return NULL;
 }
 
+void ship_check_cfg(sylverant_ship_t *s) {
+    ship_t *rv;
+    int i, j;
+    char fn[512];
+
+    debug(DBG_LOG, "Checking config for ship %s...\n", s->name);
+
+    /* Make space for the ship structure. */
+    rv = (ship_t *)malloc(sizeof(ship_t));
+
+    if(!rv) {
+        debug(DBG_ERROR, "%s: Cannot allocate memory!\n", s->name);
+        return;
+    }
+
+    /* Clear it out */
+    memset(rv, 0, sizeof(ship_t));
+    TAILQ_INIT(&rv->qmap);
+
+    /* Attempt to read the quest list in. */
+    if(s->quests_file && s->quests_file[0]) {
+        if(sylverant_quests_read(s->quests_file, &rv->quests)) {
+            debug(DBG_ERROR, "%s: Couldn't read quests file!\n", s->name);
+        }
+    }
+
+    if(s->quests_dir && s->quests_dir[0]) {
+        for(i = 0; i < CLIENT_VERSION_COUNT; ++i) {
+            for(j = 0; j < CLIENT_LANG_COUNT; ++j) {
+                sprintf(fn, "%s/%s-%s/quests.xml", s->quests_dir,
+                        version_codes[i], language_codes[j]);
+                if(!sylverant_quests_read(fn, &rv->qlist[i][j])) {
+                    if(!quest_map(&rv->qmap, &rv->qlist[i][j], i, j)) { 
+                        debug(DBG_LOG, "Read quests for %s-%s\n",
+                              version_codes[i], language_codes[j]);
+                    }
+                    else {
+                        debug(DBG_LOG, "Unable to map quests for %s-%s\n",
+                              version_codes[i], language_codes[j]);
+                        sylverant_quests_destroy(&rv->qlist[i][j]);
+                    }
+                }
+            }
+        }
+    }
+
+    /* Attempt to read the GM list in. */
+    if(s->gm_file) {
+        debug(DBG_LOG, "%s: Reading Local GM List...\n", s->name);
+
+        if(gm_list_read(s->gm_file, rv)) {
+            debug(DBG_ERROR, "%s: Couldn't read GM file!\n", s->name);
+        }
+
+        debug(DBG_LOG, "%s: Read %d Local GMs\n", s->name, rv->gm_count);
+    }
+
+    /* Attempt to read the item limits list in. */
+    if(s->limits_file) {
+        if(sylverant_read_limits(s->limits_file, &rv->limits)) {
+            debug(DBG_ERROR, "%s: Couldn't read limits file!\n", s->name);
+        }
+    }
+
+    /* Initialize scripting support */
+    init_scripts(rv);
+
+    /* Attempt to read the ban list */
+    if(s->bans_file) {
+        if(ban_list_read(s->bans_file, rv)) {
+            debug(DBG_WARN, "%s: Couldn't read bans file!\n", s->name);
+        }
+    }
+
+    ban_list_clear(rv);
+    sylverant_free_limits(rv->limits);
+    free(rv->gm_list);
+    clean_quests(rv);
+    sylverant_quests_destroy(&rv->quests);
+    free(rv);
+}
+
 void ship_server_stop(ship_t *s) {
     /* Set the flag to kill the ship. */
     s->run = 0;

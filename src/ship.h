@@ -125,6 +125,8 @@ extern ship_t *ship;
 miniship_t *ship_find_ship(ship_t *s, uint32_t sid);
 
 ship_t *ship_server_start(sylverant_ship_t *s);
+void ship_check_cfg(sylverant_ship_t *s);
+
 void ship_server_stop(ship_t *s);
 void ship_server_shutdown(ship_t *s, time_t when);
 int ship_process_pkt(ship_client_t *c, uint8_t *pkt);
