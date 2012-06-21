@@ -20,6 +20,8 @@
 
 #include <stdint.h>
 
+#include <sylverant/mtwist.h>
+
 #ifdef PACKED
 #undef PACKED
 #endif
@@ -92,7 +94,7 @@ typedef struct pmt_mag_v2 {
 
 #undef PACKED
 
-int pmt_read_v2(const char *fn);
+int pmt_read_v2(const char *fn, int norestrict);
 int pmt_v2_enabled(void);
 
 void pmt_cleanup(void);
@@ -102,5 +104,7 @@ int pmt_lookup_guard_v2(uint32_t code, pmt_guard_v2_t *rv);
 int pmt_lookup_unit_v2(uint32_t code, pmt_unit_v2_t *rv);
 
 uint8_t pmt_lookup_stars_v2(uint32_t code);
+int pmt_random_unit_v2(uint8_t max, uint32_t item[4],
+                       struct mt19937_state *rng);
 
 #endif /* !PMTDATA_H */

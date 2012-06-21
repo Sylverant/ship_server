@@ -204,7 +204,7 @@ static void print_config(sylverant_ship_t *cfg) {
     }
 
     if(cfg->v2_map_dir) {
-        debug(DBG_LOG, "V2 Map Directory: %s\n", cfg->v2_map_dir);
+        debug(DBG_LOG, "v2 Map Directory: %s\n", cfg->v2_map_dir);
     }
 
     if(cfg->bb_param_dir) {
@@ -455,7 +455,7 @@ int main(int argc, char *argv[]) {
     /* Read the v2 ItemPMT file... */
     if(cfg->v2_pmtdata_file) {
         debug(DBG_LOG, "Reading v2 ItemPMT file: %s\n", cfg->v2_pmtdata_file);
-        if(pmt_read_v2(cfg->v2_pmtdata_file)) {
+        if(pmt_read_v2(cfg->v2_pmtdata_file, 0)) {
             debug(DBG_WARN, "Couldn't read v2 ItemPMT file!\n");
         }
     }
@@ -477,7 +477,7 @@ int main(int argc, char *argv[]) {
     }
 
     /* If we could read the v2 ItemPT file, try to read its maps too. */
-    if(pt_v2_enabled() && cfg->v2_map_dir) {
+    if(pt_v2_enabled() && pmt_v2_enabled() && cfg->v2_map_dir) {
         rv = v2_read_params(cfg);
 
         if(rv < 0)

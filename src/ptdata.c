@@ -636,7 +636,7 @@ static int generate_armor_v2(pt_v2_entry_t *ent, int area, uint32_t item[4],
     }
 
     if(guard.dfp_range) {
-        rnd =mt19937_genrand_int32(rng) % (guard.dfp_range + 1);
+        rnd = mt19937_genrand_int32(rng) % (guard.dfp_range + 1);
         item_w[3] = (uint16_t)rnd;
     }
 
@@ -807,7 +807,7 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
     struct mt19937_state *rng = &c->cur_block->rng;
 
     /* Make sure the PT index in the packet is sane */
-    if(req->pt_index > 0x30)
+    if(req->pt_index > 0x33)
         return -1;
 
     /* If the PT index is 0x30, this is a box, not an enemy! */
@@ -881,7 +881,11 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
 
                 case BOX_TYPE_UNIT:
                     /* Drop a unit */
-                    goto drop_meseta;
+                    if(pmt_random_unit_v2(ent->unit_level[area], item, rng)) {
+                        return 0;
+                    }
+
+                    return subcmd_send_lobby_item(l, req, item);
 
                 case -1:
                     /* This shouldn't happen, but if it does, don't drop
@@ -906,7 +910,6 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
             return subcmd_send_lobby_item(l, req, item);
 
         case 2:
-drop_meseta:
             /* Drop meseta */
             if(generate_meseta(ent->enemy_meseta[req->pt_index][0],
                                ent->enemy_meseta[req->pt_index][1],
@@ -1047,8 +1050,12 @@ generate_armor:
         return subcmd_send_lobby_item(l, req, item);
     }
     else if((rnd -= ent->box_drop[BOX_TYPE_UNIT][area]) > 100) {
-        /* XXXX: Generate a unit */
-        return 0;
+        /* Generate a unit */
+        if(pmt_random_unit_v2(ent->unit_level[area], item, rng)) {
+            return 0;
+        }
+
+        return subcmd_send_lobby_item(l, req, item);
     }
     else if((rnd -= ent->box_drop[BOX_TYPE_TOOL][area]) > 100) {
 generate_tool:

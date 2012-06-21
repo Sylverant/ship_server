@@ -450,7 +450,7 @@ static int td(ship_client_t *c, lobby_t *l, void *req) {
     uint32_t r = mt19937_genrand_int32(&c->cur_block->rng);
     uint32_t i[4] = { 4, 0, 0, 0 };
 
-    if((r & 15) == 2) {
+    if((r & 15) != 2) {
         return 0;
     }
 

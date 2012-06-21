@@ -28,6 +28,7 @@
 #include "pmtdata.h"
 #include "utils.h"
 #include "packets.h"
+#include "items.h"
 
 static pmt_weapon_v2_t **weapons = NULL;
 static uint32_t *num_weapons = NULL;
@@ -47,6 +48,11 @@ static uint8_t *star_table = NULL;
 static uint32_t star_max = 0;
 
 static int have_v2_pmt = 0;
+
+/* These two are used in generating random units... */
+static uint64_t *units_by_stars = NULL;
+static uint32_t *units_with_stars = NULL;
+static uint8_t unit_max_stars = 0;
 
 /* The parsing code in here is based on some code/information from Lee. Thanks
    again! */
@@ -308,7 +314,91 @@ static int read_v2_stars(const uint8_t *pmt, uint32_t sz,
     return 0;
 }
 
-int pmt_read_v2(const char *fn) {
+static int build_v2_units(int norestrict) {
+    uint32_t i, j, k;
+    uint8_t star;
+    pmt_unit_v2_t *unit;
+    int16_t pm;
+    void *tmp;
+
+    /* Figure out what the max number of stars for a unit is. */
+    for(i = 0; i < num_units; ++i) {
+        star = star_table[i + unit_lowest - weapon_lowest];
+        if(star > unit_max_stars)
+            unit_max_stars = star;
+    }
+
+    /* Always go one beyond, since we may have to deal with + and ++ on the last
+       possible unit. */
+    ++unit_max_stars;
+    
+    /* For now, punt and allocate space for every theoretically possible unit,
+       even though some are actually disabled by the game. */
+    if(!(units_by_stars = (uint64_t *)malloc((num_units * 5 + 1) *
+                                             sizeof(uint64_t)))) {
+        debug(DBG_ERROR, "Cannot allocate unit table: %s\n", strerror(errno));
+        return -1;
+    }
+
+    /* Allocate space for the "pointer" table */
+    if(!(units_with_stars = (uint32_t *)malloc((unit_max_stars + 1) *
+                                               sizeof(uint32_t)))) {
+        debug(DBG_ERROR, "Cannot allocate unit ptr table: %s\n",
+              strerror(errno));
+        free(units_by_stars);
+        units_by_stars = NULL;
+        return -2;
+    }
+
+    /* Fill in the game's failsafe of a plain Knight/Power... */
+    units_by_stars[0] = (uint64_t)Item_Knight_Power;
+    units_with_stars[0] = 1;
+    k = 1;
+
+    /* Go through and fill in our tables... */
+    for(i = 0; i <= unit_max_stars; ++i) {
+        for(j = 0; j < num_units; ++j) {
+            unit = units + j;
+            star = star_table[j + unit_lowest - weapon_lowest];
+
+            if(star - 1 == i && unit->pm_range &&
+               (unit->stat <= 3 || norestrict)) {
+                pm = -2 * unit->pm_range;
+                units_by_stars[k++] = 0x00000301 | (j << 16) |
+                    (((uint64_t)pm) << 48);
+                pm = -1 * unit->pm_range;
+                units_by_stars[k++] = 0x00000301 | (j << 16) |
+                    (((uint64_t)pm) << 48);
+            }
+            else if(star == i) {
+                units_by_stars[k++] = 0x00000301 | (j << 16);
+            }
+            else if(star + 1 == i && unit->pm_range &&
+                    (unit->stat <= 3 || norestrict)) {
+                pm = 2 * unit->pm_range;
+                units_by_stars[k++] = 0x00000301 | (j << 16) |
+                    (((uint64_t)pm) << 48);
+                pm = unit->pm_range;
+                units_by_stars[k++] = 0x00000301 | (j << 16) |
+                    (((uint64_t)pm) << 48);
+            }
+        }
+
+        units_with_stars[i] = k;
+    }
+
+    if((tmp = realloc(units_by_stars, k * sizeof(uint64_t)))) {
+        units_by_stars = (uint64_t *)tmp;
+    }
+    else {
+        debug(DBG_WARN, "Cannot resize units_by_stars table: %s\n", 
+              strerror(errno));
+    }
+
+    return 0;
+}
+
+int pmt_read_v2(const char *fn, int norestrict) {
     FILE *fp;
     long len;
     uint32_t ucsz;
@@ -410,8 +500,14 @@ int pmt_read_v2(const char *fn) {
         return -13;
     }
 
-    /* Clean up the rest of the stuff we can */
+    /* We're done with the raw PMT data now, clean it up. */
     free(ucbuf);
+
+    /* Make the tables for generating random units */
+    if(build_v2_units(norestrict)) {
+        return -14;
+    }
+
     have_v2_pmt = 1;
 
     return 0;
@@ -439,17 +535,22 @@ void pmt_cleanup(void) {
     free(num_guards);
     free(units);
     free(star_table);
+    free(units_with_stars);
+    free(units_by_stars);
 
     weapons = NULL;
     num_weapons = NULL;
     guards = NULL;
     num_guards = NULL;
     units = NULL;
+    units_with_stars = NULL;
+    units_by_stars = NULL;
     num_weapon_types = 0;
     num_guard_types = 0;
     num_units = 0;
     weapon_lowest = guard_lowest = unit_lowest = 0xFFFF;
     star_max = 0;
+    unit_max_stars = 0;
     have_v2_pmt = 0;
 }
 
@@ -597,4 +698,43 @@ uint8_t pmt_lookup_stars_v2(uint32_t code) {
     }
 
     return (uint8_t)-1;
+}
+
+/*
+   Generate a random unit, based off of data for PSOv2. We precalculate most of
+   the stuff needed for this up above in the build_v2_units() function.
+
+   Random unit generation is actually pretty simple, compared to the other item
+   types. Basically, the game builds up a table of units that have the amount of
+   stars specified in the PT data's unit_level value for the floor or less
+   and randomly selects from that table for each time its needed. Note that the
+   game always has a fallback of a plain Knight/Power in case no other unit can
+   be generated (which means that once you hit the star level for Knight/Power,
+   it is actually 2x as likely to drop as any other unit). Note that the table
+   also holds all the +/++/-/-- combinations for the units as well. Only one
+   random number ever has to be generated to pick the unit, since the table
+   contains all the boosted/lowered versions of the units.
+
+   Some units (for some reason) have a +/- increment defined in the PMT, but the
+   game disallows those units from dropping with + or - ever. As long as you
+   don't configure it otherwise, this will work as it does in the game. The
+   units affected by this are all the /HP, /TP, /Body, /Luck, /Ability, Resist/,
+   /Resist, HP/, TP/, PB/, /Technique, /Battle, State/Maintenance, and
+   Trap/Search (i.e, most of the units -- note everything there after /Resist
+   is actually defined as a 0 increment anyway).
+*/
+int pmt_random_unit_v2(uint8_t max, uint32_t item[4],
+                       struct mt19937_state *rng) {
+    uint64_t unit;
+
+    if(max > unit_max_stars)
+        max = unit_max_stars;
+
+    /* Pick one of them, and return it. */
+    unit = units_by_stars[mt19937_genrand_int32(rng) % units_with_stars[max]];
+    item[0] = (uint32_t)unit;
+    item[1] = (uint32_t)(unit >> 32);
+    item[2] = item[3] = 0;
+
+    return 0;
 }
