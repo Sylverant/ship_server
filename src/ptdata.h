@@ -66,7 +66,7 @@ typedef struct pt_v3_entry {
     int32_t armor_level;                    /* 0x0958 */
     /* There is a bit more data here... Dunno what it is. No reason to store it
        if I don't know how to use it. */
-} pt_v3_entry_t;
+} PACKED pt_v3_entry_t;
 
 /* Entry in one of the ItemPT files. This version corresponds to the files that
    were used in PSOv2. The names of the fields were taken from the above
@@ -99,7 +99,9 @@ typedef struct pt_v2_entry {
     int32_t armor_level;                    /* 0x08B8 */
     /* There is a bit more data here... Dunno what it is. No reason to store it
        if I don't know how to use it. */
-} pt_v2_entry_t;
+} PACKED pt_v2_entry_t;
+
+#undef PACKED
 
 /* Read the ItemPT data from a v2-style (ItemPT.afs) file. */
 int pt_read_v2(const char *fn);
