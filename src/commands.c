@@ -36,6 +36,10 @@
 #include "items.h"
 #include "bans.h"
 #include "admin.h"
+#include "ptdata.h"
+#include "pmtdata.h"
+#include "mapdata.h"
+#include "rtdata.h"
 
 extern int handle_dc_gcsend(ship_client_t *d, subcmd_dc_gcsend_t *pkt);
 
@@ -2539,6 +2543,48 @@ static int handle_level(ship_client_t *c, const char *params) {
     return client_give_level(c, amt);
 }
 
+/* Usage: /sdrops [off] */
+static int handle_sdrops(ship_client_t *c, const char *params) {
+    /* See if we can enable server-side drops or not on this ship. */
+    switch(c->version) {
+        case CLIENT_VERSION_DCV1:
+        case CLIENT_VERSION_DCV2:
+        case CLIENT_VERSION_PC:
+            if(!pt_v2_enabled() || !map_have_v2_maps() || !pmt_v2_enabled() ||
+               !rt_v2_enabled())
+                return send_txt(c, "%s", __(c, "\tE\tC7Server-side drops not\n"
+                                            "suported on this ship for\n"
+                                            "your client version."));
+            break;
+
+        case CLIENT_VERSION_GC:
+            /* XXXX: Need to write in full support for GC still... */
+            if(!pt_v3_enabled())
+                return send_txt(c, "%s", __(c, "\tE\tC7Server-side drops not\n"
+                                            "suported on this ship for\n"
+                                            "your client version."));
+            break;
+
+        case CLIENT_VERSION_EP3:
+            return send_txt(c, "%s", __(c, "\tE\tC7Not valid on Episode 3."));
+
+        case CLIENT_VERSION_BB:
+            /* Not valid for Blue Burst (they always have server-side drops) */
+            return send_txt(c, "%s", __(c, "\tE\tC7Not valid on Blue Burst."));
+    }
+
+    /* See if we're turning the flag off. */
+    if(!strcmp(params, "off")) {
+        c->flags &= ~CLIENT_FLAG_SERVER_DROPS;
+        return send_txt(c, "%s", __(c, "\tE\tC7Server drops off\n"
+                                    "for any new teams."));
+    }
+
+    c->flags |= CLIENT_FLAG_SERVER_DROPS;
+    return send_txt(c, "%s", __(c, "\tE\tC7Server drops on\n"
+                                "for any new teams."));
+}
+
 static command_t cmds[] = {
     { "warp"     , handle_warp      },
     { "kill"     , handle_kill      },
@@ -2614,6 +2660,7 @@ static command_t cmds[] = {
     { "disablebk", handle_disablebk },
     { "exp"      , handle_exp       },
     { "level"    , handle_level     },
+    { "sdrops"   , handle_sdrops    },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

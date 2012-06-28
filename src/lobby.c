@@ -35,6 +35,7 @@
 #include "items.h"
 #include "ptdata.h"
 #include "pmtdata.h"
+#include "rtdata.h"
 
 static int td(ship_client_t *c, lobby_t *l, void *req);
 
@@ -77,7 +78,7 @@ lobby_t *lobby_create_default(block_t *block, uint32_t lobby_id, uint8_t ev) {
     return l;
 }
 
-static void lobby_setup_drops(lobby_t *l, uint32_t rs) {
+static void lobby_setup_drops(ship_client_t *c, lobby_t *l, uint32_t rs) {
     if(l->version == CLIENT_VERSION_BB) {
         l->dropfunc = pt_generate_bb_drop;
         l->flags |= LOBBY_FLAG_SERVER_DROPS;
@@ -85,20 +86,33 @@ static void lobby_setup_drops(lobby_t *l, uint32_t rs) {
     }
 
     if(rs == 0x9C350DD4) {
-        if(l->version == CLIENT_VERSION_GC) {
-            if(pt_v3_enabled())
-                l->dropfunc = pt_generate_v3_drop;
-            else
-                l->dropfunc = td;
-        }
-        else {
-            if(pt_v2_enabled() && map_have_v2_maps() && pmt_v2_enabled())
-                l->dropfunc = pt_generate_v2_drop;
-            else
-                l->dropfunc = td;
-        }
-
+        l->dropfunc = td;
         l->flags |= LOBBY_FLAG_SERVER_DROPS;
+        return;
+    }
+
+    /* See if the client enabled server-side drops. */
+    if(c->flags & CLIENT_FLAG_SERVER_DROPS) {
+        /* Sanity check... */
+        switch(c->version) {
+            case CLIENT_VERSION_DCV1:
+            case CLIENT_VERSION_DCV2:
+            case CLIENT_VERSION_PC:
+                if(pt_v2_enabled() && map_have_v2_maps() && pmt_v2_enabled() &&
+                   rt_v2_enabled()) {
+                    l->dropfunc = pt_generate_v2_drop;
+                    l->flags |= LOBBY_FLAG_SERVER_DROPS;
+                }
+                return;
+
+            case CLIENT_VERSION_GC:
+                /* XXXX: Need to implement this fully... */
+                if(pt_v3_enabled()) {
+                    l->dropfunc = pt_generate_v3_drop;
+                    l->flags |= LOBBY_FLAG_SERVER_DROPS;
+                }
+                return;
+        }
     }
 }
 
@@ -269,7 +283,7 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
 
     l->rand_seed = mt19937_genrand_int32(&block->rng);
 
-    lobby_setup_drops(l, sylverant_crc32((uint8_t *)l->name, 16));
+    lobby_setup_drops(c, l, sylverant_crc32((uint8_t *)l->name, 16));
 
     return l;
 }
