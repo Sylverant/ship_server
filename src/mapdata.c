@@ -211,7 +211,7 @@ static int parse_map(map_enemy_t *en, int en_ct, game_enemies_t *game,
                         else {
                             /* We need to fill this in when we make the lobby,
                                since it's dependent on the event. */
-                            gen[count].rt_index = (uint16_t)-1;
+                            gen[count].rt_index = (uint8_t)-1;
                         }
                     }
                     else {
@@ -345,7 +345,7 @@ static int parse_map(map_enemy_t *en, int en_ct, game_enemies_t *game,
 
             case 0x00A1:    /* Chaos Sorcerer + 2 Bits */
                 gen[count].bp_entry = 0x0A;
-                gen[count].rt_index = 0x1E;
+                gen[count].rt_index = 0x1F;
                 count += 2;
                 break;
 
@@ -421,6 +421,8 @@ static int parse_map(map_enemy_t *en, int en_ct, game_enemies_t *game,
                     ++count;
                     gen[count].bp_entry = 0x35;
                 }
+
+                ++count;    /* Looks like the first form needs a place too... */
                 break;
 
             case 0x00CA:    /* Olga Flow */
@@ -1199,7 +1201,7 @@ int bb_load_game_enemies(lobby_t *l) {
         if(en->enemies[i].bp_entry == 0x37 && l->difficulty) {
             en->enemies[i].bp_entry = 0x38;
         }
-        else if(en->enemies[i].rt_index == (uint16_t)-1) {
+        else if(en->enemies[i].rt_index == (uint8_t)-1) {
             switch(l->event) {
                 case LOBBY_EVENT_CHRISTMAS:
                     en->enemies[i].rt_index = 79;
