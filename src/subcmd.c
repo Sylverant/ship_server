@@ -2106,6 +2106,10 @@ static int handle_mhit(ship_client_t *c, subcmd_mhit_pkt_t *pkt) {
         return -1;
     }
 
+    /* Bail out now if we don't have any enemy data on the lobby. */
+    if(!l->map_enemies)
+        return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt, 0);
+
     /* Make sure the enemy is in range. */
     mid = LE16(pkt->enemy_id);
     if(mid > l->map_enemies->count) {
