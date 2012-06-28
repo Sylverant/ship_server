@@ -75,8 +75,7 @@ AC_FUNC_MALLOC
 AC_FUNC_REALLOC
 AC_CHECK_FUNCS([gethostname gettimeofday inet_ntoa memmove memset select socket strtoul])
 
-ADD_CFLAGS([-Wall])
-CFLAGS="$CFLAGS -DSVN_REVISION=\"\\\"\`svnversion\`\\\"\""
+CFLAGS="$CFLAGS -Wall -DSVN_REVISION=\"\\\"\`svnversion\`\\\"\""
 
 AC_ARG_ENABLE([debug], [AS_HELP_STRING([--enable-debug],
               [enable debugging symbols in the binary])],
