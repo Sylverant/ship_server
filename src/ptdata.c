@@ -25,6 +25,7 @@
 
 #include "ptdata.h"
 #include "pmtdata.h"
+#include "rtdata.h"
 #include "subcmd.h"
 #include "items.h"
 #include "utils.h"
@@ -416,11 +417,27 @@ int pt_v3_enabled(void) {
    below. :P
 */
 static int generate_weapon_v2(pt_v2_entry_t *ent, int area, uint32_t item[4],
-                              struct mt19937_state *rng) {
+                              struct mt19937_state *rng, int picked, int v1) {
     uint32_t rnd, upcts = 0;
     int i, j = 0, k, wchance = 0, warea = 0, npcts = 0;
     int wtypes[12] = { 0 }, wranks[12] = { 0 }, gptrn[12] = { 0 };
     uint8_t *item_b = (uint8_t *)item;
+    int semirare = 0, rare = 0;
+
+    /* Ugly... but I'm lazy and don't feel like rebalancing things for another
+       level of indentation... */
+    if(picked) {
+        /* Determine if the item is a rare or a "semi-rare" item. */
+        if(item_b[1] > 12)
+            rare = semirare = 1;
+        else if((item_b[1] >= 10 && item_b[2] > 3) || item_b[2] > 4)
+            semirare = 1;
+
+        /* All RT-generated items use the last grind pattern... */
+        warea = 3;
+        item[1] = item[2] = item[3] = 0;
+        goto already_picked;
+    }
 
     item[0] = item[1] = item[2] = item[3] = 0;
 
@@ -486,6 +503,11 @@ static int generate_weapon_v2(pt_v2_entry_t *ent, int area, uint32_t item[4],
         return -1;
     }
 
+    /* See if we made a "semi-rare" item. */
+    if((item_b[1] >= 10 && item_b[2] > 3) || item_b[2] > 4)
+        semirare = 1;
+
+already_picked:
     /* Next up, determine the grind value. */
     rnd = mt19937_genrand_int32(rng) % 100;
     for(i = 0; i < 9; ++i) {
@@ -497,8 +519,9 @@ static int generate_weapon_v2(pt_v2_entry_t *ent, int area, uint32_t item[4],
 
     /* Sanity check... */
     if(i >= 9) {
-        debug(DBG_WARN, "Invalid power pattern for floor %d, pattern number "
-              "%d. Please check your ItemPT.afs for validity!\n", area, gptrn);
+        debug(DBG_WARN, "Invalid power pattern for floor %d, pattern "
+              "number %d. Please check your ItemPT.afs for validity!\n",
+              area, warea);
         return -1;
     }
 
@@ -542,14 +565,17 @@ static int generate_weapon_v2(pt_v2_entry_t *ent, int area, uint32_t item[4],
     }
 
     /* Finally, lets see if there's going to be an elemental attribute applied
-       to this weapon... */
-    if(ent->element_ranking[area]) {
+       to this weapon, or if its rare and we need to set the flag. */
+    if(!semirare && ent->element_ranking[area]) {
         rnd = mt19937_genrand_int32(rng) % 100;
         if(rnd < ent->element_probability[area]) {
             rnd = mt19937_genrand_int32(rng) %
                 attr_count[ent->element_ranking[area] - 1];
             item[1] = 0x80 | attr_list[ent->element_ranking[area] - 1][rnd];
         }
+    }
+    else if(rare || (v1 && semirare)) {
+        item[1] = 0x80;
     }
 
     return 0;
@@ -590,33 +616,37 @@ static int generate_weapon_v2(pt_v2_entry_t *ent, int area, uint32_t item[4],
    evp range defined in the PMT data.
 */
 static int generate_armor_v2(pt_v2_entry_t *ent, int area, uint32_t item[4],
-                             struct mt19937_state *rng) {
+                             struct mt19937_state *rng, int picked) {
     uint32_t rnd;
     int i, armor = -1;
     uint8_t *item_b = (uint8_t *)item;
     uint16_t *item_w = (uint16_t *)item;
     pmt_guard_v2_t guard;
 
-    /* Go through each slot in the armor rankings to figure out which one that
-       we'll be generating. */
-    rnd = mt19937_genrand_int32(rng) % 100;
-    for(i = 0; i < 5; ++i) {
-        if((rnd -= ent->armor_ranking[i]) > 100) {
-            armor = i;
-            break;
+    if(!picked) {
+        /* Go through each slot in the armor rankings to figure out which one
+           that we'll be generating. */
+        rnd = mt19937_genrand_int32(rng) % 100;
+        for(i = 0; i < 5; ++i) {
+            if((rnd -= ent->armor_ranking[i]) > 100) {
+                armor = i;
+                break;
+            }
         }
+
+        /* Sanity check... */
+        if(armor == -1) {
+            debug(DBG_WARN, "Couldn't find a v2 armor to generate. Please "
+                  "check your ItemPT.afs file for validity!\n");
+            return -1;
+        }
+
+        /* Figure out what the byte we'll use is */
+        armor = MAX(0, (ent->armor_level - 3 + area + armor));
+        item[0] = 0x00000101 | (armor << 16);
     }
 
-    /* Sanity check... */
-    if(armor == -1) {
-        debug(DBG_WARN, "Couldn't find a v2 armor to generate. Please check "
-              "your ItemPT.afs file for validity!\n");
-        return -1;
-    }
-
-    /* Figure out what the byte we'll use is */
-    armor = MAX(0, (ent->armor_level - 3 + area + armor));
-    item[0] = 0x00000101 | (armor << 16);
+    item[1] = item[2] = item[3] = 0;
 
     /* Pick a number of unit slots */
     rnd = mt19937_genrand_int32(rng) % 100;
@@ -651,32 +681,36 @@ static int generate_armor_v2(pt_v2_entry_t *ent, int area, uint32_t item[4],
 /* Generate a random shield, based on data for PSOv2. This is exactly the same
    as the armor version, but without unit slots. */
 static int generate_shield_v2(pt_v2_entry_t *ent, int area, uint32_t item[4],
-                              struct mt19937_state *rng) {
+                              struct mt19937_state *rng, int picked) {
     uint32_t rnd;
     int i, armor = -1;
     uint16_t *item_w = (uint16_t *)item;
     pmt_guard_v2_t guard;
 
-    /* Go through each slot in the armor rankings to figure out which one that
-       we'll be generating. */
-    rnd = mt19937_genrand_int32(rng) % 100;
-    for(i = 0; i < 5; ++i) {
-        if((rnd -= ent->armor_ranking[i]) > 100) {
-            armor = i;
-            break;
+    if(!picked) {
+        /* Go through each slot in the armor rankings to figure out which one
+           that we'll be generating. */
+        rnd = mt19937_genrand_int32(rng) % 100;
+        for(i = 0; i < 5; ++i) {
+            if((rnd -= ent->armor_ranking[i]) > 100) {
+                armor = i;
+                break;
+            }
         }
+
+        /* Sanity check... */
+        if(armor == -1) {
+            debug(DBG_WARN, "Couldn't find a v2 shield to generate. Please "
+                  "check your ItemPT.afs file for validity!\n");
+            return -1;
+        }
+
+        /* Figure out what the byte we'll use is */
+        armor = MAX(0, (ent->armor_level - 3 + area + armor));
+        item[0] = 0x00000201 | (armor << 16);
     }
 
-    /* Sanity check... */
-    if(armor == -1) {
-        debug(DBG_WARN, "Couldn't find a v2 shield to generate. Please check "
-              "your ItemPT.afs file for validity!\n");
-        return -1;
-    }
-
-    /* Figure out what the byte we'll use is */
-    armor = MAX(0, (ent->armor_level - 3 + area + armor));
-    item[0] = 0x00000201 | (armor << 16);
+    item[1] = item[2] = item[3] = 0;
 
     /* Look up the item in the ItemPMT data so we can see what boosts we might
        apply... */
@@ -849,6 +883,68 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
     /* Subtract one, since we want the index in the box_drop array */
     --area;
 
+    /* See if the user is lucky today... */
+    if((item[0] = rt_generate_v2_rare(c, l, req->pt_index, 0))) {
+        switch(item[0] & 0xFF) {
+            case 0:
+                /* Weapon -- add percentages and (potentially) grind values and
+                   such... */
+                if(generate_weapon_v2(ent, area, item, rng, 1,
+                                      l->version == CLIENT_VERSION_DCV1))
+                    return 0;
+                break;
+
+            case 1:
+                /* Armor/Shield/Unit */
+                switch((item[0] >> 8) & 0xFF) {
+                    case 1:
+                        /* Armor -- Add DFP/EVP boosts and slots */
+                        if(generate_armor_v2(ent, area, item, rng, 1))
+                            return 0;
+                        break;
+
+                    case 2:
+                        /* Shield -- Add DFP/EVP boosts */
+                        if(generate_shield_v2(ent, area, item, rng, 1))
+                            return 0;
+                        break;
+
+                    case 3:
+                        /* Unit -- Nothing to do here */
+                        break;
+
+                    default:
+                        debug(DBG_WARN, "ItemRT generated an invalid item: "
+                              "%08x\n", item[0]);
+                        return 0;
+                }
+                break;
+
+            case 2:
+                /* Mag -- Give it 5 DFP and 40% Synchro and an unset color */
+                item[0] = 0x00050002;
+                item[1] = 0x000101F4;
+                item[2] = 0x00010001;
+                item[3] = 0x00280000;
+                break;
+
+            case 3:
+                /* Tool -- Give it a quantity of 1 if its stackable. */
+                item[1] = item[2] = item[3] = 0;
+
+                if(item_is_stackable(item[0]))
+                    item[1] = (1 << 8);
+                break;
+
+            default:
+                debug(DBG_WARN, "ItemRT generated an invalid item: %08x\n",
+                      item[0]);
+                return 0;
+        }
+
+        return subcmd_send_lobby_item(l, req, item);
+    }
+
     /* Figure out what type to drop... */
     rnd = mt19937_genrand_int32(rng) % 3;
     switch(rnd) {
@@ -857,7 +953,8 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
             switch(ent->enemy_drop[req->pt_index]) {
                 case BOX_TYPE_WEAPON:
                     /* Drop a weapon */
-                    if(generate_weapon_v2(ent, area, item, rng)) {
+                    if(generate_weapon_v2(ent, area, item, rng, 0,
+                                          l->version == CLIENT_VERSION_DCV1)) {
                         return 0;
                     }
 
@@ -865,7 +962,7 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
 
                 case BOX_TYPE_ARMOR:
                     /* Drop an armor */
-                    if(generate_armor_v2(ent, area, item, rng)) {
+                    if(generate_armor_v2(ent, area, item, rng, 0)) {
                         return 0;
                     }
 
@@ -873,7 +970,7 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
 
                 case BOX_TYPE_SHIELD:
                     /* Drop a shield */
-                    if(generate_shield_v2(ent, area, item, rng)) {
+                    if(generate_shield_v2(ent, area, item, rng, 0)) {
                         return 0;
                     }
 
@@ -995,6 +1092,12 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
             if(item_is_stackable(item[0]))
                 item[1] = (1 << 8);
 
+            /* This will make the meseta boxes for Vol Opt work... */
+            if(item[0] == 0x00000004) { 
+                t1 = LE32(obj->dword[3]) >> 16;
+                item[3] = t1 * 10;
+            }
+
             return subcmd_send_lobby_item(l, req, item);
         }
 
@@ -1018,7 +1121,68 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
         }
     }
 
-    /* XXXX: Make sure we don't need to drop a rare */
+    /* See if the user is lucky today... */
+    if((item[0] = rt_generate_v2_rare(c, l, -1, area + 1))) {
+        switch(item[0] & 0xFF) {
+            case 0:
+                /* Weapon -- add percentages and (potentially) grind values and
+                   such... */
+                if(generate_weapon_v2(ent, area, item, rng, 1,
+                                      l->version == CLIENT_VERSION_DCV1))
+                    return 0;
+                break;
+
+            case 1:
+                /* Armor/Shield/Unit */
+                switch((item[0] >> 8) & 0xFF) {
+                    case 1:
+                        /* Armor -- Add DFP/EVP boosts and slots */
+                        if(generate_armor_v2(ent, area, item, rng, 1))
+                            return 0;
+                        break;
+
+                    case 2:
+                        /* Shield -- Add DFP/EVP boosts */
+                        if(generate_shield_v2(ent, area, item, rng, 1))
+                            return 0;
+                        break;
+
+                    case 3:
+                        /* Unit -- Nothing to do here */
+                        break;
+
+                    default:
+                        debug(DBG_WARN, "ItemRT generated an invalid item: "
+                              "%08x\n", item[0]);
+                        return 0;
+                }
+
+                break;
+
+            case 2:
+                /* Mag -- Give it 5 DFP and 40% Synchro and an unset color */
+                item[0] = 0x00050002;
+                item[1] = 0x000101F4;
+                item[2] = 0x00010001;
+                item[3] = 0x00280000;
+                break;
+
+            case 3:
+                /* Tool -- Give it a quantity of 1 if its stackable. */
+                item[1] = item[2] = item[3] = 0;
+
+                if(item_is_stackable(item[0]))
+                    item[1] = (1 << 8);
+                break;
+
+            default:
+                debug(DBG_WARN, "ItemRT generated an invalid item: %08x\n",
+                      item[0]);
+                return 0;
+        }
+
+        return subcmd_send_lobby_item(l, req, item);
+    }
 
     /* Generate an item, according to the PT data */
     rnd = mt19937_genrand_int32(rng) % 100;
@@ -1026,7 +1190,8 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
     if((rnd -= ent->box_drop[BOX_TYPE_WEAPON][area]) > 100) {
 generate_weapon:
         /* Generate a weapon */
-        if(generate_weapon_v2(ent, area, item, rng)) {
+        if(generate_weapon_v2(ent, area, item, rng, 0,
+                              l->version == CLIENT_VERSION_DCV1)) {
             return 0;
         }
 
@@ -1035,7 +1200,7 @@ generate_weapon:
     else if((rnd -= ent->box_drop[BOX_TYPE_ARMOR][area]) > 100) {
 generate_armor:
         /* Generate an armor */
-        if(generate_armor_v2(ent, area, item, rng)) {
+        if(generate_armor_v2(ent, area, item, rng, 0)) {
             return 0;
         }
 
@@ -1043,7 +1208,7 @@ generate_armor:
     }
     else if((rnd -= ent->box_drop[BOX_TYPE_SHIELD][area]) > 100) {
         /* Generate a shield */
-        if(generate_shield_v2(ent, area, item, rng)) {
+        if(generate_shield_v2(ent, area, item, rng, 0)) {
             return 0;
         }
 
