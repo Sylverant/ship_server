@@ -2086,6 +2086,44 @@ static int handle_bb_sort_inv(ship_client_t *c, subcmd_bb_sort_inv_t *pkt) {
     return 0;
 }
 
+static int handle_mhit(ship_client_t *c, subcmd_mhit_pkt_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+    uint16_t mid;
+
+    /* We can't get these in default lobbies without someone messing with
+       something that they shouldn't be... Disconnect anyone that tries. */
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " hit monster in lobby!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* Sanity check... Make sure the size of the subcommand matches with what we
+       expect. Disconnect the client if not. */
+    if(pkt->hdr.pkt_len != LE16(0x0010) || pkt->size != 0x03) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " sent bad mhit message!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* Make sure the enemy is in range. */
+    mid = LE16(pkt->enemy_id);
+    if(mid > l->map_enemies->count) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " hit invalid enemy (%d -- max: "
+              "%d)!\n", c->guildcard, mid, l->map_enemies->count);
+        return -1;
+        return 0;
+    }
+
+    /* Save the hit, assuming the enemy isn't already dead. */
+    if(!(l->map_enemies->enemies[mid].clients_hit & 0x80)) {
+        l->map_enemies->enemies[mid].clients_hit |= (1 << c->client_id);
+        l->map_enemies->enemies[mid].last_client = c->client_id;
+    }
+
+    return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt, 0);
+}
+
 static int handle_bb_mhit(ship_client_t *c, subcmd_bb_mhit_pkt_t *pkt) {
     lobby_t *l = c->cur_lobby;
     uint16_t mid;
@@ -2440,6 +2478,15 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
 
         case SUBCMD_CMODE_GRAVE:
             rv = handle_cmode_grave(c, pkt);
+            break;
+
+        case SUBCMD_HIT_MONSTER:
+            if(l->flags & LOBBY_FLAG_QUESTING) {
+                sent = 0;
+                break;
+            }
+
+            rv = handle_mhit(c, (subcmd_mhit_pkt_t *)pkt);
             break;
 
         default:
