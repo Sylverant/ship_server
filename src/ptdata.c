@@ -830,6 +830,53 @@ static int generate_meseta(int min, int max, uint32_t item[4],
     return -1;
 }
 
+static int check_and_send(ship_client_t *c, lobby_t *l, uint32_t item[4],
+                          int area, subcmd_itemreq_t *req) {
+    uint32_t v;
+    sylverant_iitem_t iitem;
+
+    if(ship->limits) {
+        switch(c->version) {
+            case CLIENT_VERSION_DCV1:
+                v = ITEM_VERSION_V1;
+                break;
+
+            case CLIENT_VERSION_DCV2:
+            case CLIENT_VERSION_PC:
+                v = ITEM_VERSION_V2;
+                break;
+
+            case CLIENT_VERSION_GC:
+                v = ITEM_VERSION_GC;
+                break;
+
+            default:
+                goto ok;
+        }
+
+        /* Fill in the item structure so we can check it. */
+        iitem.data_l[0] = LE32(item[0]);
+        iitem.data_l[1] = LE32(item[1]);
+        iitem.data_l[2] = LE32(item[2]);
+        iitem.data2_l = LE32(item[3]);
+
+        if(!sylverant_limits_check_item(ship->limits, &iitem, v)) {
+            debug(DBG_LOG, "Potentially non-legit dropped by server:\n"
+                  "%08x %08x %08x %08x\n"
+                  "Team Info: Difficulty: %d, Section: %d, flags: %08x\n"
+                  "Version: %d, Floor: %d (%d %d)\n", item[0], item[1], item[2],
+                  item[3], l->difficulty, l->section, l->flags, l->version,
+                  area, l->maps[(area << 1)], l->maps[(area << 1) + 1]);
+
+            /* The item failed the check, so don't send it! */
+            return 0;
+        }
+    }
+
+ok:
+    return subcmd_send_lobby_item(l, req, item);
+}    
+
 /* Generate an item drop from the PT data. This version uses the v2 PT data set,
    and thus is appropriate for any version before PSOGC. */
 int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
@@ -942,7 +989,7 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
                 return 0;
         }
 
-        return subcmd_send_lobby_item(l, req, item);
+        return check_and_send(c, l, item, c->cur_area, req);
     }
 
     /* Figure out what type to drop... */
@@ -958,7 +1005,7 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
                         return 0;
                     }
 
-                    return subcmd_send_lobby_item(l, req, item);
+                    return check_and_send(c, l, item, c->cur_area, req);
 
                 case BOX_TYPE_ARMOR:
                     /* Drop an armor */
@@ -966,7 +1013,7 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
                         return 0;
                     }
 
-                    return subcmd_send_lobby_item(l, req, item);
+                    return check_and_send(c, l, item, c->cur_area, req);
 
                 case BOX_TYPE_SHIELD:
                     /* Drop a shield */
@@ -974,7 +1021,7 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
                         return 0;
                     }
 
-                    return subcmd_send_lobby_item(l, req, item);
+                    return check_and_send(c, l, item, c->cur_area, req);
 
                 case BOX_TYPE_UNIT:
                     /* Drop a unit */
@@ -982,7 +1029,7 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
                         return 0;
                     }
 
-                    return subcmd_send_lobby_item(l, req, item);
+                    return check_and_send(c, l, item, c->cur_area, req);
 
                 case -1:
                     /* This shouldn't happen, but if it does, don't drop
@@ -1004,7 +1051,7 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
                 return 0;
             }
 
-            return subcmd_send_lobby_item(l, req, item);
+            return check_and_send(c, l, item, c->cur_area, req);
 
         case 2:
             /* Drop meseta */
@@ -1014,7 +1061,7 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
                 return 0;
             }
 
-            return subcmd_send_lobby_item(l, req, item);
+            return check_and_send(c, l, item, c->cur_area, req);
     }
 
     /* Shouldn't ever get here... */
@@ -1098,7 +1145,7 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
                 item[3] = t1 * 10;
             }
 
-            return subcmd_send_lobby_item(l, req, item);
+            return check_and_send(c, l, item, c->cur_area, req);
         }
 
         t1 = BE32(obj->dword[2]);
@@ -1181,7 +1228,7 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
                 return 0;
         }
 
-        return subcmd_send_lobby_item(l, req, item);
+        return check_and_send(c, l, item, c->cur_area, req);
     }
 
     /* Generate an item, according to the PT data */
@@ -1195,7 +1242,7 @@ generate_weapon:
             return 0;
         }
 
-        return subcmd_send_lobby_item(l, req, item);
+        return check_and_send(c, l, item, c->cur_area, req);
     }
     else if((rnd -= ent->box_drop[BOX_TYPE_ARMOR][area]) > 100) {
 generate_armor:
@@ -1204,7 +1251,7 @@ generate_armor:
             return 0;
         }
 
-        return subcmd_send_lobby_item(l, req, item);
+        return check_and_send(c, l, item, c->cur_area, req);
     }
     else if((rnd -= ent->box_drop[BOX_TYPE_SHIELD][area]) > 100) {
         /* Generate a shield */
@@ -1212,7 +1259,7 @@ generate_armor:
             return 0;
         }
 
-        return subcmd_send_lobby_item(l, req, item);
+        return check_and_send(c, l, item, c->cur_area, req);
     }
     else if((rnd -= ent->box_drop[BOX_TYPE_UNIT][area]) > 100) {
         /* Generate a unit */
@@ -1220,7 +1267,7 @@ generate_armor:
             return 0;
         }
 
-        return subcmd_send_lobby_item(l, req, item);
+        return check_and_send(c, l, item, c->cur_area, req);
     }
     else if((rnd -= ent->box_drop[BOX_TYPE_TOOL][area]) > 100) {
 generate_tool:
@@ -1229,7 +1276,7 @@ generate_tool:
             return 0;
         }
 
-        return subcmd_send_lobby_item(l, req, item);
+        return check_and_send(c, l, item, c->cur_area, req);
     }
     else if((rnd -= ent->box_drop[BOX_TYPE_MESETA][area]) > 100) {
 generate_meseta:
@@ -1239,7 +1286,7 @@ generate_meseta:
             return 0;
         }
 
-        return subcmd_send_lobby_item(l, req, item);
+        return check_and_send(c, l, item, c->cur_area, req);
     }
 
     /* You get nothing! */
