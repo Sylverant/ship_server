@@ -614,7 +614,7 @@ int pmt_lookup_guard_v2(uint32_t code, pmt_guard_v2_t *rv) {
         return -4;
     }
 
-    if(parts[2] >= num_guards[parts[1]]) {
+    if(parts[2] >= num_guards[parts[1] - 1]) {
         return -5;
     }
 
