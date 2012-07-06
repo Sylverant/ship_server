@@ -761,11 +761,12 @@ static int read_bb_map_set(int solo, int i, int j) {
 static int read_v2_map_set(int j) {
     int srv;
     char fn[256];
-    int k, l, nmaps, nvars;
+    int k, l, nmaps, nvars, i;
     FILE *fp;
     long sz;
     map_enemy_t *en;
     map_object_t *obj;
+    game_object_t *gobj;
     game_enemies_t *tmp;
     game_objs_t *tmp2;
 
@@ -912,9 +913,25 @@ static int read_v2_map_set(int j) {
             /* We're done with the file, so close it */
             fclose(fp);
 
+            /* Make space for the game object representation. */
+            gobj = (game_object_t *)malloc((sz / 0x44) * sizeof(game_object_t));
+            if(!gobj) {
+                debug(DBG_ERROR, "Cannot allocate game objects: %s\n",
+                      strerror(errno));
+                free(obj);
+                fclose(fp);
+                return 9;
+            }
+
+            /* Store what we'll actually use later... */
+            for(i = 0; i < sz / 0x44; ++i) {
+                gobj[i].data = obj[i];
+                gobj[i].flags = 0;
+            }
+
             /* Save it into the struct */
             tmp2[k * nvars + l].count = sz / 0x44;
-            tmp2[k * nvars + l].objs = obj;
+            tmp2[k * nvars + l].objs = gobj;
         }
     }
 
@@ -1281,7 +1298,7 @@ int v2_load_game_enemies(lobby_t *l) {
         return -4;
     }
 
-    if(!(ob->objs = (map_object_t *)malloc(sizeof(map_object_t) * objects))) {
+    if(!(ob->objs = (game_object_t *)malloc(sizeof(game_object_t) * objects))) {
         debug(DBG_ERROR, "Error allocating objects: %s\n", strerror(errno));
         free(ob);
         free(en->enemies);
@@ -1303,7 +1320,7 @@ int v2_load_game_enemies(lobby_t *l) {
         index += sets[i]->count;
 
         memcpy(&ob->objs[index2], osets[i]->objs,
-               sizeof(map_object_t) * osets[i]->count);
+               sizeof(game_object_t) * osets[i]->count);
         index2 += osets[i]->count;
     }
 

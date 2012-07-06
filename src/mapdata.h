@@ -127,9 +127,15 @@ typedef struct parsed_map {
     game_enemies_t *data;
 } parsed_map_t;
 
+/* Object data as used in the game. */
+typedef struct game_object {
+    map_object_t data;
+    uint32_t flags;
+} game_object_t;
+
 typedef struct game_objects {
     uint32_t count;
-    map_object_t *objs;
+    game_object_t *objs;
 } game_objs_t;
 
 typedef struct parsed_objects {

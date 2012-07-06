@@ -2116,7 +2116,6 @@ static int handle_mhit(ship_client_t *c, subcmd_mhit_pkt_t *pkt) {
         debug(DBG_WARN, "Guildcard %" PRIu32 " hit invalid enemy (%d -- max: "
               "%d)!\n", c->guildcard, mid, l->map_enemies->count);
         return -1;
-        return 0;
     }
 
     /* Save the hit, assuming the enemy isn't already dead. */

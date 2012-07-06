@@ -886,6 +886,8 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
     uint32_t item[4];
     int area;
     struct mt19937_state *rng = &c->cur_block->rng;
+    uint16_t mid;
+    game_enemy_t *enemy;
 
     /* Make sure the PT index in the packet is sane */
     if(req->pt_index > 0x33)
@@ -894,13 +896,6 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
     /* If the PT index is 0x30, this is a box, not an enemy! */
     if(req->pt_index == 0x30)
         return pt_generate_v2_boxdrop(c, l, r);
-
-    /* See if the enemy is going to drop anything at all this time... */
-    rnd = mt19937_genrand_int32(rng) % 100;
-
-    if(rnd >= ent->enemy_dar[req->pt_index])
-        /* Nope. You get nothing! */
-        return 0;
 
     /* Figure out the area we'll be worried with */
     area = c->cur_area;
@@ -929,6 +924,29 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
 
     /* Subtract one, since we want the index in the box_drop array */
     --area;
+
+    /* Make sure the enemy's id is sane... */
+    mid = LE16(req->req);
+    if(mid > l->map_enemies->count) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " requested drop for invalid "
+              "enemy (%d -- max: %d)!\n", c->guildcard, mid,
+              l->map_enemies->count);
+        return -1;
+    }
+
+    /* Grab the map enemy to make sure it hasn't already dropped something. */
+    enemy = &l->map_enemies->enemies[mid];
+    if(enemy->drop_done)
+        return 0;
+
+    enemy->drop_done = 1;
+
+    /* See if the enemy is going to drop anything at all this time... */
+    rnd = mt19937_genrand_int32(rng) % 100;
+
+    if(rnd >= ent->enemy_dar[req->pt_index])
+        /* Nope. You get nothing! */
+        return 0;
 
     /* See if the user is lucky today... */
     if((item[0] = rt_generate_v2_rare(c, l, req->pt_index, 0))) {
@@ -1072,6 +1090,7 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
     subcmd_itemreq_t *req = (subcmd_itemreq_t *)r;
     pt_v2_entry_t *ent = &v2_ptdata[l->difficulty][l->section];
     uint16_t obj_id;
+    game_object_t *gobj;
     map_object_t *obj;
     uint32_t rnd, t1, t2;
     int area;
@@ -1091,7 +1110,12 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
         return -1;
     }
 
-    obj = &l->map_objs->objs[obj_id];
+    /* Don't bother if the box has already been opened */
+    gobj = &l->map_objs->objs[obj_id];
+    if(gobj->flags & 0x00000001)
+        return 0;
+
+    obj = &gobj->data;
 
     /* Figure out the area we'll be worried with */
     area = c->cur_area;
@@ -1120,6 +1144,9 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
 
     /* Subtract one, since we want the index in the box_drop array */
     --area;
+
+    /* Mark the box as spent now... */
+    gobj->flags |= 0x00000001;
 
     /* See if the object is fixed-type box */
     t1 = LE32(obj->dword[0]);
