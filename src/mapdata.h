@@ -93,13 +93,13 @@ typedef struct map_object {
     uint32_t unk1;
     uint32_t unk2;
     uint32_t obj_id;
-    uint32_t appear;
-    uint32_t map_section;
-    uint32_t unk3;
     float x;
     float y;
     float z;
-    uint32_t yrot;
+    uint32_t rpl;
+    uint32_t rotation;
+    uint32_t unk3;
+    uint32_t unk4;
     /* Everything beyond this point depends on the object type. */
     union {
         float sp[6];
