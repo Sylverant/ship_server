@@ -4558,6 +4558,22 @@ static int send_dc_quest_categories_new(ship_client_t *c, int lang) {
         qlist = &ship->qlist[CLIENT_VERSION_DCV2][lang];
     }
 
+    /* Fall back to English if there's no list for this language... */
+    if(!qlist->cat_count) {
+        lang = CLIENT_LANG_ENGLISH;
+
+        if(l->version == CLIENT_VERSION_GC ||
+           c->version == CLIENT_VERSION_EP3) {
+            qlist = &ship->qlist[CLIENT_VERSION_GC][lang];
+        }
+        else if(!l->v2) {
+            qlist = &ship->qlist[CLIENT_VERSION_DCV1][lang];
+        }
+        else {
+            qlist = &ship->qlist[CLIENT_VERSION_DCV2][lang];
+        }
+    }
+
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
         return -1;
@@ -4651,6 +4667,18 @@ static int send_pc_quest_categories_new(ship_client_t *c, int lang) {
     }
     else {
         qlist = &ship->qlist[CLIENT_VERSION_PC][lang];
+    }
+
+    /* Fall back to English if there's no list for this language... */
+    if(!qlist->cat_count) {
+        lang = CLIENT_LANG_ENGLISH;
+
+        if(!l->v2) {
+            qlist = &ship->qlist[CLIENT_VERSION_DCV1][lang];
+        }
+        else {
+            qlist = &ship->qlist[CLIENT_VERSION_DCV2][lang];
+        }
     }
 
     /* Verify we got the sendbuf. */
@@ -4964,13 +4992,13 @@ int send_quest_list(ship_client_t *c, int cat, sylverant_quest_category_t *l) {
 static int send_dc_quest_list_new(ship_client_t *c, int cn, int lang) {
     uint8_t *sendbuf = get_sendbuf();
     dc_quest_list_pkt *pkt = (dc_quest_list_pkt *)sendbuf;
-    int i, len = 0x04, entries = 0, max = INT_MAX, j;
+    int i, len = 0x04, entries = 0, max = INT_MAX, j, k, ver;
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
-    sylverant_quest_list_t *qlist;
+    sylverant_quest_list_t *qlist, *qlisten;
     lobby_t *l = c->cur_lobby;
-    sylverant_quest_category_t *cat;
+    sylverant_quest_category_t *cat, *caten;
     sylverant_quest_t *quest;
     quest_map_elem_t *elem;
     ship_client_t *tmp;
@@ -4981,18 +5009,32 @@ static int send_dc_quest_list_new(ship_client_t *c, int cn, int lang) {
     }
     
     if(!l->v2) {
+        ver = CLIENT_VERSION_DCV1;
         qlist = &ship->qlist[CLIENT_VERSION_DCV1][lang];
+        qlisten = &ship->qlist[CLIENT_VERSION_DCV1][CLIENT_LANG_ENGLISH];
     }
     else {
+        ver = CLIENT_VERSION_DCV2;
         qlist = &ship->qlist[CLIENT_VERSION_DCV2][lang];
+        qlisten = &ship->qlist[CLIENT_VERSION_DCV2][CLIENT_LANG_ENGLISH];
     }
 
-    /* Check the category for sanity */
+    /* If this quest category isn't in range for this language, try it in
+       English before giving up... */
     if(qlist->cat_count <= cn) {
-        return -1;
+        lang = CLIENT_LANG_ENGLISH;
+        qlist = qlisten;
+
+        /* If we still don't have it, something screwy's going on... */
+        if(qlist->cat_count <= cn)
+            return -1;
     }
 
+    /* Grab the category... This implicitly assumes that the categories are in
+       the same order, regardless of language. At some point, I'll work this out
+       a better way, but for now, this will work. */
     cat = &qlist->cats[cn];
+    caten = &qlisten->cats[cn];
 
     /* Clear out the header */
     memset(pkt, 0, 0x04);
@@ -5005,85 +5047,99 @@ static int send_dc_quest_list_new(ship_client_t *c, int cn, int lang) {
     /* Fill in the header */
     pkt->hdr.pkt_type = QUEST_LIST_TYPE;
 
-    for(i = 0; i < cat->quest_count && i < max; ++i) {
-        quest = &cat->quests[i];
-        elem = (quest_map_elem_t *)quest->user_data;
+    for(k = 0; k < 2; ++k) {
+        for(i = 0; i < cat->quest_count && i < max; ++i) {
+            quest = &cat->quests[i];
+            elem = (quest_map_elem_t *)quest->user_data;
 
-        /* Skip quests that aren't for the current event */
-        if(!(quest->event & (1 << l->event))) {
-            continue;
-        }
+            /* Skip quests we should have already covered if we're on the second
+               pass through */
+            if(k && elem->qptr[ver][lang])
+                continue;
 
-        /* Skip quests where the number of players isn't in range. */
-        if(quest->max_players < l->num_clients ||
-           quest->min_players > l->num_clients) {
-            continue;
-        }
-
-        /* Look through to make sure that all clients in the lobby can play the
-           quest */
-        for(j = 0; j < l->max_clients; ++j) {
-            if(!(tmp = l->clients[j])) {
+            /* Skip quests that aren't for the current event */
+            if(!(quest->event & (1 << l->event))) {
                 continue;
             }
 
-            if(!elem->qptr[tmp->version][tmp->q_lang] &&
-               !elem->qptr[tmp->version][tmp->language_code] &&
-               !elem->qptr[tmp->version][CLIENT_LANG_ENGLISH] &&
-               !elem->qptr[tmp->version][lang]) {
-                break;
+            /* Skip quests where the number of players isn't in range. */
+            if(quest->max_players < l->num_clients ||
+               quest->min_players > l->num_clients) {
+                continue;
             }
+
+            /* Look through to make sure that all clients in the lobby can play
+               the quest */
+            for(j = 0; j < l->max_clients; ++j) {
+                if(!(tmp = l->clients[j])) {
+                    continue;
+                }
+
+                if(!k && !elem->qptr[tmp->version][tmp->q_lang] &&
+                   !elem->qptr[tmp->version][tmp->language_code] &&
+                   !elem->qptr[tmp->version][CLIENT_LANG_ENGLISH] &&
+                   !elem->qptr[tmp->version][lang]) {
+                    break;
+                }
+            }
+
+            /* Skip quests where we can't play them due to restrictions by
+               users' versions or language codes */
+            if(j != l->max_clients) {
+                continue;
+            }
+
+            /* Clear the entry */
+            memset(pkt->entries + entries, 0, 0x98);
+
+            /* Copy the category's information over to the packet */
+            pkt->entries[entries].menu_id = LE32(((MENU_ID_QUEST) | (cn << 8) |
+                                                  (lang << 24)));
+            pkt->entries[entries].item_id = LE32(quest->qid);
+
+            /* Convert the name and the description to the appropriate
+               encoding */
+            in = 32;
+            out = 30;
+            inptr = quest->name;
+            outptr = &pkt->entries[entries].name[2];
+
+            if(lang == CLIENT_LANG_JAPANESE && !k) {
+                iconv(ic_utf8_to_sjis, &inptr, &in, &outptr, &out);
+                pkt->entries[entries].name[0] = '\t';
+                pkt->entries[entries].name[1] = 'J';
+            }
+            else {
+                iconv(ic_utf8_to_8859, &inptr, &in, &outptr, &out);
+                pkt->entries[entries].name[0] = '\t';
+                pkt->entries[entries].name[1] = 'E';
+            }
+
+            in = 112;
+            out = 110;
+            inptr = quest->desc;
+            outptr = &pkt->entries[entries].desc[2];
+
+            if(lang == CLIENT_LANG_JAPANESE && !k) {
+                iconv(ic_utf8_to_sjis, &inptr, &in, &outptr, &out);
+                pkt->entries[entries].desc[0] = '\t';
+                pkt->entries[entries].desc[1] = 'J';
+            }
+            else {
+                iconv(ic_utf8_to_8859, &inptr, &in, &outptr, &out);
+                pkt->entries[entries].desc[0] = '\t';
+                pkt->entries[entries].desc[1] = 'E';
+            }
+
+            ++entries;
+            len += 0x98;
         }
 
-        /* Skip quests where we can't play them due to restrictions by users'
-           versions or language codes */
-        if(j != l->max_clients) {
-            continue;
-        }
+        /* If we already did English, then we're done. */
+        if(cat == caten)
+            break;
 
-        /* Clear the entry */
-        memset(pkt->entries + entries, 0, 0x98);
-
-        /* Copy the category's information over to the packet */
-        pkt->entries[entries].menu_id = LE32(((MENU_ID_QUEST) | (cn << 8) |
-                                              (lang << 24)));
-        pkt->entries[entries].item_id = LE32(quest->qid);
-
-        /* Convert the name and the description to the appropriate encoding */
-        in = 32;
-        out = 30;
-        inptr = quest->name;
-        outptr = &pkt->entries[entries].name[2];
-
-        if(lang == CLIENT_LANG_JAPANESE) {
-            iconv(ic_utf8_to_sjis, &inptr, &in, &outptr, &out);
-            pkt->entries[entries].name[0] = '\t';
-            pkt->entries[entries].name[1] = 'J';
-        }
-        else {
-            iconv(ic_utf8_to_8859, &inptr, &in, &outptr, &out);
-            pkt->entries[entries].name[0] = '\t';
-            pkt->entries[entries].name[1] = 'E';
-        }
-
-        in = 112;
-        out = 110;
-        inptr = quest->desc;
-        outptr = &pkt->entries[entries].desc[2];
-
-        if(lang == CLIENT_LANG_JAPANESE) {
-            iconv(ic_utf8_to_sjis, &inptr, &in, &outptr, &out);
-            pkt->entries[entries].desc[0] = '\t';
-            pkt->entries[entries].desc[1] = 'J';
-        }
-        else {
-            iconv(ic_utf8_to_8859, &inptr, &in, &outptr, &out);
-            pkt->entries[entries].desc[0] = '\t';
-            pkt->entries[entries].desc[1] = 'E';
-        }
-
-        ++entries;
-        len += 0x98;
+        cat = caten;
     }
 
     /* Fill in the rest of the header */
@@ -5097,13 +5153,13 @@ static int send_dc_quest_list_new(ship_client_t *c, int cn, int lang) {
 static int send_pc_quest_list_new(ship_client_t *c, int cn, int lang) {
     uint8_t *sendbuf = get_sendbuf();
     pc_quest_list_pkt *pkt = (pc_quest_list_pkt *)sendbuf;
-    int i, len = 0x04, entries = 0, max = INT_MAX, j;
+    int i, len = 0x04, entries = 0, max = INT_MAX, j, k, ver;
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
-    sylverant_quest_list_t *qlist;
+    sylverant_quest_list_t *qlist, *qlisten;
     lobby_t *l = c->cur_lobby;
-    sylverant_quest_category_t *cat;
+    sylverant_quest_category_t *cat, *caten;
     sylverant_quest_t *quest;
     quest_map_elem_t *elem;
     ship_client_t *tmp;
@@ -5114,18 +5170,32 @@ static int send_pc_quest_list_new(ship_client_t *c, int cn, int lang) {
     }
 
     if(!l->v2) {
+        ver = CLIENT_VERSION_DCV1;
         qlist = &ship->qlist[CLIENT_VERSION_DCV1][lang];
+        qlisten = &ship->qlist[CLIENT_VERSION_DCV1][CLIENT_LANG_ENGLISH];
     }
     else {
+        ver = CLIENT_VERSION_PC;
         qlist = &ship->qlist[CLIENT_VERSION_PC][lang];
+        qlisten = &ship->qlist[CLIENT_VERSION_PC][CLIENT_LANG_ENGLISH];
     }
 
-    /* Check the category for sanity */
+    /* If this quest category isn't in range for this language, try it in
+       English before giving up... */
     if(qlist->cat_count <= cn) {
-        return -1;
+        lang = CLIENT_LANG_ENGLISH;
+        qlist = qlisten;
+
+        /* If we still don't have it, something screwy's going on... */
+        if(qlist->cat_count <= cn)
+            return -1;
     }
-    
+
+    /* Grab the category... This implicitly assumes that the categories are in
+       the same order, regardless of language. At some point, I'll work this out
+       a better way, but for now, this will work. */
     cat = &qlist->cats[cn];
+    caten = &qlisten->cats[cn];
 
     /* Clear out the header */
     memset(pkt, 0, 0x04);
@@ -5138,65 +5208,78 @@ static int send_pc_quest_list_new(ship_client_t *c, int cn, int lang) {
     /* Fill in the header */
     pkt->hdr.pkt_type = QUEST_LIST_TYPE;
 
-    for(i = 0; i < cat->quest_count && i < max; ++i) {
-        quest = &cat->quests[i];
-        elem = (quest_map_elem_t *)quest->user_data;
+    for(k = 0; k < 2; ++k) {
+        for(i = 0; i < cat->quest_count && i < max; ++i) {
+            quest = &cat->quests[i];
+            elem = (quest_map_elem_t *)quest->user_data;
 
-        /* Skip quests that aren't for the current event */
-        if(!(quest->event & (1 << l->event))) {
-            continue;
-        }
+            /* Skip quests we should have already covered if we're on the second
+               pass through */
+            if(k && elem->qptr[ver][lang])
+                continue;
 
-        /* Skip quests where the number of players isn't in range. */
-        if(quest->max_players < l->num_clients ||
-           quest->min_players > l->num_clients) {
-            continue;
-        }
-
-        /* Look through to make sure that all clients in the lobby can play the
-           quest */
-        for(j = 0; j < l->max_clients; ++j) {
-            if(!(tmp = l->clients[j])) {
+            /* Skip quests that aren't for the current event */
+            if(!(quest->event & (1 << l->event))) {
                 continue;
             }
 
-            if(!elem->qptr[tmp->version][tmp->q_lang] &&
-               !elem->qptr[tmp->version][tmp->language_code] &&
-               !elem->qptr[tmp->version][CLIENT_LANG_ENGLISH] &&
-               !elem->qptr[tmp->version][lang]) {
-                break;
+            /* Skip quests where the number of players isn't in range. */
+            if(quest->max_players < l->num_clients ||
+               quest->min_players > l->num_clients) {
+                continue;
             }
+
+            /* Look through to make sure that all clients in the lobby can play
+               the quest */
+            for(j = 0; j < l->max_clients; ++j) {
+                if(!(tmp = l->clients[j])) {
+                    continue;
+                }
+
+                if(!k && !elem->qptr[tmp->version][tmp->q_lang] &&
+                   !elem->qptr[tmp->version][tmp->language_code] &&
+                   !elem->qptr[tmp->version][CLIENT_LANG_ENGLISH] &&
+                   !elem->qptr[tmp->version][lang]) {
+                    break;
+                }
+            }
+
+            /* Skip quests where we can't play them due to restrictions by
+               users' versions or language codes */
+            if(j != l->max_clients) {
+                continue;
+            }
+
+            /* Clear the entry */
+            memset(pkt->entries + entries, 0, 0x98);
+
+            /* Copy the category's information over to the packet */
+            pkt->entries[entries].menu_id = LE32(((MENU_ID_QUEST) | (cn << 8) |
+                                                  (lang << 24)));
+            pkt->entries[entries].item_id = LE32(quest->qid);
+
+            /* Convert the name and the description to UTF-16. */
+            in = 32;
+            out = 64;
+            inptr = quest->name;
+            outptr = (char *)pkt->entries[entries].name;
+            iconv(ic_utf8_to_utf16, &inptr, &in, &outptr, &out);
+
+            in = 112;
+            out = 224;
+            inptr = quest->desc;
+            outptr = (char *)pkt->entries[entries].desc;
+            iconv(ic_utf8_to_utf16, &inptr, &in, &outptr, &out);
+
+            ++entries;
+            len += 0x128;
         }
 
-        /* Skip quests where we can't play them due to restrictions by users'
-           versions or language codes */
-        if(j != l->max_clients) {
-            continue;
-        }
+        /* If we already did English, then we're done. */
+        if(cat == caten)
+            break;
 
-        /* Clear the entry */
-        memset(pkt->entries + entries, 0, 0x98);
-
-        /* Copy the category's information over to the packet */
-        pkt->entries[entries].menu_id = LE32(((MENU_ID_QUEST) | (cn << 8) |
-                                              (lang << 24)));
-        pkt->entries[entries].item_id = LE32(quest->qid);
-
-        /* Convert the name and the description to UTF-16. */
-        in = 32;
-        out = 64;
-        inptr = quest->name;
-        outptr = (char *)pkt->entries[entries].name;
-        iconv(ic_utf8_to_utf16, &inptr, &in, &outptr, &out);
-
-        in = 112;
-        out = 224;
-        inptr = quest->desc;
-        outptr = (char *)pkt->entries[entries].desc;
-        iconv(ic_utf8_to_utf16, &inptr, &in, &outptr, &out);
-
-        ++entries;
-        len += 0x128;
+        cat = caten;
     }
 
     /* Fill in the rest of the header */
@@ -5210,13 +5293,13 @@ static int send_pc_quest_list_new(ship_client_t *c, int cn, int lang) {
 static int send_gc_quest_list_new(ship_client_t *c, int cn, int lang) {
     uint8_t *sendbuf = get_sendbuf();
     dc_quest_list_pkt *pkt = (dc_quest_list_pkt *)sendbuf;
-    int i, len = 0x04, entries = 0, max = INT_MAX, j;
+    int i, len = 0x04, entries = 0, max = INT_MAX, j, k, ver;
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
-    sylverant_quest_list_t *qlist;
+    sylverant_quest_list_t *qlist, *qlisten;
     lobby_t *l = c->cur_lobby;
-    sylverant_quest_category_t *cat;
+    sylverant_quest_category_t *cat, *caten;
     sylverant_quest_t *quest;
     quest_map_elem_t *elem;
     ship_client_t *tmp;
@@ -5227,21 +5310,37 @@ static int send_gc_quest_list_new(ship_client_t *c, int cn, int lang) {
     }
 
     if(l->version == CLIENT_VERSION_GC) {
+        ver = CLIENT_VERSION_GC;
         qlist = &ship->qlist[CLIENT_VERSION_GC][lang];
+        qlisten = &ship->qlist[CLIENT_VERSION_GC][CLIENT_LANG_ENGLISH];
     }
     else if(!l->v2) {
+        ver = CLIENT_VERSION_DCV1;
         qlist = &ship->qlist[CLIENT_VERSION_DCV1][lang];
+        qlisten = &ship->qlist[CLIENT_VERSION_DCV1][CLIENT_LANG_ENGLISH];
     }
     else {
+        ver = CLIENT_VERSION_DCV2;
         qlist = &ship->qlist[CLIENT_VERSION_DCV2][lang];
+        qlisten = &ship->qlist[CLIENT_VERSION_DCV2][CLIENT_LANG_ENGLISH];
     }
 
-    /* Check the category for sanity */
+    /* If this quest category isn't in range for this language, try it in
+       English before giving up... */
     if(qlist->cat_count <= cn) {
-        return -1;
+        lang = CLIENT_LANG_ENGLISH;
+        qlist = qlisten;
+
+        /* If we still don't have it, something screwy's going on... */
+        if(qlist->cat_count <= cn)
+            return -1;
     }
 
+    /* Grab the category... This implicitly assumes that the categories are in
+       the same order, regardless of language. At some point, I'll work this out
+       a better way, but for now, this will work. */
     cat = &qlist->cats[cn];
+    caten = &qlisten->cats[cn];
 
     /* Clear out the header */
     memset(pkt, 0, 0x04);
@@ -5254,90 +5353,104 @@ static int send_gc_quest_list_new(ship_client_t *c, int cn, int lang) {
     /* Fill in the header */
     pkt->hdr.pkt_type = QUEST_LIST_TYPE;
 
-    for(i = 0; i < cat->quest_count && i < max; ++i) {
-        quest = &cat->quests[i];
-        elem = (quest_map_elem_t *)quest->user_data;
+    for(k = 0; k < 2; ++k) {
+        for(i = 0; i < cat->quest_count && i < max; ++i) {
+            quest = &cat->quests[i];
+            elem = (quest_map_elem_t *)quest->user_data;
 
-        /* Skip quests that aren't for the current event */
-        if(!(quest->event & (1 << l->event))) {
-            continue;
-        }
+            /* Skip quests we should have already covered if we're on the second
+               pass through */
+            if(k && elem->qptr[ver][lang])
+                continue;
 
-        /* Skip quests where the number of players isn't in range. */
-        if(quest->max_players < l->num_clients ||
-           quest->min_players > l->num_clients) {
-            continue;
-        }
-
-        /* Look through to make sure that all clients in the lobby can play the
-           quest */
-        for(j = 0; j < l->max_clients; ++j) {
-            if(!(tmp = l->clients[j])) {
+            /* Skip quests that aren't for the current event */
+            if(!(quest->event & (1 << l->event))) {
                 continue;
             }
 
-            if(!elem->qptr[tmp->version][tmp->q_lang] &&
-               !elem->qptr[tmp->version][tmp->language_code] &&
-               !elem->qptr[tmp->version][CLIENT_LANG_ENGLISH] &&
-               !elem->qptr[tmp->version][lang]) {
-                break;
+            /* Skip quests where the number of players isn't in range. */
+            if(quest->max_players < l->num_clients ||
+               quest->min_players > l->num_clients) {
+                continue;
             }
+
+            /* Look through to make sure that all clients in the lobby can play
+               the quest */
+            for(j = 0; j < l->max_clients; ++j) {
+                if(!(tmp = l->clients[j])) {
+                    continue;
+                }
+
+                if(!k && !elem->qptr[tmp->version][tmp->q_lang] &&
+                   !elem->qptr[tmp->version][tmp->language_code] &&
+                   !elem->qptr[tmp->version][CLIENT_LANG_ENGLISH] &&
+                   !elem->qptr[tmp->version][lang]) {
+                    break;
+                }
+            }
+
+            /* Skip quests where we can't play them due to restrictions by
+               users' versions or language codes */
+            if(j != l->max_clients) {
+                continue;
+            }
+
+            /* Make sure the episode matches up */
+            if(quest->episode != c->cur_lobby->episode) {
+                continue;
+            }
+
+            /* Clear the entry */
+            memset(pkt->entries + entries, 0, 0x98);
+
+            /* Copy the category's information over to the packet */
+            pkt->entries[entries].menu_id = LE32(((MENU_ID_QUEST) | (cn << 8) |
+                                                  (lang << 24)));
+            pkt->entries[entries].item_id = LE32(quest->qid);
+
+            /* Convert the name and the description to the appropriate
+               encoding */
+            in = 32;
+            out = 30;
+            inptr = quest->name;
+            outptr = &pkt->entries[entries].name[2];
+
+            if(lang == CLIENT_LANG_JAPANESE && !k) {
+                iconv(ic_utf8_to_sjis, &inptr, &in, &outptr, &out);
+                pkt->entries[entries].name[0] = '\t';
+                pkt->entries[entries].name[1] = 'J';
+            }
+            else {
+                iconv(ic_utf8_to_8859, &inptr, &in, &outptr, &out);
+                pkt->entries[entries].name[0] = '\t';
+                pkt->entries[entries].name[1] = 'E';
+            }
+
+            in = 112;
+            out = 110;
+            inptr = quest->desc;
+            outptr = &pkt->entries[entries].desc[2];
+
+            if(lang == CLIENT_LANG_JAPANESE && !k) {
+                iconv(ic_utf8_to_sjis, &inptr, &in, &outptr, &out);
+                pkt->entries[entries].desc[0] = '\t';
+                pkt->entries[entries].desc[1] = 'J';
+            }
+            else {
+                iconv(ic_utf8_to_8859, &inptr, &in, &outptr, &out);
+                pkt->entries[entries].desc[0] = '\t';
+                pkt->entries[entries].desc[1] = 'E';
+            }
+
+            ++entries;
+            len += 0x98;
         }
 
-        /* Skip quests where we can't play them due to restrictions by users'
-           versions or language codes */
-        if(j != l->max_clients) {
-            continue;
-        }
+        /* If we already did English, then we're done. */
+        if(cat == caten)
+            break;
 
-        /* Make sure the episode matches up */
-        if(quest->episode != c->cur_lobby->episode) {
-            continue;
-        }
-
-        /* Clear the entry */
-        memset(pkt->entries + entries, 0, 0x98);
-
-        /* Copy the category's information over to the packet */
-        pkt->entries[entries].menu_id = LE32(((MENU_ID_QUEST) | (cn << 8) |
-                                              (lang << 24)));
-        pkt->entries[entries].item_id = LE32(quest->qid);
-
-        /* Convert the name and the description to the appropriate encoding */
-        in = 32;
-        out = 30;
-        inptr = quest->name;
-        outptr = &pkt->entries[entries].name[2];
-
-        if(lang == CLIENT_LANG_JAPANESE) {
-            iconv(ic_utf8_to_sjis, &inptr, &in, &outptr, &out);
-            pkt->entries[entries].name[0] = '\t';
-            pkt->entries[entries].name[1] = 'J';
-        }
-        else {
-            iconv(ic_utf8_to_8859, &inptr, &in, &outptr, &out);
-            pkt->entries[entries].name[0] = '\t';
-            pkt->entries[entries].name[1] = 'E';
-        }
-
-        in = 112;
-        out = 110;
-        inptr = quest->desc;
-        outptr = &pkt->entries[entries].desc[2];
-
-        if(lang == CLIENT_LANG_JAPANESE) {
-            iconv(ic_utf8_to_sjis, &inptr, &in, &outptr, &out);
-            pkt->entries[entries].desc[0] = '\t';
-            pkt->entries[entries].desc[1] = 'J';
-        }
-        else {
-            iconv(ic_utf8_to_8859, &inptr, &in, &outptr, &out);
-            pkt->entries[entries].desc[0] = '\t';
-            pkt->entries[entries].desc[1] = 'E';
-        }
-
-        ++entries;
-        len += 0x98;
+        cat = caten;
     }
 
     /* Fill in the rest of the header */
