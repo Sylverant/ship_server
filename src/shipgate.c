@@ -946,6 +946,7 @@ static int handle_gmlogin(shipgate_conn_t *conn,
         if(i->guildcard == gc) {
             i->privilege |= pkt->priv;
             i->flags |= CLIENT_FLAG_LOGGED_IN;
+            i->flags &= ~CLIENT_FLAG_GC_PROTECT;
             send_txt(i, "%s", __(i, "\tE\tC7Login Successful."));
             break;
         }
@@ -1621,26 +1622,40 @@ static int  handle_useropt(shipgate_conn_t *c, shipgate_user_opt_pkt *pkt) {
                 switch(ntohl(opt->option)) {
                     case USER_OPT_QUEST_LANG:
                         /* Make sure the length is right */
-                        if(length != 16) {
+                        if(length != 16)
                             break;
-                        }
 
-                        /* Only byte of the data that's used is the first one.
-                           It has the language code in it. */
+                        /* The only byte of the data that's used is the first
+                           one. It has the language code in it. */
                         i->q_lang = opt->data[0];
                         break;
 
                     case USER_OPT_ENABLE_BACKUP:
                         /* Make sure the length is right */
-                        if(length != 16) {
+                        if(length != 16)
                             break;
-                        }
 
-                        /* Only byte of the data that's used is the first one.
-                           It is a boolean saying whether or not to enable the
-                           auto backup feature. */
-                        if(opt->data[0]) {
+                        /* The only byte of the data that's used is the first
+                           one. It is a boolean saying whether or not to enable
+                           the auto backup feature. */
+                        if(opt->data[0])
                             i->flags |= CLIENT_FLAG_AUTO_BACKUP;
+                        break;
+
+                    case USER_OPT_GC_PROTECT:
+                        /* Make sure the length is right */
+                        if(length != 16)
+                            break;
+
+                        /* The only byte of the data that's used is the first
+                           one. It is a boolean saying whether or not to enable
+                           the guildcard protection feature. */
+                        if(opt->data[0]) {
+                            i->flags |= CLIENT_FLAG_GC_PROTECT;
+                            send_txt(i, __(i, "\tE\tC7Guildcard is "
+                                           "protected.\nYou will be kicked\n"
+                                           "if you do not login."));
+                            i->join_time = time(NULL);
                         }
                         break;
                 }

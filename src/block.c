@@ -116,6 +116,15 @@ static void *block_thd(void *d) {
                 it->last_sent = now;
             }
 
+            /* Check if their timeout expired to login after getting a
+               protection message. */
+            if((it->flags & CLIENT_FLAG_GC_PROTECT) &&
+               it->join_time + 60 < now) {
+                it->flags |= CLIENT_FLAG_DISCONNECTED;
+                timeout.tv_sec = 0;
+                continue;
+            }
+
             FD_SET(it->sock, &readfds);
 
             /* Only add to the write fd set if we have something to send out. */
@@ -632,10 +641,19 @@ lobby_t *block_get_lobby(block_t *b, uint32_t lobby_id) {
 }
 
 static int join_game(ship_client_t *c, lobby_t *l) {
-    int rv = lobby_change_lobby(c, l);
+    int rv;
     int i;
     uint32_t id;
 
+    /* Make sure they don't have the protection flag on */
+    if(c->flags & CLIENT_FLAG_GC_PROTECT) {
+        send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't join game!"),
+                      __(c, "\tC7You must login\nbefore joining a\nteam."));
+        return -1;
+    }
+
+    /* See if they can change lobbies... */
+    rv = lobby_change_lobby(c, l);
     if(rv == -15) {
         /* HUcaseal, FOmar, or RAmarl trying to join a v1 game */
         send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't join game!"),
@@ -1170,6 +1188,13 @@ static int process_change_lobby(ship_client_t *c, uint32_t item_id) {
     lobby_t *i, *req = NULL;
     int rv;
 
+    /* Make sure they don't have the protection flag on */
+    if(c->flags & CLIENT_FLAG_GC_PROTECT) {
+        return send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't change lobby!"),
+                             __(c, "\tC7You must login\nbefore changing\n"
+                                "lobbies."));
+    }
+
     pthread_rwlock_rdlock(&c->cur_block->lobby_lock);
 
     TAILQ_FOREACH(i, &c->cur_block->lobbies, qentry) {
@@ -1182,7 +1207,7 @@ static int process_change_lobby(ship_client_t *c, uint32_t item_id) {
     /* The requested lobby is non-existant? What to do... */
     if(req == NULL) {
         pthread_rwlock_unlock(&c->cur_block->lobby_lock);
-        return send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't Change lobby!"),
+        return send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't change lobby!"),
                              __(c, "\tC7The lobby is non-\nexistant."));
     }
 
@@ -1191,11 +1216,11 @@ static int process_change_lobby(ship_client_t *c, uint32_t item_id) {
     pthread_rwlock_unlock(&c->cur_block->lobby_lock);
 
     if(rv == -1) {
-        return send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't Change lobby!"),
+        return send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't change lobby!"),
                              __(c, "\tC7The lobby is full."));
     }
     else if(rv < 0) {
-        return send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't Change lobby!"),
+        return send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't change lobby!"),
                              __(c, "\tC7Unknown error occurred."));
     }
     else {
@@ -1245,6 +1270,12 @@ static int dc_process_chat(ship_client_t *c, dc_chat_pkt *pkt) {
     }
 #endif
 
+    /* Don't send the message if they have the protection flag on. */
+    if(c->flags & CLIENT_FLAG_GC_PROTECT) {
+        return send_txt(c, __(c, "\tE\tC7You must login before\n"
+                              "you can chat."));
+    }
+
     /* Send the message to the lobby. */
     return send_lobby_chat(l, c, pkt->msg);
 }
@@ -1281,6 +1312,12 @@ static int pc_process_chat(ship_client_t *c, dc_chat_pkt *pkt) {
     }
 #endif
 
+    /* Don't send the message if they have the protection flag on. */
+    if(c->flags & CLIENT_FLAG_GC_PROTECT) {
+        return send_txt(c, __(c, "\tE\tC7You must login before\n"
+                              "you can chat."));
+    }
+
     /* Send the message to the lobby. */
     return send_lobby_wchat(l, c, (uint16_t *)pkt->msg, len);
 }
@@ -1316,6 +1353,12 @@ static int bb_process_chat(ship_client_t *c, bb_chat_pkt *pkt) {
     }
 #endif
 
+    /* Don't send the message if they have the protection flag on. */
+    if(c->flags & CLIENT_FLAG_GC_PROTECT) {
+        return send_txt(c, __(c, "\tE\tC7You must login before\n"
+                              "you can chat."));
+    }
+
     /* Send the message to the lobby. */
     return send_lobby_bbchat(l, c, (uint16_t *)pkt->msg, len);
 }
@@ -1327,6 +1370,12 @@ static int dc_process_guild_search(ship_client_t *c, dc_guild_search_pkt *pkt) {
     uint32_t gc = LE32(pkt->gc_target);
     int done = 0, rv = -1;
     uint32_t flags = 0;
+
+    /* Don't allow this if they have the protection flag on. */
+    if(c->flags & CLIENT_FLAG_GC_PROTECT) {
+        return send_txt(c, __(c, "\tE\tC7You must login before\n"
+                              "you can do that."));
+    }
 
     /* Search the local ship first. */
     for(i = 0; i < ship->cfg->blocks && !done; ++i) {
@@ -1391,6 +1440,12 @@ static int bb_process_guild_search(ship_client_t *c, bb_guild_search_pkt *pkt) {
     int done = 0, rv = -1;
     uint32_t flags = 0;
 
+    /* Don't allow this if they have the protection flag on. */
+    if(c->flags & CLIENT_FLAG_GC_PROTECT) {
+        return send_txt(c, __(c, "\tE\tC7You must login before\n"
+                              "you can do that."));
+    }
+
     /* Search the local ship first. */
     for(i = 0; i < ship->cfg->blocks && !done; ++i) {
         if(!ship->blocks[i] || !ship->blocks[i]->run) {
@@ -1452,6 +1507,12 @@ static int dc_process_mail(ship_client_t *c, dc_simple_mail_pkt *pkt) {
     ship_client_t *it;
     uint32_t gc = LE32(pkt->gc_dest);
     int done = 0, rv = -1;
+
+    /* Don't send mail if they have the protection flag on. */
+    if(c->flags & CLIENT_FLAG_GC_PROTECT) {
+        return send_txt(c, __(c, "\tE\tC7You must login before\n"
+                              "you can send mail."));
+    }
 
     /* Don't send mail for a STFUed client. */
     if((c->flags & CLIENT_FLAG_STFU)) {
@@ -1526,6 +1587,12 @@ static int pc_process_mail(ship_client_t *c, pc_simple_mail_pkt *pkt) {
     uint32_t gc = LE32(pkt->gc_dest);
     int done = 0, rv = -1;
 
+    /* Don't send mail if they have the protection flag on. */
+    if(c->flags & CLIENT_FLAG_GC_PROTECT) {
+        return send_txt(c, __(c, "\tE\tC7You must login before\n"
+                              "you can send mail."));
+    }
+
     /* Don't send mail for a STFUed client. */
     if((c->flags & CLIENT_FLAG_STFU)) {
         return 0;
@@ -1597,6 +1664,12 @@ static int bb_process_mail(ship_client_t *c, bb_simple_mail_pkt *pkt) {
     ship_client_t *it;
     uint32_t gc = LE32(pkt->gc_dest);
     int done = 0, rv = -1;
+
+    /* Don't send mail if they have the protection flag on. */
+    if(c->flags & CLIENT_FLAG_GC_PROTECT) {
+        return send_txt(c, __(c, "\tE\tC7You must login before\n"
+                              "you can send mail."));
+    }
 
     /* Don't send mail for a STFUed client. */
     if((c->flags & CLIENT_FLAG_STFU)) {

@@ -256,6 +256,12 @@ static int handle_save(ship_client_t *c, const char *params) {
     lobby_t *l = c->cur_lobby;
     uint32_t slot;
 
+    /* Don't allow this if they have the protection flag on. */
+    if(c->flags & CLIENT_FLAG_GC_PROTECT) {
+        return send_txt(c, __(c, "\tE\tC7You must login before\n"
+                              "you can do that."));
+    }
+
     /* Make sure that the requester is in a lobby lobby, not a game lobby */
     if(l->type != LOBBY_TYPE_DEFAULT) {
         return send_txt(c, "%s", __(c, "\tE\tC7Not valid in a game."));
@@ -294,6 +300,12 @@ static int handle_save(ship_client_t *c, const char *params) {
 static int handle_restore(ship_client_t *c, const char *params) {
     lobby_t *l = c->cur_lobby;
     uint32_t slot;
+
+    /* Don't allow this if they have the protection flag on. */
+    if(c->flags & CLIENT_FLAG_GC_PROTECT) {
+        return send_txt(c, __(c, "\tE\tC7You must login before\n"
+                              "you can do that."));
+    }
 
     /* Make sure that the requester is in a lobby lobby, not a game lobby */
     if(l->type != LOBBY_TYPE_DEFAULT) {
@@ -359,6 +371,12 @@ static int handle_bcast(ship_client_t *c, const char *params) {
 /* Usage /arrow color_number */
 static int handle_arrow(ship_client_t *c, const char *params) {
     int i;
+
+    /* Don't allow this if they have the protection flag on. */
+    if(c->flags & CLIENT_FLAG_GC_PROTECT) {
+        return send_txt(c, __(c, "\tE\tC7You must login before\n"
+                              "you can do that."));
+    }
 
     /* Set the arrow color and send the packet to the lobby. */
     i = atoi(params);
@@ -956,6 +974,12 @@ static int handle_friendadd(ship_client_t *c, const char *params) {
     uint32_t gc;
     char *nick;
 
+    /* Don't allow this if they have the protection flag on. */
+    if(c->flags & CLIENT_FLAG_GC_PROTECT) {
+        return send_txt(c, __(c, "\tE\tC7You must login before\n"
+                              "you can do that."));
+    }
+
     /* Figure out the user requested */
     errno = 0;
     gc = (uint32_t)strtoul(params, &nick, 10);
@@ -980,6 +1004,12 @@ static int handle_friendadd(ship_client_t *c, const char *params) {
 /* Usage: /frienddel guildcard */
 static int handle_frienddel(ship_client_t *c, const char *params) {
     uint32_t gc;
+
+    /* Don't allow this if they have the protection flag on. */
+    if(c->flags & CLIENT_FLAG_GC_PROTECT) {
+        return send_txt(c, __(c, "\tE\tC7You must login before\n"
+                              "you can do that."));
+    }
 
     /* Figure out the user requested */
     errno = 0;
@@ -1562,6 +1592,12 @@ static int handle_ll(ship_client_t *c, const char *params) {
     int i;
     ship_client_t *c2;
 
+    /* Don't allow this if they have the protection flag on. */
+    if(c->flags & CLIENT_FLAG_GC_PROTECT) {
+        return send_txt(c, __(c, "\tE\tC7You must login before\n"
+                              "you can do that."));
+    }
+
     strcpy(str, "\tE");
 
     if(LOCAL_GM(c)) {
@@ -1795,6 +1831,12 @@ static int handle_ignore(ship_client_t *c, const char *params) {
     int id, i;
     ship_client_t *cl;
 
+    /* Don't allow this if they have the protection flag on. */
+    if(c->flags & CLIENT_FLAG_GC_PROTECT) {
+        return send_txt(c, __(c, "\tE\tC7You must login before\n"
+                              "you can do that."));
+    }
+
     /* Copy over the ID. */
     i = sscanf(params, "%d", &id);
 
@@ -1829,6 +1871,12 @@ static int handle_ignore(ship_client_t *c, const char *params) {
 /* Usage: /unignore entry_number */
 static int handle_unignore(ship_client_t *c, const char *params) {
     int id, i;
+
+    /* Don't allow this if they have the protection flag on. */
+    if(c->flags & CLIENT_FLAG_GC_PROTECT) {
+        return send_txt(c, __(c, "\tE\tC7You must login before\n"
+                              "you can do that."));
+    }
 
     /* Copy over the ID */
     i = sscanf(params, "%d", &id);
@@ -2147,6 +2195,12 @@ static int handle_unban(ship_client_t *c, const char *params) {
 
 /* Usage: /cc [any ascii char] or /cc off */
 static int handle_cc(ship_client_t *c, const char *params) {
+    /* Don't allow this if they have the protection flag on. */
+    if(c->flags & CLIENT_FLAG_GC_PROTECT) {
+        return send_txt(c, __(c, "\tE\tC7You must login before\n"
+                              "you can do that."));
+    }
+
     /* Are we turning it off? */
     if(!strcmp(params, "off")) {
         c->cc_char = 0;
@@ -2166,6 +2220,12 @@ static int handle_cc(ship_client_t *c, const char *params) {
 /* Usage: /qlang [2 character language code] */
 static int handle_qlang(ship_client_t *c, const char *params) {
     int i;
+
+    /* Don't allow this if they have the protection flag on. */
+    if(c->flags & CLIENT_FLAG_GC_PROTECT) {
+        return send_txt(c, __(c, "\tE\tC7You must login before\n"
+                              "you can do that."));
+    }
 
     /* Make sure they only gave one character */
     if(strlen(params) != 2) {
@@ -2191,6 +2251,12 @@ static int handle_qlang(ship_client_t *c, const char *params) {
 static int handle_friends(ship_client_t *c, const char *params) {
     block_t *b = c->cur_block;
     uint32_t page;
+
+    /* Don't allow this if they have the protection flag on. */
+    if(c->flags & CLIENT_FLAG_GC_PROTECT) {
+        return send_txt(c, __(c, "\tE\tC7You must login before\n"
+                              "you can do that."));
+    }
 
     /* Figure out the user requested */
     errno = 0;
@@ -2290,6 +2356,12 @@ static int handle_search(ship_client_t *c, const char *params) {
     uint32_t gc;
     dc_guild_search_pkt dc;
     bb_guild_search_pkt bb;
+
+    /* Don't allow this if they have the protection flag on. */
+    if(c->flags & CLIENT_FLAG_GC_PROTECT) {
+        return send_txt(c, __(c, "\tE\tC7You must login before\n"
+                              "you can do that."));
+    }
 
     /* Figure out the user requested */
     errno = 0;
@@ -2411,6 +2483,12 @@ static int handle_showmaps(ship_client_t *c, const char *params) {
 /* Usage: /restorebk */
 static int handle_restorebk(ship_client_t *c, const char *params) {
     lobby_t *l = c->cur_lobby;
+
+    /* Don't allow this if they have the protection flag on. */
+    if(c->flags & CLIENT_FLAG_GC_PROTECT) {
+        return send_txt(c, __(c, "\tE\tC7You must login before\n"
+                              "you can do that."));
+    }
 
     /* Make sure that the requester is in a lobby lobby, not a game lobby */
     if(l->type != LOBBY_TYPE_DEFAULT) {
@@ -2585,6 +2663,31 @@ static int handle_sdrops(ship_client_t *c, const char *params) {
                                 "for any new teams."));
 }
 
+/* Usage: /gcprotect [off] */
+static int handle_gcprotect(ship_client_t *c, const char *params) {
+    uint8_t enable = 1;
+
+    /* Make sure they're logged in */
+    if(!(c->flags & CLIENT_FLAG_LOGGED_IN)) {
+        return send_txt(c, "%s", __(c, "\tE\tC7You must be logged in to "
+                                    "use this command."));
+    }
+
+    /* See if we're turning the flag off. */
+    if(!strcmp(params, "off")) {
+        enable = 0;
+        shipgate_send_user_opt(&ship->sg, c->guildcard, c->cur_block->b,
+                               USER_OPT_GC_PROTECT, 1, &enable);
+        return send_txt(c, "%s", __(c, "\tE\tC7Guildcard protection "
+                                    "disabled."));
+    }
+
+    /* Send the message to the shipgate */
+    shipgate_send_user_opt(&ship->sg, c->guildcard, c->cur_block->b,
+                           USER_OPT_GC_PROTECT, 1, &enable);
+    return send_txt(c, "%s", __(c, "\tE\tC7Guildcard protection enabled."));
+}
+
 static command_t cmds[] = {
     { "warp"     , handle_warp      },
     { "kill"     , handle_kill      },
@@ -2661,6 +2764,7 @@ static command_t cmds[] = {
     { "exp"      , handle_exp       },
     { "level"    , handle_level     },
     { "sdrops"   , handle_sdrops    },
+    { "gcprotect", handle_gcprotect },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

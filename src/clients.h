@@ -243,6 +243,7 @@ extern pthread_key_t sendbuf_key;
 #define CLIENT_FLAG_IPV6            0x00001000
 #define CLIENT_FLAG_AUTO_BACKUP     0x00002000
 #define CLIENT_FLAG_SERVER_DROPS    0x00004000
+#define CLIENT_FLAG_GC_PROTECT      0x00008000
 
 /* The list of language codes for the quest directories. */
 static const char language_codes[][3] __attribute__((unused)) = {

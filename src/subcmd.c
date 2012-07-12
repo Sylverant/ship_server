@@ -1417,6 +1417,12 @@ static int handle_bb_pick_up(ship_client_t *c, subcmd_bb_pick_up_t *pkt) {
 }
 
 static int handle_word_select(ship_client_t *c, subcmd_word_select_t *pkt) {
+    /* Don't send the message if they have the protection flag on. */
+    if(c->flags & CLIENT_FLAG_GC_PROTECT) {
+        return send_txt(c, __(c, "\tE\tC7You must login before\n"
+                              "you can chat."));
+    }
+
     /* Don't send chats for a STFUed client. */
     if((c->flags & CLIENT_FLAG_STFU)) {
         return 0;
@@ -1443,6 +1449,12 @@ static int handle_bb_word_select(ship_client_t *c,
                                  subcmd_bb_word_select_t *pkt) {
     subcmd_word_select_t gc;
 
+    /* Don't send the message if they have the protection flag on. */
+    if(c->flags & CLIENT_FLAG_GC_PROTECT) {
+        return send_txt(c, __(c, "\tE\tC7You must login before\n"
+                              "you can chat."));
+    }
+
     /* Don't send chats for a STFUed client. */
     if((c->flags & CLIENT_FLAG_STFU)) {
         return 0;
@@ -1460,6 +1472,12 @@ static int handle_bb_word_select(ship_client_t *c,
 static int handle_symbol_chat(ship_client_t *c, subcmd_pkt_t *pkt) {
     lobby_t *l = c->cur_lobby;
 
+    /* Don't send the message if they have the protection flag on. */
+    if(c->flags & CLIENT_FLAG_GC_PROTECT) {
+        return send_txt(c, __(c, "\tE\tC7You must login before\n"
+                              "you can chat."));
+    }
+
     /* Don't send chats for a STFUed client. */
     if((c->flags & CLIENT_FLAG_STFU)) {
         return 0;
@@ -1470,6 +1488,12 @@ static int handle_symbol_chat(ship_client_t *c, subcmd_pkt_t *pkt) {
 
 static int handle_bb_symbol_chat(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
     lobby_t *l = c->cur_lobby;
+
+    /* Don't send the message if they have the protection flag on. */
+    if(c->flags & CLIENT_FLAG_GC_PROTECT) {
+        return send_txt(c, __(c, "\tE\tC7You must login before\n"
+                              "you can chat."));
+    }
 
     /* Don't send chats for a STFUed client. */
     if((c->flags & CLIENT_FLAG_STFU)) {
