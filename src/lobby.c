@@ -383,7 +383,7 @@ static void lobby_destroy_locked(lobby_t *l, int remove) {
         i = tmp;
     }
 
-    /* Free up the Blue Burst enemy data */
+    /* Free up the enemy data */
     if(l->map_enemies) {
         free_game_enemies(l);
     }
@@ -914,6 +914,7 @@ int lobby_change_lobby(ship_client_t *c, lobby_t *req) {
         c->lobby_id = c->cur_lobby->lobby_id;
     }
     else {
+        memset(c->enemy_kills, 0, sizeof(uint32_t) * 0x60);
         send_game_join(c, c->cur_lobby);
         c->cur_lobby->flags |= LOBBY_FLAG_BURSTING;
         c->flags |= CLIENT_FLAG_BURSTING;

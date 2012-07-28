@@ -691,6 +691,19 @@ typedef struct subcmd_bb_mhit {
     uint32_t flags;
 } PACKED subcmd_bb_mhit_pkt_t;
 
+/* Packet sent by clients to say that they killed a monster. Unfortunately, this
+   doesn't always get sent (for instance for the Darvants during a Falz fight),
+   thus its not actually used in Sylverant for anything. */
+typedef struct subcmd_mkill {
+    dc_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint16_t enemy_id;
+    uint8_t client_id;
+    uint8_t unused;
+    uint16_t unk;
+} PACKED subcmd_mkill_pkt_t;
+
 #undef PACKED
 
 /* Subcommand types we care about (0x62/0x6D). */
@@ -705,6 +718,7 @@ typedef struct subcmd_bb_mhit {
 /* Subcommand types we might care about (0x60/0x6C). */
 #define SUBCMD_SYMBOL_CHAT  0x07
 #define SUBCMD_HIT_MONSTER  0x0A
+#define SUBCMD_HIT_BOX      0x0B
 #define SUBCMD_TELEPORT     0x17
 #define SUBCMD_SET_AREA     0x1F
 #define SUBCMD_SET_AREA_21  0x21    /* Seems to match 0x1F */
@@ -738,6 +752,7 @@ typedef struct subcmd_bb_mhit {
 #define SUBCMD_SPAWN_NPC    0x69
 #define SUBCMD_BURST_DONE   0x72
 #define SUBCMD_WORD_SELECT  0x74
+#define SUBCMD_KILL_MONSTER 0x76    /* A monster was killed. */
 #define SUBCMD_GOGO_BALL    0x79
 #define SUBCMD_CMODE_GRAVE  0x7C
 #define SUBCMD_WARP         0x94

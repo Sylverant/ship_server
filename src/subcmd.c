@@ -2113,6 +2113,8 @@ static int handle_bb_sort_inv(ship_client_t *c, subcmd_bb_sort_inv_t *pkt) {
 static int handle_mhit(ship_client_t *c, subcmd_mhit_pkt_t *pkt) {
     lobby_t *l = c->cur_lobby;
     uint16_t mid;
+    game_enemy_t *en;
+    uint32_t flags;
 
     /* We can't get these in default lobbies without someone messing with
        something that they shouldn't be... Disconnect anyone that tries. */
@@ -2143,9 +2145,20 @@ static int handle_mhit(ship_client_t *c, subcmd_mhit_pkt_t *pkt) {
     }
 
     /* Save the hit, assuming the enemy isn't already dead. */
-    if(!(l->map_enemies->enemies[mid].clients_hit & 0x80)) {
-        l->map_enemies->enemies[mid].clients_hit |= (1 << c->client_id);
-        l->map_enemies->enemies[mid].last_client = c->client_id;
+    en = &l->map_enemies->enemies[mid];
+    if(!(en->clients_hit & 0x80)) {
+        en->clients_hit |= (1 << c->client_id);
+        en->last_client = c->client_id;
+
+        /* If the kill flag is set, mark it as dead and update the client's
+           counter. */
+        flags = LE32(pkt->flags);
+        if(flags & 0x00000800) {
+            en->clients_hit |= 0x80;
+
+            if(en->bp_entry < 0x60)
+                ++c->enemy_kills[en->bp_entry];
+        }
     }
 
     return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt, 0);

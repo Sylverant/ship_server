@@ -525,6 +525,9 @@ static int parse_map(map_enemy_t *en, int en_ct, game_enemies_t *game,
                     gen[count + j].bp_entry = 0x42;
                     gen[count + j].rt_index = 0x44;
                 }
+
+                /* Don't double count them. */
+                en[i].num_clones = 0;
                 break;
 
             case 0x00E0:    /* Epsilon, Sinow Zoa & Zele */
@@ -624,8 +627,12 @@ static int parse_map(map_enemy_t *en, int en_ct, game_enemies_t *game,
         }
 
         /* Increment the counter, as needed */
-        if(en[i].num_clones)
-            count += en[i].num_clones;
+        if(en[i].num_clones) {
+            for(j = 0; j < en[i].num_clones; ++j, ++count) {
+                gen[count + 1].rt_index = gen[count].rt_index;
+                gen[count + 1].bp_entry = gen[count].bp_entry;
+            }
+        }
         ++count;
     }
 

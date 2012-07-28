@@ -148,6 +148,7 @@ struct ship_client {
     uint32_t *blacklist;                /* Points into the player struct. */
 
     uint32_t *next_maps;
+    uint32_t *enemy_kills;
 
     time_t last_message;
     time_t last_sent;

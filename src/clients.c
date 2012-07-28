@@ -115,6 +115,14 @@ ship_client_t *client_create_connection(int sock, int version, int type,
 
         memset(rv->pl, 0, sizeof(player_t));
 
+        if(!(rv->enemy_kills = (uint32_t *)malloc(sizeof(uint32_t) * 0x60))) {
+            perror("malloc");
+            free(rv->pl);
+            free(rv);
+            close(sock);
+            return NULL;
+        }
+
         if(version == CLIENT_VERSION_BB) {
             rv->bb_pl =
                 (sylverant_bb_db_char_t *)malloc(sizeof(sylverant_bb_db_char_t));
@@ -272,6 +280,7 @@ err:
     close(sock);
 
     if(type == CLIENT_TYPE_BLOCK) {
+        free(rv->enemy_kills);
         free(rv->pl);
     }
 
@@ -355,6 +364,10 @@ void client_destroy_connection(ship_client_t *c,
 
     if(c->autoreply) {
         free(c->autoreply);
+    }
+
+    if(c->enemy_kills) {
+        free(c->enemy_kills);
     }
 
     if(c->pl) {
