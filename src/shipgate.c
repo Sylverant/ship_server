@@ -245,7 +245,7 @@ static int shipgate_conn(ship_t *s, shipgate_conn_t *rv, int reconn) {
         return -3;
     }
 
-#if (SIZEOF_INT != SIZEOF_VOIDP) && (SIZEOF_LONG_INT == SIZEOF_VOIDP)
+#if (SIZEOF_INT != SIZEOF_VOID_P) && (SIZEOF_LONG_INT == SIZEOF_VOID_P)
     gnutls_transport_set_ptr(rv->session, (gnutls_transport_ptr_t)((long)sock));
 #else
     gnutls_transport_set_ptr(rv->session, (gnutls_transport_ptr_t)sock);

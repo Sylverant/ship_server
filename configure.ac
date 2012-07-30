@@ -46,6 +46,12 @@ LIBS="$LIBS $gnutls_LIBS"
 AC_CHECK_LIB([sylverant], [sylverant_read_config], , AC_MSG_ERROR([libsylverant is required!]))
 AC_CHECK_LIB([mini18n], [mini18n_get], , AC_MSG_WARN([Internationalization support requires mini18n]))
 
+AC_ARG_ENABLE([scripting], [AS_HELP_STRING([--enable-scripting],
+              [enable scripting support in the binary (requires Python 2.x (x >= 5))])],
+              [enable_scripting=$enableval],
+              [enable_scripting=no])
+
+AS_IF([test "x$enable_scripting" != xno], [
 AM_PATH_PYTHON([2.5], , AC_MSG_WARN([Scripting support requires Python >= 2.5]))
 
 # Add Python's flags into the mix if its enabled.
@@ -54,6 +60,7 @@ if test "$PYTHON" != ":" ; then
     LIBS="$LIBS `python-config --libs`"
     LDFLAGS="$LDFLAGS `python-config --ldflags`"
 fi
+])
 
 AM_ICONV
 AM_ICONV_LINK
@@ -69,6 +76,9 @@ AC_TYPE_UINT16_T
 AC_TYPE_UINT32_T
 AC_TYPE_UINT8_T
 AC_C_BIGENDIAN
+AC_CHECK_SIZEOF([void *])
+AC_CHECK_SIZEOF([int])
+AC_CHECK_SIZEOF([long int])
 
 # Checks for library functions.
 AC_FUNC_MALLOC
