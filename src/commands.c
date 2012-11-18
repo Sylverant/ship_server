@@ -2688,6 +2688,26 @@ static int handle_gcprotect(ship_client_t *c, const char *params) {
     return send_txt(c, "%s", __(c, "\tE\tC7Guildcard protection enabled."));
 }
 
+/* Usage: /mk */
+static int handle_mk(ship_client_t *c, const char *params) {
+    lobby_t *l = c->cur_lobby;
+
+    /* Make sure the requester is a local GM, at least. */
+    if(!LOCAL_GM(c)) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
+    }
+
+    /* Make sure that the requester is in a game lobby, not a lobby lobby */
+    if(l->type != LOBBY_TYPE_GAME) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game."));
+    }
+
+    /* Set the flag... */
+    l->flags |= LOBBY_FLAG_MK;
+
+    return send_txt(c, "%s", __(c, "\tE\tC7Flag set."));
+}
+
 static command_t cmds[] = {
     { "warp"     , handle_warp      },
     { "kill"     , handle_kill      },
@@ -2765,6 +2785,7 @@ static command_t cmds[] = {
     { "level"    , handle_level     },
     { "sdrops"   , handle_sdrops    },
     { "gcprotect", handle_gcprotect },
+    { "mk"       , handle_mk        },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

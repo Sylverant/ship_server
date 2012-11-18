@@ -2717,3 +2717,34 @@ int shipgate_send_cbkup_req(shipgate_conn_t *c, uint32_t gc, uint32_t block,
     /* Send it away. */
     return send_crypt(c, sizeof(shipgate_char_bkup_pkt), sendbuf);
 }
+
+/* Send a monster kill count update */
+int shipgate_send_mkill(shipgate_conn_t *c, uint32_t gc, uint32_t block,
+                        uint8_t ep, uint8_t d, uint32_t counts[0x60]) {
+    uint8_t *sendbuf = get_sendbuf();
+    shipgate_mkill_pkt *pkt = (shipgate_mkill_pkt *)sendbuf;
+    int i;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Fill in the header and the body. */
+    pkt->hdr.pkt_len = htons(sizeof(shipgate_mkill_pkt));
+    pkt->hdr.pkt_type = htons(SHDR_TYPE_MKILL);
+    pkt->hdr.version = pkt->hdr.reserved = 0;
+    pkt->hdr.flags = 0;
+    pkt->guildcard = htonl(gc);
+    pkt->block = htonl(block);
+    pkt->episode = ep ? ep : 1;
+    pkt->difficulty = d;
+    pkt->reserved[0] = pkt->reserved[1] = 0;
+
+    for(i = 0; i < 0x60; ++i) {
+        pkt->counts[i] = ntohl(counts[i]);
+    }
+
+    /* Send it away. */
+    return send_crypt(c, sizeof(shipgate_mkill_pkt), sendbuf);
+}

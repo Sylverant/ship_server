@@ -967,6 +967,13 @@ int lobby_remove_player(ship_client_t *c) {
         lobby_handle_done_burst(l);
     }
 
+    /* If the client is leaving a game lobby, then send their monster stats
+       up to the shipgate. */
+    if(l->type == LOBBY_TYPE_GAME && (l->flags & LOBBY_FLAG_MK)) {
+        shipgate_send_mkill(&ship->sg, c->guildcard, c->cur_block->b,
+                            l->episode, l->difficulty, c->enemy_kills);
+    }
+
     /* We have a nice function to handle most of the heavy lifting... */
     client_id = c->client_id;
     delete_lobby = lobby_remove_client_locked(c, client_id, l);

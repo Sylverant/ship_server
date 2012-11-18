@@ -146,6 +146,7 @@ TAILQ_HEAD(lobby_queue, lobby);
 #define LOBBY_FLAG_SINGLEPLAYER 0x00000400
 #define LOBBY_FLAG_EP3          0x00000800
 #define LOBBY_FLAG_SERVER_DROPS 0x00001000
+#define LOBBY_FLAG_MK           0x00002000
 
 /* Events that can be set on games */
 #define GAME_EVENT_NONE         0

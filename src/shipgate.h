@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -45,7 +45,7 @@ typedef struct ship ship_t;
 
 #define PACKED __attribute__((packed))
 
-#define SHIPGATE_PROTO_VER  12
+#define SHIPGATE_PROTO_VER  13
 
 /* New header in protocol version 10 and newer. */
 typedef struct shipgate_hdr {
@@ -398,6 +398,17 @@ typedef struct shipgate_bb_opts {
     sylverant_bb_db_opts_t opts;
 } PACKED shipgate_bb_opts_pkt;
 
+/* Packet used to send an update to the user's monster kill counts. */
+typedef struct shipgate_mkill {
+    shipgate_hdr_t hdr;
+    uint32_t guildcard;
+    uint32_t block;
+    uint8_t episode;
+    uint8_t difficulty;
+    uint8_t reserved[2];
+    uint32_t counts[0x60];
+} PACKED shipgate_mkill_pkt;
+
 #undef PACKED
 
 /* Size of the shipgate login packet. */
@@ -441,6 +452,7 @@ static const char shipgate_login_msg[] =
 #define SHDR_TYPE_BBOPTS    0x0026      /* A user's Blue Burst options */
 #define SHDR_TYPE_BBOPT_REQ 0x0027      /* Request Blue Burst options */
 #define SHDR_TYPE_CBKUP     0x0028      /* A character data backup packet */
+#define SHDR_TYPE_MKILL     0x0029      /* Monster kill update */
 
 /* Flags that can be set in the login packet */
 #define LOGIN_FLAG_GMONLY   0x00000001  /* Only Global GMs are allowed */
@@ -590,5 +602,9 @@ int shipgate_send_cbkup(shipgate_conn_t *c, uint32_t gc, uint32_t block,
 /* Send the shipgate a request for character backup data. */
 int shipgate_send_cbkup_req(shipgate_conn_t *c, uint32_t gc, uint32_t block,
                             const char *name);
+
+/* Send a monster kill count update */
+int shipgate_send_mkill(shipgate_conn_t *c, uint32_t gc, uint32_t block,
+                        uint8_t ep, uint8_t d, uint32_t counts[0x60]);
 
 #endif /* !SHIPGATE_H */
