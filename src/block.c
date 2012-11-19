@@ -2239,21 +2239,14 @@ static int process_menu(ship_client_t *c, uint32_t menu_id, uint32_t item_id,
 
             pthread_rwlock_rdlock(&ship->qlock);
 
-            /* Are we using the new-style quest layout? */
+            /* Do we have quests configured? */
             if(!TAILQ_EMPTY(&ship->qmap)) {
                 lang = (menu_id >> 24) & 0xFF;
-                rv = send_quest_list_new(c, (int)item_id, lang);
+                rv = send_quest_list(c, (int)item_id, lang);
             }
             else {
-                if(item_id >= ship->quests.cat_count) {
-                    rv = send_message1(c, "%s",
-                                       __(c, "\tE\tC4That category is\n"
-                                          "non-existant."));
-                }
-                else {
-                    rv = send_quest_list(c, (int)item_id,
-                                         ship->quests.cats + item_id);
-                }
+                rv = send_message1(c, "%s", __(c, "\tE\tC4Quests not\n"
+                                               "configured."));
             }
 
             pthread_rwlock_unlock(&ship->qlock);
@@ -2263,9 +2256,8 @@ static int process_menu(ship_client_t *c, uint32_t menu_id, uint32_t item_id,
         /* Quest */
         case MENU_ID_QUEST:
         {
-            int q = (menu_id >> 8) & 0xFF, lang = (menu_id >> 24) & 0xFF;
+            int lang = (menu_id >> 24) & 0xFF;
             int rv;
-            sylverant_quest_t *quest;
 
             if(c->cur_lobby->flags & LOBBY_FLAG_BURSTING) {
                 return send_message1(c, "%s",
@@ -2274,27 +2266,15 @@ static int process_menu(ship_client_t *c, uint32_t menu_id, uint32_t item_id,
 
             pthread_rwlock_rdlock(&ship->qlock);
 
-            /* Are we using the new-style quest layout? */
+            /* Do we have quests configured? */
             if(!TAILQ_EMPTY(&ship->qmap)) {
                 c->cur_lobby->flags |= LOBBY_FLAG_QUESTING;
-                rv = send_quest_new(c->cur_lobby, item_id, lang);
+                rv = send_quest(c->cur_lobby, item_id, lang);
             }
             else {
-                if(q >= ship->quests.cat_count) {
-                    rv = send_message1(c, "%s",
-                                       __(c, "\tE\tC4That category is\n"
-                                          "non-existant."));
-                }
-                else if(item_id >= ship->quests.cats[q].quest_count) {
-                    rv = send_message1(c, "%s",
-                                       __(c, "\tE\tC4That quest is\n"
-                                          "non-existant."));
-                }
-                else {
-                    c->cur_lobby->flags |= LOBBY_FLAG_QUESTING;
-                    quest = &ship->quests.cats[q].quests[item_id];
-                    rv = send_quest(c->cur_lobby, quest);
-                }
+                /* This really shouldn't happen... */
+                rv = send_message1(c, "%s", __(c, "\tE\tC4Quests not\n"
+                                               "configured."));
             }
 
             pthread_rwlock_unlock(&ship->qlock);
@@ -2438,31 +2418,18 @@ static int process_info_req(ship_client_t *c, uint32_t menu_id,
         /* Quest */
         case MENU_ID_QUEST:
         {
-            int q = (menu_id >> 8) & 0xFF, lang = (menu_id >> 24) & 0xFF;
+            int lang = (menu_id >> 24) & 0xFF;
             int rv;
-            sylverant_quest_t *quest;
 
             pthread_rwlock_rdlock(&ship->qlock);
 
-            /* Are we using the new-style quest layout? */
+            /* Do we have quests configured? */
             if(!TAILQ_EMPTY(&ship->qmap)) {
-                rv = send_quest_info_new(c->cur_lobby, item_id, lang);
+                rv = send_quest_info(c->cur_lobby, item_id, lang);
             }
             else {
-                if(q >= ship->quests.cat_count) {
-                    rv = send_message1(c, "%s",
-                                       __(c, "\tE\tC4That category is\n"
-                                          "non-existant."));
-                }
-                else if(item_id >= ship->quests.cats[q].quest_count) {
-                    rv = send_message1(c, "%s",
-                                       __(c, "\tE\tC4That quest is\n"
-                                          "non-existant."));
-                }
-                else {
-                    quest = &ship->quests.cats[q].quests[item_id];
-                    rv = send_quest_info(c->cur_lobby, quest);
-                }
+                rv = send_message1(c, "%s", __(c, "\tE\tC4Quests not\n"
+                                               "configured."));
             }
 
             pthread_rwlock_unlock(&ship->qlock);
@@ -2877,12 +2844,13 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             pthread_mutex_lock(&c->cur_lobby->mutex);
             c->cur_lobby->flags |= LOBBY_FLAG_QUESTSEL;
 
-            /* Are we using the new-style quest layout? */
+            /* Do we have quests configured? */
             if(!TAILQ_EMPTY(&ship->qmap)) {
-                rv = send_quest_categories_new(c, c->q_lang);
+                rv = send_quest_categories(c, c->q_lang);
             }
             else {
-                rv = send_quest_categories(c, &ship->quests);
+                rv = send_message1(c, "%s", __(c, "\tE\tC4Quests not\n"
+                                               "configured."));
             }
 
             pthread_mutex_unlock(&c->cur_lobby->mutex);

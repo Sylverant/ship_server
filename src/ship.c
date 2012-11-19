@@ -528,7 +528,6 @@ static void *ship_thd(void *d) {
     sylverant_free_limits(s->limits);
     shipgate_cleanup(&s->sg);
     free(s->gm_list);
-    sylverant_quests_destroy(&s->quests);
     clean_quests(s);
     close(s->pipes[0]);
     close(s->pipes[1]);
@@ -654,10 +653,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
 
     /* Attempt to read the quest list in. */
     if(s->quests_file && s->quests_file[0]) {
-        if(sylverant_quests_read(s->quests_file, &rv->quests)) {
-            debug(DBG_ERROR, "%s: Couldn't read quests file!\n", s->name);
-            goto err_clients;
-        }
+        debug(DBG_WARN, "%s: Ignoring old quests configuration!\n", s->name);
     }
 
     if(s->quests_dir && s->quests_dir[0]) {
@@ -761,8 +757,6 @@ err_gms:
     free(rv->gm_list);
 err_quests:
     clean_quests(rv);
-    sylverant_quests_destroy(&rv->quests);
-err_clients:
     free(rv->clients);
 err_blocks:
     free(rv->blocks);
@@ -820,9 +814,8 @@ void ship_check_cfg(sylverant_ship_t *s) {
 
     /* Attempt to read the quest list in. */
     if(s->quests_file && s->quests_file[0]) {
-        if(sylverant_quests_read(s->quests_file, &rv->quests)) {
-            debug(DBG_ERROR, "%s: Couldn't read quests file!\n", s->name);
-        }
+        debug(DBG_WARN, "%s: Ignoring old quest configuration. Please update "
+              "your config!\n", s->name);
     }
 
     if(s->quests_dir && s->quests_dir[0]) {
@@ -877,7 +870,6 @@ void ship_check_cfg(sylverant_ship_t *s) {
     sylverant_free_limits(rv->limits);
     free(rv->gm_list);
     clean_quests(rv);
-    sylverant_quests_destroy(&rv->quests);
     free(rv);
 }
 

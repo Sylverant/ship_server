@@ -92,7 +92,6 @@ int kill_guildcard(ship_client_t *c, uint32_t gc, const char *reason) {
 }
 
 int refresh_quests(ship_client_t *c, msgfunc f) {
-    sylverant_quest_list_t quests;
     sylverant_quest_list_t qlist[CLIENT_VERSION_COUNT][CLIENT_LANG_COUNT];
     quest_map_t qmap;
     int i, j;
@@ -103,25 +102,7 @@ int refresh_quests(ship_client_t *c, msgfunc f) {
         return -1;
     }
 
-    if(ship->cfg->quests_file && ship->cfg->quests_file[0]) {
-        if(sylverant_quests_read(ship->cfg->quests_file, &quests)) {
-            debug(DBG_ERROR, "%s: Couldn't read quests file!\n",
-                  ship->cfg->name);
-            return f(c, "%s", __(c, "\tE\tC7Couldn't read quests file."));
-        }
-
-        /* Lock the mutex to prevent anyone from trying anything funny. */
-        pthread_rwlock_wrlock(&ship->qlock);
-
-        /* Out with the old, and in with the new. */
-        sylverant_quests_destroy(&ship->quests);
-        ship->quests = quests;
-
-        /* Unlock the lock, we're done. */
-        pthread_rwlock_unlock(&ship->qlock);
-        return f(c, "%s", __(c, "\tE\tC7Updated quest list."));
-    }
-    else if(ship->cfg->quests_dir && ship->cfg->quests_dir[0]) {
+    if(ship->cfg->quests_dir && ship->cfg->quests_dir[0]) {
         /* Read in the new quests first */
         TAILQ_INIT(&qmap);
 
