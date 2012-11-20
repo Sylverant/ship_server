@@ -97,10 +97,12 @@ struct lobby {
     uint8_t max_chal;
     uint8_t legit_check_passed;
     uint8_t legit_check_done;
+    uint8_t qlang;
 
     uint32_t min_level;
     uint32_t max_level;
     uint32_t rand_seed;
+    uint32_t qid;
 
     char name[65];
     char passwd[65];

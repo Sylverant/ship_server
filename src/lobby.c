@@ -1068,11 +1068,13 @@ static const char mini_language_codes[][3] = {
 int lobby_info_reply(ship_client_t *c, uint32_t lobby) {
     char msg[512] = { 0 };
     lobby_t *l = block_get_lobby(c->cur_block, lobby);
-    int i;
+    int i, lang;
     player_t *pl;
     time_t t;
     int h, m, s;
     int legit, questing, drops;
+    quest_map_elem_t *qelem;
+    sylverant_quest_t *quest;
 
     if(!l) {
         return send_info_reply(c, __(c, "\tEThis game is no\nlonger active."));
@@ -1094,13 +1096,11 @@ int lobby_info_reply(ship_client_t *c, uint32_t lobby) {
 
         sprintf(msg, "%s: %d:%02d:%02d\n"   /* Game time */
                 "%s: %s\n"                  /* Legit/normal mode */
-                "%s\n"                      /* Questing/Free adventure */
                 "%s: %d-%d\n"               /* Levels allowed */
                 "%s: %s\n"                  /* Client/Server Drops */
                 "%s:\n",                    /* Versions allowed */
                 __(c, "\tETime"), h, m, s,
                 __(c, "Mode"), legit ? __(c, "Legit") : __(c, "Normal"),
-                questing ? __(c, "Questing") : __(c, "Free Adventure"),
                 __(c, "Levels"), l->min_level, l->max_level,
                 __(c, "Drops"), drops ? __(c, "Server") : __(c, "Client"),
                 __(c, "Versions Allowed"));
@@ -1148,6 +1148,43 @@ int lobby_info_reply(ship_client_t *c, uint32_t lobby) {
                !(l->flags & LOBBY_FLAG_V1ONLY)) {
                 sprintf(msg, "%s GC", msg);
             }
+        }
+
+        if(questing) {
+            qelem = quest_lookup(&ship->qmap, l->qid);
+
+            /* Look for the quest in question... */
+            if((quest = qelem->qptr[c->version][c->q_lang]) ||
+               (quest = qelem->qptr[l->version][c->q_lang])) {
+                lang = c->q_lang;
+            }
+            else if((quest = qelem->qptr[c->version][c->language_code]) ||
+                    (quest = qelem->qptr[l->version][c->language_code])) {
+                lang = c->language_code;
+            }
+            else if((quest = qelem->qptr[c->version][CLIENT_LANG_ENGLISH]) ||
+                    (quest = qelem->qptr[c->version][CLIENT_LANG_ENGLISH])) {
+                lang = CLIENT_LANG_ENGLISH;
+            }
+            else {
+                quest = qelem->qptr[l->version][l->qlang];
+                lang = l->qlang;
+            }
+
+            /* We definitely should have it now... */
+            if(quest) {
+                sprintf(msg, "%s\n%s: %s", msg, __(c, "Quest"), quest->name);
+                if(lang == CLIENT_LANG_JAPANESE)
+                    sprintf(msg, "\tJ%s", msg);
+                else
+                    sprintf(msg, "\tE%s", msg);
+            }
+            else {
+                sprintf(msg, "%s\n%s", msg, __(c, "Questing"));
+            }
+        }
+        else {
+            sprintf(msg, "%s\n%s", msg, __(c, "Free Adventure"));
         }
 
         c->last_info_req = 0;
