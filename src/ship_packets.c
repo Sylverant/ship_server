@@ -5272,6 +5272,8 @@ static int send_dcv1_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     bin = fopen(filename, "rb");
 
     if(!bin) {
+        debug(DBG_WARN, "Error opening bin file %s: %s\n", fn_base,
+              strerror(errno));
         return -1;
     }
 
@@ -5279,6 +5281,8 @@ static int send_dcv1_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     dat = fopen(filename, "rb");
 
     if(!dat) {
+        debug(DBG_WARN, "Error opening dat file %s: %s\n", fn_base,
+              strerror(errno));
         fclose(bin);
         return -1;
     }
@@ -5305,6 +5309,8 @@ static int send_dcv1_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     file->length = LE32(datlen);
 
     if(crypt_send(c, DC_QUEST_FILE_LENGTH, sendbuf)) {
+        debug(DBG_WARN, "Error sending dat hdr %s: %s\n", fn_base,
+              strerror(errno));
         fclose(bin);
         fclose(dat);
         return -2;
@@ -5322,6 +5328,8 @@ static int send_dcv1_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     file->length = LE32(binlen);
 
     if(crypt_send(c, DC_QUEST_FILE_LENGTH, sendbuf)) {
+        debug(DBG_WARN, "Error sending bin hdr %s: %s\n", fn_base,
+              strerror(errno));
         fclose(bin);
         fclose(dat);
         return -2;
@@ -5346,6 +5354,8 @@ static int send_dcv1_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
 
             /* Send it away */
             if(crypt_send(c, DC_QUEST_CHUNK_LENGTH, sendbuf)) {
+                debug(DBG_WARN, "Error sending dat file %s: %s\n", fn_base,
+                      strerror(errno));
                 fclose(bin);
                 fclose(dat);
                 return -3;
@@ -5374,6 +5384,8 @@ static int send_dcv1_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
 
             /* Send it away */
             if(crypt_send(c, DC_QUEST_CHUNK_LENGTH, sendbuf)) {
+                debug(DBG_WARN, "Error sending bin file %s: %s\n", fn_base,
+                      strerror(errno));
                 fclose(bin);
                 fclose(dat);
                 return -3;
@@ -5428,6 +5440,8 @@ static int send_dcv2_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     bin = fopen(filename, "rb");
 
     if(!bin) {
+        debug(DBG_WARN, "Error opening bin file %s: %s\n", fn_base,
+              strerror(errno));
         return -1;
     }
 
@@ -5435,6 +5449,8 @@ static int send_dcv2_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     dat = fopen(filename, "rb");
 
     if(!dat) {
+        debug(DBG_WARN, "Error opening dat file %s: %s\n", fn_base,
+              strerror(errno));
         fclose(bin);
         return -1;
     }
@@ -5461,6 +5477,8 @@ static int send_dcv2_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     file->length = LE32(datlen);
 
     if(crypt_send(c, DC_QUEST_FILE_LENGTH, sendbuf)) {
+        debug(DBG_WARN, "Error sending dat hdr %s: %s\n", fn_base,
+              strerror(errno));
         fclose(bin);
         fclose(dat);
         return -2;
@@ -5478,6 +5496,8 @@ static int send_dcv2_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     file->length = LE32(binlen);
 
     if(crypt_send(c, DC_QUEST_FILE_LENGTH, sendbuf)) {
+        debug(DBG_WARN, "Error sending bin hdr %s: %s\n", fn_base,
+              strerror(errno));
         fclose(bin);
         fclose(dat);
         return -2;
@@ -5502,6 +5522,8 @@ static int send_dcv2_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
 
             /* Send it away */
             if(crypt_send(c, DC_QUEST_CHUNK_LENGTH, sendbuf)) {
+                debug(DBG_WARN, "Error sending dat file %s: %s\n", fn_base,
+                      strerror(errno));
                 fclose(bin);
                 fclose(dat);
                 return -3;
@@ -5530,6 +5552,8 @@ static int send_dcv2_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
 
             /* Send it away */
             if(crypt_send(c, DC_QUEST_CHUNK_LENGTH, sendbuf)) {
+                debug(DBG_WARN, "Error sending bin file %s: %s\n", fn_base,
+                      strerror(errno));
                 fclose(bin);
                 fclose(dat);
                 return -3;
@@ -5583,6 +5607,8 @@ static int send_pc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     bin = fopen(filename, "rb");
 
     if(!bin) {
+        debug(DBG_WARN, "Error opening bin file %s: %s\n", fn_base,
+              strerror(errno));
         return -1;
     }
 
@@ -5590,6 +5616,8 @@ static int send_pc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     dat = fopen(filename, "rb");
 
     if(!dat) {
+        debug(DBG_WARN, "Error opening dat file %s: %s\n", fn_base,
+              strerror(errno));
         fclose(bin);
         return -1;
     }
@@ -5617,6 +5645,8 @@ static int send_pc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     file->flags = 0x0002;
 
     if(crypt_send(c, DC_QUEST_FILE_LENGTH, sendbuf)) {
+        debug(DBG_WARN, "Error sending dat hdr %s: %s\n", fn_base,
+              strerror(errno));
         fclose(bin);
         fclose(dat);
         return -2;
@@ -5635,6 +5665,8 @@ static int send_pc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     file->flags = 0x0002;
 
     if(crypt_send(c, DC_QUEST_FILE_LENGTH, sendbuf)) {
+        debug(DBG_WARN, "Error sending bin hdr %s: %s\n", fn_base,
+              strerror(errno));
         fclose(bin);
         fclose(dat);
         return -2;
@@ -5659,6 +5691,8 @@ static int send_pc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
 
             /* Send it away */
             if(crypt_send(c, DC_QUEST_CHUNK_LENGTH, sendbuf)) {
+                debug(DBG_WARN, "Error sending dat file %s: %s\n", fn_base,
+                      strerror(errno));
                 fclose(bin);
                 fclose(dat);
                 return -3;
@@ -5687,6 +5721,8 @@ static int send_pc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
 
             /* Send it away */
             if(crypt_send(c, DC_QUEST_CHUNK_LENGTH, sendbuf)) {
+                debug(DBG_WARN, "Error sending bin file %s: %s\n", fn_base,
+                      strerror(errno));
                 fclose(bin);
                 fclose(dat);
                 return -3;
@@ -5740,6 +5776,8 @@ static int send_gc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     bin = fopen(filename, "rb");
 
     if(!bin) {
+        debug(DBG_WARN, "Error opening bin file %s: %s\n", fn_base,
+              strerror(errno));
         return -1;
     }
 
@@ -5747,6 +5785,8 @@ static int send_gc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     dat = fopen(filename, "rb");
 
     if(!dat) {
+        debug(DBG_WARN, "Error opening dat file %s: %s\n", fn_base,
+              strerror(errno));
         fclose(bin);
         return -1;
     }
@@ -5774,6 +5814,8 @@ static int send_gc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     file->flags = 0x0002;
 
     if(crypt_send(c, DC_QUEST_FILE_LENGTH, sendbuf)) {
+        debug(DBG_WARN, "Error sending dat hdr %s: %s\n", fn_base,
+              strerror(errno));
         fclose(bin);
         fclose(dat);
         return -2;
@@ -5792,6 +5834,8 @@ static int send_gc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     file->flags = 0x0002;
 
     if(crypt_send(c, DC_QUEST_FILE_LENGTH, sendbuf)) {
+        debug(DBG_WARN, "Error sending bin hdr %s: %s\n", fn_base,
+              strerror(errno));
         fclose(bin);
         fclose(dat);
         return -2;
@@ -5816,6 +5860,8 @@ static int send_gc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
 
             /* Send it away */
             if(crypt_send(c, DC_QUEST_CHUNK_LENGTH, sendbuf)) {
+                debug(DBG_WARN, "Error sending dat file %s: %s\n", fn_base,
+                      strerror(errno));
                 fclose(bin);
                 fclose(dat);
                 return -3;
@@ -5844,6 +5890,8 @@ static int send_gc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
 
             /* Send it away */
             if(crypt_send(c, DC_QUEST_CHUNK_LENGTH, sendbuf)) {
+                debug(DBG_WARN, "Error sending bin file %s: %s\n", fn_base,
+                      strerror(errno));
                 fclose(bin);
                 fclose(dat);
                 return -3;
@@ -5866,13 +5914,13 @@ static int send_gc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
 }
 
 static int send_qst_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
-                          int lang) {
+                          int lang, int ver) {
     char filename[256];
     FILE *fp;
     long len;
     size_t read;
     uint8_t *sendbuf = get_sendbuf();
-    sylverant_quest_t *q = qm->qptr[c->version][lang];
+    sylverant_quest_t *q = qm->qptr[ver][lang];
 
     /* Make sure we got the sendbuf and the quest */
     if(!sendbuf || !q) {
@@ -5905,7 +5953,8 @@ static int send_qst_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     fp = fopen(filename, "rb");
 
     if(!fp) {
-        perror("fopen");
+        debug(DBG_WARN, "Cannot open qst file %s: %s\n", filename,
+              strerror(errno));
         return -1;
     }
 
@@ -5921,6 +5970,8 @@ static int send_qst_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
 
         /* If we can't read from the file, bail. */
         if(!read) {
+            debug(DBG_WARN, "Error reading qst file %s: %s\n", filename,
+                  strerror(errno));
             fclose(fp);
             return -2;
         }
@@ -5935,6 +5986,8 @@ static int send_qst_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
 
         /* Send this chunk away. */
         if(crypt_send(c, read, sendbuf)) {
+            debug(DBG_WARN, "Error sending qst file %s: %s\n", filename,
+                  strerror(errno));
             fclose(fp);
             return -3;
         }
@@ -5949,11 +6002,11 @@ static int send_qst_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
 
 int send_quest(lobby_t *l, uint32_t qid, int lc) {
     int i;
-    int v1 = 0;
+    int v1 = 0, rv;
     quest_map_elem_t *elem = quest_lookup(&ship->qmap, qid);
     sylverant_quest_t *q;
     ship_client_t *c;
-    int lang;
+    int lang, ver;
 
     /* Make sure we get the quest */
     if(!elem) {
@@ -5968,33 +6021,38 @@ int send_quest(lobby_t *l, uint32_t qid, int lc) {
     /* What type of quest file are we sending? */
     for(i = 0; i < l->max_clients; ++i) {
         if((c = l->clients[i])) {
-            q = elem->qptr[c->version][c->q_lang];
+            if(v1 && c->version == CLIENT_VERSION_DCV2)
+                ver = CLIENT_VERSION_DCV1;
+            else
+                ver = c->version;
+
+            q = elem->qptr[ver][c->q_lang];
             lang = c->q_lang;
 
             /* If we didn't find it on the quest language code, try the language
                code set in the character data. */
             if(!q) {
-                q = elem->qptr[c->version][c->language_code];
+                q = elem->qptr[ver][c->language_code];
                 lang = c->language_code;
             }
 
             /* Next try English, so as to have a reasonably sane fallback. */
             if(!q) {
-                q = elem->qptr[c->version][CLIENT_LANG_ENGLISH];
+                q = elem->qptr[ver][CLIENT_LANG_ENGLISH];
                 lang = CLIENT_LANG_ENGLISH;
             }
 
             /* If all else fails, go with the language the quest was selected by
                the leader in, since that has to be there! */
             if(!q) {
-                q = elem->qptr[c->version][lc];
+                q = elem->qptr[ver][lc];
                 lang = lc;
                 
                 /* If we still didn't find it, we've got trouble elsewhere... */
                 if(!q) {
                     debug(DBG_WARN, "Couldn't find quest to send!\n"
                           "ID: %d, Ver: %d, Language: %d, Fallback: %d, "
-                          "Fallback 2: %d\n", qid, c->version, c->q_lang,
+                          "Fallback 2: %d\n", qid, ver, c->q_lang,
                           c->language_code, lc);
 
                     /* Unfortunately, we're going to have to disconnect the user
@@ -6006,21 +6064,21 @@ int send_quest(lobby_t *l, uint32_t qid, int lc) {
 
             if(q->format == SYLVERANT_QUEST_BINDAT) {
                 /* Call the appropriate function. */
-                switch(l->clients[i]->version) {
+                switch(ver) {
                     case CLIENT_VERSION_DCV1:
-                        send_dcv1_quest(c, elem, v1, lang);
+                        rv = send_dcv1_quest(c, elem, v1, lang);
                         break;
 
                     case CLIENT_VERSION_DCV2:
-                        send_dcv2_quest(c, elem, v1, lang);
+                        rv = send_dcv2_quest(c, elem, v1, lang);
                         break;
 
                     case CLIENT_VERSION_PC:
-                        send_pc_quest(c, elem, v1, lang);
+                        rv = send_pc_quest(c, elem, v1, lang);
                         break;
 
                     case CLIENT_VERSION_GC:
-                        send_gc_quest(c, elem, v1, lang);
+                        rv = send_gc_quest(c, elem, v1, lang);
                         break;
 
                     case CLIENT_VERSION_EP3:
@@ -6028,10 +6086,18 @@ int send_quest(lobby_t *l, uint32_t qid, int lc) {
                 }
             }
             else if(q->format == SYLVERANT_QUEST_QST) {
-                send_qst_quest(c, elem, v1, lang);
+                rv = send_qst_quest(c, elem, v1, lang, ver);
             }
             else {
                 return -1;
+            }
+
+            if(rv) {
+                send_message_box(c, "Error reading quest file!\nPlease report "
+                                 "this problem!\nInclude your guildcard\n"
+                                 "number and the approximate\ntime in your "
+                                 "error report.");
+                c->flags |= CLIENT_FLAG_DISCONNECTED;
             }
         }
     }
