@@ -1305,12 +1305,11 @@ void lobby_legit_check_finish_locked(lobby_t *l) {
     l->flags &= ~(LOBBY_FLAG_LEGIT_CHECK | LOBBY_FLAG_TEMP_UNAVAIL);
 }
 
-/* Send out any queued packets when we get a done burst signal. */
+/* Send out any queued packets when we get a done burst signal. You must hold
+   the lobby's lock when calling this. */
 int lobby_handle_done_burst(lobby_t *l) {
     lobby_pkt_t *i;
     int rv = 0;
-
-    pthread_mutex_lock(&l->mutex);
 
     /* Go through each packet and handle it */
     while((i = STAILQ_FIRST(&l->pkt_queue))) {
@@ -1342,7 +1341,6 @@ int lobby_handle_done_burst(lobby_t *l) {
         free(i);
     }
 
-    pthread_mutex_unlock(&l->mutex);
     return rv;
 }
 

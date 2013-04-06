@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -253,7 +253,12 @@ static const char language_codes[][3] __attribute__((unused)) = {
 
 /* The list of version codes for the quest directories. */
 static const char version_codes[][3] __attribute__((unused)) = {
-    "v1", "v2", "pc", "gc", "e3"
+    "v1", "v2", "pc", "gc", "e3", "bb"
+};
+
+/* Sizes of the headers sent on packets */
+static const int hdr_sizes[] __attribute__((unused)) = {
+    4, 4, 4, 4, 4, 8
 };
 
 /* Initialize the clients system, allocating any thread specific keys */

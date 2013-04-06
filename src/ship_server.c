@@ -22,6 +22,7 @@
 #include <netdb.h>
 #include <pthread.h>
 #include <signal.h>
+#include <errno.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -345,7 +346,6 @@ int setup_addresses(sylverant_ship_t *cfg) {
             inet_ntop(j->ai_family, &addr4->sin_addr, ipstr, INET6_ADDRSTRLEN);
             debug(DBG_LOG, "    Found IPv4: %s\n", ipstr);
             ship_ip4 = addr4->sin_addr.s_addr;
-            
         }
         else if(j->ai_family == AF_INET6) {
             addr6 = (struct sockaddr_in6 *)j->ai_addr;

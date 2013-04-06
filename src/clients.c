@@ -25,6 +25,7 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <time.h>
+#include <errno.h>
 #include <sys/socket.h>
 
 #include <sylverant/encryption.h>
