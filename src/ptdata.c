@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2012 Lawrence Sebald
+    Copyright (C) 2012, 2013 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -884,7 +884,7 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
     pt_v2_entry_t *ent = &v2_ptdata[l->difficulty][l->section];
     uint32_t rnd;
     uint32_t item[4];
-    int area;
+    int area, do_rare = 1;
     struct mt19937_state *rng = &c->cur_block->rng;
     uint16_t mid;
     game_enemy_t *enemy;
@@ -948,8 +948,12 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
         /* Nope. You get nothing! */
         return 0;
 
+    /* See if we'll do a rare roll. */
+    if(l->qid && !(ship->cfg->local_flags & SYLVERANT_SHIP_QUEST_RARES))
+        do_rare = 0;
+
     /* See if the user is lucky today... */
-    if((item[0] = rt_generate_v2_rare(c, l, req->pt_index, 0))) {
+    if(do_rare && (item[0] = rt_generate_v2_rare(c, l, req->pt_index, 0))) {
         switch(item[0] & 0xFF) {
             case 0:
                 /* Weapon -- add percentages and (potentially) grind values and
@@ -1093,7 +1097,7 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
     game_object_t *gobj;
     map_object_t *obj;
     uint32_t rnd, t1, t2;
-    int area;
+    int area, do_rare = 1;
     uint32_t item[4];
     float f1, f2;
     struct mt19937_state *rng = &c->cur_block->rng;
@@ -1195,8 +1199,12 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
         }
     }
 
+    /* See if we'll do a rare roll. */
+    if(l->qid && !(ship->cfg->local_flags & SYLVERANT_SHIP_QUEST_RARES))
+        do_rare = 0;
+
     /* See if the user is lucky today... */
-    if((item[0] = rt_generate_v2_rare(c, l, -1, area + 1))) {
+    if(do_rare && (item[0] = rt_generate_v2_rare(c, l, -1, area + 1))) {
         switch(item[0] & 0xFF) {
             case 0:
                 /* Weapon -- add percentages and (potentially) grind values and

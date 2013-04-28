@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -175,12 +175,10 @@ static void print_config(sylverant_ship_t *cfg) {
 
     debug(DBG_LOG, "Ship IPv4 Host: %s\n", cfg->ship_host);
 
-    if(cfg->ship_host6) {
+    if(cfg->ship_host6)
         debug(DBG_LOG, "Ship IPv6 Host: %s\n", cfg->ship_host6);
-    }
-    else {
+    else
         debug(DBG_LOG, "Ship IPv6 Host: Autoconfig or None\n");
-    }
 
     debug(DBG_LOG, "Base Port: %d\n", (int)cfg->base_port);
     debug(DBG_LOG, "Blocks: %d\n", cfg->blocks);
@@ -197,53 +195,47 @@ static void print_config(sylverant_ship_t *cfg) {
         }
     }
 
-    if(cfg->menu_code) {
+    if(cfg->menu_code)
         debug(DBG_LOG, "Menu: %c%c\n", (char)cfg->menu_code,
               (char)(cfg->menu_code >> 8));
-    }
-    else {
+    else
         debug(DBG_LOG, "Menu: Main\n");
-    }
 
-    if(cfg->v2_map_dir) {
+    if(cfg->v2_map_dir)
         debug(DBG_LOG, "v2 Map Directory: %s\n", cfg->v2_map_dir);
-    }
 
-    if(cfg->bb_param_dir) {
+    if(cfg->bb_param_dir)
         debug(DBG_LOG, "BB Param Directory: %s\n", cfg->bb_param_dir);
-    }
 
-    if(cfg->bb_map_dir) {
+    if(cfg->bb_map_dir)
         debug(DBG_LOG, "BB Map Directory: %s\n", cfg->bb_map_dir);
-    }
 
-    if(cfg->v2_ptdata_file) {
+    if(cfg->v2_ptdata_file)
         debug(DBG_LOG, "v2 ItemPT file: %s\n", cfg->v2_ptdata_file);
-    }
 
-    if(cfg->v3_ptdata_file) {
+    if(cfg->v3_ptdata_file)
         debug(DBG_LOG, "v3 ItemPT file: %s\n", cfg->v3_ptdata_file);
-    }
 
-    if(cfg->v2_pmtdata_file) {
+    if(cfg->v2_pmtdata_file)
         debug(DBG_LOG, "v2 ItemPMT file: %s\n", cfg->v2_pmtdata_file);
-    }
     
-    if(cfg->v3_pmtdata_file) {
+    if(cfg->v3_pmtdata_file)
         debug(DBG_LOG, "v3 ItemPMT file: %s\n", cfg->v3_pmtdata_file);
-    }
 
     debug(DBG_LOG, "Units +/- limit: v2: %s, v3: %s\n", 
-          cfg->v2_pmt_limitunits ? "true" : "false",
-          cfg->v3_pmt_limitunits ? "true" : "false");
+          (cfg->local_flags & SYLVERANT_SHIP_PMT_LIMITV2) ? "true" : "false",
+          (cfg->local_flags & SYLVERANT_SHIP_PMT_LIMITV3) ? "true" : "false");
 
-    if(cfg->v2_rtdata_file) {
+    if(cfg->v2_rtdata_file)
         debug(DBG_LOG, "v2 ItemRT file: %s\n", cfg->v2_rtdata_file);
-    }
 
-    if(cfg->v3_rtdata_file) {
+    if(cfg->v3_rtdata_file)
         debug(DBG_LOG, "v3 ItemRT file: %s\n", cfg->v3_rtdata_file);
-    }
+
+    if(cfg->v2_rtdata_file || cfg->v3_rtdata_file)
+        debug(DBG_LOG, "Rares drop in quests: %s\n",
+              (cfg->local_flags & SYLVERANT_SHIP_QUEST_RARES) ? "true" :
+              "false");
 
     debug(DBG_LOG, "Flags: 0x%08X\n", cfg->shipgate_flags);
 }
@@ -468,7 +460,8 @@ int main(int argc, char *argv[]) {
     /* Read the v2 ItemPMT file... */
     if(cfg->v2_pmtdata_file) {
         debug(DBG_LOG, "Reading v2 ItemPMT file: %s\n", cfg->v2_pmtdata_file);
-        if(pmt_read_v2(cfg->v2_pmtdata_file, !cfg->v2_pmt_limitunits)) {
+        if(pmt_read_v2(cfg->v2_pmtdata_file,
+                       !cfg->local_flags & SYLVERANT_SHIP_PMT_LIMITV2)) {
             debug(DBG_WARN, "Couldn't read v2 ItemPMT file!\n");
         }
     }
