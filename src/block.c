@@ -2271,6 +2271,8 @@ static int process_menu(ship_client_t *c, uint32_t menu_id, uint32_t item_id,
                 c->cur_lobby->flags |= LOBBY_FLAG_QUESTING;
                 c->cur_lobby->qid = item_id;
                 c->cur_lobby->qlang = (uint8_t)lang;
+                load_quest_enemies(c->cur_lobby, item_id,
+                                   c->cur_lobby->version);
                 rv = send_quest(c->cur_lobby, item_id, lang);
             }
             else {

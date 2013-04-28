@@ -2330,7 +2330,7 @@ int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
             if(c->next_item[0] && !(l->flags & LOBBY_FLAG_LEGIT_MODE)) {
                 rv = handle_itemreq(c, (subcmd_itemreq_t *)pkt);
             }
-            else if(l->dropfunc && !(l->flags & LOBBY_FLAG_QUESTING)) {
+            else if(l->dropfunc && (l->flags & LOBBY_FLAG_SERVER_DROPS)) {
                 rv = l->dropfunc(c, l, (subcmd_itemreq_t *)pkt);
             }
             else {

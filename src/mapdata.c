@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2012 Lawrence Sebald
+    Copyright (C) 2012, 2013 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -48,6 +48,15 @@ static parsed_objs_t v2_parsed_objs[0x10];
 
 /* Did we read in v2 map data? */
 static int have_v2_maps = 0;
+
+/* Header for sections of the .dat files for quests. */
+typedef struct quest_dat_hdr {
+    uint32_t obj_type;
+    uint32_t next_hdr;
+    uint32_t area;
+    uint32_t size;
+    uint8_t data[];
+} quest_dat_hdr_t;
 
 static int read_param_file(bb_battle_param_t dst[4][0x60], const char *fn) {
     FILE *fp;
@@ -1362,3 +1371,252 @@ void free_game_enemies(lobby_t *l) {
 int map_have_v2_maps(void) {
     return have_v2_maps;
 }
+
+static void parse_quest_objects(const uint8_t *data, uint32_t len,
+                                uint32_t *obj_cnt,
+                                const quest_dat_hdr_t *ptrs[2][17]) {
+    const quest_dat_hdr_t *hdr = (const quest_dat_hdr_t *)data;
+    uint32_t ptr = 0;
+    uint32_t obj_count = 0;
+
+    while(ptr < len) {
+        switch(LE32(hdr->obj_type)) {
+            case 0x01:                      /* Objects */
+                ptrs[0][LE32(hdr->area)] = hdr;
+                obj_count += LE32(hdr->size) / sizeof(map_object_t);
+                ptr += hdr->next_hdr;
+                hdr = (const quest_dat_hdr_t *)(data + ptr);
+                break;
+
+            case 0x02:                      /* Enemies */
+                ptrs[1][LE32(hdr->area)] = hdr;
+                ptr += hdr->next_hdr;
+                hdr = (const quest_dat_hdr_t *)(data + ptr);
+                break;
+
+            case 0x03:                      /* ??? - Skip */
+                ptr += hdr->next_hdr;
+                hdr = (const quest_dat_hdr_t *)(data + ptr);
+                break;
+
+            default:
+                /* Padding at the end of the file... */
+                ptr = len;
+                break;
+        }
+    }
+
+    *obj_cnt = obj_count;
+}
+
+int cache_quest_enemies(const char *ofn, const uint8_t *dat, uint32_t sz,
+                        int episode) {
+    int i, alt;
+    uint32_t index, area, objects, j;
+    const quest_dat_hdr_t *ptrs[2][17] = { { 0 } };
+    game_enemies_t tmp_en;
+    FILE *fp;
+    const quest_dat_hdr_t *hdr;
+    off_t offs;
+
+    /* Open the cache file... */
+    if(!(fp = fopen(ofn, "wb"))) {
+        debug(DBG_WARN, "Cannot open cache file \"%s\" for writing: %s\n", ofn,
+              strerror(errno));
+        return -1;
+    }
+
+    /* Figure out the total number of enemies that the quest has... */
+    parse_quest_objects(dat, sz, &objects, ptrs);
+
+    /* Write out the objects in exactly the same form that they'll be needed
+       when loaded later on. */
+    objects = LE32(objects);
+    if(fwrite(&objects, 1, 4, fp) != 4) {
+        debug(DBG_WARN, "Error writing to cache file \"%s\": %s\n", ofn,
+              strerror(errno));
+        fclose(fp);
+        return -2;
+    }
+
+    /* Run through each area and write them in order. */
+    for(i = 0; i < 17; ++i) {
+        if((hdr = ptrs[0][i])) {
+            sz = LE32(hdr->size);
+            objects = sz / sizeof(map_object_t);
+
+            for(j = 0; j < objects; ++j) {
+                /* Write the object itself. */
+                if(fwrite(hdr->data + j * sizeof(map_object_t), 1,
+                          sizeof(map_object_t), fp) != sizeof(map_object_t)) {
+                    debug(DBG_WARN, "Error writing to cache file \"%s\": %s\n",
+                          ofn, strerror(errno));
+                    fclose(fp);
+                    return -3;
+                }
+            }
+        }
+    }
+
+    /* Save our position, as we don't know in advance how many parsed enemies
+       we will have... */
+    offs = ftello(fp);
+    fseeko(fp, 4, SEEK_CUR);
+    index = 0;
+
+    /* Copy in the enemy data. */
+    for(i = 0; i < 17; ++i) {
+        if((hdr = ptrs[1][i])) {
+            /* XXXX: Ugly! */
+            sz = LE32(hdr->size);
+            area = LE32(hdr->area);
+            alt = 0;
+
+            if((episode == 3 && area > 5) || (episode == 2 && area > 15))
+                alt = 1;
+
+            if(parse_map((map_enemy_t *)(hdr->data), sz / sizeof(map_enemy_t),
+                         &tmp_en, episode, alt)) {
+                debug(DBG_WARN, "Canot parse map for cache!\n");
+                fclose(fp);
+                return -4;
+            }
+
+            sz = tmp_en.count * sizeof(game_enemy_t);
+            if(fwrite(tmp_en.enemies, 1, sz, fp) != sz) {
+                debug(DBG_WARN, "Error writing to cache file \"%s\": %s\n", ofn,
+                      strerror(errno));
+                free(tmp_en.enemies);
+                fclose(fp);
+                return -5;
+            }
+
+            index += tmp_en.count;
+            free(tmp_en.enemies);
+        }
+    }
+
+    /* Go back and write the amount of enemies we have. */
+    fseeko(fp, offs, SEEK_SET);
+    index = LE32(index);
+
+    if(fwrite(&index, 1, 4, fp) != 4) {
+        debug(DBG_WARN, "Error writing to cache file \"%s\": %s\n", ofn,
+              strerror(errno));
+        fclose(fp);
+        return -6;
+    }
+
+    /* We're done with the cache file now, so clean up and return. */
+    fclose(fp);
+    return 0;
+}
+
+int load_quest_enemies(lobby_t *l, uint32_t qid, int ver) {
+    FILE *fp;
+    size_t dlen = strlen(ship->cfg->quests_dir);
+    char fn[dlen + 40];
+    void *tmp;
+    uint32_t cnt, i;
+
+    /* If we aren't doing server-side drops on this game, don't bother. */
+    if(!(l->flags & LOBBY_FLAG_SERVER_DROPS))
+        return 0;
+
+    /* Map PC->DCv2. */
+    if(ver == CLIENT_VERSION_PC)
+        ver = CLIENT_VERSION_DCV2;
+
+    /* Figure out where we're looking... */
+    sprintf(fn, "%s/.mapcache/%s/%08x", ship->cfg->quests_dir,
+            version_codes[ver], qid);
+
+    if(!(fp = fopen(fn, "rb"))) {
+        debug(DBG_WARN, "Cannot open file \"%s\": %s\n", fn, strerror(errno));
+        return -1;
+    }
+
+    /* Start by reading in the objects array. */
+    if(fread(&cnt, 1, 4, fp) != 4) {
+        debug(DBG_WARN, "Cannot read file \"%s\": %s\n", fn, strerror(errno));
+        fclose(fp);
+        return -2;
+    }
+
+    /* Unset this, in case something screws up. */
+    l->flags &= ~LOBBY_FLAG_SERVER_DROPS;
+
+    /* Reallocate the objects array. */
+    l->map_objs->count = cnt = LE32(cnt);
+    if(!(tmp = realloc(l->map_objs->objs, cnt * sizeof(game_object_t)))) {
+        debug(DBG_WARN, "Cannot reallocate objects array: %s\n",
+              strerror(errno));
+        fclose(fp);
+        return -3;
+    }
+
+    /* Read the objects in from the cache file. */
+    for(i = 0; i < cnt; ++i) {
+        if(fread(&l->map_objs->objs[i].data, 1, sizeof(map_object_t),
+                 fp) != sizeof(map_object_t)) {
+            debug(DBG_WARN, "Cannot read map cache: %s\n", strerror(errno));
+            fclose(fp);
+            return -4;
+        }
+
+        l->map_objs->objs[i].flags = 0;
+    }
+
+    if(fread(&cnt, 1, 4, fp) != 4) {
+        debug(DBG_WARN, "Cannot read file \"%s\": %s\n", fn, strerror(errno));
+        fclose(fp);
+        return -5;
+    }
+
+    /* Reallocate the enemies array. */
+    l->map_enemies->count = cnt = LE32(cnt);
+    if(!(tmp = realloc(l->map_enemies->enemies, cnt * sizeof(game_enemy_t)))) {
+        debug(DBG_WARN, "Cannot reallocate enemies array: %s\n",
+              strerror(errno));
+        fclose(fp);
+        return -6;
+    }
+
+    /* Read the enemies in from the cache file. */
+    if(fread(l->map_enemies->enemies, sizeof(game_enemy_t), cnt, fp) != cnt) {
+        debug(DBG_WARN, "Cannot read map cache: %s\n", strerror(errno));
+        fclose(fp);
+        return -7;
+    }
+
+    /* Fixup Dark Falz' data for difficulties other than normal and the special
+       Rappy data too... */
+    for(i = 0; i < cnt; ++i) {
+        if(l->map_enemies->enemies[i].bp_entry == 0x37 && l->difficulty) {
+            l->map_enemies->enemies[i].bp_entry = 0x38;
+        }
+        else if(l->map_enemies->enemies[i].rt_index == (uint8_t)-1) {
+            switch(l->event) {
+                case LOBBY_EVENT_CHRISTMAS:
+                    l->map_enemies->enemies[i].rt_index = 79;
+                    break;
+                case LOBBY_EVENT_EASTER:
+                    l->map_enemies->enemies[i].rt_index = 81;
+                    break;
+                case LOBBY_EVENT_HALLOWEEN:
+                    l->map_enemies->enemies[i].rt_index = 80;
+                    break;
+                default:
+                    l->map_enemies->enemies[i].rt_index = 51;
+                    break;
+            }
+        }
+    }
+
+    /* Re-set the server drops flag and clean up. */
+    l->flags |= LOBBY_FLAG_SERVER_DROPS;
+    fclose(fp);
+
+    return 0;
+}
+    

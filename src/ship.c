@@ -674,6 +674,10 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
                 }
             }
         }
+
+        if(quest_cache_maps(rv, &rv->qmap, s->quests_dir)) {
+            debug(DBG_WARN, "Unable to build quest map cache!\n");
+        }
     }
 
     /* Attempt to read the GM list in. */

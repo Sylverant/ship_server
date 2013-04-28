@@ -929,8 +929,8 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
     mid = LE16(req->req);
     if(mid > l->map_enemies->count) {
         debug(DBG_WARN, "Guildcard %" PRIu32 " requested drop for invalid "
-              "enemy (%d -- max: %d)!\n", c->guildcard, mid,
-              l->map_enemies->count);
+              "enemy (%d -- max: %d, quest=%" PRIu32 ")!\n", c->guildcard, mid,
+              l->map_enemies->count, l->qid);
         return -1;
     }
 

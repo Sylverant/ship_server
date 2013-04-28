@@ -27,6 +27,12 @@
 #include "clients.h"
 #undef CLIENTS_H_COUNTS_ONLY
 
+#ifndef SHIP_DEFINED
+#define SHIP_DEFINED
+struct ship;
+typedef struct ship ship_t;
+#endif
+
 typedef struct quest_map_elem {
     TAILQ_ENTRY(quest_map_elem) qentry;
     uint32_t qid;
@@ -49,5 +55,8 @@ void quest_cleanup(quest_map_t *map);
 /* Process an entire list of quests read in for a version/language combo. */
 int quest_map(quest_map_t *map, sylverant_quest_list_t *list, int version,
               int language);
+
+/* Build/rebuild the quest enemy/object data cache. */
+int quest_cache_maps(ship_t *s, quest_map_t *map, const char *dir);
 
 #endif /* !QUESTS_H */
