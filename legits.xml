@@ -1570,9 +1570,9 @@
         <versions v1="true" v2="true" />
         <level max="200" />
         <def min="5" />
-        <pow max="95" />
-        <dex max="95" />
-        <mind min="100" />
+        <pow max="195" />
+        <dex max="195" />
+        <mind min="195" />
         <synchro max="120" />
         <iq max="200" />
     </item>
