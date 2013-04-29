@@ -1555,6 +1555,8 @@ int load_quest_enemies(lobby_t *l, uint32_t qid, int ver) {
         return -3;
     }
 
+    l->map_objs->objs = (game_object_t *)tmp;
+
     /* Read the objects in from the cache file. */
     for(i = 0; i < cnt; ++i) {
         if(fread(&l->map_objs->objs[i].data, 1, sizeof(map_object_t),
@@ -1581,6 +1583,8 @@ int load_quest_enemies(lobby_t *l, uint32_t qid, int ver) {
         fclose(fp);
         return -6;
     }
+
+    l->map_enemies->enemies = (game_enemy_t *)tmp;
 
     /* Read the enemies in from the cache file. */
     if(fread(l->map_enemies->enemies, sizeof(game_enemy_t), cnt, fp) != cnt) {
