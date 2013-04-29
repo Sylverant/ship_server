@@ -5266,7 +5266,8 @@ static int send_dcv1_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     /* Each quest has two files: a .dat file and a .bin file, send a file packet
        for each of them. */
     sprintf(fn_base, "%s/%s-%s/%s", ship->cfg->quests_dir,
-            version_codes[c->version], language_codes[lang], q->prefix);
+            version_codes[CLIENT_VERSION_DCV1], language_codes[lang],
+            q->prefix);
 
     sprintf(filename, "%s.bin", fn_base);
     bin = fopen(filename, "rb");
