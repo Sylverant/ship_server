@@ -317,7 +317,9 @@ static void *block_thd(void *d) {
                           it->guildcard);
                 }
                 else {
-                    debug(DBG_LOG, "Disconnecting something...\n");
+                    my_ntop(&it->ip_addr, ipstr);
+                    debug(DBG_LOG, "Disconnecting something (IP: %s).\n",
+                          ipstr);
                 }
 
                 /* Remove the player from the lobby before disconnecting
@@ -2271,8 +2273,10 @@ static int process_menu(ship_client_t *c, uint32_t menu_id, uint32_t item_id,
                 c->cur_lobby->flags |= LOBBY_FLAG_QUESTING;
                 c->cur_lobby->qid = item_id;
                 c->cur_lobby->qlang = (uint8_t)lang;
+                /* XXXX: Something's buggy here still...
                 load_quest_enemies(c->cur_lobby, item_id,
-                                   c->cur_lobby->version);
+                                   c->cur_lobby->version); */
+                c->cur_lobby->flags &= ~LOBBY_FLAG_SERVER_DROPS;
                 rv = send_quest(c->cur_lobby, item_id, lang);
             }
             else {
