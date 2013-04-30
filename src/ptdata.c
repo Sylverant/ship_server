@@ -873,6 +873,19 @@ static int check_and_send(ship_client_t *c, lobby_t *l, uint32_t item[4],
         }
     }
 
+    /* See it is cool to drop rare or "semi-rare" items. */
+    if(l->qid && !(ship->cfg->local_flags & SYLVERANT_SHIP_QUEST_RARES)) {
+        switch(l->version) {
+            case CLIENT_VERSION_DCV1:
+            case CLIENT_VERSION_DCV2:
+            case CLIENT_VERSION_PC:
+                if(pmt_lookup_stars_v2(item[0]) >= 9)
+                    /* We aren't supposed to drop rares, and this item qualifies
+                       as one (according to Sega's rules), so don't drop it. */
+                    return 0;
+        }
+    }
+
 ok:
     return subcmd_send_lobby_item(l, req, item);
 }    
@@ -884,7 +897,7 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
     pt_v2_entry_t *ent = &v2_ptdata[l->difficulty][l->section];
     uint32_t rnd;
     uint32_t item[4];
-    int area, do_rare = 1;
+    int area;
     struct mt19937_state *rng = &c->cur_block->rng;
     uint16_t mid;
     game_enemy_t *enemy;
@@ -948,12 +961,8 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
         /* Nope. You get nothing! */
         return 0;
 
-    /* See if we'll do a rare roll. */
-    if(l->qid && !(ship->cfg->local_flags & SYLVERANT_SHIP_QUEST_RARES))
-        do_rare = 0;
-
     /* See if the user is lucky today... */
-    if(do_rare && (item[0] = rt_generate_v2_rare(c, l, req->pt_index, 0))) {
+    if((item[0] = rt_generate_v2_rare(c, l, req->pt_index, 0))) {
         switch(item[0] & 0xFF) {
             case 0:
                 /* Weapon -- add percentages and (potentially) grind values and
@@ -1097,7 +1106,7 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
     game_object_t *gobj;
     map_object_t *obj;
     uint32_t rnd, t1, t2;
-    int area, do_rare = 1;
+    int area;
     uint32_t item[4];
     float f1, f2;
     struct mt19937_state *rng = &c->cur_block->rng;
@@ -1199,12 +1208,8 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
         }
     }
 
-    /* See if we'll do a rare roll. */
-    if(l->qid && !(ship->cfg->local_flags & SYLVERANT_SHIP_QUEST_RARES))
-        do_rare = 0;
-
     /* See if the user is lucky today... */
-    if(do_rare && (item[0] = rt_generate_v2_rare(c, l, -1, area + 1))) {
+    if((item[0] = rt_generate_v2_rare(c, l, -1, area + 1))) {
         switch(item[0] & 0xFF) {
             case 0:
                 /* Weapon -- add percentages and (potentially) grind values and
