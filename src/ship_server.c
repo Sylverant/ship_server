@@ -232,10 +232,14 @@ static void print_config(sylverant_ship_t *cfg) {
     if(cfg->v3_rtdata_file)
         debug(DBG_LOG, "v3 ItemRT file: %s\n", cfg->v3_rtdata_file);
 
-    if(cfg->v2_rtdata_file || cfg->v3_rtdata_file)
+    if(cfg->v2_rtdata_file || cfg->v3_rtdata_file) {
         debug(DBG_LOG, "Rares drop in quests: %s\n",
               (cfg->local_flags & SYLVERANT_SHIP_QUEST_RARES) ? "true" :
               "false");
+        debug(DBG_LOG, "Semi-rares drop in quests: %s\n",
+              (cfg->local_flags & SYLVERANT_SHIP_QUEST_SRARES) ? "true" :
+              "false");
+    }
 
     debug(DBG_LOG, "Flags: 0x%08X\n", cfg->shipgate_flags);
 }
