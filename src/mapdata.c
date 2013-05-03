@@ -1076,7 +1076,7 @@ int v2_read_params(sylverant_ship_t *cfg) {
 
     /* Make sure we have a directory set... */
     if(!cfg->v2_map_dir) {
-        debug(DBG_WARN, "No V2 map directory set. Will disable server-side "
+        debug(DBG_WARN, "No v2 map directory set. Will disable server-side "
               "drop support.\n");
         return 1;
     }
@@ -1096,13 +1096,13 @@ int v2_read_params(sylverant_ship_t *cfg) {
 
     /* Next, try to read the map data */
     if(chdir(cfg->v2_map_dir)) {
-        debug(DBG_ERROR, "Error changing to V2 map dir: %s\n",
+        debug(DBG_ERROR, "Error changing to v2 map dir: %s\n",
               strerror(errno));
         rv = 1;
         goto bail;
     }
 
-    debug(DBG_LOG, "Loading V2 Map Enemy Data...\n");
+    debug(DBG_LOG, "Loading v2 Map Enemy Data...\n");
     rv = read_v2_map_files();
 
     /* Change back to the original directory */
@@ -1115,7 +1115,7 @@ int v2_read_params(sylverant_ship_t *cfg) {
 
 bail:
     if(rv) {
-        debug(DBG_ERROR, "Error reading V2 parameter data. Server-side drops "
+        debug(DBG_ERROR, "Error reading v2 parameter data. Server-side drops "
               "will be disabled for v1/v2.\n");
     }
     else {
