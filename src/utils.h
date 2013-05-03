@@ -24,17 +24,6 @@
 
 #include "ship_packets.h"
 
-#if !defined(__BIG_ENDIAN__) && !defined(WORDS_BIGENDIAN)
-#define BE16(x) (((x >> 8) & 0xFF) | ((x & 0xFF) << 8))
-#define BE32(x) (((x >> 24) & 0x00FF) | \
-                 ((x >>  8) & 0xFF00) | \
-                 ((x & 0xFF00) <<  8) | \
-                 ((x & 0x00FF) << 24))
-#else
-#define BE16(x) x
-#define BE32(x) x
-#endif
-
 #define BUG_REPORT_GC   1
 
 void print_packet(const unsigned char *pkt, int pkt_len);

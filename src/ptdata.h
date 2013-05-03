@@ -107,13 +107,16 @@ typedef struct pt_v2_entry {
 int pt_read_v2(const char *fn);
 
 /* Read the ItemPT data from a v3-style (ItemPT.gsl) file. */
-int pt_read_v3(const char *fn);
+int pt_read_v3(const char *fn, int bb);
 
 /* Did we read in a v2 ItemPT? */
 int pt_v2_enabled(void);
 
-/* Did we read in a v3 ItemPT? */
-int pt_v3_enabled(void);
+/* Did we read in a GC ItemPT? */
+int pt_gc_enabled(void);
+
+/* Did we read in a BB ItemPT? */
+int pt_bb_enabled(void);
 
 /* Generate an item drop from the PT data. This version uses the v2 PT data set,
    and thus is appropriate for any version before PSOGC. */

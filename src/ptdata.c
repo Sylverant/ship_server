@@ -19,6 +19,8 @@
 #include <errno.h>
 #include <string.h>
 
+#include <arpa/inet.h>
+
 #include <sylverant/items.h>
 #include <sylverant/debug.h>
 #include <sylverant/mtwist.h>
@@ -34,10 +36,12 @@
 #define MIN(x, y) (x < y ? x : y)
 
 static int have_v2pt = 0;
-static int have_v3pt = 0;
+static int have_gcpt = 0;
+static int have_bbpt = 0;
 
 static pt_v2_entry_t v2_ptdata[4][10];
-static pt_v3_entry_t v3_ptdata[2][4][10];
+static pt_v3_entry_t gc_ptdata[2][4][10];
+static pt_v3_entry_t bb_ptdata[2][4][10];
 
 static const int tool_base[28] = {
     Item_Monomate, Item_Dimate, Item_Trimate,
@@ -205,7 +209,7 @@ out:
     return rv;
 }
 
-int pt_read_v3(const char *fn) {
+int pt_read_v3(const char *fn, int bb) {
     FILE *fp;
     uint8_t buf[4];
     int rv = 0, i, j, k;
@@ -268,57 +272,110 @@ int pt_read_v3(const char *fn) {
                     goto out;
                 }
 
-                if(fread(&v3_ptdata[i][j][k], 1, sizeof(pt_v3_entry_t), fp) !=
-                   sizeof(pt_v3_entry_t)) {
-                    debug(DBG_ERROR, "Error reading file: %s\n",
-                          strerror(errno));
-                    rv = -2;
-                    goto out;
-                }
+                if(bb) {
+                    if(fread(&bb_ptdata[i][j][k], 1, sizeof(pt_v3_entry_t),
+                             fp) != sizeof(pt_v3_entry_t)) {
+                        debug(DBG_ERROR, "Error reading file: %s\n",
+                              strerror(errno));
+                        rv = -2;
+                        goto out;
+                    }
 
-                /* Swap entries, if we need to */
+                    /* Swap entries, if we need to */
 #if !defined(__BIG_ENDIAN__) && !defined(WORDS_BIGENDIAN)
-                for(l = 0; l < 28; ++l) {
-                    for(m = 0; m < 10; ++m) {
-                        v3_ptdata[i][j][k].tool_frequency[l][m] =
-                            BE16(v3_ptdata[i][j][k].tool_frequency[l][m]);
+                    for(l = 0; l < 28; ++l) {
+                        for(m = 0; m < 10; ++m) {
+                            bb_ptdata[i][j][k].tool_frequency[l][m] =
+                                ntohs(bb_ptdata[i][j][k].tool_frequency[l][m]);
+                        }
                     }
-                }
 
-                for(l = 0; l < 23; ++l) {
-                    for(m = 0; m < 6; ++m) {
-                        v3_ptdata[i][j][k].percent_pattern[l][m] =
-                            BE16(v3_ptdata[i][j][k].percent_pattern[l][m]);
+                    for(l = 0; l < 23; ++l) {
+                        for(m = 0; m < 6; ++m) {
+                            bb_ptdata[i][j][k].percent_pattern[l][m] =
+                                ntohs(bb_ptdata[i][j][k].percent_pattern[l][m]);
+                        }
                     }
-                }
 
-                for(l = 0; l < 100; ++l) {
-                    for(m = 0; m < 2; ++m) {
-                        v3_ptdata[i][j][k].enemy_meseta[l][m] = 
-                            BE16(v3_ptdata[i][j][k].enemy_meseta[l][m]);
+                    for(l = 0; l < 100; ++l) {
+                        for(m = 0; m < 2; ++m) {
+                            bb_ptdata[i][j][k].enemy_meseta[l][m] = 
+                                ntohs(bb_ptdata[i][j][k].enemy_meseta[l][m]);
+                        }
                     }
-                }
 
-                for(l = 0; l < 10; ++l) {
-                    for(m = 0; m < 2; ++m) {
-                        v3_ptdata[i][j][k].box_meseta[l][m] = 
-                            BE16(v3_ptdata[i][j][k].box_meseta[l][m]);
+                    for(l = 0; l < 10; ++l) {
+                        for(m = 0; m < 2; ++m) {
+                            bb_ptdata[i][j][k].box_meseta[l][m] = 
+                                ntohs(bb_ptdata[i][j][k].box_meseta[l][m]);
+                        }
                     }
-                }
 
-                for(l = 0; l < 18; ++l) {
-                    v3_ptdata[i][j][k].pointers[l] =
-                        BE32(v3_ptdata[i][j][k].pointers[l]);
-                }
+                    for(l = 0; l < 18; ++l) {
+                        bb_ptdata[i][j][k].pointers[l] =
+                            ntohl(bb_ptdata[i][j][k].pointers[l]);
+                    }
 
-                v3_ptdata[i][j][k].armor_level =
-                    BE32(v3_ptdata[i][j][k].armor_level);
+                    bb_ptdata[i][j][k].armor_level =
+                        ntohl(bb_ptdata[i][j][k].armor_level);
 #endif
+                }
+                else {
+                    if(fread(&gc_ptdata[i][j][k], 1, sizeof(pt_v3_entry_t),
+                             fp) != sizeof(pt_v3_entry_t)) {
+                        debug(DBG_ERROR, "Error reading file: %s\n",
+                              strerror(errno));
+                        rv = -2;
+                        goto out;
+                    }
+
+                    /* Swap entries, if we need to */
+#if !defined(__BIG_ENDIAN__) && !defined(WORDS_BIGENDIAN)
+                    for(l = 0; l < 28; ++l) {
+                        for(m = 0; m < 10; ++m) {
+                            gc_ptdata[i][j][k].tool_frequency[l][m] =
+                                ntohs(gc_ptdata[i][j][k].tool_frequency[l][m]);
+                        }
+                    }
+
+                    for(l = 0; l < 23; ++l) {
+                        for(m = 0; m < 6; ++m) {
+                            gc_ptdata[i][j][k].percent_pattern[l][m] =
+                                ntohs(gc_ptdata[i][j][k].percent_pattern[l][m]);
+                        }
+                    }
+
+                    for(l = 0; l < 100; ++l) {
+                        for(m = 0; m < 2; ++m) {
+                            gc_ptdata[i][j][k].enemy_meseta[l][m] = 
+                                ntohs(gc_ptdata[i][j][k].enemy_meseta[l][m]);
+                        }
+                    }
+
+                    for(l = 0; l < 10; ++l) {
+                        for(m = 0; m < 2; ++m) {
+                            gc_ptdata[i][j][k].box_meseta[l][m] = 
+                                ntohs(gc_ptdata[i][j][k].box_meseta[l][m]);
+                        }
+                    }
+
+                    for(l = 0; l < 18; ++l) {
+                        gc_ptdata[i][j][k].pointers[l] =
+                            ntohl(gc_ptdata[i][j][k].pointers[l]);
+                    }
+
+                    gc_ptdata[i][j][k].armor_level =
+                        ntohl(gc_ptdata[i][j][k].armor_level);
+#endif
+                }
             }
         }
     }
 
-    have_v3pt = 1;
+    if(bb)
+        have_bbpt = 1;
+    else
+        have_gcpt = 1;
 
 out:
     fclose(fp);
@@ -329,8 +386,12 @@ int pt_v2_enabled(void) {
     return have_v2pt;
 }
 
-int pt_v3_enabled(void) {
-    return have_v3pt;
+int pt_gc_enabled(void) {
+    return have_gcpt;
+}
+
+int pt_bb_enabled(void) {
+    return have_bbpt;
 }
 
 /*
@@ -1176,7 +1237,7 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
 
         if(f2 < 1.0f + EPSILON && f2 > 1.0f - EPSILON) {
             /* Drop the requested item */
-            item[0] = BE32(obj->dword[2]);
+            item[0] = ntohl(obj->dword[2]);
             item[1] = item[2] = item[3] = 0;
 
             /* If its a stackable item, make sure to give it a quantity of 1 */
@@ -1192,7 +1253,7 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
             return check_and_send(c, l, item, c->cur_area, req);
         }
 
-        t1 = BE32(obj->dword[2]);
+        t1 = ntohl(obj->dword[2]);
         switch(t1 & 0xFF) {
             case 0:
                 goto generate_weapon;
@@ -1345,7 +1406,7 @@ generate_meseta:
    This function only works for PSOGC. */
 int pt_generate_v3_drop(ship_client_t *c, lobby_t *l, void *r) {
     subcmd_itemreq_t *req = (subcmd_itemreq_t *)r;
-    pt_v3_entry_t *ent = &v3_ptdata[l->episode - 1][l->difficulty][l->section];
+    pt_v3_entry_t *ent = &gc_ptdata[l->episode - 1][l->difficulty][l->section];
     uint8_t dar;
     uint32_t rnd;
     uint16_t t1, t2;
@@ -1397,7 +1458,7 @@ int pt_generate_bb_drop(ship_client_t *c, lobby_t *l, void *r) {
     if(l->episode == 3)
         return 0;
 
-    ent = &v3_ptdata[l->episode - 1][l->difficulty][l->section];
+    ent = &bb_ptdata[l->episode - 1][l->difficulty][l->section];
     dar = ent->enemy_dar[req->pt_index];
 
     /* See if the enemy is going to drop anything at all this time... */

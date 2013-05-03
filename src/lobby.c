@@ -107,7 +107,7 @@ static void lobby_setup_drops(ship_client_t *c, lobby_t *l, uint32_t rs) {
 
             case CLIENT_VERSION_GC:
                 /* XXXX: Need to implement this fully... */
-                if(pt_v3_enabled()) {
+                if(pt_gc_enabled()) {
                     l->dropfunc = pt_generate_v3_drop;
                     l->flags |= LOBBY_FLAG_SERVER_DROPS;
                 }
@@ -204,9 +204,8 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
     /* We need episode to be either 1 or 2 for the below map selection code to
        work. On PSODC and PSOPC, it'll be 0 at this point, so make it 1 (as it
        would be expected to be). */
-    if(version < CLIENT_VERSION_GC) {
+    if(version < CLIENT_VERSION_GC)
         episode = 1;
-    }
 
     /* Generate the random maps we'll be using for this game, assuming the
        client hasn't set a maps string. */

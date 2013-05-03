@@ -2637,7 +2637,7 @@ static int handle_sdrops(ship_client_t *c, const char *params) {
 
         case CLIENT_VERSION_GC:
             /* XXXX: Need to write in full support for GC still... */
-            if(!pt_v3_enabled())
+            if(!pt_gc_enabled())
                 return send_txt(c, "%s", __(c, "\tE\tC7Server-side drops not\n"
                                             "suported on this ship for\n"
                                             "your client version."));

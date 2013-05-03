@@ -213,26 +213,36 @@ static void print_config(sylverant_ship_t *cfg) {
     if(cfg->v2_ptdata_file)
         debug(DBG_LOG, "v2 ItemPT file: %s\n", cfg->v2_ptdata_file);
 
-    if(cfg->v3_ptdata_file)
-        debug(DBG_LOG, "v3 ItemPT file: %s\n", cfg->v3_ptdata_file);
+    if(cfg->gc_ptdata_file)
+        debug(DBG_LOG, "GC ItemPT file: %s\n", cfg->gc_ptdata_file);
+
+    if(cfg->bb_ptdata_file)
+        debug(DBG_LOG, "BB ItemPT file: %s\n", cfg->bb_ptdata_file);
 
     if(cfg->v2_pmtdata_file)
         debug(DBG_LOG, "v2 ItemPMT file: %s\n", cfg->v2_pmtdata_file);
     
-    if(cfg->v3_pmtdata_file)
-        debug(DBG_LOG, "v3 ItemPMT file: %s\n", cfg->v3_pmtdata_file);
+    if(cfg->gc_pmtdata_file)
+        debug(DBG_LOG, "GC ItemPMT file: %s\n", cfg->gc_pmtdata_file);
 
-    debug(DBG_LOG, "Units +/- limit: v2: %s, v3: %s\n", 
+    if(cfg->bb_pmtdata_file)
+        debug(DBG_LOG, "BB ItemPMT file: %s\n", cfg->bb_pmtdata_file);
+
+    debug(DBG_LOG, "Units +/- limit: v2: %s, GC: %s, BB: %s\n", 
           (cfg->local_flags & SYLVERANT_SHIP_PMT_LIMITV2) ? "true" : "false",
-          (cfg->local_flags & SYLVERANT_SHIP_PMT_LIMITV3) ? "true" : "false");
+          (cfg->local_flags & SYLVERANT_SHIP_PMT_LIMITGC) ? "true" : "false",
+          (cfg->local_flags & SYLVERANT_SHIP_PMT_LIMITBB) ? "true" : "false");
 
     if(cfg->v2_rtdata_file)
         debug(DBG_LOG, "v2 ItemRT file: %s\n", cfg->v2_rtdata_file);
 
-    if(cfg->v3_rtdata_file)
-        debug(DBG_LOG, "v3 ItemRT file: %s\n", cfg->v3_rtdata_file);
+    if(cfg->gc_rtdata_file)
+        debug(DBG_LOG, "GC ItemRT file: %s\n", cfg->gc_rtdata_file);
 
-    if(cfg->v2_rtdata_file || cfg->v3_rtdata_file) {
+    if(cfg->bb_rtdata_file)
+        debug(DBG_LOG, "BB ItemRT file: %s\n", cfg->bb_rtdata_file);
+
+    if(cfg->v2_rtdata_file || cfg->gc_rtdata_file || cfg->bb_rtdata_file) {
         debug(DBG_LOG, "Rares drop in quests: %s\n",
               (cfg->local_flags & SYLVERANT_SHIP_QUEST_RARES) ? "true" :
               "false");
@@ -470,18 +480,51 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    /* Read the v3 ItemPT data, which is needed for Blue Burst... */
-    if(cfg->v3_ptdata_file) {
-        debug(DBG_LOG, "Reading v3 ItemPT file: %s\n", cfg->v3_ptdata_file);
+    /* Read the GC ItemPT file... */
+    if(cfg->gc_ptdata_file) {
+        debug(DBG_LOG, "Reading GC ItemPT file: %s\n", cfg->gc_ptdata_file);
 
-        if(pt_read_v3(cfg->v3_ptdata_file)) {
-            debug(DBG_WARN, "Couldn't read v3 ItemPT data, disabling Blue "
+        if(pt_read_v3(cfg->gc_ptdata_file, 0)) {
+            debug(DBG_WARN, "Couldn't read GC ItemPT file!\n");
+        }
+    }
+
+    /* Read the BB ItemPT data, which is needed for Blue Burst... */
+    if(cfg->bb_ptdata_file) {
+        debug(DBG_LOG, "Reading BB ItemPT file: %s\n", cfg->bb_ptdata_file);
+
+        if(pt_read_v3(cfg->bb_ptdata_file, 1)) {
+            debug(DBG_WARN, "Couldn't read BB ItemPT data, disabling Blue "
                   "Burst support!\n");
             cfg->shipgate_flags |= SHIPGATE_FLAG_NOBB;
         }
     }
     else {
-        debug(DBG_WARN, "No v3 ItemPT file specified, disabling Blue Burst "
+        debug(DBG_WARN, "No BB ItemPT file specified, disabling Blue Burst "
+              "support!\n");
+        cfg->shipgate_flags |= SHIPGATE_FLAG_NOBB;
+    }
+
+    /* Read the GC ItemPMT file... */
+    if(cfg->gc_pmtdata_file) {
+        debug(DBG_LOG, "Reading GC ItemPMT file: %s\n", cfg->gc_pmtdata_file);
+        if(pmt_read_gc(cfg->gc_pmtdata_file,
+                       !cfg->local_flags & SYLVERANT_SHIP_PMT_LIMITGC)) {
+            debug(DBG_WARN, "Couldn't read GC ItemPMT file!\n");
+        }
+    }
+
+    /* Read the BB ItemPMT file... */
+    if(cfg->bb_pmtdata_file) {
+        debug(DBG_LOG, "Reading BB ItemPMT file: %s\n", cfg->bb_pmtdata_file);
+        if(pmt_read_bb(cfg->bb_pmtdata_file,
+                       !cfg->local_flags & SYLVERANT_SHIP_PMT_LIMITBB)) {
+            debug(DBG_WARN, "Couldn't read BB ItemPMT file!\n");
+            cfg->shipgate_flags |= SHIPGATE_FLAG_NOBB;
+        }
+    }
+    else {
+        debug(DBG_WARN, "No BB ItemPT file specified, disabling Blue Burst "
               "support!\n");
         cfg->shipgate_flags |= SHIPGATE_FLAG_NOBB;
     }
