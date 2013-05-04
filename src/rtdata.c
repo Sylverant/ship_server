@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2012 Lawrence Sebald
+    Copyright (C) 2012, 2013 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -42,6 +42,8 @@ typedef struct rt_set {
 
 static int have_v2rt = 0;
 static rt_set_t v2_rtdata[4][10];
+static int have_gcrt = 0;
+static rt_set_t gc_rtdata[2][4][10];
 
 /* This function based on information from a couple of different sources, namely
    Fuzziqer's newserv and information from Lee (through Aleron Ives). */
@@ -176,8 +178,127 @@ out:
     return rv;
 }
 
+int rt_read_gc(const char *fn) {
+    FILE *fp;
+    uint8_t buf[30];
+    int rv = 0, i, j, k, l;
+    uint32_t offsets[80], tmp;
+    rt_entry_t ent;
+
+    have_gcrt = 0;
+
+    /* Open up the file */
+    if(!(fp = fopen(fn, "rb"))) {
+        debug(DBG_ERROR, "Cannot open %s: %s\n", fn, strerror(errno));
+        return -1;
+    }
+
+    /* Read in the offsets and lengths for the Episode I & II data. */
+    for(i = 0; i < 80; ++i) {
+        if(fseek(fp, 32, SEEK_CUR)) {
+            debug(DBG_ERROR, "fseek error: %s\n", strerror(errno));
+            rv = -2;
+            goto out;
+        }
+
+        if(fread(buf, 1, 4, fp) != 4) {
+            debug(DBG_ERROR, "Error reading file: %s\n", strerror(errno));
+            rv = -2;
+            goto out;
+        }
+
+        /* The offsets are in 2048 byte blocks. */
+        offsets[i] = (buf[3]) | (buf[2] << 8) | (buf[1] << 16) | (buf[0] << 24);
+        offsets[i] <<= 11;
+
+        if(fread(buf, 1, 4, fp) != 4) {
+            debug(DBG_ERROR, "Error reading file: %s\n", strerror(errno));
+            rv = -2;
+            goto out;
+        }
+
+        if(buf[0] != 0 || buf[1] != 0 || buf[2] != 0x02 || buf[3] != 0x80) {
+            debug(DBG_ERROR, "Invalid sized entry in ItemRT.gsl!\n");
+            rv = 5;
+            goto out;
+        }
+
+        /* Skip over the padding. */
+        if(fseek(fp, 8, SEEK_CUR)) {
+            debug(DBG_ERROR, "fseek error: %s\n", strerror(errno));
+            rv = -2;
+            goto out;
+        }
+    }
+
+    /* Now, parse each entry... */
+    for(i = 0; i < 2; ++i) {
+        for(j = 0; j < 4; ++j) {
+            for(k = 0; k < 10; ++k) {
+                if(fseek(fp, (long)offsets[i * 40 + j * 10 + k], SEEK_SET)) {
+                    debug(DBG_ERROR, "fseek error: %s\n", strerror(errno));
+                    rv = -2;
+                    goto out;
+                }
+
+                /* Read in the enemy entries */
+                for(l = 0; l < 0x65; ++l) {
+                    if(fread(&ent, 1, sizeof(rt_entry_t), fp) !=
+                       sizeof(rt_entry_t)) {
+                        debug(DBG_ERROR, "Error reading RT: %s\n",
+                              strerror(errno));
+                        rv = -2;
+                        goto out;
+                    }
+
+                    tmp = ent.item_data[0] | (ent.item_data[1] << 8) |
+                        (ent.item_data[2] << 16);
+                    gc_rtdata[i][j][k].enemy_rares[l].prob =
+                        expand_rate(ent.prob);
+                    gc_rtdata[i][j][k].enemy_rares[l].item_data = tmp;
+                    gc_rtdata[i][j][k].enemy_rares[l].area = 0; /* Unused */
+                }
+
+                /* Read in the box entries */
+                if(fread(buf, 1, 30, fp) != 30) {
+                    debug(DBG_ERROR, "Error reading RT: %s\n", strerror(errno));
+                    rv = -2;
+                    goto out;
+                }
+
+                for(l = 0; l < 30; ++l) {
+                    if(fread(&ent, 1, sizeof(rt_entry_t), fp) !=
+                       sizeof(rt_entry_t)) {
+                        debug(DBG_ERROR, "Error reading RT: %s\n",
+                              strerror(errno));
+                        rv = -2;
+                        goto out;
+                    }
+
+                    tmp = ent.item_data[0] | (ent.item_data[1] << 8) |
+                        (ent.item_data[2] << 16);
+                    gc_rtdata[i][j][k].box_rares[l].prob =
+                        expand_rate(ent.prob);
+                    gc_rtdata[i][j][k].box_rares[l].item_data = tmp;
+                    gc_rtdata[i][j][k].box_rares[l].area = buf[k];
+                }
+            }
+        }
+    }
+
+    have_gcrt = 1;
+
+out:
+    fclose(fp);
+    return rv;
+}
+
 int rt_v2_enabled(void) {
     return have_v2rt;
+}
+
+int rt_gc_enabled(void) {
+    return have_gcrt;
 }
 
 uint32_t rt_generate_v2_rare(ship_client_t *c, lobby_t *l, int rt_index,
@@ -196,6 +317,44 @@ uint32_t rt_generate_v2_rare(ship_client_t *c, lobby_t *l, int rt_index,
 
     /* Grab the rare set for the game */
     set = &v2_rtdata[l->difficulty][l->section];
+
+    /* Are we doing a drop for an enemy or a box? */
+    if(rt_index >= 0) {
+        rnd = mt19937_genrand_real1(rng);
+
+        if(rnd < set->enemy_rares[rt_index].prob)
+            return set->enemy_rares[rt_index].item_data;
+    }
+    else {
+        for(i = 0; i < 30; ++i) {
+            if(set->box_rares[i].area == area) {
+                rnd = mt19937_genrand_real1(rng);
+
+                if(rnd < set->box_rares[i].prob)
+                    return set->box_rares[i].item_data;
+            }
+        }
+    }
+
+    return 0;
+}
+
+uint32_t rt_generate_gc_rare(ship_client_t *c, lobby_t *l, int rt_index,
+                             int area) {
+    struct mt19937_state *rng = &c->cur_block->rng;
+    double rnd;
+    rt_set_t *set;
+    int i;
+
+    /* Make sure we read in a rare table and we have a sane index */
+    if(!have_gcrt)
+        return 0;
+
+    if(rt_index < -1 || rt_index > 100)
+        return -1;
+
+    /* Grab the rare set for the game */
+    set = &gc_rtdata[l->episode - 1][l->difficulty][l->section];
 
     /* Are we doing a drop for an enemy or a box? */
     if(rt_index >= 0) {

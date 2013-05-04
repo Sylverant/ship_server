@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2012 Lawrence Sebald
+    Copyright (C) 2012, 2013 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -38,9 +38,13 @@ typedef struct rt_entry {
 #undef PACKED
 
 int rt_read_v2(const char *fn);
+int rt_read_gc(const char *fn);
 int rt_v2_enabled(void);
+int rt_gc_enabled(void);
 
 uint32_t rt_generate_v2_rare(ship_client_t *c, lobby_t *l, int rt_index,
+                             int area);
+uint32_t rt_generate_gc_rare(ship_client_t *c, lobby_t *l, int rt_index,
                              int area);
 
 #endif /* !RTDATA_H */

@@ -545,6 +545,14 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    /* Read the GC ItemRT file... */
+    if(cfg->gc_rtdata_file) {
+        debug(DBG_LOG, "Reading GC ItemRT file: %s\n", cfg->gc_rtdata_file);
+        if(rt_read_gc(cfg->gc_rtdata_file)) {
+            debug(DBG_WARN, "Couldn't read GC ItemRT file!\n");
+        }
+    }
+
     /* If Blue Burst isn't disabled already, read the parameter data and map
        data... */
     if(!(cfg->shipgate_flags & SHIPGATE_FLAG_NOBB)) {
