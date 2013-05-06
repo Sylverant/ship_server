@@ -161,11 +161,15 @@ void bb_free_params(void);
 int v2_read_params(sylverant_ship_t *cfg);
 void v2_free_params(void);
 
+int gc_read_params(sylverant_ship_t *cfg);
+void gc_free_params(void);
+
 int bb_load_game_enemies(lobby_t *l);
 int v2_load_game_enemies(lobby_t *l);
 void free_game_enemies(lobby_t *l);
 
 int map_have_v2_maps(void);
+int map_have_gc_maps(void);
 
 int load_quest_enemies(lobby_t *l, uint32_t qid, int ver);
 int cache_quest_enemies(const char *ofn, const uint8_t *dat, uint32_t sz,

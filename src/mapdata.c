@@ -49,6 +49,14 @@ static parsed_objs_t v2_parsed_objs[0x10];
 /* Did we read in v2 map data? */
 static int have_v2_maps = 0;
 
+/* GC Parsed enemy data. Midway point between v2 and BB. Two episodes, but no
+   single player mode. */
+static parsed_map_t gc_parsed_maps[2][0x10];
+static parsed_objs_t gc_parsed_objs[2][0x10];
+
+/* Did we read in gc map data? */
+static int have_gc_maps = 0;
+
 /* Header for sections of the .dat files for quests. */
 typedef struct quest_dat_hdr {
     uint32_t obj_type;
@@ -774,8 +782,8 @@ static int read_bb_map_set(int solo, int i, int j) {
     return 0;
 }
 
-static int read_v2_map_set(int j) {
-    int srv;
+static int read_v2_map_set(int j, int gcep) {
+    int srv, ep;
     char fn[256];
     int k, l, nmaps, nvars, i;
     FILE *fp;
@@ -786,13 +794,29 @@ static int read_v2_map_set(int j) {
     game_enemies_t *tmp;
     game_objs_t *tmp2;
 
-    nmaps = maps[0][j << 1];
-    nvars = maps[0][(j << 1) + 1];
+    if(!gcep) {
+        nmaps = maps[0][j << 1];
+        nvars = maps[0][(j << 1) + 1];
+        ep = 1;
+    }
+    else {
+        nmaps = maps[gcep - 1][j << 1];
+        nvars = maps[gcep - 1][(j << 1) + 1];
+        ep = gcep;
+    }
 
-    v2_parsed_maps[j].map_count = nmaps;
-    v2_parsed_maps[j].variation_count = nvars;
-    v2_parsed_objs[j].map_count = nmaps;
-    v2_parsed_objs[j].variation_count = nvars;
+    if(!gcep) {
+        v2_parsed_maps[j].map_count = nmaps;
+        v2_parsed_maps[j].variation_count = nvars;
+        v2_parsed_objs[j].map_count = nmaps;
+        v2_parsed_objs[j].variation_count = nvars;
+    }
+    else {
+        gc_parsed_maps[gcep - 1][j].map_count = nmaps;
+        gc_parsed_maps[gcep - 1][j].variation_count = nvars;
+        gc_parsed_objs[gcep - 1][j].map_count = nmaps;
+        gc_parsed_objs[gcep - 1][j].variation_count = nvars;
+    }
 
     if(!(tmp = (game_enemies_t *)malloc(sizeof(game_enemies_t) * nmaps *
                                         nvars))) {
@@ -800,26 +824,37 @@ static int read_v2_map_set(int j) {
         return 10;
     }
 
-    v2_parsed_maps[j].data = tmp;
+    if(!gcep)
+        v2_parsed_maps[j].data = tmp;
+    else
+        gc_parsed_maps[gcep - 1][j].data = tmp;
 
     if(!(tmp2 = (game_objs_t *)malloc(sizeof(game_objs_t) * nmaps * nvars))) {
         debug(DBG_ERROR, "Cannot allocate for objs: %s\n", strerror(errno));
         return 11;
     }
 
-    v2_parsed_objs[j].data = tmp2;
+    if(!gcep)
+        v2_parsed_objs[j].data = tmp2;
+    else
+        gc_parsed_objs[gcep - 1][j].data = tmp2;
 
     for(k = 0; k < nmaps; ++k) {                /* Map Number */
         for(l = 0; l < nvars; ++l) {            /* Variation */
             tmp[k * nvars + l].count = 0;
 
-            srv = snprintf(fn, 256, "m%X%d%d.dat", j, k, l);
+            if(!gcep)
+                srv = snprintf(fn, 256, "m%X%d%d.dat", j, k, l);
+            else
+                srv = snprintf(fn, 256, "m%d%X%d%d.dat", gcep, j, k, l);
+
             if(srv >= 256) {
                 return 1;
             }
 
             if(!(fp = fopen(fn, "rb"))) {
-                debug(DBG_ERROR, "Cannot read map: %s\n", strerror(errno));
+                debug(DBG_ERROR, "Cannot read map %s: %s\n", fn,
+                      strerror(errno));
                 return 2;
             }
 
@@ -867,7 +902,7 @@ static int read_v2_map_set(int j) {
             fclose(fp);
 
             /* Parse */
-            if(parse_map(en, sz / 0x48, &tmp[k * nvars + l], 1, 0)) {
+            if(parse_map(en, sz / 0x48, &tmp[k * nvars + l], ep, 0)) {
                 free(en);
                 return 9;
             }
@@ -876,7 +911,11 @@ static int read_v2_map_set(int j) {
             free(en);
 
             /* Now, grab the objects */
-            srv = snprintf(fn, 256, "m%X%d%d_o.dat", j, k, l);
+            if(!gcep)
+                srv = snprintf(fn, 256, "m%X%d%d_o.dat", j, k, l);
+            else
+                srv = snprintf(fn, 256, "m%d%X%d%d_o.dat", gcep, j, k, l);
+
             if(srv >= 256) {
                 return 1;
             }
@@ -974,7 +1013,23 @@ static int read_v2_map_files(void) {
     int srv, j;
 
     for(j = 0; j < 16 && j <= max_area[0]; ++j) {
-        if((srv = read_v2_map_set(j)))
+        if((srv = read_v2_map_set(j, 0)))
+            return srv;
+    }
+
+    return 0;
+}
+
+static int read_gc_map_files(void) {
+    int srv, j;
+
+    for(j = 0; j < 16 && j <= max_area[0]; ++j) {
+        if((srv = read_v2_map_set(j, 1)))
+            return srv;
+    }
+
+    for(j = 0; j < 16 && j <= max_area[1]; ++j) {
+        if((srv = read_v2_map_set(j, 2)))
             return srv;
     }
 
@@ -1127,6 +1182,64 @@ bail:
     return rv;
 }
 
+int gc_read_params(sylverant_ship_t *cfg) {
+    int rv = 0;
+    long sz;
+    char *buf, *path;
+
+    /* Make sure we have a directory set... */
+    if(!cfg->gc_map_dir) {
+        debug(DBG_WARN, "No GC map directory set. Will disable server-side "
+              "drop support.\n");
+        return 1;
+    }
+
+    /* Save the current working directory, so we can do this a bit easier. */
+    sz = pathconf(".", _PC_PATH_MAX);
+    if(!(buf = malloc(sz))) {
+        debug(DBG_ERROR, "Error allocating memory: %s\n", strerror(errno));
+        return -1;
+    }
+
+    if(!(path = getcwd(buf, (size_t)sz))) {
+        debug(DBG_ERROR, "Error getting current dir: %s\n", strerror(errno));
+        free(buf);
+        return -1;
+    }
+
+    /* Next, try to read the map data */
+    if(chdir(cfg->gc_map_dir)) {
+        debug(DBG_ERROR, "Error changing to GC map dir: %s\n",
+              strerror(errno));
+        rv = 1;
+        goto bail;
+    }
+
+    debug(DBG_LOG, "Loading GC Map Enemy Data...\n");
+    rv = read_gc_map_files();
+
+    /* Change back to the original directory */
+    if(chdir(path)) {
+        debug(DBG_ERROR, "Cannot change back to original dir: %s\n",
+              strerror(errno));
+        free(buf);
+        return -1;
+    }
+
+bail:
+    if(rv) {
+        debug(DBG_ERROR, "Error reading GC parameter data. Server-side drops "
+              "will be disabled for PSOGC.\n");
+    }
+    else {
+        have_gc_maps = 1;
+    }
+
+    /* Clean up and return. */
+    free(buf);
+    return rv;
+}
+
 void bb_free_params(void) {
     int i, j, k;
     uint32_t l, nmaps;
@@ -1166,6 +1279,27 @@ void v2_free_params(void) {
         free(m->data);
         m->data = NULL;
         m->map_count = m->variation_count = 0;
+    }
+}
+
+void gc_free_params(void) {
+    int k, j;
+    uint32_t l, nmaps;
+    parsed_map_t *m;
+
+    for(j = 0; j < 2; ++j) {
+        for(k = 0; k < 0x10; ++k) {
+            m = &gc_parsed_maps[j][k];
+            nmaps = m->map_count * m->variation_count;
+
+            for(l = 0; l < nmaps; ++l) {
+                free(m->data[l].enemies);
+            }
+
+            free(m->data);
+            m->data = NULL;
+            m->map_count = m->variation_count = 0;
+        }
     }
 }
 
@@ -1370,6 +1504,10 @@ void free_game_enemies(lobby_t *l) {
 
 int map_have_v2_maps(void) {
     return have_v2_maps;
+}
+
+int map_have_gc_maps(void) {
+    return have_gc_maps;
 }
 
 static void parse_quest_objects(const uint8_t *data, uint32_t len,
