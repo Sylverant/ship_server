@@ -1923,9 +1923,9 @@ int pt_generate_gc_drop(ship_client_t *c, lobby_t *l, void *r) {
             case 2:
                 /* Mag -- Give it 5 DFP and 40% Synchro and an unset color */
                 item[0] = 0x00050002;
-                item[1] = 0x000101F4;
-                item[2] = 0x00010001;
-                item[3] = 0x00280000;
+                item[1] = 0x000001F4;
+                item[2] = 0x00000000;
+                item[3] = 0x280000FF;
                 break;
 
             case 3:
@@ -2204,9 +2204,9 @@ int pt_generate_gc_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
             case 2:
                 /* Mag -- Give it 5 DFP and 40% Synchro and an unset color */
                 item[0] = 0x00050002;
-                item[1] = 0x000101F4;
-                item[2] = 0x00010001;
-                item[3] = 0x00280000;
+                item[1] = 0x000001F4;
+                item[2] = 0x00000000;
+                item[3] = 0x280000FF;
                 break;
 
             case 3:
@@ -2428,9 +2428,9 @@ int pt_generate_bb_drop(ship_client_t *c, lobby_t *l, void *r) {
             case 2:
                 /* Mag -- Give it 5 DFP and 40% Synchro and an unset color */
                 item[0] = 0x00050002;
-                item[1] = 0x000101F4;
-                item[2] = 0x00010001;
-                item[3] = 0x00280000;
+                item[1] = 0x000001F4;
+                item[2] = 0x00000000;
+                item[3] = 0xFF000028;
                 break;
 
             case 3:
@@ -2715,9 +2715,9 @@ int pt_generate_bb_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
             case 2:
                 /* Mag -- Give it 5 DFP and 40% Synchro and an unset color */
                 item[0] = 0x00050002;
-                item[1] = 0x000101F4;
-                item[2] = 0x00010001;
-                item[3] = 0x00280000;
+                item[1] = 0x000001F4;
+                item[2] = 0x00000000;
+                item[3] = 0xFF000028;
                 break;
 
             case 3:
