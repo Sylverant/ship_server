@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -114,6 +114,7 @@ typedef struct subcmd_bb_gc_send {
     uint8_t char_class;
 } PACKED subcmd_bb_gcsend_t;
 
+/* Request drop from enemy (DC/PC/GC) or box (DC/PC) */
 typedef struct subcmd_itemreq {
     dc_pkt_hdr_t hdr;
     uint8_t type;
@@ -127,6 +128,7 @@ typedef struct subcmd_itemreq {
     uint32_t unk2[2];
 } PACKED subcmd_itemreq_t;
 
+/* Request drop from enemy (Blue Burst) */
 typedef struct subcmd_bb_itemreq {
     bb_pkt_hdr_t hdr;
     uint8_t type;
@@ -139,6 +141,40 @@ typedef struct subcmd_bb_itemreq {
     float y;
     uint32_t unk2[2];
 } PACKED subcmd_bb_itemreq_t;
+
+/* Request drop from box (GC) */
+typedef struct subcmd_bitemreq {
+    dc_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint16_t unk1;                      /* 0x80 0x3F?*/
+    uint8_t area;
+    uint8_t pt_index;                   /* Always 0x30 */
+    uint16_t req;
+    float x;
+    float y;
+    uint32_t unk2[2];
+    uint16_t unk3;
+    uint16_t unk4;                      /* 0x80 0x3F? */
+    uint32_t unused[3];                 /* All zeroes? */
+} PACKED subcmd_bitemreq_t;
+
+/* Request drop from box (Blue Burst) */
+typedef struct subcmd_bb_bitemreq {
+    bb_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint16_t unk1;                      /* 0x80 0x3F?*/
+    uint8_t area;
+    uint8_t pt_index;                   /* Always 0x30 */
+    uint16_t req;
+    float x;
+    float y;
+    uint32_t unk2[2];
+    uint16_t unk3;
+    uint16_t unk4;                      /* 0x80 0x3F? */
+    uint32_t unused[3];                 /* All zeroes? */
+} PACKED subcmd_bb_bitemreq_t;
 
 typedef struct subcmd_itemgen {
     dc_pkt_hdr_t hdr;
@@ -710,6 +746,7 @@ typedef struct subcmd_mkill {
 #define SUBCMD_GUILDCARD    0x06
 #define SUBCMD_PICK_UP      0x5A    /* Sent to leader when picking up item */
 #define SUBCMD_ITEMREQ      0x60
+#define SUBCMD_BITEMREQ     0xA2    /* BB/GC - Request item drop from box */
 #define SUBCMD_SHOPREQ      0xB5    /* Blue Burst - Request shop inventory */
 #define SUBCMD_SHOPBUY      0xB7    /* Blue Burst - Buy an item from the shop */
 #define SUBCMD_OPEN_BANK    0xBB    /* Blue Burst - open the bank menu */

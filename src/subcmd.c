@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -2324,6 +2324,7 @@ int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
             break;
 
         case SUBCMD_ITEMREQ:
+        case SUBCMD_BITEMREQ:
             /* There's only two ways we pay attention to this one: First, if the
                lobby is not in legit mode and a GM has used /item. Second, if
                the lobby has a drop function (for server-side drops). */
@@ -2331,7 +2332,7 @@ int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
                 rv = handle_itemreq(c, (subcmd_itemreq_t *)pkt);
             }
             else if(l->dropfunc && (l->flags & LOBBY_FLAG_SERVER_DROPS)) {
-                rv = l->dropfunc(c, l, (subcmd_itemreq_t *)pkt);
+                rv = l->dropfunc(c, l, pkt);
             }
             else {
                 rv = send_pkt_dc(dest, (dc_pkt_hdr_t *)pkt);
@@ -2402,6 +2403,7 @@ int subcmd_bb_handle_one(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
             break;
 
         case SUBCMD_ITEMREQ:
+        case SUBCMD_BITEMREQ:
             /* Unlike earlier versions, we have to handle this here... */
             rv = l->dropfunc(c, l, pkt);
             break;

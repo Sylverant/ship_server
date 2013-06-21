@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -106,9 +106,9 @@ static void lobby_setup_drops(ship_client_t *c, lobby_t *l, uint32_t rs) {
                 return;
 
             case CLIENT_VERSION_GC:
-                /* XXXX: Need to implement this fully... */
-                if(pt_gc_enabled()) {
-                    l->dropfunc = pt_generate_v3_drop;
+                if(pt_gc_enabled() && map_have_gc_maps() && pmt_gc_enabled() &&
+                   rt_gc_enabled()) {
+                    l->dropfunc = pt_generate_gc_drop;
                     l->flags |= LOBBY_FLAG_SERVER_DROPS;
                 }
                 return;
@@ -265,6 +265,13 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
     else if(version <= CLIENT_VERSION_PC && map_have_v2_maps() && !battle &&
             !chal && v2_load_game_enemies(l)) {
         debug(DBG_WARN, "Error setting up v1/v2 enemy data!\n");
+        pthread_mutex_destroy(&l->mutex);
+        free(l);
+        return NULL;
+    }
+    else if(version == CLIENT_VERSION_GC && map_have_gc_maps() && !battle &&
+            !chal && gc_load_game_enemies(l)) {
+        debug(DBG_WARN, "Error setting up GC enemy data!\n");
         pthread_mutex_destroy(&l->mutex);
         free(l);
         return NULL;

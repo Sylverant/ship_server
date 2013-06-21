@@ -166,6 +166,7 @@ void gc_free_params(void);
 
 int bb_load_game_enemies(lobby_t *l);
 int v2_load_game_enemies(lobby_t *l);
+int gc_load_game_enemies(lobby_t *l);
 void free_game_enemies(lobby_t *l);
 
 int map_have_v2_maps(void);

@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2012 Lawrence Sebald
+    Copyright (C) 2012, 2013 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -125,10 +125,12 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r);
 
 /* Generate an item drop from the PT data. This version uses the v3 PT data set.
    This function only works for PSOGC. */
-int pt_generate_v3_drop(ship_client_t *c, lobby_t *l, void *r);
+int pt_generate_gc_drop(ship_client_t *c, lobby_t *l, void *r);
+int pt_generate_gc_boxdrop(ship_client_t *c, lobby_t *l, void *r);
 
 /* Generate an item drop from the PT data. This version uses the v3 PT data set.
    This function only works for PSOBB. */
 int pt_generate_bb_drop(ship_client_t *c, lobby_t *l, void *r);
+int pt_generate_bb_boxdrop(ship_client_t *c, lobby_t *l, void *r);
 
 #endif /* !PTDATA_H */

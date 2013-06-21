@@ -642,6 +642,172 @@ already_picked:
     return 0;
 }
 
+static int generate_weapon_v3(pt_v3_entry_t *ent, int area, uint32_t item[4],
+                              struct mt19937_state *rng, int picked, int bb) {
+    uint32_t rnd, upcts = 0;
+    int i, j = 0, k, wchance = 0, warea = 0, npcts = 0;
+    int wtypes[12] = { 0 }, wranks[12] = { 0 }, gptrn[12] = { 0 };
+    uint8_t *item_b = (uint8_t *)item;
+    int semirare = 0, rare = 0;
+
+    /* Ugly... but I'm lazy and don't feel like rebalancing things for another
+       level of indentation... */
+    if(picked) {
+        /* Determine if the item is a rare or a "semi-rare" item. */
+        if(item_b[1] > 12)
+            rare = semirare = 1;
+        else if((item_b[1] >= 10 && item_b[2] > 3) || item_b[2] > 4)
+            semirare = 1;
+
+        /* All RT-generated items use the last grind pattern... */
+        warea = 3;
+        item[1] = item[2] = item[3] = 0;
+        goto already_picked;
+    }
+
+    item[0] = item[1] = item[2] = item[3] = 0;
+
+    /* Go through each weapon type to see what ones we actually will have to
+       work with right now... */
+    for(i = 0; i < 12; ++i) {
+        if((ent->weapon_minrank[i] + area) >= 0 && ent->weapon_ratio[i] > 0) {
+            wtypes[j] = i;
+            wchance += ent->weapon_ratio[i];
+
+            if(ent->weapon_minrank[i] >= 0) {
+                warea = area;
+                wranks[j] = ent->weapon_minrank[i];
+            }
+            else {
+                warea = ent->weapon_minrank[i] + area;
+                wranks[j] = 0;
+            }
+
+            /* Sanity check... Make sure this is sane before we go to the loop
+               below, since it will end up being an infinite loop if its not
+               sane... */
+            if(ent->weapon_upgfloor[i] <= 0) {
+                debug(DBG_WARN, "Invalid v3 weapon upgrade floor value for "
+                      "floor %d, weapon type %d. Please check your ItemPT.gsl "
+                      "file (%s) for validity!\n", area, i, bb ? "BB" : "GC");
+                return -1;
+            }
+
+            while((warea - ent->weapon_upgfloor[i]) >= 0) {
+                ++wranks[j];
+                warea -= ent->weapon_upgfloor[i];
+            }
+
+            gptrn[j] = MIN(warea, 3);
+            ++j;
+        }
+    }
+
+    /* Sanity check... This shouldn't happen! */
+    if(!j) {
+        debug(DBG_WARN, "No v3 weapon to generate on floor %d, please check "
+              "your ItemPT.gsl file (%s) for validity!\n", area,
+              bb ? "BB" : "GC");
+        return -1;
+    }
+
+    /* Roll the dice! */
+    rnd = mt19937_genrand_int32(rng) % wchance;
+    for(i = 0; i < j; ++i) {
+        if((rnd -= ent->weapon_ratio[wtypes[i]]) > wchance) {
+            item[0] = ((wtypes[i] + 1) << 8) | (wranks[i] << 16);
+
+            /* Save off the grind pattern to use... */
+            warea = gptrn[i];
+            break;
+        }
+    }
+
+    /* Sanity check... Once again, this shouldn't happen! */
+    if(!item[0]) {
+        debug(DBG_WARN, "Generated invalid v3 weapon. Please report this "
+              "error!\n");
+        return -1;
+    }
+
+    /* See if we made a "semi-rare" item. */
+    if((item_b[1] >= 10 && item_b[2] > 3) || item_b[2] > 4)
+        semirare = 1;
+
+already_picked:
+    /* Next up, determine the grind value. */
+    rnd = mt19937_genrand_int32(rng) % 100;
+    for(i = 0; i < 9; ++i) {
+        if((rnd -= ent->power_pattern[i][warea]) > 100) {
+            item[0] |= (i << 24);
+            break;
+        }
+    }
+
+    /* Sanity check... */
+    if(i >= 9) {
+        debug(DBG_WARN, "Invalid power pattern for floor %d, pattern "
+              "number %d. Please check your ItemPT.gsl (%s) for validity!\n",
+              area, warea, bb ? "BB" : "GC");
+        return -1;
+    }
+
+    /* Let's generate us some percentages, shall we? This isn't necessarily the
+       way I would have designed this, but based on the way the data is laid
+       out in the PT file, this is the implied structure of it... */
+    for(i = 0; i < 3; ++i) {
+        if(ent->area_pattern[i][area] < 0)
+            continue;
+
+        rnd = mt19937_genrand_int32(rng) % 10000;
+        warea = ent->area_pattern[i][area];
+
+        for(j = 0; j < 23; ++j) {
+            /* See if we're going to generate this one... */
+            if((rnd -= ent->percent_pattern[j][warea]) > 10000) {
+                /* If it would be 0%, don't bother... */
+                if(j == 2) {
+                    break;
+                }
+
+                /* Lets see what type we'll generate now... */
+                rnd = mt19937_genrand_int32(rng) % 100;
+                for(k = 0; k < 6; ++k) {
+                    if((rnd -= ent->percent_attachment[k][area]) > 100) {
+                        if(k == 0 || (upcts & (1 << k)))
+                            break;
+
+                        j = (j - 2) * 5;
+                        item_b[(npcts << 1) + 6] = k;
+                        item_b[(npcts << 1) + 7] = (uint8_t)j;
+                        ++npcts;
+                        upcts |= 1 << k;
+                        break;
+                    }
+                }
+
+                break;
+            }
+        }
+    }
+
+    /* Finally, lets see if there's going to be an elemental attribute applied
+       to this weapon, or if its rare and we need to set the flag. */
+    if(!semirare && ent->element_ranking[area]) {
+        rnd = mt19937_genrand_int32(rng) % 100;
+        if(rnd < ent->element_probability[area]) {
+            rnd = mt19937_genrand_int32(rng) %
+                attr_count[ent->element_ranking[area] - 1];
+            item[1] = 0x80 | attr_list[ent->element_ranking[area] - 1][rnd];
+        }
+    }
+    else if(rare) {
+        item[1] = 0x80;
+    }
+
+    return 0;
+}
+
 /* 
    Generate a random armor, based on data for PSOv2. Luckily, this is a lot
    simpler than the case for weapons, so it needs a lot less explanation.
@@ -739,6 +905,87 @@ static int generate_armor_v2(pt_v2_entry_t *ent, int area, uint32_t item[4],
     return 0;
 }
 
+static int generate_armor_v3(pt_v3_entry_t *ent, int area, uint32_t item[4],
+                             struct mt19937_state *rng, int picked, int bb) {
+    uint32_t rnd;
+    int i, armor = -1;
+    uint8_t *item_b = (uint8_t *)item;
+    uint16_t *item_w = (uint16_t *)item;
+    pmt_guard_gc_t gcg;
+    pmt_guard_bb_t bbg;
+    uint8_t dfp, evp;
+
+    if(!picked) {
+        /* Go through each slot in the armor rankings to figure out which one
+           that we'll be generating. */
+        rnd = mt19937_genrand_int32(rng) % 100;
+        for(i = 0; i < 5; ++i) {
+            if((rnd -= ent->armor_ranking[i]) > 100) {
+                armor = i;
+                break;
+            }
+        }
+
+        /* Sanity check... */
+        if(armor == -1) {
+            debug(DBG_WARN, "Couldn't find a %s armor to generate. Please "
+                  "check your ItemPT.gsl file for validity!\n",
+                  bb ? "BB" : "GC");
+            return -1;
+        }
+
+        /* Figure out what the byte we'll use is */
+        armor = MAX(0, (ent->armor_level - 3 + area + armor));
+        item[0] = 0x00000101 | (armor << 16);
+    }
+
+    item[1] = item[2] = item[3] = 0;
+
+    /* Pick a number of unit slots */
+    rnd = mt19937_genrand_int32(rng) % 100;
+    for(i = 0; i < 5; ++i) {
+        if((rnd -= ent->slot_ranking[i]) > 100) {
+            item_b[5] = i;
+            break;
+        }
+    }
+
+    /* Look up the item in the ItemPMT data so we can see what boosts we might
+       apply... */
+    if(!bb) {
+        if(pmt_lookup_guard_gc(item[0], &gcg)) {
+            debug(DBG_WARN, "ItemPMT.prs file for GC seems to be missing an "
+                  "armor type item (code %08x).\n", item[0]);
+            return -2;
+        }
+
+        dfp = gcg.dfp_range;
+        evp = gcg.evp_range;
+    }
+    else {
+        if(pmt_lookup_guard_bb(item[0], &bbg)) {
+            debug(DBG_WARN, "ItemPMT.prs file for BB seems to be missing an "
+                  "armor type item (code %08x).\n", item[0]);
+            return -2;
+        }
+
+        dfp = bbg.dfp_range;
+        evp = bbg.evp_range;
+    }
+
+    if(dfp) {
+        rnd = mt19937_genrand_int32(rng) % (dfp + 1);
+        item_w[3] = (uint16_t)rnd;
+    }
+
+    if(evp) {
+        rnd = mt19937_genrand_int32(rng) % (evp + 1);
+        item_w[4] = (uint16_t)rnd;
+    }
+
+    return 0;
+}
+
 /* Generate a random shield, based on data for PSOv2. This is exactly the same
    as the armor version, but without unit slots. */
 static int generate_shield_v2(pt_v2_entry_t *ent, int area, uint32_t item[4],
@@ -776,7 +1023,7 @@ static int generate_shield_v2(pt_v2_entry_t *ent, int area, uint32_t item[4],
     /* Look up the item in the ItemPMT data so we can see what boosts we might
        apply... */
     if(pmt_lookup_guard_v2(item[0], &guard)) {
-        debug(DBG_WARN, "ItemPMT.prs file for v2 seems to be missing an shield "
+        debug(DBG_WARN, "ItemPMT.prs file for v2 seems to be missing a shield "
               "type item (code %08x).\n", item[0]);
         return -2;
     }
@@ -788,6 +1035,77 @@ static int generate_shield_v2(pt_v2_entry_t *ent, int area, uint32_t item[4],
 
     if(guard.evp_range) {
         rnd = mt19937_genrand_int32(rng) % (guard.evp_range + 1);
+        item_w[4] = (uint16_t)rnd;
+    }
+
+    return 0;
+}
+
+static int generate_shield_v3(pt_v3_entry_t *ent, int area, uint32_t item[4],
+                              struct mt19937_state *rng, int picked, int bb) {
+    uint32_t rnd;
+    int i, armor = -1;
+    uint16_t *item_w = (uint16_t *)item;
+    pmt_guard_gc_t gcg;
+    pmt_guard_bb_t bbg;
+    uint8_t dfp, evp;
+
+    if(!picked) {
+        /* Go through each slot in the armor rankings to figure out which one
+           that we'll be generating. */
+        rnd = mt19937_genrand_int32(rng) % 100;
+        for(i = 0; i < 5; ++i) {
+            if((rnd -= ent->armor_ranking[i]) > 100) {
+                armor = i;
+                break;
+            }
+        }
+
+        /* Sanity check... */
+        if(armor == -1) {
+            debug(DBG_WARN, "Couldn't find a %s shield to generate. Please "
+                  "check your ItemPT.gsl file for validity!\n",
+                  bb ? "BB" : "GC");
+            return -1;
+        }
+
+        /* Figure out what the byte we'll use is */
+        armor = MAX(0, (ent->armor_level - 3 + area + armor));
+        item[0] = 0x00000201 | (armor << 16);
+    }
+
+    item[1] = item[2] = item[3] = 0;
+
+    /* Look up the item in the ItemPMT data so we can see what boosts we might
+       apply... */
+    if(!bb) {
+        if(pmt_lookup_guard_gc(item[0], &gcg)) {
+            debug(DBG_WARN, "ItemPMT.prs file for GC seems to be missing a "
+                  "shield type item (code %08x).\n", item[0]);
+            return -2;
+        }
+
+        dfp = gcg.dfp_range;
+        evp = gcg.evp_range;
+    }
+    else {
+        if(pmt_lookup_guard_bb(item[0], &bbg)) {
+            debug(DBG_WARN, "ItemPMT.prs file for BB seems to be missing a "
+                  "shield type item (code %08x).\n", item[0]);
+            return -2;
+        }
+
+        dfp = bbg.dfp_range;
+        evp = bbg.evp_range;
+    }
+
+    if(dfp) {
+        rnd = mt19937_genrand_int32(rng) % (dfp + 1);
+        item_w[3] = (uint16_t)rnd;
+    }
+
+    if(evp) {
+        rnd = mt19937_genrand_int32(rng) % (evp + 1);
         item_w[4] = (uint16_t)rnd;
     }
 
@@ -872,6 +1190,36 @@ static int generate_tool_v2(pt_v2_entry_t *ent, int area, uint32_t item[4],
     return 0;
 }
 
+static int generate_tool_v3(pt_v3_entry_t *ent, int area, uint32_t item[4],
+                            struct mt19937_state *rng) {
+    item[0] = generate_tool_base(ent->tool_frequency, area, rng);
+
+    /* Neither of these should happen, but just in case... */
+    if(item[0] == Item_Photon_Drop || item[0] == Item_NoSuchItem) {
+        debug(DBG_WARN, "Generated invalid v3 tool! Please check your "
+              "ItemPT.gsl file for validity!\n");
+        return -1;
+    }
+
+    /* Clear the rest of the item. */
+    item[1] = item[2] = item[3] = 0;
+
+    /* If its a stackable item, make sure to give it a quantity of 1 */
+    if(item_is_stackable(item[0]))
+        item[1] = (1 << 8);
+
+    if(item[0] == Item_Disk_Lv01) {
+        if(generate_tech(ent->tech_frequency, ent->tech_levels, area,
+                         item, rng)) {
+            debug(DBG_WARN, "Generated invalid technique! Please check "
+                  "your ItemPT.gsl file for validity!\n");
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
 static int generate_meseta(int min, int max, uint32_t item[4],
                            struct mt19937_state *rng) {
     uint32_t rnd;
@@ -944,12 +1292,39 @@ static int check_and_send(ship_client_t *c, lobby_t *l, uint32_t item[4],
                     /* We aren't supposed to drop rares, and this item qualifies
                        as one (according to Sega's rules), so don't drop it. */
                     return 0;
+
+            case CLIENT_VERSION_GC:
+                if(pmt_lookup_stars_gc(item[0]) >= 9)
+                    /* We aren't supposed to drop rares, and this item qualifies
+                       as one (according to Sega's rules), so don't drop it. */
+                    return 0;
         }
     }
 
 ok:
     return subcmd_send_lobby_item(l, req, item);
-}    
+}
+
+static int check_and_send_bb(ship_client_t *c, lobby_t *l, uint32_t item[4],
+                             int area, subcmd_bb_itemreq_t *req) {
+    int rv;
+    item_t *it;
+
+    /* See it is cool to drop "semi-rare" items. */
+    if(l->qid && !(ship->cfg->local_flags & SYLVERANT_SHIP_QUEST_SRARES)) {
+        if(pmt_lookup_stars_bb(item[0]) >= 9)
+            /* We aren't supposed to drop rares, and this item qualifies
+               as one (according to Sega's rules), so don't drop it. */
+            return 0;
+    }
+    
+    pthread_mutex_lock(&l->mutex);
+    it = lobby_add_item_locked(l, item);
+    rv = subcmd_send_bb_lobby_item(l, req, it);
+    pthread_mutex_unlock(&l->mutex);
+
+    return rv;
+}
 
 /* Generate an item drop from the PT data. This version uses the v2 PT data set,
    and thus is appropriate for any version before PSOGC. */
@@ -1347,43 +1722,38 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
 generate_weapon:
         /* Generate a weapon */
         if(generate_weapon_v2(ent, area, item, rng, 0,
-                              l->version == CLIENT_VERSION_DCV1)) {
+                              l->version == CLIENT_VERSION_DCV1))
             return 0;
-        }
 
         return check_and_send(c, l, item, c->cur_area, req);
     }
     else if((rnd -= ent->box_drop[BOX_TYPE_ARMOR][area]) > 100) {
 generate_armor:
         /* Generate an armor */
-        if(generate_armor_v2(ent, area, item, rng, 0)) {
+        if(generate_armor_v2(ent, area, item, rng, 0))
             return 0;
-        }
 
         return check_and_send(c, l, item, c->cur_area, req);
     }
     else if((rnd -= ent->box_drop[BOX_TYPE_SHIELD][area]) > 100) {
         /* Generate a shield */
-        if(generate_shield_v2(ent, area, item, rng, 0)) {
+        if(generate_shield_v2(ent, area, item, rng, 0))
             return 0;
-        }
 
         return check_and_send(c, l, item, c->cur_area, req);
     }
     else if((rnd -= ent->box_drop[BOX_TYPE_UNIT][area]) > 100) {
         /* Generate a unit */
-        if(pmt_random_unit_v2(ent->unit_level[area], item, rng)) {
+        if(pmt_random_unit_v2(ent->unit_level[area], item, rng))
             return 0;
-        }
 
         return check_and_send(c, l, item, c->cur_area, req);
     }
     else if((rnd -= ent->box_drop[BOX_TYPE_TOOL][area]) > 100) {
 generate_tool:
         /* Generate a tool */
-        if(generate_tool_v2(ent, area, item, rng)) {
+        if(generate_tool_v2(ent, area, item, rng))
             return 0;
-        }
 
         return check_and_send(c, l, item, c->cur_area, req);
     }
@@ -1391,9 +1761,8 @@ generate_tool:
 generate_meseta:
         /* Generate money! */
         if(generate_meseta(ent->box_meseta[area][0], ent->box_meseta[area][1],
-                           item, rng)) {
+                           item, rng))
             return 0;
-        }
 
         return check_and_send(c, l, item, c->cur_area, req);
     }
@@ -1404,90 +1773,1028 @@ generate_meseta:
 
 /* Generate an item drop from the PT data. This version uses the v3 PT data set.
    This function only works for PSOGC. */
-int pt_generate_v3_drop(ship_client_t *c, lobby_t *l, void *r) {
+int pt_generate_gc_drop(ship_client_t *c, lobby_t *l, void *r) {
     subcmd_itemreq_t *req = (subcmd_itemreq_t *)r;
     pt_v3_entry_t *ent = &gc_ptdata[l->episode - 1][l->difficulty][l->section];
-    uint8_t dar;
     uint32_t rnd;
-    uint16_t t1, t2;
-    uint32_t i[4];
+    uint32_t item[4];
+    int area, do_rare = 1;
     struct mt19937_state *rng = &c->cur_block->rng;
+    uint16_t mid;
+    game_enemy_t *enemy;
 
-    dar = ent->enemy_dar[req->pt_index];
+    /* Make sure the PT index in the packet is sane */
+    if(req->pt_index > 0x33)
+        return -1;
+
+    /* If the PT index is 0x30, this is a box, not an enemy! */
+    if(req->pt_index == 0x30)
+        return pt_generate_gc_boxdrop(c, l, r);
+
+    /* Figure out the area we'll be worried with */
+    area = c->cur_area;
+
+    /* Episode II area list:
+       0 = Pioneer 2, 1 = VR Temple Alpha, 2 = VR Temple Beta,
+       3 = VR Space Ship Alpha, 4 = VR Space Ship Beta,
+       5 = Central Control Area, 6 = Jungle North, 7 = Jungle South,
+       8 = Mountains, 9 = SeaSide Daytime, 10 = SeaBed Upper Levels,
+       11 = SeaBed Lower Levels, 12 = Gal Gryphon, 13 = Olga Flow,
+       14 = Barba Ray, 15 = Gol Dragon, 16 = SeaSide Nighttime (battle only),
+       17 = Tower 4th Floor (battle only) */
+    switch(l->episode) {
+        case 0:
+        case 1:
+            /* Dragon -> Cave 1 */
+            if(area == 11)
+                area = 3;
+            /* De Rol Le -> Mine 1 */
+            else if(area == 12)
+                area = 6;
+            /* Vol Opt -> Ruins 1 */
+            else if(area == 13)
+                area = 8;
+            /* Dark Falz -> Ruins 3 */
+            else if(area == 14)
+                area = 10;
+            /* Everything after Dark Falz -> Ruins 3 */
+            else if(area > 14)
+                area = 10;
+            /* Invalid areas... */
+            else if(area == 0) {
+                debug(DBG_WARN, "Guildcard %u requested enemy drop on Pioneer "
+                      "2\n", c->guildcard);
+                return -1;
+            }
+
+            break;
+
+        case 2:
+            /* Barba Ray -> VR Space Ship Alpha */
+            if(area == 14)
+                area = 3;
+            /* Gol Dragon -> Jungle North */
+            else if(area == 15)
+                area = 6;
+            /* Gal Gryphon -> SeaSide Daytime */
+            else if(area == 12)
+                area = 9;
+            /* Olga Flow -> SeaBed Upper Levels */
+            else if(area == 13)
+                area = 10;
+            /* All others after SeaBed Upper Levels -> SeaBed Upper Levels */
+            else if(area > 10)
+                area = 10;
+            else if(area == 0) {
+                debug(DBG_WARN, "Guildcard %u requested enemy drop on Pioneer "
+                      "2\n", c->guildcard);
+                return -1;
+            }
+
+            break;
+    }
+
+    /* Subtract one, since we want the index in the box_drop array */
+    --area;
+
+    /* Make sure the enemy's id is sane... */
+    mid = LE16(req->req);
+    if(mid > l->map_enemies->count) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " requested drop for invalid "
+              "enemy (%d -- max: %d, quest=%" PRIu32 ")!\n", c->guildcard, mid,
+              l->map_enemies->count, l->qid);
+        return -1;
+    }
+
+    /* Grab the map enemy to make sure it hasn't already dropped something. */
+    enemy = &l->map_enemies->enemies[mid];
+    if(enemy->drop_done)
+        return 0;
+
+    enemy->drop_done = 1;
 
     /* See if the enemy is going to drop anything at all this time... */
     rnd = mt19937_genrand_int32(rng) % 100;
 
-    if(rnd >= dar)
+    if(rnd >= ent->enemy_dar[req->pt_index])
         /* Nope. You get nothing! */
         return 0;
 
-    /* XXXX: For now, just drop meseta... We'll worry about the rest later. */
-    t1 = ent->enemy_meseta[req->pt_index][0];
-    t2 = ent->enemy_meseta[req->pt_index][1];
-    if(t1 < t2)
-        rnd = (mt19937_genrand_int32(rng) % (t2 - t1)) + t1;
-    else
-        rnd = (uint32_t)t1;
+    /* See if we'll do a rare roll. */
+    if(l->qid && !(ship->cfg->local_flags & SYLVERANT_SHIP_QUEST_RARES))
+        do_rare = 0;
 
-    if(rnd) {
-        i[0] = 4;
-        i[1] = i[2] = 0;
-        i[3] = rnd;
+    /* See if the user is lucky today... */
+    if(do_rare && (item[0] = rt_generate_gc_rare(c, l, req->pt_index, 0))) {
+        switch(item[0] & 0xFF) {
+            case 0:
+                /* Weapon -- add percentages and (potentially) grind values and
+                   such... */
+                if(generate_weapon_v3(ent, area, item, rng, 1, 0))
+                    return 0;
+                break;
 
-        return subcmd_send_lobby_item(l, req, i);
+            case 1:
+                /* Armor/Shield/Unit */
+                switch((item[0] >> 8) & 0xFF) {
+                    case 1:
+                        /* Armor -- Add DFP/EVP boosts and slots */
+                        if(generate_armor_v3(ent, area, item, rng, 1, 0))
+                            return 0;
+                        break;
+
+                    case 2:
+                        /* Shield -- Add DFP/EVP boosts */
+                        if(generate_shield_v3(ent, area, item, rng, 1, 0))
+                            return 0;
+                        break;
+
+                    case 3:
+                        /* Unit -- Nothing to do here */
+                        break;
+
+                    default:
+                        debug(DBG_WARN, "ItemRT generated an invalid item: "
+                              "%08x\n", item[0]);
+                        return 0;
+                }
+                break;
+
+            case 2:
+                /* Mag -- Give it 5 DFP and 40% Synchro and an unset color */
+                item[0] = 0x00050002;
+                item[1] = 0x000101F4;
+                item[2] = 0x00010001;
+                item[3] = 0x00280000;
+                break;
+
+            case 3:
+                /* Tool -- Give it a quantity of 1 if its stackable. */
+                item[1] = item[2] = item[3] = 0;
+
+                if(item_is_stackable(item[0]))
+                    item[1] = (1 << 8);
+                break;
+
+            default:
+                debug(DBG_WARN, "ItemRT generated an invalid item: %08x\n",
+                      item[0]);
+                return 0;
+        }
+
+        return check_and_send(c, l, item, c->cur_area, req);
+    }
+    
+    /* Figure out what type to drop... */
+    rnd = mt19937_genrand_int32(rng) % 3;
+    switch(rnd) {
+        case 0:
+            /* Drop the enemy's designated type of item. */
+            switch(ent->enemy_drop[req->pt_index]) {
+                case BOX_TYPE_WEAPON:
+                    /* Drop a weapon */
+                    if(generate_weapon_v3(ent, area, item, rng, 0, 0)) {
+                        return 0;
+                    }
+
+                    return check_and_send(c, l, item, c->cur_area, req);
+
+                case BOX_TYPE_ARMOR:
+                    /* Drop an armor */
+                    if(generate_armor_v3(ent, area, item, rng, 0, 0)) {
+                        return 0;
+                    }
+
+                    return check_and_send(c, l, item, c->cur_area, req);
+
+                case BOX_TYPE_SHIELD:
+                    /* Drop a shield */
+                    if(generate_shield_v3(ent, area, item, rng, 0, 0)) {
+                        return 0;
+                    }
+
+                    return check_and_send(c, l, item, c->cur_area, req);
+
+                case BOX_TYPE_UNIT:
+                    /* Drop a unit */
+                    if(pmt_random_unit_gc(ent->unit_level[area], item, rng)) {
+                        return 0;
+                    }
+
+                    return check_and_send(c, l, item, c->cur_area, req);
+
+                case -1:
+                    /* This shouldn't happen, but if it does, don't drop
+                       anything at all. */
+                    return 0;
+
+                default:
+                    debug(DBG_WARN, "Unknown/Invalid enemy drop (%d) for index "
+                          "%d\n", ent->enemy_drop[req->pt_index],
+                          req->pt_index);
+                    return 0;
+            }
+
+            break;
+
+        case 1:
+            /* Drop a tool */
+            if(generate_tool_v3(ent, area, item, rng)) {
+                return 0;
+            }
+
+            return check_and_send(c, l, item, c->cur_area, req);
+
+        case 2:
+            /* Drop meseta */
+            if(generate_meseta(ent->enemy_meseta[req->pt_index][0],
+                               ent->enemy_meseta[req->pt_index][1],
+                               item, rng)) {
+                return 0;
+            }
+
+            return check_and_send(c, l, item, c->cur_area, req);
     }
 
+    /* Shouldn't ever get here... */
     return 0;
 }
 
-/* Generate an item drop from the PT data. This version uses the v3 PT data set.
-   This function only works for PSOBB. */
+int pt_generate_gc_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
+    subcmd_bitemreq_t *req = (subcmd_bitemreq_t *)r;
+    pt_v3_entry_t *ent = &gc_ptdata[l->episode][l->difficulty][l->section];
+    uint16_t obj_id;
+    game_object_t *gobj;
+    map_object_t *obj;
+    uint32_t rnd, t1, t2;
+    int area, do_rare = 1;
+    uint32_t item[4];
+    float f1, f2;
+    struct mt19937_state *rng = &c->cur_block->rng;
+
+    /* Make sure this is actually a box drop... */
+    if(req->pt_index != 0x30)
+        return -1;
+
+    /* Grab the object ID and make sure its sane, then grab the object itself */
+    obj_id = LE16(req->req);
+    if(obj_id > l->map_objs->count) {
+        debug(DBG_WARN, "Guildard %u requested drop from invalid box\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* Don't bother if the box has already been opened */
+    gobj = &l->map_objs->objs[obj_id];
+    if(gobj->flags & 0x00000001)
+        return 0;
+
+    obj = &gobj->data;
+
+    /* Figure out the area we'll be worried with */
+    area = c->cur_area;
+
+    switch(l->episode) {
+        case 0:
+        case 1:
+            /* Dragon -> Cave 1 */
+            if(area == 11)
+                area = 3;
+            /* De Rol Le -> Mine 1 */
+            else if(area == 12)
+                area = 6;
+            /* Vol Opt -> Ruins 1 */
+            else if(area == 13)
+                area = 8;
+            /* Dark Falz -> Ruins 3 */
+            else if(area == 14)
+                area = 10;
+            /* Everything after Dark Falz -> Ruins 3 */
+            else if(area > 14)
+                area = 10;
+            /* Invalid areas... */
+            else if(area == 0) {
+                debug(DBG_WARN, "Guildcard %u requested enemy drop on Pioneer "
+                      "2\n", c->guildcard);
+                return -1;
+            }
+
+            break;
+
+        case 2:
+            /* Barba Ray -> VR Space Ship Alpha */
+            if(area == 14)
+                area = 3;
+            /* Gol Dragon -> Jungle North */
+            else if(area == 15)
+                area = 6;
+            /* Gal Gryphon -> SeaSide Daytime */
+            else if(area == 12)
+                area = 9;
+            /* Olga Flow -> SeaBed Upper Levels */
+            else if(area == 13)
+                area = 10;
+            /* All others after SeaBed Upper Levels -> SeaBed Upper Levels */
+            else if(area > 10)
+                area = 10;
+            else if(area == 0) {
+                debug(DBG_WARN, "Guildcard %u requested enemy drop on Pioneer "
+                      "2\n", c->guildcard);
+                return -1;
+            }
+
+            break;
+    }
+
+    /* Subtract one, since we want the index in the box_drop array */
+    --area;
+
+    /* Mark the box as spent now... */
+    gobj->flags |= 0x00000001;
+
+    /* See if the object is fixed-type box */
+    t1 = LE32(obj->dword[0]);
+    f1 = *((float *)&t1);
+    if((obj->skin == LE32(0x00000092) || obj->skin == LE32(0x00000161)) &&
+       f1 < 1.0f + EPSILON && f1 > 1.0f - EPSILON) {
+        /* See if it is a fully-fixed item */
+        t2 = LE32(obj->dword[1]);
+        f2 = *((float *)&t2);
+
+        if(f2 < 1.0f + EPSILON && f2 > 1.0f - EPSILON) {
+            /* Drop the requested item */
+            item[0] = ntohl(obj->dword[2]);
+            item[1] = item[2] = item[3] = 0;
+
+            /* If its a stackable item, make sure to give it a quantity of 1 */
+            if(item_is_stackable(item[0]))
+                item[1] = (1 << 8);
+
+            /* This will make the meseta boxes for Vol Opt work... */
+            if(item[0] == 0x00000004) { 
+                t1 = LE32(obj->dword[3]) >> 16;
+                item[3] = t1 * 10;
+            }
+
+            return check_and_send(c, l, item, c->cur_area,
+                                  (subcmd_itemreq_t *)req);
+        }
+
+        t1 = ntohl(obj->dword[2]);
+        switch(t1 & 0xFF) {
+            case 0:
+                goto generate_weapon;
+
+            case 1:
+                goto generate_armor;
+
+            case 3:
+                goto generate_tool;
+
+            case 4:
+                goto generate_meseta;
+
+            default:
+                debug(DBG_WARN, "Invalid type detected from fixed-type box!\n");
+                return 0;
+        }
+    }
+
+    /* See if we'll do a rare roll. */
+    if(l->qid && !(ship->cfg->local_flags & SYLVERANT_SHIP_QUEST_RARES))
+        do_rare = 0;
+
+    /* See if the user is lucky today... */
+    if(do_rare && (item[0] = rt_generate_gc_rare(c, l, -1, area + 1))) {
+        switch(item[0] & 0xFF) {
+            case 0:
+                /* Weapon -- add percentages and (potentially) grind values and
+                   such... */
+                if(generate_weapon_v3(ent, area, item, rng, 1, 0))
+                    return 0;
+                break;
+
+            case 1:
+                /* Armor/Shield/Unit */
+                switch((item[0] >> 8) & 0xFF) {
+                    case 1:
+                        /* Armor -- Add DFP/EVP boosts and slots */
+                        if(generate_armor_v3(ent, area, item, rng, 1, 0))
+                            return 0;
+                        break;
+
+                    case 2:
+                        /* Shield -- Add DFP/EVP boosts */
+                        if(generate_shield_v3(ent, area, item, rng, 1, 0))
+                            return 0;
+                        break;
+
+                    case 3:
+                        /* Unit -- Nothing to do here */
+                        break;
+
+                    default:
+                        debug(DBG_WARN, "ItemRT generated an invalid item: "
+                              "%08x\n", item[0]);
+                        return 0;
+                }
+
+                break;
+
+            case 2:
+                /* Mag -- Give it 5 DFP and 40% Synchro and an unset color */
+                item[0] = 0x00050002;
+                item[1] = 0x000101F4;
+                item[2] = 0x00010001;
+                item[3] = 0x00280000;
+                break;
+
+            case 3:
+                /* Tool -- Give it a quantity of 1 if its stackable. */
+                item[1] = item[2] = item[3] = 0;
+
+                if(item_is_stackable(item[0]))
+                    item[1] = (1 << 8);
+                break;
+
+            default:
+                debug(DBG_WARN, "ItemRT generated an invalid item: %08x\n",
+                      item[0]);
+                return 0;
+        }
+
+        return check_and_send(c, l, item, c->cur_area, (subcmd_itemreq_t *)req);
+    }
+
+    /* Generate an item, according to the PT data */
+    rnd = mt19937_genrand_int32(rng) % 100;
+
+    if((rnd -= ent->box_drop[BOX_TYPE_WEAPON][area]) > 100) {
+generate_weapon:
+        /* Generate a weapon */
+        if(generate_weapon_v3(ent, area, item, rng, 0, 0))
+            return 0;
+
+        return check_and_send(c, l, item, c->cur_area, (subcmd_itemreq_t *)req);
+    }
+    else if((rnd -= ent->box_drop[BOX_TYPE_ARMOR][area]) > 100) {
+generate_armor:
+        /* Generate an armor */
+        if(generate_armor_v3(ent, area, item, rng, 0, 0))
+            return 0;
+
+        return check_and_send(c, l, item, c->cur_area, (subcmd_itemreq_t *)req);
+    }
+    else if((rnd -= ent->box_drop[BOX_TYPE_SHIELD][area]) > 100) {
+        /* Generate a shield */
+        if(generate_shield_v3(ent, area, item, rng, 0, 0))
+            return 0;
+
+        return check_and_send(c, l, item, c->cur_area, (subcmd_itemreq_t *)req);
+    }
+    else if((rnd -= ent->box_drop[BOX_TYPE_UNIT][area]) > 100) {
+        /* Generate a unit */
+        if(pmt_random_unit_gc(ent->unit_level[area], item, rng))
+            return 0;
+
+        return check_and_send(c, l, item, c->cur_area, (subcmd_itemreq_t *)req);
+    }
+    else if((rnd -= ent->box_drop[BOX_TYPE_TOOL][area]) > 100) {
+generate_tool:
+        /* Generate a tool */
+        if(generate_tool_v3(ent, area, item, rng))
+            return 0;
+
+        return check_and_send(c, l, item, c->cur_area, (subcmd_itemreq_t *)req);
+    }
+    else if((rnd -= ent->box_drop[BOX_TYPE_MESETA][area]) > 100) {
+generate_meseta:
+        /* Generate money! */
+        if(generate_meseta(ent->box_meseta[area][0], ent->box_meseta[area][1],
+                           item, rng))
+            return 0;
+
+        return check_and_send(c, l, item, c->cur_area, (subcmd_itemreq_t *)req);
+    }
+
+    /* You get nothing! */
+    return 0;
+}
+
 int pt_generate_bb_drop(ship_client_t *c, lobby_t *l, void *r) {
     subcmd_bb_itemreq_t *req = (subcmd_bb_itemreq_t *)r;
     pt_v3_entry_t *ent;
-    uint8_t dar;
     uint32_t rnd;
-    uint16_t t1, t2;
-    uint32_t i[4];
-    item_t *item;
-    int rv;
+    uint32_t item[4];
+    int area, do_rare = 1;
     struct mt19937_state *rng = &c->cur_block->rng;
+    uint16_t mid;
+    game_enemy_t *enemy;
 
-    /* XXXX: Handle Episode 4! */
+    /* XXXX: Handle Episode 4 */
     if(l->episode == 3)
         return 0;
 
     ent = &bb_ptdata[l->episode - 1][l->difficulty][l->section];
-    dar = ent->enemy_dar[req->pt_index];
+
+    /* Make sure the PT index in the packet is sane */
+    if(req->pt_index > 0x33)
+        return -1;
+
+    /* If the PT index is 0x30, this is a box, not an enemy! */
+    if(req->pt_index == 0x30)
+        return pt_generate_bb_boxdrop(c, l, r);
+
+    /* Figure out the area we'll be worried with */
+    area = c->cur_area;
+    switch(l->episode) {
+        case 0:
+        case 1:
+            /* Dragon -> Cave 1 */
+            if(area == 11)
+                area = 3;
+            /* De Rol Le -> Mine 1 */
+            else if(area == 12)
+                area = 6;
+            /* Vol Opt -> Ruins 1 */
+            else if(area == 13)
+                area = 8;
+            /* Dark Falz -> Ruins 3 */
+            else if(area == 14)
+                area = 10;
+            /* Everything after Dark Falz -> Ruins 3 */
+            else if(area > 14)
+                area = 10;
+            /* Invalid areas... */
+            else if(area == 0) {
+                debug(DBG_WARN, "Guildcard %u requested enemy drop on Pioneer "
+                      "2\n", c->guildcard);
+                return -1;
+            }
+
+            break;
+
+        case 2:
+            /* Barba Ray -> VR Space Ship Alpha */
+            if(area == 14)
+                area = 3;
+            /* Gol Dragon -> Jungle North */
+            else if(area == 15)
+                area = 6;
+            /* Gal Gryphon -> SeaSide Daytime */
+            else if(area == 12)
+                area = 9;
+            /* Olga Flow -> SeaBed Upper Levels */
+            else if(area == 13)
+                area = 10;
+            /* All others after SeaBed Upper Levels -> SeaBed Upper Levels */
+            else if(area > 10)
+                area = 10;
+            else if(area == 0) {
+                debug(DBG_WARN, "Guildcard %u requested enemy drop on Pioneer "
+                      "2\n", c->guildcard);
+                return -1;
+            }
+
+            break;
+    }
+
+    /* Subtract one, since we want the index in the box_drop array */
+    --area;
+
+    /* Make sure the enemy's id is sane... */
+    mid = LE16(req->req);
+    if(mid > l->map_enemies->count) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " requested drop for invalid "
+              "enemy (%d -- max: %d, quest=%" PRIu32 ")!\n", c->guildcard, mid,
+              l->map_enemies->count, l->qid);
+        return -1;
+    }
+
+    /* Grab the map enemy to make sure it hasn't already dropped something. */
+    enemy = &l->map_enemies->enemies[mid];
+    if(enemy->drop_done)
+        return 0;
+
+    enemy->drop_done = 1;
 
     /* See if the enemy is going to drop anything at all this time... */
     rnd = mt19937_genrand_int32(rng) % 100;
 
-    if(rnd >= dar)
+    if(rnd >= ent->enemy_dar[req->pt_index])
         /* Nope. You get nothing! */
         return 0;
 
-    /* XXXX: For now, just drop meseta... We'll worry about the rest later. */
-    t1 = ent->enemy_meseta[req->pt_index][0];
-    t2 = ent->enemy_meseta[req->pt_index][1];
-    if(t1 < t2)
-        rnd = (mt19937_genrand_int32(rng) % (t2 - t1)) + t1;
-    else
-        rnd = (uint32_t)t1;
+    /* See if we'll do a rare roll. */
+    if(l->qid && !(ship->cfg->local_flags & SYLVERANT_SHIP_QUEST_RARES))
+        do_rare = 0;
 
-    if(rnd) {
-        i[0] = 4;
-        i[1] = i[2] = 0;
-        i[3] = rnd;
+    /* See if the user is lucky today... */
+    if(do_rare && (item[0] = rt_generate_gc_rare(c, l, req->pt_index, 0))) {
+        switch(item[0] & 0xFF) {
+            case 0:
+                /* Weapon -- add percentages and (potentially) grind values and
+                   such... */
+                if(generate_weapon_v3(ent, area, item, rng, 1, 1))
+                    return 0;
+                break;
 
-        pthread_mutex_lock(&l->mutex);
-        item = lobby_add_item_locked(l, i);
-        rv = subcmd_send_bb_lobby_item(l, req, item);
-        pthread_mutex_unlock(&l->mutex);
+            case 1:
+                /* Armor/Shield/Unit */
+                switch((item[0] >> 8) & 0xFF) {
+                    case 1:
+                        /* Armor -- Add DFP/EVP boosts and slots */
+                        if(generate_armor_v3(ent, area, item, rng, 1, 1))
+                            return 0;
+                        break;
 
-        return rv;
+                    case 2:
+                        /* Shield -- Add DFP/EVP boosts */
+                        if(generate_shield_v3(ent, area, item, rng, 1, 1))
+                            return 0;
+                        break;
+
+                    case 3:
+                        /* Unit -- Nothing to do here */
+                        break;
+
+                    default:
+                        debug(DBG_WARN, "ItemRT generated an invalid item: "
+                              "%08x\n", item[0]);
+                        return 0;
+                }
+                break;
+
+            case 2:
+                /* Mag -- Give it 5 DFP and 40% Synchro and an unset color */
+                item[0] = 0x00050002;
+                item[1] = 0x000101F4;
+                item[2] = 0x00010001;
+                item[3] = 0x00280000;
+                break;
+
+            case 3:
+                /* Tool -- Give it a quantity of 1 if its stackable. */
+                item[1] = item[2] = item[3] = 0;
+
+                if(item_is_stackable(item[0]))
+                    item[1] = (1 << 8);
+                break;
+
+            default:
+                debug(DBG_WARN, "ItemRT generated an invalid item: %08x\n",
+                      item[0]);
+                return 0;
+        }
+
+        return check_and_send_bb(c, l, item, c->cur_area, req);
+    }
+    
+    /* Figure out what type to drop... */
+    rnd = mt19937_genrand_int32(rng) % 3;
+    switch(rnd) {
+        case 0:
+            /* Drop the enemy's designated type of item. */
+            switch(ent->enemy_drop[req->pt_index]) {
+                case BOX_TYPE_WEAPON:
+                    /* Drop a weapon */
+                    if(generate_weapon_v3(ent, area, item, rng, 0, 1)) {
+                        return 0;
+                    }
+
+                    return check_and_send_bb(c, l, item, c->cur_area, req);
+
+                case BOX_TYPE_ARMOR:
+                    /* Drop an armor */
+                    if(generate_armor_v3(ent, area, item, rng, 0, 1)) {
+                        return 0;
+                    }
+
+                    return check_and_send_bb(c, l, item, c->cur_area, req);
+
+                case BOX_TYPE_SHIELD:
+                    /* Drop a shield */
+                    if(generate_shield_v3(ent, area, item, rng, 0, 1)) {
+                        return 0;
+                    }
+
+                    return check_and_send_bb(c, l, item, c->cur_area, req);
+
+                case BOX_TYPE_UNIT:
+                    /* Drop a unit */
+                    if(pmt_random_unit_bb(ent->unit_level[area], item, rng)) {
+                        return 0;
+                    }
+
+                    return check_and_send_bb(c, l, item, c->cur_area, req);
+
+                case -1:
+                    /* This shouldn't happen, but if it does, don't drop
+                       anything at all. */
+                    return 0;
+
+                default:
+                    debug(DBG_WARN, "Unknown/Invalid enemy drop (%d) for index "
+                          "%d\n", ent->enemy_drop[req->pt_index],
+                          req->pt_index);
+                    return 0;
+            }
+
+            break;
+
+        case 1:
+            /* Drop a tool */
+            if(generate_tool_v3(ent, area, item, rng)) {
+                return 0;
+            }
+
+            return check_and_send_bb(c, l, item, c->cur_area, req);
+
+        case 2:
+            /* Drop meseta */
+            if(generate_meseta(ent->enemy_meseta[req->pt_index][0],
+                               ent->enemy_meseta[req->pt_index][1],
+                               item, rng)) {
+                return 0;
+            }
+
+            return check_and_send_bb(c, l, item, c->cur_area, req);
     }
 
+    /* Shouldn't ever get here... */
+    return 0;
+}
+
+int pt_generate_bb_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
+    subcmd_bb_bitemreq_t *req = (subcmd_bb_bitemreq_t *)r;
+    pt_v3_entry_t *ent;
+    uint16_t obj_id;
+    game_object_t *gobj;
+    map_object_t *obj;
+    uint32_t rnd, t1, t2;
+    int area, do_rare = 1;
+    uint32_t item[4];
+    float f1, f2;
+    struct mt19937_state *rng = &c->cur_block->rng;
+
+    /* XXXX: Handle Episode 4 */
+    if(l->episode == 3)
+        return 0;
+
+    ent = &bb_ptdata[l->episode][l->difficulty][l->section];
+
+    /* Make sure this is actually a box drop... */
+    if(req->pt_index != 0x30)
+        return -1;
+
+    /* Grab the object ID and make sure its sane, then grab the object itself */
+    obj_id = LE16(req->req);
+    if(obj_id > l->map_objs->count) {
+        debug(DBG_WARN, "Guildard %u requested drop from invalid box\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* Don't bother if the box has already been opened */
+    gobj = &l->map_objs->objs[obj_id];
+    if(gobj->flags & 0x00000001)
+        return 0;
+
+    obj = &gobj->data;
+
+    /* Figure out the area we'll be worried with */
+    area = c->cur_area;
+
+    switch(l->episode) {
+        case 0:
+        case 1:
+            /* Dragon -> Cave 1 */
+            if(area == 11)
+                area = 3;
+            /* De Rol Le -> Mine 1 */
+            else if(area == 12)
+                area = 6;
+            /* Vol Opt -> Ruins 1 */
+            else if(area == 13)
+                area = 8;
+            /* Dark Falz -> Ruins 3 */
+            else if(area == 14)
+                area = 10;
+            /* Everything after Dark Falz -> Ruins 3 */
+            else if(area > 14)
+                area = 10;
+            /* Invalid areas... */
+            else if(area == 0) {
+                debug(DBG_WARN, "Guildcard %u requested enemy drop on Pioneer "
+                      "2\n", c->guildcard);
+                return -1;
+            }
+
+            break;
+
+        case 2:
+            /* Barba Ray -> VR Space Ship Alpha */
+            if(area == 14)
+                area = 3;
+            /* Gol Dragon -> Jungle North */
+            else if(area == 15)
+                area = 6;
+            /* Gal Gryphon -> SeaSide Daytime */
+            else if(area == 12)
+                area = 9;
+            /* Olga Flow -> SeaBed Upper Levels */
+            else if(area == 13)
+                area = 10;
+            /* All others after SeaBed Upper Levels -> SeaBed Upper Levels */
+            else if(area > 10)
+                area = 10;
+            else if(area == 0) {
+                debug(DBG_WARN, "Guildcard %u requested enemy drop on Pioneer "
+                      "2\n", c->guildcard);
+                return -1;
+            }
+
+            break;
+    }
+
+    /* Subtract one, since we want the index in the box_drop array */
+    --area;
+
+    /* Mark the box as spent now... */
+    gobj->flags |= 0x00000001;
+
+    /* See if the object is fixed-type box */
+    t1 = LE32(obj->dword[0]);
+    f1 = *((float *)&t1);
+    if((obj->skin == LE32(0x00000092) || obj->skin == LE32(0x00000161)) &&
+       f1 < 1.0f + EPSILON && f1 > 1.0f - EPSILON) {
+        /* See if it is a fully-fixed item */
+        t2 = LE32(obj->dword[1]);
+        f2 = *((float *)&t2);
+
+        if(f2 < 1.0f + EPSILON && f2 > 1.0f - EPSILON) {
+            /* Drop the requested item */
+            item[0] = ntohl(obj->dword[2]);
+            item[1] = item[2] = item[3] = 0;
+
+            /* If its a stackable item, make sure to give it a quantity of 1 */
+            if(item_is_stackable(item[0]))
+                item[1] = (1 << 8);
+
+            /* This will make the meseta boxes for Vol Opt work... */
+            if(item[0] == 0x00000004) { 
+                t1 = LE32(obj->dword[3]) >> 16;
+                item[3] = t1 * 10;
+            }
+
+            return check_and_send_bb(c, l, item, c->cur_area,
+                                     (subcmd_bb_itemreq_t *)req);
+        }
+
+        t1 = ntohl(obj->dword[2]);
+        switch(t1 & 0xFF) {
+            case 0:
+                goto generate_weapon;
+
+            case 1:
+                goto generate_armor;
+
+            case 3:
+                goto generate_tool;
+
+            case 4:
+                goto generate_meseta;
+
+            default:
+                debug(DBG_WARN, "Invalid type detected from fixed-type box!\n");
+                return 0;
+        }
+    }
+
+    /* See if we'll do a rare roll. */
+    if(l->qid && !(ship->cfg->local_flags & SYLVERANT_SHIP_QUEST_RARES))
+        do_rare = 0;
+
+    /* See if the user is lucky today... */
+    if(do_rare && (item[0] = rt_generate_gc_rare(c, l, -1, area + 1))) {
+        switch(item[0] & 0xFF) {
+            case 0:
+                /* Weapon -- add percentages and (potentially) grind values and
+                   such... */
+                if(generate_weapon_v3(ent, area, item, rng, 1, 1))
+                    return 0;
+                break;
+
+            case 1:
+                /* Armor/Shield/Unit */
+                switch((item[0] >> 8) & 0xFF) {
+                    case 1:
+                        /* Armor -- Add DFP/EVP boosts and slots */
+                        if(generate_armor_v3(ent, area, item, rng, 1, 1))
+                            return 0;
+                        break;
+
+                    case 2:
+                        /* Shield -- Add DFP/EVP boosts */
+                        if(generate_shield_v3(ent, area, item, rng, 1, 1))
+                            return 0;
+                        break;
+
+                    case 3:
+                        /* Unit -- Nothing to do here */
+                        break;
+
+                    default:
+                        debug(DBG_WARN, "ItemRT generated an invalid item: "
+                              "%08x\n", item[0]);
+                        return 0;
+                }
+
+                break;
+
+            case 2:
+                /* Mag -- Give it 5 DFP and 40% Synchro and an unset color */
+                item[0] = 0x00050002;
+                item[1] = 0x000101F4;
+                item[2] = 0x00010001;
+                item[3] = 0x00280000;
+                break;
+
+            case 3:
+                /* Tool -- Give it a quantity of 1 if its stackable. */
+                item[1] = item[2] = item[3] = 0;
+
+                if(item_is_stackable(item[0]))
+                    item[1] = (1 << 8);
+                break;
+
+            default:
+                debug(DBG_WARN, "ItemRT generated an invalid item: %08x\n",
+                      item[0]);
+                return 0;
+        }
+
+        return check_and_send_bb(c, l, item, c->cur_area,
+                                 (subcmd_bb_itemreq_t *)req);
+    }
+
+    /* Generate an item, according to the PT data */
+    rnd = mt19937_genrand_int32(rng) % 100;
+
+    if((rnd -= ent->box_drop[BOX_TYPE_WEAPON][area]) > 100) {
+generate_weapon:
+        /* Generate a weapon */
+        if(generate_weapon_v3(ent, area, item, rng, 0, 1))
+            return 0;
+
+        return check_and_send_bb(c, l, item, c->cur_area,
+                                 (subcmd_bb_itemreq_t *)req);
+    }
+    else if((rnd -= ent->box_drop[BOX_TYPE_ARMOR][area]) > 100) {
+generate_armor:
+        /* Generate an armor */
+        if(generate_armor_v3(ent, area, item, rng, 0, 1))
+            return 0;
+
+        return check_and_send_bb(c, l, item, c->cur_area,
+                                 (subcmd_bb_itemreq_t *)req);
+    }
+    else if((rnd -= ent->box_drop[BOX_TYPE_SHIELD][area]) > 100) {
+        /* Generate a shield */
+        if(generate_shield_v3(ent, area, item, rng, 0, 1))
+            return 0;
+
+        return check_and_send_bb(c, l, item, c->cur_area,
+                                 (subcmd_bb_itemreq_t *)req);
+    }
+    else if((rnd -= ent->box_drop[BOX_TYPE_UNIT][area]) > 100) {
+        /* Generate a unit */
+        if(pmt_random_unit_bb(ent->unit_level[area], item, rng))
+            return 0;
+
+        return check_and_send_bb(c, l, item, c->cur_area,
+                                 (subcmd_bb_itemreq_t *)req);
+    }
+    else if((rnd -= ent->box_drop[BOX_TYPE_TOOL][area]) > 100) {
+generate_tool:
+        /* Generate a tool */
+        if(generate_tool_v3(ent, area, item, rng))
+            return 0;
+
+        return check_and_send_bb(c, l, item, c->cur_area,
+                                 (subcmd_bb_itemreq_t *)req);
+    }
+    else if((rnd -= ent->box_drop[BOX_TYPE_MESETA][area]) > 100) {
+generate_meseta:
+        /* Generate money! */
+        if(generate_meseta(ent->box_meseta[area][0], ent->box_meseta[area][1],
+                           item, rng))
+            return 0;
+
+        return check_and_send_bb(c, l, item, c->cur_area,
+                                 (subcmd_bb_itemreq_t *)req);
+    }
+
+    /* You get nothing! */
     return 0;
 }

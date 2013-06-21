@@ -65,7 +65,7 @@ static int check_only = 0;
 static void print_program_info(void) {
     printf("Sylverant Ship Server version %s\n", VERSION);
     printf("SVN Revision: %s\n", SVN_REVISION);
-    printf("Copyright (C) 2009, 2010, 2011, 2012 Lawrence Sebald\n\n");
+    printf("Copyright (C) 2009, 2010, 2011, 2012, 2013 Lawrence Sebald\n\n");
     printf("This program is free software: you can redistribute it and/or\n"
            "modify it under the terms of the GNU Affero General Public\n"
            "License version 3 as published by the Free Software Foundation.\n\n"
@@ -203,6 +203,9 @@ static void print_config(sylverant_ship_t *cfg) {
 
     if(cfg->v2_map_dir)
         debug(DBG_LOG, "v2 Map Directory: %s\n", cfg->v2_map_dir);
+
+    if(cfg->gc_map_dir)
+        debug(DBG_LOG, "GC Map Directory: %s\n", cfg->bb_map_dir);
 
     if(cfg->bb_param_dir)
         debug(DBG_LOG, "BB Param Directory: %s\n", cfg->bb_param_dir);
@@ -537,6 +540,14 @@ int main(int argc, char *argv[]) {
             exit(EXIT_FAILURE);
     }
 
+    /* If we could read the GC ItemPT file, try to read its maps too. */
+    if(pt_gc_enabled() && pmt_gc_enabled() && cfg->gc_map_dir) {
+        rv = gc_read_params(cfg);
+
+        if(rv < 0)
+            exit(EXIT_FAILURE);
+    }
+
     /* Read the v2 ItemRT file... */
     if(cfg->v2_rtdata_file) {
         debug(DBG_LOG, "Reading v2 ItemRT file: %s\n", cfg->v2_rtdata_file);
@@ -607,6 +618,7 @@ int main(int argc, char *argv[]) {
     sylverant_free_ship_config(cfg);
     bb_free_params();
     v2_free_params();
+    gc_free_params();
 
     if(restart_on_shutdown) {
         chdir(initial_path);
