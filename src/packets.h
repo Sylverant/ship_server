@@ -264,11 +264,10 @@ typedef struct dcnte_login_8a {
     char email[48];
 } PACKED dcnte_login_8a_pkt;
 
-/* The next two are both login packets from the DC NTE. If the client is still
-   connected to the login server, it sends the first one. Otherwise, it sends
-   the second one. On the login server, to get this, the server must respond
-   with a non-zero flag on the 0x88 packet, otherwise you'll get the 0x8A
-   packet just above here. */
+/* This one is the "real" login packet from the DC NTE. If the client is still
+   connected to the login server, you get more unused space at the end for some
+   reason, but otherwise the packet is exactly the same between the ship and the
+   login server. */
 typedef struct dcnte_login_8b {
     dc_pkt_hdr_t hdr;
     uint32_t tag;
@@ -282,26 +281,8 @@ typedef struct dcnte_login_8b {
     char username[48];
     char password[48];
     char char_name[16];
-    uint8_t unused[102];
+    uint8_t unused[2];
 } PACKED dcnte_login_8b_pkt;
-
-typedef struct dcnte_ship_8b {
-    dc_pkt_hdr_t hdr;
-    uint32_t tag;
-    uint32_t guildcard;
-    uint8_t dc_id[8];
-    uint8_t unk1[8];
-    char serial[16];
-    uint8_t nul1;
-    char access_key[16];
-    uint8_t nul2;
-    uint16_t unk2;
-    uint8_t unused1[46];
-    uint8_t unk3[14];
-    uint8_t unused2[34];
-    uint16_t unk4;
-    uint8_t unused3[16];
-} PACKED dcnte_ship_8b_pkt;
 
 /* The packet to verify that a hunter's license has been procured. */
 typedef struct login_gc_hlcheck {
@@ -478,6 +459,17 @@ typedef struct bb_char_data {
 } PACKED bb_char_data_pkt;
 
 /* The packet sent to clients when they join a lobby */
+typedef struct dcnte_lobby_join {
+    dc_pkt_hdr_t hdr;
+    uint8_t client_id;
+    uint8_t leader_id;
+    uint16_t padding;
+    struct {
+        dc_player_hdr_t hdr;
+        v1_player_t data;
+    } entries[0];
+} PACKED dcnte_lobby_join_pkt;
+
 typedef struct dc_lobby_join {
     dc_pkt_hdr_t hdr;
     uint8_t client_id;
@@ -1491,6 +1483,7 @@ typedef struct bb_guildcard_comment {
 #define LOBBY_NAME_TYPE                 0x008A
 #define LOGIN_8A_TYPE                   0x008A  /* DC Network Trial Edition */
 #define LOGIN_8B_TYPE                   0x008B  /* DC Network Trial Edition */
+#define DCNTE_CHAR_DATA_REQ_TYPE        0x008D  /* DC Network Trial Edition */
 #define LOGIN_90_TYPE                   0x0090
 #define LOGIN_92_TYPE                   0x0092
 #define LOGIN_93_TYPE                   0x0093
