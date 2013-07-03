@@ -1605,6 +1605,13 @@ typedef struct bb_guildcard_comment {
 #define BB_FULL_CHARACTER_LENGTH        0x399C
 
 /* Responses to login packets... */
+/* DC Network Trial Edition - Responses to Packet 0x88. */
+#define LOGIN_88_NEW_USER                   0
+#define LOGIN_88_OK                         1
+
+/* DC Network Trial Edition - Responses to Packet 0x8A. */
+#define LOGIN_8A_REGISTER_OK                1
+
 /* DCv1 - Responses to Packet 0x90. */
 #define LOGIN_90_OK                         0
 #define LOGIN_90_NEW_USER                   1
