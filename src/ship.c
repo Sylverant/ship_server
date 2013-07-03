@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -920,6 +920,40 @@ static int send_ban_msg(ship_client_t *c, time_t until, const char *reason) {
     return send_message_box(c, "%s", string);
 }
 
+static int dcnte_process_login(ship_client_t *c, dcnte_login_8b_pkt *pkt) {
+    char *ban_reason;
+    time_t ban_end;
+
+    /* Make sure v1 is allowed on this ship. */
+    if((ship->cfg->shipgate_flags & SHIPGATE_FLAG_NOV1)) {
+        send_message_box(c, "%s", __(c, "\tEPSO Version 1 is not supported on\n"
+                                     "this ship.\n\nDisconnecting."));
+        c->flags |= CLIENT_FLAG_DISCONNECTED;
+        return 0;
+    }
+
+    c->language_code = CLIENT_LANG_JAPANESE;
+    c->flags |= CLIENT_FLAG_IS_DCNTE;
+    c->guildcard = LE32(pkt->guildcard);
+
+    /* See if the user is banned */
+    if(is_guildcard_banned(ship, c->guildcard, &ban_reason, &ban_end)) {
+        send_ban_msg(c, ban_end, ban_reason);
+        c->flags |= CLIENT_FLAG_DISCONNECTED;
+        return 0;
+    }
+
+    if(send_dc_security(c, c->guildcard, NULL, 0)) {
+        return -1;
+    }
+
+    if(send_block_list(c, ship)) {
+        return -2;
+    }
+
+    return 0;
+}
+
 static int dc_process_login(ship_client_t *c, dc_login_93_pkt *pkt) {
     char *ban_reason;
     time_t ban_end;
@@ -1297,6 +1331,9 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
         case PING_TYPE:
             /* Ignore these. */
             return 0;
+
+        case LOGIN_8B_TYPE:
+            return dcnte_process_login(c, (dcnte_login_8b_pkt *)pkt);
 
         case LOGIN_93_TYPE:
             return dc_process_login(c, (dc_login_93_pkt *)pkt);
