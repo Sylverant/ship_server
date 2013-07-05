@@ -1971,7 +1971,7 @@ int send_lobby_add_player(lobby_t *l, ship_client_t *c) {
                 case CLIENT_VERSION_DCV2:
                 case CLIENT_VERSION_GC:
                 case CLIENT_VERSION_EP3:
-                    if(!c->flags & CLIENT_FLAG_IS_DCNTE)
+                    if(!(c->flags & CLIENT_FLAG_IS_DCNTE))
                         send_dc_lobby_add_player(l, l->clients[i], c);
                     else
                         send_dcnte_lobby_add_player(l, l->clients[i], c);
