@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -775,6 +775,41 @@ static int join_game(ship_client_t *c, lobby_t *l) {
 
 /* Process a login packet, sending security data, a lobby list, and a character
    data request. */
+static int dcnte_process_login(ship_client_t *c, dcnte_login_8b_pkt *pkt) {
+    /* Make sure v1 is allowed on this ship. */
+    if((ship->cfg->shipgate_flags & SHIPGATE_FLAG_NODCNTE)) {
+        send_message_box(c, "%s", __(c, "\tEPSO NTE is not supported on\n"
+                                     "this ship.\n\nDisconnecting."));
+        c->flags |= CLIENT_FLAG_DISCONNECTED;
+        return 0;
+    }
+
+    /* Save what we care about in here. */
+    c->guildcard = LE32(pkt->guildcard);
+    c->language_code = CLIENT_LANG_JAPANESE;
+    c->q_lang = CLIENT_LANG_JAPANESE;
+    c->flags |= CLIENT_FLAG_IS_DCNTE;
+
+    /* See if this person is a GM. */
+    c->privilege = is_gm(c->guildcard, pkt->serial, pkt->access_key, ship);
+
+    if(send_dc_security(c, c->guildcard, NULL, 0)) {
+        return -1;
+    }
+
+    if(send_lobby_list(c)) {
+        return -2;
+    }
+
+    if(send_simple(c, DCNTE_CHAR_DATA_REQ_TYPE, 0)) {
+        return -3;
+    }
+
+    return 0;
+}
+
+/* Process a login packet, sending security data, a lobby list, and a character
+   data request. */
 static int dc_process_login(ship_client_t *c, dc_login_93_pkt *pkt) {
     /* Make sure v1 is allowed on this ship. */
     if((ship->cfg->shipgate_flags & SHIPGATE_FLAG_NOV1)) {
@@ -1095,7 +1130,8 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
                client hasn't already gotten it this session.
                Disabled for Gamecube, due to bugginess (of the game). */
             if(c->version != CLIENT_VERSION_GC &&
-               c->version != CLIENT_VERSION_EP3) {
+               c->version != CLIENT_VERSION_EP3 &&
+               !c->flags & CLIENT_FLAG_IS_DCNTE) {
                 send_simple(c, PING_TYPE, 0);
             }
             else {
@@ -2758,6 +2794,9 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
     }
 
     switch(type) {
+        case LOGIN_8B_TYPE:
+            return dcnte_process_login(c, (dcnte_login_8b_pkt *)pkt);
+
         case LOGIN_93_TYPE:
             return dc_process_login(c, (dc_login_93_pkt *)pkt);
 

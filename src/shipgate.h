@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -463,6 +463,7 @@ static const char shipgate_login_msg[] =
 #define LOGIN_FLAG_NOEP12   0x00000080  /* Do not allow PSO Ep1&2 clients */
 #define LOGIN_FLAG_NOEP3    0x00000100  /* Do not allow PSO Ep3 clients */
 #define LOGIN_FLAG_NOBB     0x00000200  /* Do not allow PSOBB clients */
+#define LOGIN_FLAG_NODCNTE  0x00000400  /* Do not allowe DC NTE clients */
 
 /* General error codes */
 #define ERR_NO_ERROR            0x00000000

@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -1078,8 +1078,14 @@ static int send_dc_lobby_list(ship_client_t *c) {
     }
 
     /* Fill in the header */
-    if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
-       c->version == CLIENT_VERSION_GC) {
+    if(c->version == CLIENT_VERSION_DCV1) {
+        pkt->hdr.dc.pkt_type = LOBBY_LIST_TYPE;
+        pkt->hdr.dc.flags = 0x0A;                               /* 10 lobbies */
+        pkt->hdr.dc.pkt_len = LE16(DC_LOBBY_LIST_LENGTH - 60);
+        max = 10;
+    }
+    else if(c->version == CLIENT_VERSION_DCV2 ||
+            c->version == CLIENT_VERSION_GC) {
         pkt->hdr.dc.pkt_type = LOBBY_LIST_TYPE;
         pkt->hdr.dc.flags = 0x0F;                               /* 15 lobbies */
         pkt->hdr.dc.pkt_len = LE16(DC_LOBBY_LIST_LENGTH);
@@ -1108,7 +1114,10 @@ static int send_dc_lobby_list(ship_client_t *c) {
     pkt->entries[max].item_id = 0;
     pkt->entries[max].padding = 0;
 
-    if(c->version != CLIENT_VERSION_EP3) {
+    if(c->version == CLIENT_VERSION_DCV1) {
+        return crypt_send(c, DC_LOBBY_LIST_LENGTH - 60, sendbuf);
+    }
+    else if(c->version != CLIENT_VERSION_EP3) {
         return crypt_send(c, DC_LOBBY_LIST_LENGTH, sendbuf);
     }
     else {
@@ -1164,6 +1173,95 @@ int send_lobby_list(ship_client_t *c) {
 }
 
 /* Send the packet to join a lobby to the client. */
+static int send_dcnte_lobby_join(ship_client_t *c, lobby_t *l) {
+    uint8_t *sendbuf = get_sendbuf();
+    dcnte_lobby_join_pkt *pkt = (dcnte_lobby_join_pkt *)sendbuf;
+    int i, pls = 0;
+    uint16_t pkt_size = 8;
+    uint16_t costume;
+    uint8_t ch_class;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf)
+        return -1;
+
+    /* Clear the packet's header. */
+    memset(pkt, 0, sizeof(dcnte_lobby_join_pkt));
+
+    /* Fill in the basics. */
+    pkt->hdr.pkt_type = LOBBY_JOIN_TYPE;
+    pkt->leader_id = l->leader_id;
+
+    for(i = 0; i < l->max_clients; ++i) {
+        /* Skip blank clients. */
+        if(l->clients[i] == NULL)
+            continue;
+
+        /* If this is the client we're sending to, mark their client id. */
+        if(l->clients[i] == c)
+            pkt->client_id = (uint8_t)i;
+
+        /* Copy the player's data into the packet. */
+        pkt->entries[pls].hdr.tag = LE32(0x00010000);
+        pkt->entries[pls].hdr.guildcard = LE32(l->clients[i]->guildcard);
+        pkt->entries[pls].hdr.ip_addr = 0xFFFFFFFF;
+        pkt->entries[pls].hdr.client_id = LE32(i);
+
+        /* If its a Blue Burst client, iconv it. */
+        if(l->clients[i]->version == CLIENT_VERSION_BB) {
+            istrncpy16(ic_utf16_to_ascii, pkt->entries[pls].hdr.name,
+                       l->clients[i]->pl->bb.character.name, 16);
+        }
+        else {
+            memcpy(pkt->entries[pls].hdr.name, l->clients[i]->pl->v1.name, 16);
+        }
+
+        make_disp_data(l->clients[i], c, &pkt->entries[pls].data);
+
+        /* Normalize costumes to the set that PSODC knows about, and make sure
+           the extra classes are taken care of too. */
+        if(l->clients[i]->version >= CLIENT_VERSION_GC) {
+            costume = LE16(pkt->entries[pls].data.costume) % 9;
+            pkt->entries[pls].data.costume = LE16(costume);
+            costume = LE16(pkt->entries[pls].data.skin) % 9;
+            pkt->entries[pls].data.skin = LE16(costume);
+            costume = LE16(pkt->entries[pls].data.hair);
+
+            ch_class = pkt->entries[pls].data.ch_class;
+
+            if(ch_class == HUcaseal)
+                ch_class = HUcast;  /* HUcaseal -> HUcast */
+            else if(ch_class == FOmar)
+                ch_class = FOmarl;  /* FOmar -> FOmarl */
+            else if(ch_class == RAmarl)
+                ch_class = RAmar;   /* RAmarl -> RAmar */
+
+            /* Some classes we have to check the hairstyle on... */
+            if((ch_class == HUmar || ch_class == RAmar || ch_class == FOnewm) &&
+               costume > 6)
+                costume = 0;
+
+            pkt->entries[pls].data.hair = LE16(costume);
+            pkt->entries[pls].data.ch_class = ch_class;
+        }
+
+        /* Sigh... I should narrow the problem down a bit more, but this works
+           for the time being... */
+        if(!(l->clients[i]->flags & CLIENT_FLAG_IS_DCNTE))
+            memset(&pkt->entries[pls].data.inv, 0, sizeof(inventory_t));
+
+        ++pls;
+        pkt_size += 1084;
+    }
+
+    /* Fill in the rest of it. */
+    pkt->hdr.flags = (uint8_t)pls;
+    pkt->hdr.pkt_len = LE16(pkt_size);
+
+    /* Send it away */
+    return crypt_send(c, pkt_size, sendbuf);
+}
+
 static int send_dc_lobby_join(ship_client_t *c, lobby_t *l) {
     uint8_t *sendbuf = get_sendbuf();
     dc_lobby_join_pkt *pkt = (dc_lobby_join_pkt *)sendbuf;
@@ -1421,7 +1519,10 @@ int send_lobby_join(ship_client_t *c, lobby_t *l) {
     /* Call the appropriate function. */
     switch(c->version) {
         case CLIENT_VERSION_DCV1:
-            return send_dc_lobby_join(c, l);
+            if(!(c->flags & CLIENT_FLAG_IS_DCNTE))
+                return send_dc_lobby_join(c, l);
+            else
+                return send_dcnte_lobby_join(c, l);
 
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_GC:
@@ -1542,6 +1643,86 @@ int send_pkt_bb(ship_client_t *c, bb_pkt_hdr_t *pkt) {
 }
 
 /* Send a packet to all clients in the lobby when a new player joins. */
+static int send_dcnte_lobby_add_player(lobby_t *l, ship_client_t *c,
+                                       ship_client_t *nc) {
+    uint8_t *sendbuf = get_sendbuf();
+    dcnte_lobby_join_pkt *pkt = (dcnte_lobby_join_pkt *)sendbuf;
+    uint16_t costume;
+    uint8_t ch_class;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Clear the packet's header. */
+    memset(pkt, 0, sizeof(dcnte_lobby_join_pkt));
+
+    /* Fill in the basics. */
+    pkt->hdr.pkt_type = (l->type == LOBBY_TYPE_DEFAULT) ? 
+        LOBBY_ADD_PLAYER_TYPE : GAME_ADD_PLAYER_TYPE;
+    pkt->hdr.flags = 1;
+    pkt->hdr.pkt_len = LE16(0x0444);
+    pkt->client_id = c->client_id;
+    pkt->leader_id = l->leader_id;
+
+    /* Copy the player's data into the packet. */
+    pkt->entries[0].hdr.tag = LE32(0x00010000);
+    pkt->entries[0].hdr.guildcard = LE32(nc->guildcard);
+    pkt->entries[0].hdr.ip_addr = 0xFFFFFFFF;
+    pkt->entries[0].hdr.client_id = LE32(nc->client_id);
+
+    /* If its a Blue Burst client, iconv it. */
+    if(nc->version == CLIENT_VERSION_BB) {
+        istrncpy16(ic_utf16_to_ascii, pkt->entries[0].hdr.name,
+                   &nc->pl->bb.character.name[2], 16);
+    }
+    else {
+        memcpy(pkt->entries[0].hdr.name, nc->pl->v1.name, 16);
+    }
+
+    make_disp_data(nc, c, &pkt->entries[0].data);
+
+    /* Normalize costumes to the set that PSODC knows about, and make sure the
+       extra classes are taken care of too. */
+    if(nc->version >= CLIENT_VERSION_GC) {
+        costume = LE16(pkt->entries[0].data.costume) % 9;
+        pkt->entries[0].data.costume = LE16(costume);
+        costume = LE16(pkt->entries[0].data.skin) % 9;
+        pkt->entries[0].data.skin = LE16(costume);
+        costume = LE16(pkt->entries[0].data.hair);
+
+        ch_class = pkt->entries[0].data.ch_class;
+
+        /* Only do this on lobby lobbies or if somehow we get here in a v1
+           lobby... */
+        if(l->type == LOBBY_TYPE_DEFAULT || l->version == CLIENT_VERSION_DCV1) {
+            if(ch_class == HUcaseal)
+                ch_class = HUcast;  /* HUcaseal -> HUcast */
+            else if(ch_class == FOmar)
+                ch_class = FOmarl;  /* FOmar -> FOmarl */
+            else if(ch_class == RAmarl)
+                ch_class = RAmar;   /* RAmarl -> RAmar */
+        }
+
+        /* Some classes we have to check the hairstyle on... */
+        if((ch_class == HUmar || ch_class == RAmar || ch_class == FOnewm) &&
+           costume > 6)
+            costume = 0;
+
+        pkt->entries[0].data.hair = LE16(costume);
+        pkt->entries[0].data.ch_class = ch_class;
+    }
+
+    /* Sigh... I should narrow the problem down a bit more, but this works for
+       the time being... */
+    if(!(nc->flags & CLIENT_FLAG_IS_DCNTE))
+        memset(&pkt->entries[0].data.inv, 0, sizeof(inventory_t));
+
+    /* Send it away */
+    return crypt_send(c, 0x0444, sendbuf);
+}
+
 static int send_dc_lobby_add_player(lobby_t *l, ship_client_t *c,
                                     ship_client_t *nc) {
     uint8_t *sendbuf = get_sendbuf();
@@ -1790,7 +1971,10 @@ int send_lobby_add_player(lobby_t *l, ship_client_t *c) {
                 case CLIENT_VERSION_DCV2:
                 case CLIENT_VERSION_GC:
                 case CLIENT_VERSION_EP3:
-                    send_dc_lobby_add_player(l, l->clients[i], c);
+                    if(!c->flags & CLIENT_FLAG_IS_DCNTE)
+                        send_dc_lobby_add_player(l, l->clients[i], c);
+                    else
+                        send_dcnte_lobby_add_player(l, l->clients[i], c);
                     break;
 
                 case CLIENT_VERSION_PC:
@@ -1909,7 +2093,20 @@ static int send_dc_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
 
     /* Fill in the packet... */
     pkt->guildcard = LE32(s->guildcard);
-    len = sprintf(pkt->msg, "%s\t%s", s->pl->v1.name, msg) + 1;
+    pkt->padding = LE32(0x00010000);
+
+    if(!(s->flags & CLIENT_FLAG_IS_DCNTE)) {
+        if(!(c->flags & CLIENT_FLAG_IS_DCNTE))
+            len = sprintf(pkt->msg, "%s\t%s", s->pl->v1.name, msg) + 1;
+        else
+            len = sprintf(pkt->msg, "%s", msg + 2) + 1;
+    }
+    else {
+        if(!(c->flags & CLIENT_FLAG_IS_DCNTE))
+            len = sprintf(pkt->msg, "%s\t\tJ%s", s->pl->v1.name, msg + 2) + 1;
+        else
+            len = sprintf(pkt->msg, "%s", msg) + 1;
+    }
 
     /* Add any padding needed */
     while(len & 0x03) {
@@ -1946,21 +2143,23 @@ static int send_pc_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
 
     /* Fill in the basics */
     pkt->guildcard = LE32(s->guildcard);
+    pkt->padding = LE32(0x00010000);
 
     /* Fill in the message */
-    in = sprintf(tm, "%s\t%s", s->pl->v1.name, msg) + 1;
+    if(!(s->flags & CLIENT_FLAG_IS_DCNTE))
+        in = sprintf(tm, "%s\t%s", s->pl->v1.name, msg) + 1;
+    else
+        in = sprintf(tm, "%s\t\tJ%s", s->pl->v1.name, msg) + 1;
 
     /* Convert the message to the appropriate encoding. */
     out = 65520;
     inptr = tm;
     outptr = pkt->msg;
 
-    if(msg[1] == 'J') {
+    if((s->flags & CLIENT_FLAG_IS_DCNTE) || msg[1] == 'J')
         iconv(ic_sjis_to_utf16, &inptr, &in, &outptr, &out);
-    }
-    else {
+    else
         iconv(ic_8859_to_utf16, &inptr, &in, &outptr, &out);
-    }
 
     /* Figure out how long the new string is. */
     len = 65520 - out;
@@ -2000,21 +2199,23 @@ static int send_bb_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
 
     /* Fill in the basics */
     pkt->guildcard = LE32(s->guildcard);
+    pkt->padding = LE32(0x00010000);
 
     /* Fill in the message */
-    in = sprintf(tm, "\tE%s\t%s", s->pl->v1.name, msg) + 1;
+    if(!(s->flags & CLIENT_FLAG_IS_DCNTE))
+        in = sprintf(tm, "\tE%s\t%s", s->pl->v1.name, msg) + 1;
+    else
+        in = sprintf(tm, "\tE%s\t\tJ%s", s->pl->v1.name, msg) + 1;
 
     /* Convert the message to the appropriate encoding. */
     out = 65520;
     inptr = tm;
     outptr = (char *)pkt->msg;
 
-    if(msg[1] == 'J') {
+    if((s->flags & CLIENT_FLAG_IS_DCNTE) || msg[1] == 'J')
         iconv(ic_sjis_to_utf16, &inptr, &in, &outptr, &out);
-    }
-    else {
+    else
         iconv(ic_8859_to_utf16, &inptr, &in, &outptr, &out);
-    }
 
     /* Figure out how long the new string is. */
     len = (strlen16(pkt->msg) << 1) + 0x10;
@@ -2097,23 +2298,30 @@ static int send_dc_lobby_wchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
 
     /* Fill in the basics */
     pkt->guildcard = LE32(s->guildcard);
+    pkt->padding = LE32(0x00010000);
 
     /* Create the name string first. */
-    sprintf(pkt->msg, "%s\t", s->pl->v1.name);
+    if(!(c->flags & CLIENT_FLAG_IS_DCNTE))
+       sprintf(pkt->msg, "%s\t", s->pl->v1.name);
+    else
+        pkt->msg[0] = 0;
 
     /* Fill in the message */
     in = len;
-    inptr = (char *)msg;
+
+    if(!(c->flags & CLIENT_FLAG_IS_DCNTE))
+        inptr = (char *)msg;
+    else
+        inptr = ((char *)msg) + 4;
+
     out = 65520 - strlen(pkt->msg);
     outptr = pkt->msg + strlen(pkt->msg);
 
     /* Convert the message to the appropriate encoding. */
-    if(msg[1] == LE16('J')) {
+    if((c->flags & CLIENT_FLAG_IS_DCNTE) || msg[1] == LE16('J'))
         iconv(ic_utf16_to_sjis, &inptr, &in, &outptr, &out);
-    }
-    else {
+    else
         iconv(ic_utf16_to_8859, &inptr, &in, &outptr, &out);
-    }
 
     /* Figure out how long the new string is. */
     len = 65520 - out;
@@ -2153,6 +2361,7 @@ static int send_pc_lobby_wchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
 
     /* Fill in the basics */
     pkt->guildcard = LE32(s->guildcard);
+    pkt->padding = LE32(0x00010000);
 
     /* Convert the name string first. */
     in = sprintf(tmp, "%s\t", s->pl->v1.name) + 1;
@@ -2198,6 +2407,7 @@ static int send_bb_lobby_wchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
 
     /* Fill in the basics */
     pkt->guildcard = LE32(s->guildcard);
+    pkt->padding = LE32(0x00010000);
 
     /* Convert the name string first. */
     in = sprintf(tmp, "\tE%s\t", s->pl->v1.name) + 1;
@@ -2291,29 +2501,38 @@ static int send_dc_lobby_bbchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
 
     /* Fill in the basics */
     pkt->guildcard = LE32(s->guildcard);
+    pkt->padding = LE32(0x00010000);
 
-    /* Convert the name string first. */
-    in = strlen16(&s->pl->bb.character.name[2]) * 2;
-    out = 65520;
-    inptr = (char *)&s->pl->bb.character.name[2];
-    outptr = pkt->msg;
-    iconv(ic_utf16_to_ascii, &inptr, &in, &outptr, &out);
+    if(!(c->flags & CLIENT_FLAG_IS_DCNTE)) {
+        /* Convert the name string first. */
+        in = strlen16(&s->pl->bb.character.name[2]) * 2;
+        out = 65520;
+        inptr = (char *)&s->pl->bb.character.name[2];
+        outptr = pkt->msg;
+        iconv(ic_utf16_to_ascii, &inptr, &in, &outptr, &out);
 
-    /* Add the separator */
-    *outptr++ = '\t';
-    --out;
+        /* Add the separator */
+        *outptr++ = '\t';
+        --out;
+    }
+    else {
+        out = 65520;
+        outptr = pkt->msg;
+    }
 
     /* Fill in the message */
     in = len;
-    inptr = (char *)msg;
+
+    if(!(c->flags & CLIENT_FLAG_IS_DCNTE))
+        inptr = (char *)msg;
+    else
+        inptr = ((char *)msg) + 4;
 
     /* Convert the message to the appropriate encoding. */
-    if(msg[1] == LE16('J')) {
+    if((c->flags & CLIENT_FLAG_IS_DCNTE) || msg[1] == LE16('J'))
         iconv(ic_utf16_to_sjis, &inptr, &in, &outptr, &out);
-    }
-    else {
+    else
         iconv(ic_utf16_to_8859, &inptr, &in, &outptr, &out);
-    }
 
     /* Figure out how long the new string is. */
     len = 65520 - out;
@@ -2350,6 +2569,8 @@ static int send_pc_lobby_bbchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
 
     /* Fill in the packet */
     pkt->guildcard = LE32(s->guildcard);
+    pkt->padding = LE32(0x00010000);
+
     strcpy16((uint16_t *)pkt->msg, &s->pl->bb.character.name[2]);
     strcat16((uint16_t *)pkt->msg, tmp);
     strcat16((uint16_t *)pkt->msg, msg);
@@ -2385,6 +2606,8 @@ static int send_bb_lobby_bbchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
 
     /* Fill in the packet */
     pkt->guildcard = LE32(s->guildcard);
+    pkt->padding = LE32(0x00010000);
+
     strcpy16(pkt->msg, s->pl->bb.character.name);
     strcat16(pkt->msg, tmp);
     strcat16(pkt->msg, msg);
@@ -3293,6 +3516,10 @@ int send_txt(ship_client_t *c, const char *fmt, ...) {
     /* Call the appropriate function. */
     switch(c->version) {
         case CLIENT_VERSION_DCV1:
+            /* The NTE will crash if it gets this packet. */
+            if(c->flags & CLIENT_FLAG_IS_DCNTE)
+                break;
+
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_PC:
         case CLIENT_VERSION_GC:
@@ -6423,11 +6650,14 @@ static int send_dc_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
     TAILQ_FOREACH(i, &s->ships, qentry) {
         if(i->ship_id && i->menu_code == menu_code) {
             if((i->flags & LOGIN_FLAG_GMONLY) &&
-               !(c->privilege & CLIENT_PRIV_GLOBAL_GM)) {
+               !(c->privilege & CLIENT_PRIV_GLOBAL_GM))
                 continue;
-            }
 
-            if((i->flags & (LOGIN_FLAG_NOV1 << c->version))) {
+            if(c->flags & CLIENT_FLAG_IS_DCNTE) {
+                if(i->flags & LOGIN_FLAG_NODCNTE)
+                    continue;
+            }
+            else if((i->flags & (LOGIN_FLAG_NOV1 << c->version))) {
                 continue;
             }
 

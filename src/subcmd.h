@@ -840,6 +840,7 @@ int subcmd_bb_handle_one(ship_client_t *c, bb_subcmd_pkt_t *pkt);
 /* Handle a 0x60 packet. */
 int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt);
 int subcmd_bb_handle_bcast(ship_client_t *c, bb_subcmd_pkt_t *pkt);
+int subcmd_dcnte_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt);
 
 /* Handle an 0xC9/0xCB packet from Episode 3. */
 int subcmd_handle_ep3_bcast(ship_client_t *c, subcmd_pkt_t *pkt);
@@ -851,5 +852,18 @@ int subcmd_send_bb_lobby_item(lobby_t *l, subcmd_bb_itemreq_t *req,
 
 int subcmd_send_bb_exp(ship_client_t *c, uint32_t exp);
 int subcmd_send_bb_level(ship_client_t *c);
+
+/* Send a broadcast subcommand to the whole lobby. */
+int subcmd_send_lobby_dc(lobby_t *l, ship_client_t *c, subcmd_pkt_t *pkt,
+                         int igcheck);
+int subcmd_send_lobby_bb(lobby_t *l, ship_client_t *c, bb_subcmd_pkt_t *pkt,
+                         int igcheck);
+int subcmd_send_lobby_dcnte(lobby_t *l, ship_client_t *c, subcmd_pkt_t *pkt,
+                            int igcheck);
+
+/* Stuff dealing with the Dreamcast Network Trial edition */
+int subcmd_translate_dc_to_nte(ship_client_t *c, subcmd_pkt_t *pkt);
+int subcmd_translate_nte_to_dc(ship_client_t *c, subcmd_pkt_t *pkt);
+int subcmd_translate_bb_to_nte(ship_client_t *c, bb_subcmd_pkt_t *pkt);
 
 #endif /* !SUBCMD_H */

@@ -925,8 +925,8 @@ static int dcnte_process_login(ship_client_t *c, dcnte_login_8b_pkt *pkt) {
     time_t ban_end;
 
     /* Make sure v1 is allowed on this ship. */
-    if((ship->cfg->shipgate_flags & SHIPGATE_FLAG_NOV1)) {
-        send_message_box(c, "%s", __(c, "\tEPSO Version 1 is not supported on\n"
+    if((ship->cfg->shipgate_flags & SHIPGATE_FLAG_NODCNTE)) {
+        send_message_box(c, "%s", __(c, "\tEPSO NTE is not supported on\n"
                                      "this ship.\n\nDisconnecting."));
         c->flags |= CLIENT_FLAG_DISCONNECTED;
         return 0;

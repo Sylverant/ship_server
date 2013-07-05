@@ -663,7 +663,7 @@ static int handle_levelup(ship_client_t *c, subcmd_levelup_t *pkt) {
     c->pl->v1.ata = pkt->ata;
     c->pl->v1.level = pkt->level;
 
-    return lobby_send_pkt_dc(c->cur_lobby, c, (dc_pkt_hdr_t *)pkt, 0);
+    return subcmd_send_lobby_dc(c->cur_lobby, c, (subcmd_pkt_t *)pkt, 0);
 }
 
 static int handle_take_item(ship_client_t *c, subcmd_take_item_t *pkt) {
@@ -754,7 +754,7 @@ static int handle_take_item(ship_client_t *c, subcmd_take_item_t *pkt) {
 
 send_pkt:
 #endif /* NONBB_ITEM_TRACKING */
-    return lobby_send_pkt_dc(c->cur_lobby, c, (dc_pkt_hdr_t *)pkt, 0);
+    return subcmd_send_lobby_dc(c->cur_lobby, c, (subcmd_pkt_t *)pkt, 0);
 }
 
 static int handle_itemdrop(ship_client_t *c, subcmd_itemgen_t *pkt) {
@@ -852,7 +852,7 @@ static int handle_itemdrop(ship_client_t *c, subcmd_itemgen_t *pkt) {
 
     /* If we get here, either the game is not in legit mode, or the item is
        actually legit, so just forward the packet on. */
-    return lobby_send_pkt_dc(c->cur_lobby, c, (dc_pkt_hdr_t *)pkt, 0);
+    return subcmd_send_lobby_dc(c->cur_lobby, c, (subcmd_pkt_t *)pkt, 0);
 }
 
 static int handle_take_damage(ship_client_t *c, subcmd_take_damage_t *pkt) {
@@ -867,11 +867,11 @@ static int handle_take_damage(ship_client_t *c, subcmd_take_damage_t *pkt) {
     /* If we're in legit mode or the flag isn't set, then don't do anything. */
     if((l->flags & LOBBY_FLAG_LEGIT_MODE) ||
        !(c->flags & CLIENT_FLAG_INVULNERABLE)) {
-        return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt, 0);
+        return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
     }
 
     /* This aught to do it... */
-    lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt, 0);
+    subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
     return send_lobby_mod_stat(l, c, SUBCMD_STAT_HPUP, 2000);
 }
 
@@ -887,11 +887,11 @@ static int handle_used_tech(ship_client_t *c, subcmd_used_tech_t *pkt) {
     /* If we're in legit mode or the flag isn't set, then don't do anything. */
     if((l->flags & LOBBY_FLAG_LEGIT_MODE) ||
        !(c->flags & CLIENT_FLAG_INFINITE_TP)) {
-        return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt, 0);
+        return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
     }
 
     /* This aught to do it... */
-    lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt, 0);
+    subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
     return send_lobby_mod_stat(l, c, SUBCMD_STAT_TPUP, 255);
 }
 
@@ -908,7 +908,7 @@ static int handle_set_area(ship_client_t *c, subcmd_set_area_t *pkt) {
         c->cur_area = pkt->area;
     }
 
-    return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt, 0);
+    return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
 }
 
 static int handle_bb_set_area(ship_client_t *c, subcmd_bb_set_area_t *pkt) {
@@ -924,7 +924,7 @@ static int handle_bb_set_area(ship_client_t *c, subcmd_bb_set_area_t *pkt) {
         c->cur_area = pkt->area;
     }
 
-    return lobby_send_pkt_bb(l, c, (bb_pkt_hdr_t *)pkt, 0);
+    return subcmd_send_lobby_bb(l, c, (bb_subcmd_pkt_t *)pkt, 0);
 }
 
 static int handle_set_pos(ship_client_t *c, subcmd_set_pos_t *pkt) {
@@ -941,7 +941,7 @@ static int handle_set_pos(ship_client_t *c, subcmd_set_pos_t *pkt) {
     /* Clear this, in case we're at the lobby counter */
     c->last_info_req = 0;
 
-    return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt, 0);
+    return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
 }
 
 static int handle_move(ship_client_t *c, subcmd_move_t *pkt) {
@@ -953,7 +953,7 @@ static int handle_move(ship_client_t *c, subcmd_move_t *pkt) {
         c->z = pkt->z;
     }
 
-    return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt, 0);
+    return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
 }
 
 static int handle_bb_set_pos(ship_client_t *c, subcmd_bb_set_pos_t *pkt) {
@@ -967,7 +967,7 @@ static int handle_bb_set_pos(ship_client_t *c, subcmd_bb_set_pos_t *pkt) {
         c->z = pkt->z;
     }
 
-    return lobby_send_pkt_bb(l, c, (bb_pkt_hdr_t *)pkt, 0);
+    return subcmd_send_lobby_bb(l, c, (bb_subcmd_pkt_t *)pkt, 0);
 }
 
 static int handle_bb_move(ship_client_t *c, subcmd_bb_move_t *pkt) {
@@ -979,7 +979,7 @@ static int handle_bb_move(ship_client_t *c, subcmd_bb_move_t *pkt) {
         c->z = pkt->z;
     }
 
-    return lobby_send_pkt_bb(l, c, (bb_pkt_hdr_t *)pkt, 0);
+    return subcmd_send_lobby_bb(l, c, (bb_subcmd_pkt_t *)pkt, 0);
 }
 
 static int handle_delete_inv(ship_client_t *c, subcmd_destroy_item_t *pkt) {
@@ -1015,7 +1015,7 @@ static int handle_delete_inv(ship_client_t *c, subcmd_destroy_item_t *pkt) {
     }
 #endif /* NONBB_ITEM_TRACKING */
 
-    return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt, 0);
+    return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
 }
 
 static int handle_buy(ship_client_t *c, subcmd_buy_t *pkt) {
@@ -1060,7 +1060,7 @@ static int handle_buy(ship_client_t *c, subcmd_buy_t *pkt) {
 
 send_pkt:
 #endif /* NONBB_ITEM_TRACKING */
-    return lobby_send_pkt_dc(c->cur_lobby, c, (dc_pkt_hdr_t *)pkt, 0);
+    return subcmd_send_lobby_dc(c->cur_lobby, c, (subcmd_pkt_t *)pkt, 0);
 }
 
 static int handle_use_item(ship_client_t *c, subcmd_use_item_t *pkt) {
@@ -1092,7 +1092,7 @@ static int handle_use_item(ship_client_t *c, subcmd_use_item_t *pkt) {
     }
 #endif /* NONBB_ITEM_TRACKING */
 
-    return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt, 0);
+    return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
 }
 
 static int handle_bb_drop_item(ship_client_t *c, subcmd_bb_drop_item_t *pkt) {
@@ -1174,7 +1174,7 @@ static int handle_bb_drop_item(ship_client_t *c, subcmd_bb_drop_item_t *pkt) {
     --c->bb_pl->inv.item_count;
 
     /* Done. Send the packet on to the lobby. */
-    return lobby_send_pkt_bb(l, c, (bb_pkt_hdr_t *)pkt, 0);
+    return subcmd_send_lobby_bb(l, c, (bb_subcmd_pkt_t *)pkt, 0);
 }
 
 static int handle_bb_drop_pos(ship_client_t *c, subcmd_bb_drop_pos_t *pkt) {
@@ -1235,7 +1235,7 @@ static int handle_bb_drop_pos(ship_client_t *c, subcmd_bb_drop_pos_t *pkt) {
     c->drop_amt = pkt->amount;
 
     /* Done. Send the packet on to the lobby. */
-    return lobby_send_pkt_bb(l, c, (bb_pkt_hdr_t *)pkt, 0);
+    return subcmd_send_lobby_bb(l, c, (bb_subcmd_pkt_t *)pkt, 0);
 }
 
 static int handle_bb_drop_stack(ship_client_t *c,
@@ -1340,7 +1340,7 @@ static int handle_bb_drop_stack(ship_client_t *c,
     subcmd_send_drop_stack(c, c->drop_area, c->drop_x, c->drop_z, it);
 
     /* Done. Send the packet on to the lobby. */
-    return lobby_send_pkt_bb(l, c, (bb_pkt_hdr_t *)pkt, 0);
+    return subcmd_send_lobby_bb(l, c, (bb_subcmd_pkt_t *)pkt, 0);
 }
 
 static int handle_bb_pick_up(ship_client_t *c, subcmd_bb_pick_up_t *pkt) {
@@ -1483,7 +1483,7 @@ static int handle_symbol_chat(ship_client_t *c, subcmd_pkt_t *pkt) {
         return 0;
     }
 
-    return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt, 1);
+    return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 1);
 }
 
 static int handle_bb_symbol_chat(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
@@ -1500,7 +1500,7 @@ static int handle_bb_symbol_chat(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
         return 0;
     }
 
-    return lobby_send_pkt_bb(l, c, (bb_pkt_hdr_t *)pkt, 1);
+    return subcmd_send_lobby_bb(l, c, (bb_subcmd_pkt_t *)pkt, 1);
 }
 
 static int handle_cmode_grave(ship_client_t *c, subcmd_pkt_t *pkt) {
@@ -1629,7 +1629,7 @@ static int handle_cmode_grave(ship_client_t *c, subcmd_pkt_t *pkt) {
             break;
 
         default:
-            return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt, 0);
+            return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
     }
 
     /* Send the packet to everyone in the lobby */
@@ -1946,7 +1946,7 @@ static int handle_bb_equip(ship_client_t *c, subcmd_bb_equip_t *pkt) {
     }
 
     /* Done, let everyone else know. */
-    return lobby_send_pkt_bb(l, c, (bb_pkt_hdr_t *)pkt, 0);
+    return subcmd_send_lobby_bb(l, c, (bb_subcmd_pkt_t *)pkt, 0);
 }
 
 static int handle_bb_unequip(ship_client_t *c, subcmd_bb_equip_t *pkt) {
@@ -2005,7 +2005,7 @@ static int handle_bb_unequip(ship_client_t *c, subcmd_bb_equip_t *pkt) {
     }
 
     /* Done, let everyone else know. */
-    return lobby_send_pkt_bb(l, c, (bb_pkt_hdr_t *)pkt, 0);
+    return subcmd_send_lobby_bb(l, c, (bb_subcmd_pkt_t *)pkt, 0);
 }
 
 static int handle_bb_medic(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
@@ -2033,7 +2033,7 @@ static int handle_bb_medic(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
     c->pl->bb.character.meseta -= 10;
 
     /* Send it along to the rest of the lobby. */
-    return lobby_send_pkt_bb(l, c, (bb_pkt_hdr_t *)pkt, 0);
+    return subcmd_send_lobby_bb(l, c, (bb_subcmd_pkt_t *)pkt, 0);
 }
 
 static int handle_bb_sort_inv(ship_client_t *c, subcmd_bb_sort_inv_t *pkt) {
@@ -2134,7 +2134,7 @@ static int handle_mhit(ship_client_t *c, subcmd_mhit_pkt_t *pkt) {
 
     /* Bail out now if we don't have any enemy data on the lobby. */
     if(!l->map_enemies)
-        return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt, 0);
+        return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
 
     /* Make sure the enemy is in range. */
     mid = LE16(pkt->enemy_id);
@@ -2161,7 +2161,7 @@ static int handle_mhit(ship_client_t *c, subcmd_mhit_pkt_t *pkt) {
         }
     }
 
-    return lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt, 0);
+    return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
 }
 
 static int handle_bb_mhit(ship_client_t *c, subcmd_bb_mhit_pkt_t *pkt) {
@@ -2198,7 +2198,7 @@ static int handle_bb_mhit(ship_client_t *c, subcmd_bb_mhit_pkt_t *pkt) {
         l->map_enemies->enemies[mid].last_client = c->client_id;
     }
 
-    return lobby_send_pkt_bb(l, c, (bb_pkt_hdr_t *)pkt, 0);
+    return subcmd_send_lobby_bb(l, c, (bb_subcmd_pkt_t *)pkt, 0);
 }
 
 static int handle_bb_req_exp(ship_client_t *c, subcmd_bb_req_exp_pkt_t *pkt) {
@@ -2427,6 +2427,10 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
     lobby_t *l = c->cur_lobby;
     int rv, sent = 1;
 
+    /* The DC NTE must be treated specially, so deal with that elsewhere... */
+    if(c->flags & CLIENT_FLAG_IS_DCNTE)
+        return subcmd_dcnte_handle_bcast(c, pkt);
+
     /* Ignore these if the client isn't in a lobby. */
     if(!l) {
         return 0;
@@ -2439,7 +2443,7 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
         switch(type) {
             case SUBCMD_LOAD_3B:
             case SUBCMD_BURST_DONE:
-                rv = lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt, 0);
+                rv = subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
                 break;
 
             case SUBCMD_SET_AREA:
@@ -2555,7 +2559,7 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
 
     /* Broadcast anything we don't care to check anything about. */
     if(!sent) {
-        rv = lobby_send_pkt_dc(l, c, (dc_pkt_hdr_t *)pkt, 0);
+        rv = subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
     }
 
     pthread_mutex_unlock(&l->mutex);
@@ -2657,7 +2661,7 @@ int subcmd_bb_handle_bcast(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
 
     /* Broadcast anything we don't care to check anything about. */
     if(!sent) {
-        rv = lobby_send_pkt_bb(l, c, (bb_pkt_hdr_t *)pkt, 0);
+        rv = subcmd_send_lobby_bb(l, c, (bb_subcmd_pkt_t *)pkt, 0);
     }
 
     pthread_mutex_unlock(&l->mutex);
@@ -2806,7 +2810,8 @@ static int subcmd_send_drop_stack(ship_client_t *c, uint32_t area, float x,
     drop.item_id = item->item_id;
     drop.item2 = item->data2_l;
 
-    return lobby_send_pkt_bb(c->cur_lobby, NULL, &drop, 0);
+    return subcmd_send_lobby_bb(c->cur_lobby, NULL, (bb_subcmd_pkt_t *)&drop,
+                                0);
 }
 
 static int subcmd_send_picked_up(ship_client_t *c, uint32_t data_l[3],
@@ -2830,9 +2835,11 @@ static int subcmd_send_picked_up(ship_client_t *c, uint32_t data_l[3],
     pick.unused2 = 0;
 
     if(send_to_client)
-        return lobby_send_pkt_bb(c->cur_lobby, NULL, &pick, 0);
+        return subcmd_send_lobby_bb(c->cur_lobby, NULL,
+                                    (bb_subcmd_pkt_t *)&pick, 0);
     else
-        return lobby_send_pkt_bb(c->cur_lobby, c, &pick, 0);
+        return subcmd_send_lobby_bb(c->cur_lobby, c, (bb_subcmd_pkt_t *)&pick,
+                                    0);
 }
 
 static int subcmd_send_destroy_map_item(ship_client_t *c, uint8_t area,
@@ -2853,7 +2860,7 @@ static int subcmd_send_destroy_map_item(ship_client_t *c, uint8_t area,
     d.unused3 = 0;
     d.item_id = item_id;
 
-    return lobby_send_pkt_bb(c->cur_lobby, NULL, &d, 0);
+    return subcmd_send_lobby_bb(c->cur_lobby, NULL, (bb_subcmd_pkt_t *)&d, 0);
 }
 
 static int subcmd_send_destroy_item(ship_client_t *c, uint32_t item_id,
@@ -2871,7 +2878,7 @@ static int subcmd_send_destroy_item(ship_client_t *c, uint32_t item_id,
     d.item_id = item_id;
     d.amount = LE32(amt);
 
-    return lobby_send_pkt_bb(c->cur_lobby, c, &d, 0);
+    return subcmd_send_lobby_bb(c->cur_lobby, c, (bb_subcmd_pkt_t *)&d, 0);
 }
 
 int subcmd_send_bb_exp(ship_client_t *c, uint32_t exp) {
@@ -2887,7 +2894,7 @@ int subcmd_send_bb_exp(ship_client_t *c, uint32_t exp) {
     pkt.unused = 0;
     pkt.exp = LE32(exp);
 
-    return lobby_send_pkt_bb(c->cur_lobby, NULL, &pkt, 0);
+    return subcmd_send_lobby_bb(c->cur_lobby, NULL, (bb_subcmd_pkt_t *)&pkt, 0);
 }
 
 int subcmd_send_bb_level(ship_client_t *c) {
@@ -2937,5 +2944,51 @@ int subcmd_send_bb_level(ship_client_t *c) {
         }
     }
 
-    return lobby_send_pkt_bb(c->cur_lobby, NULL, &pkt, 0);
+    return subcmd_send_lobby_bb(c->cur_lobby, NULL, (bb_subcmd_pkt_t *)&pkt, 0);
+}
+
+int subcmd_send_lobby_dc(lobby_t *l, ship_client_t *c, subcmd_pkt_t *pkt,
+                         int igcheck) {
+    int i;
+
+    /* Send the packet to every connected client. */
+    for(i = 0; i < l->max_clients; ++i) {
+        if(l->clients[i] && l->clients[i] != c) {
+            /* If we're supposed to check the ignore list, and this client is on
+               it, don't send the packet. */
+            if(igcheck && client_has_ignored(l->clients[i], c->guildcard)) {
+                continue;
+            }
+
+            if(!(l->clients[i]->flags & CLIENT_FLAG_IS_DCNTE))
+                send_pkt_dc(l->clients[i], (dc_pkt_hdr_t *)pkt);
+            else
+                subcmd_translate_dc_to_nte(l->clients[i], pkt);
+        }
+    }
+
+    return 0;
+}
+
+int subcmd_send_lobby_bb(lobby_t *l, ship_client_t *c, bb_subcmd_pkt_t *pkt,
+                         int igcheck) {
+    int i;
+
+    /* Send the packet to every connected client. */
+    for(i = 0; i < l->max_clients; ++i) {
+        if(l->clients[i] && l->clients[i] != c) {
+            /* If we're supposed to check the ignore list, and this client is on
+               it, don't send the packet. */
+            if(igcheck && client_has_ignored(l->clients[i], c->guildcard)) {
+                continue;
+            }
+
+            if(!(l->clients[i]->flags & CLIENT_FLAG_IS_DCNTE))
+                send_pkt_bb(l->clients[i], (bb_pkt_hdr_t *)pkt);
+            else
+                subcmd_translate_bb_to_nte(l->clients[i], pkt);
+        }
+    }
+
+    return 0;
 }
