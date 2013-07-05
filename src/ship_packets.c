@@ -6632,7 +6632,10 @@ static int send_dc_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
     memset(pkt, 0, 0x20);
 
     /* Fill in the basics. */
-    pkt->hdr.pkt_type = SHIP_LIST_TYPE;
+    if(!(c->flags & CLIENT_FLAG_IS_DCNTE))
+        pkt->hdr.pkt_type = SHIP_LIST_TYPE;
+    else
+        pkt->hdr.pkt_type = DCNTE_SHIP_LIST_TYPE;
 
     /* Fill in the "SHIP/US" entry */
     memset(&pkt->entries[0], 0, 0x1C);

@@ -2880,6 +2880,7 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return send_info_list(c, ship);
 
         case BLOCK_LIST_REQ_TYPE:
+        case DCNTE_BLOCK_LIST_REQ_TYPE:
             return send_block_list(c, ship);
 
         case INFO_REQUEST_TYPE:
@@ -2919,6 +2920,7 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return dc_process_arrow(c, flags);
 
         case SHIP_LIST_TYPE:
+        case DCNTE_SHIP_LIST_TYPE:
             return send_ship_list(c, ship, ship->cfg->menu_code);
 
         case CHOICE_OPTION_TYPE:

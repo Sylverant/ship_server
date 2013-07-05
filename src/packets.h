@@ -1484,6 +1484,8 @@ typedef struct bb_guildcard_comment {
 #define LOGIN_8A_TYPE                   0x008A  /* DC Network Trial Edition */
 #define LOGIN_8B_TYPE                   0x008B  /* DC Network Trial Edition */
 #define DCNTE_CHAR_DATA_REQ_TYPE        0x008D  /* DC Network Trial Edition */
+#define DCNTE_SHIP_LIST_TYPE            0x008E  /* DC Network Trial Edition */
+#define DCNTE_BLOCK_LIST_REQ_TYPE       0x008F  /* DC Network Trial Edition */
 #define LOGIN_90_TYPE                   0x0090
 #define LOGIN_92_TYPE                   0x0092
 #define LOGIN_93_TYPE                   0x0093
