@@ -2098,14 +2098,18 @@ static int send_dc_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
     if(!(s->flags & CLIENT_FLAG_IS_DCNTE)) {
         if(!(c->flags & CLIENT_FLAG_IS_DCNTE))
             len = sprintf(pkt->msg, "%s\t%s", s->pl->v1.name, msg) + 1;
-        else
-            len = sprintf(pkt->msg, "%s", msg + 2) + 1;
+        else {
+            len = sprintf(pkt->msg, "%s>%X%s", s->pl->v1.name, s->client_id,
+                          msg + 2) + 1;
+        }
     }
     else {
         if(!(c->flags & CLIENT_FLAG_IS_DCNTE))
             len = sprintf(pkt->msg, "%s\t\tJ%s", s->pl->v1.name, msg + 2) + 1;
-        else
-            len = sprintf(pkt->msg, "%s", msg) + 1;
+        else {
+            len = sprintf(pkt->msg, "%s>%X%s", s->pl->v1.name, s->client_id,
+                          msg) + 1;
+        }
     }
 
     /* Add any padding needed */
@@ -2302,9 +2306,9 @@ static int send_dc_lobby_wchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
 
     /* Create the name string first. */
     if(!(c->flags & CLIENT_FLAG_IS_DCNTE))
-       sprintf(pkt->msg, "%s\t", s->pl->v1.name);
+        sprintf(pkt->msg, "%s\t", s->pl->v1.name);
     else
-        pkt->msg[0] = 0;
+        sprintf(pkt->msg, "%s>%X", s->pl->v1.name, s->client_id);
 
     /* Fill in the message */
     in = len;
@@ -2503,7 +2507,6 @@ static int send_dc_lobby_bbchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
     pkt->guildcard = LE32(s->guildcard);
     pkt->padding = LE32(0x00010000);
 
-    if(!(c->flags & CLIENT_FLAG_IS_DCNTE)) {
         /* Convert the name string first. */
         in = strlen16(&s->pl->bb.character.name[2]) * 2;
         out = 65520;
@@ -2511,13 +2514,17 @@ static int send_dc_lobby_bbchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
         outptr = pkt->msg;
         iconv(ic_utf16_to_ascii, &inptr, &in, &outptr, &out);
 
+    if(!(c->flags & CLIENT_FLAG_IS_DCNTE)) {
         /* Add the separator */
         *outptr++ = '\t';
         --out;
     }
     else {
-        out = 65520;
-        outptr = pkt->msg;
+        *outptr++ = '>';
+        --out;
+        sprintf(outptr, "%X", s->client_id);
+        ++outptr;
+        --out;
     }
 
     /* Fill in the message */
