@@ -1131,7 +1131,7 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
                Disabled for Gamecube, due to bugginess (of the game). */
             if(c->version != CLIENT_VERSION_GC &&
                c->version != CLIENT_VERSION_EP3 &&
-               !c->flags & CLIENT_FLAG_IS_DCNTE) {
+               !(c->flags & CLIENT_FLAG_IS_DCNTE)) {
                 send_simple(c, PING_TYPE, 0);
             }
             else {

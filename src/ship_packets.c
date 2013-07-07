@@ -1519,50 +1519,58 @@ int send_lobby_join(ship_client_t *c, lobby_t *l) {
     /* Call the appropriate function. */
     switch(c->version) {
         case CLIENT_VERSION_DCV1:
-            if(!(c->flags & CLIENT_FLAG_IS_DCNTE))
-                return send_dc_lobby_join(c, l);
-            else
-                return send_dcnte_lobby_join(c, l);
+            if(!(c->flags & CLIENT_FLAG_IS_DCNTE)) {
+                if(send_dc_lobby_join(c, l))
+                    return -1;
+            }
+            else {
+                if(send_dcnte_lobby_join(c, l))
+                    return -1;
+            }
+            break;
 
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
-            if(send_dc_lobby_join(c, l)) {
+            if(send_dc_lobby_join(c, l))
                 return -1;
-            }
 
-            if(send_lobby_c_rank(c, l)) {
+            if(send_lobby_c_rank(c, l))
                 return -1;
-            }
 
-            return send_dc_lobby_arrows(l, c);
+            if(send_dc_lobby_arrows(l, c))
+                return -1;
+            break;
 
         case CLIENT_VERSION_PC:
-            if(send_pc_lobby_join(c, l)) {
+            if(send_pc_lobby_join(c, l))
                 return -1;
-            }
 
-            if(send_lobby_c_rank(c, l)) {
+            if(send_lobby_c_rank(c, l))
                 return -1;
-            }
 
-            return send_dc_lobby_arrows(l, c);
+            if(send_dc_lobby_arrows(l, c))
+                return -1;
+            break;
 
         case CLIENT_VERSION_BB:
-            if(send_bb_lobby_join(c, l)) {
+            if(send_bb_lobby_join(c, l))
                 return -1;
-            }
 
 #if 0
-            if(send_lobby_c_rank(c, l)) {
+            if(send_lobby_c_rank(c, l))
                 return -1;
-            }
 #endif
 
-            return send_bb_lobby_arrows(l, c);
+            if(send_bb_lobby_arrows(l, c))
+                return -1;
+            break;
+
+        default:
+            return -1;
     }
 
-    return -1;
+    return 0;
 }
 
 /* Send a prepared packet to the given client. */
@@ -3349,6 +3357,78 @@ int send_guild_reply6_sg(ship_client_t *c, dc_guild_reply6_pkt *pkt) {
 
 #endif
 
+static int send_dcnte_txt(ship_client_t *c, const char *fmt, va_list args) {
+    uint8_t *sendbuf = get_sendbuf();
+    dc_chat_pkt *pkt = (dc_chat_pkt *)sendbuf;
+    int len;
+    iconv_t ic;
+    char tm[512];
+    size_t in, out;
+    int i;
+    ICONV_CONST char *inptr;
+    char *outptr;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf)
+        return -1;
+
+    /* Clear the packet header */
+    memset(pkt, 0, sizeof(dc_chat_pkt));
+
+    /* Do the formatting */
+    vsnprintf(tm + 2, 510, fmt, args);
+
+    /* Make sure it starts with the right thing and ends with a terminator. */
+    tm[0] = '>';
+    tm[1] = ' ';                    /* It doesn't matter what we put here... */
+    tm[511] = '\0';
+    in = strlen(tm) + 1;
+
+    /* Strip out any escapes, since the NTE doesn't support them. */
+    for(i = 0; i < in; ++i) {
+        if(tm[i] == '\t') {
+            if(tm[i + 1] == 'C' && tm[i + 2] != '\0') {
+                memmove(&tm[i], &tm[i + 3], in - i - 3);
+                in -= 3;
+            }
+            else if(tm[i + 1] != '\t') {
+                memmove(&tm[i], &tm[i + 2], in - i - 2);
+                in -= 2;
+            }
+            else {
+                memmove(&tm[i], &tm[i + 1], in - i - 1);
+                --in;
+            }
+
+            --i;
+        }
+    }
+
+    /* Convert to Shift-JIS... */
+    ic = ic_utf8_to_sjis;
+    out = 65520;
+    inptr = tm;
+    outptr = pkt->msg;
+    iconv(ic, &inptr, &in, &outptr, &out);
+
+    /* Figure out how long the new string is. */
+    len = 65520 - out;
+
+    /* Add any padding needed */
+    while(len & 0x03) {
+        pkt->msg[len++] = 0;
+    }
+
+    /* Fill in the length */
+    len += 0x0C;
+    pkt->hdr.dc.pkt_type = CHAT_TYPE;
+    pkt->hdr.dc.flags = 0;
+    pkt->hdr.dc.pkt_len = LE16(len);
+
+    /* Send it away */
+    return crypt_send(c, len, sendbuf);
+}
+
 static int send_dc_message(ship_client_t *c, uint16_t type, const char *fmt,
                            va_list args) {
     uint8_t *sendbuf = get_sendbuf();
@@ -3523,9 +3603,12 @@ int send_txt(ship_client_t *c, const char *fmt, ...) {
     /* Call the appropriate function. */
     switch(c->version) {
         case CLIENT_VERSION_DCV1:
-            /* The NTE will crash if it gets this packet. */
-            if(c->flags & CLIENT_FLAG_IS_DCNTE)
+            /* The NTE will crash if it gets the standard version of this
+               packet, so fake it in the easiest way possible... */
+            if(c->flags & CLIENT_FLAG_IS_DCNTE) {
+                rv = send_dcnte_txt(c, fmt, args);
                 break;
+            }
 
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_PC:

@@ -2425,16 +2425,15 @@ int subcmd_bb_handle_one(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
 int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
     uint8_t type = pkt->type;
     lobby_t *l = c->cur_lobby;
-    int rv, sent = 1;
+    int rv, sent = 1, i;
 
     /* The DC NTE must be treated specially, so deal with that elsewhere... */
     if(c->flags & CLIENT_FLAG_IS_DCNTE)
         return subcmd_dcnte_handle_bcast(c, pkt);
 
     /* Ignore these if the client isn't in a lobby. */
-    if(!l) {
+    if(!l)
         return 0;
-    }
 
     pthread_mutex_lock(&l->mutex);
 
@@ -2540,10 +2539,22 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
             debug(DBG_LOG, "Unknown 0x60: 0x%02X\n", type);
             print_packet((unsigned char *)pkt, LE16(pkt->hdr.dc.pkt_len));
 #endif /* LOG_UNKNOWN_SUBS */
+            sent = 0;
+            break;
+
+        case SUBCMD_FINISH_LOAD:
+            if(l->type == LOBBY_TYPE_DEFAULT) {
+                for(i = 0; i < l->max_clients; ++i) {
+                    if(l->clients[i] && l->clients[i] != c &&
+                       subcmd_send_pos(c, l->clients[i])) {
+                        rv = -1;
+                        break;
+                    }
+                }
+            }
 
         case SUBCMD_SET_AREA_21:
         case SUBCMD_LOAD_22:
-        case SUBCMD_FINISH_LOAD:
         case SUBCMD_TALK_NPC:
         case SUBCMD_DONE_NPC:
         case SUBCMD_LOAD_3B:
@@ -2558,9 +2569,8 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
     }
 
     /* Broadcast anything we don't care to check anything about. */
-    if(!sent) {
+    if(!sent)
         rv = subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
-    }
 
     pthread_mutex_unlock(&l->mutex);
     return rv;
@@ -2569,12 +2579,11 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
 int subcmd_bb_handle_bcast(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
     uint8_t type = pkt->type;
     lobby_t *l = c->cur_lobby;
-    int rv, sent = 1;
+    int rv, sent = 1, i;
 
     /* Ignore these if the client isn't in a lobby. */
-    if(!l) {
+    if(!l)
         return 0;
-    }
 
     pthread_mutex_lock(&l->mutex);
 
@@ -2642,10 +2651,22 @@ int subcmd_bb_handle_bcast(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
             debug(DBG_LOG, "Unknown 0x60: 0x%02X\n", type);
             print_packet((unsigned char *)pkt, LE16(pkt->hdr.pkt_len));
 #endif /* BB_LOG_UNKNOWN_SUBS */
+            sent = 0;
+            break;
+
+        case SUBCMD_FINISH_LOAD:
+            if(l->type == LOBBY_TYPE_DEFAULT) {
+                for(i = 0; i < l->max_clients; ++i) {
+                    if(l->clients[i] && l->clients[i] != c &&
+                       subcmd_send_pos(c, l->clients[i])) {
+                        rv = -1;
+                        break;
+                    }
+                }
+            }
 
         case SUBCMD_SET_AREA_21:
         case SUBCMD_LOAD_22:
-        case SUBCMD_FINISH_LOAD:
         case SUBCMD_TALK_NPC:
         case SUBCMD_DONE_NPC:
         case SUBCMD_LOAD_3B:
@@ -2660,9 +2681,8 @@ int subcmd_bb_handle_bcast(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
     }
 
     /* Broadcast anything we don't care to check anything about. */
-    if(!sent) {
+    if(!sent)
         rv = subcmd_send_lobby_bb(l, c, (bb_subcmd_pkt_t *)pkt, 0);
-    }
 
     pthread_mutex_unlock(&l->mutex);
     return rv;
@@ -2991,4 +3011,51 @@ int subcmd_send_lobby_bb(lobby_t *l, ship_client_t *c, bb_subcmd_pkt_t *pkt,
     }
 
     return 0;
+}
+
+int subcmd_send_pos(ship_client_t *dst, ship_client_t *src) {
+    subcmd_set_pos_t dc;
+    subcmd_bb_set_pos_t bb;
+
+    if(dst->version == CLIENT_VERSION_BB) {
+        bb.hdr.pkt_type = LE16(GAME_COMMAND0_TYPE);
+        bb.hdr.flags = 0;
+        bb.hdr.pkt_len = LE16(0x0020);
+        bb.type = 0x20;
+        bb.size = 6;
+        bb.client_id = src->client_id;
+        bb.unused = 0;
+        dc.size = 6;
+        dc.client_id = src->client_id;
+        bb.unused = 0;
+        bb.unk = LE32(0x0000000F);          /* Area */
+        bb.w = src->x;                      /* X */
+        bb.x = 0;                           /* Y */
+        bb.y = src->z;                      /* Z */
+        bb.z = 0;                           /* Facing, perhaps? */
+
+        return send_pkt_bb(dst, (bb_pkt_hdr_t *)&bb);
+    }
+    else {
+        dc.hdr.pkt_type = GAME_COMMAND0_TYPE;
+        dc.hdr.flags = 0;
+        dc.hdr.pkt_len = LE16(0x001C);
+
+        if(dst->flags & CLIENT_FLAG_IS_DCNTE)
+            dc.type = 0x1C;
+        else
+            dc.type = 0x20;
+
+        dc.size = 6;
+        dc.client_id = src->client_id;
+        dc.unused = 0;
+        dc.unk = LE32(0x0000000F);          /* Area */
+        dc.w = src->x;                      /* X */
+        dc.x = 0;                           /* Y */
+        dc.y = src->z;                      /* Z */
+        dc.z = 0;                           /* Facing, perhaps? */
+
+        send_pkt_dc(dst, (dc_pkt_hdr_t *)&dc);
+        return 0;
+    }
 }

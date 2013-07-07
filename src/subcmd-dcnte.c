@@ -27,10 +27,37 @@
 #include "ship_packets.h"
 #include "utils.h"
 
+static int handle_set_pos(ship_client_t *c, subcmd_set_pos_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+
+    /* Save the new position and move along */
+    if(c->client_id == pkt->client_id) {
+        c->w = pkt->w;
+        c->x = pkt->x;
+        c->y = pkt->y;
+        c->z = pkt->z;
+    }
+
+    return subcmd_send_lobby_dcnte(l, c, (subcmd_pkt_t *)pkt, 0);
+}
+
+static int handle_move(ship_client_t *c, subcmd_move_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+
+    /* Save the new position and move along */
+    if(c->client_id == pkt->client_id) {
+        c->x = pkt->x;
+        c->z = pkt->z;
+    }
+
+    return subcmd_send_lobby_dcnte(l, c, (subcmd_pkt_t *)pkt, 0);
+}
+
+
 int subcmd_dcnte_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
     uint8_t type = pkt->type;
     lobby_t *l = c->cur_lobby;
-    int rv, sent = 1;
+    int rv, sent = 1, i;
 
     /* Ignore these if the client isn't in a lobby. */
     if(!l)
@@ -39,12 +66,35 @@ int subcmd_dcnte_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
     pthread_mutex_lock(&l->mutex);
 
     switch(type) {
+        case 0x36:
+            rv = handle_set_pos(c, (subcmd_set_pos_t *)pkt);
+            break;
+
+        case 0x37:
+        case 0x39:
+            rv = handle_move(c, (subcmd_move_t *)pkt);
+            break;
+
         default:
 #ifdef LOG_UNKNOWN_SUBS
             debug(DBG_LOG, "Unknown 0x60: 0x%02X\n", type);
             print_packet((unsigned char *)pkt, LE16(pkt->hdr.dc.pkt_len));
 #endif /* LOG_UNKNOWN_SUBS */
             sent = 0;
+            break;
+
+        case 0x1F:
+            if(l->type == LOBBY_TYPE_DEFAULT) {
+                for(i = 0; i < l->max_clients; ++i) {
+                    if(l->clients[i] && l->clients[i] != c &&
+                       subcmd_send_pos(c, l->clients[i])) {
+                        rv = -1;
+                        break;
+                    }
+                }
+            }
+            sent = 0;
+            break;
     }
 
     /* Broadcast anything we don't care to check anything about. */
