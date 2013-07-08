@@ -3629,6 +3629,56 @@ int send_txt(ship_client_t *c, const char *fmt, ...) {
 
 /* Send a packet to the client indicating information about the game they're
    joining. */
+static int send_dcnte_game_join(ship_client_t *c, lobby_t *l) {
+    uint8_t *sendbuf = get_sendbuf();
+    dcnte_game_join_pkt *pkt = (dcnte_game_join_pkt *)sendbuf;
+    int clients = 0, i;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf)
+        return -1;
+    
+    /* Clear it out first. */
+    memset(pkt, 0, sizeof(dcnte_game_join_pkt));
+    
+    /* Fill in the basics. */
+    pkt->hdr.pkt_type = GAME_JOIN_TYPE;
+    pkt->hdr.pkt_len = LE16(sizeof(dcnte_game_join_pkt));
+    pkt->client_id = c->client_id;
+    pkt->leader_id = l->leader_id;
+    pkt->one = 1;
+
+    /* Fill in the variations array. */
+    for(i = 0; i < 0x20; ++i)
+        pkt->maps[i] = LE32(l->maps[i]);
+
+    for(i = 0; i < 4; ++i) {
+        if(l->clients[i]) {
+            /* Copy the player's data into the packet. */
+            pkt->players[i].tag = LE32(0x00010000);
+            pkt->players[i].guildcard = LE32(l->clients[i]->guildcard);
+            pkt->players[i].ip_addr = 0xFFFFFFFF;
+            pkt->players[i].client_id = LE32(i);
+
+            if(l->clients[i]->version == CLIENT_VERSION_BB) {
+                istrncpy16(ic_utf16_to_ascii, pkt->players[i].name,
+                           l->clients[i]->pl->bb.character.name, 16);
+            }
+            else {
+                memcpy(pkt->players[i].name, l->clients[i]->pl->v1.name, 16);
+            }
+
+            ++clients;
+        }
+    }
+
+    /* Copy the client count over. */
+    pkt->hdr.flags = (uint8_t)clients;
+
+    /* Send it away */
+    return crypt_send(c, sizeof(dcnte_game_join_pkt), sendbuf);
+}
+
 static int send_dc_game_join(ship_client_t *c, lobby_t *l) {
     uint8_t *sendbuf = get_sendbuf();
     dc_game_join_pkt *pkt = (dc_game_join_pkt *)sendbuf;
@@ -3932,6 +3982,9 @@ int send_game_join(ship_client_t *c, lobby_t *l) {
     /* Call the appropriate function. */
     switch(c->version) {
         case CLIENT_VERSION_DCV1:
+            if(c->flags & CLIENT_FLAG_IS_DCNTE)
+                return send_dcnte_game_join(c, l);
+
         case CLIENT_VERSION_DCV2:
             return send_dc_game_join(c, l);
 
@@ -4008,6 +4061,12 @@ static int send_dc_game_list(ship_client_t *c, block_t *b) {
 
         /* Don't bother showing single-player lobbies */
         if((l->flags & LOBBY_FLAG_SINGLEPLAYER)) {
+            pthread_mutex_unlock(&l->mutex);
+            continue;
+        }
+
+        /* Don't show DC NTE lobbies... */
+        if((l->flags & LOBBY_FLAG_DCNTE)) {
             pthread_mutex_unlock(&l->mutex);
             continue;
         }
@@ -4100,6 +4159,12 @@ static int send_pc_game_list(ship_client_t *c, block_t *b) {
             continue;
         }
 
+        /* Don't show DC NTE lobbies... */
+        if((l->flags & LOBBY_FLAG_DCNTE)) {
+            pthread_mutex_unlock(&l->mutex);
+            continue;
+        }
+
         /* Clear the entry */
         memset(pkt->entries + entries, 0, 0x2C);
 
@@ -4187,6 +4252,12 @@ static int send_gc_game_list(ship_client_t *c, block_t *b) {
 
         /* Don't bother showing single-player lobbies */
         if((l->flags & LOBBY_FLAG_SINGLEPLAYER)) {
+            pthread_mutex_unlock(&l->mutex);
+            continue;
+        }
+
+        /* Don't show DC NTE lobbies... */
+        if((l->flags & LOBBY_FLAG_DCNTE)) {
             pthread_mutex_unlock(&l->mutex);
             continue;
         }

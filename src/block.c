@@ -1775,6 +1775,45 @@ static int bb_process_mail(ship_client_t *c, bb_simple_mail_pkt *pkt) {
     return rv;
 }
 
+static int dcnte_process_game_create(ship_client_t *c,
+                                     dcnte_game_create_pkt *pkt) {
+    lobby_t *l;
+    uint8_t event = ship->game_event;
+    char name[32], tmp[19];
+
+    /* Convert the team name to UTF-8 */
+    tmp[0] = '\t';
+    tmp[1] = 'J';
+    memcpy(tmp, pkt->name + 2, 16);
+    tmp[18] = 0;
+
+    istrncpy(ic_sjis_to_utf8, name, tmp, 32);
+
+    /* Create the lobby structure. */
+    l = lobby_create_game(c->cur_block, name, pkt->password,
+                          0, 0, 0, 0, c->version, c->pl->v1.section,
+                          event, 0, c, 0);
+
+    /* If we don't have a game, something went wrong... tell the user. */
+    if(!l) {
+        return send_message1(c, "%s\n\n%s", __(c, "\tE\tC4Can't create game!"),
+                             __(c, "\tC7Try again later."));
+    }
+
+    /* We've got a new game, but nobody's in it yet... Lets put the requester
+       in the game. */
+    if(join_game(c, l)) {
+        /* Something broke, destroy the created lobby before anyone tries to
+           join it. */
+        pthread_rwlock_wrlock(&c->cur_block->lobby_lock);
+        lobby_destroy(l);
+        pthread_rwlock_unlock(&c->cur_block->lobby_lock);
+    }
+
+    /* All is good in the world. */
+    return 0;
+}
+
 static int dc_process_game_create(ship_client_t *c, dc_game_create_pkt *pkt) {
     lobby_t *l;
     uint8_t event = ship->game_event;
@@ -2853,7 +2892,11 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
 
         case DC_GAME_CREATE_TYPE:
         case GAME_CREATE_TYPE:
-            if(c->version != CLIENT_VERSION_PC &&
+            if(c->flags & CLIENT_FLAG_IS_DCNTE) {
+                return dcnte_process_game_create(c,
+                                                 (dcnte_game_create_pkt *)pkt);
+            }
+            else if(c->version != CLIENT_VERSION_PC &&
                c->version != CLIENT_VERSION_GC) {
                 return dc_process_game_create(c, (dc_game_create_pkt *)pkt);
             }

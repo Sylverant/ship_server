@@ -703,6 +703,13 @@ typedef struct bb_simple_mail {
 } PACKED bb_simple_mail_pkt;
 
 /* The packet sent by clients to create a game */
+typedef struct dcnte_game_create {
+    dc_pkt_hdr_t hdr;
+    uint32_t unused[2];
+    char name[16];
+    char password[16];
+} PACKED dcnte_game_create_pkt;
+
 typedef struct dc_game_create {
     dc_pkt_hdr_t hdr;
     uint32_t unused[2];
@@ -752,6 +759,16 @@ typedef struct bb_game_create {
 #ifdef PLAYER_H
 
 /* The packet sent to clients to join a game */
+typedef struct dcnte_game_join {
+    dc_pkt_hdr_t hdr;
+    uint8_t client_id;
+    uint8_t leader_id;
+    uint8_t one;
+    uint8_t unused;
+    uint32_t maps[0x20];
+    dc_player_hdr_t players[4];
+} PACKED dcnte_game_join_pkt;
+
 typedef struct dc_game_join {
     dc_pkt_hdr_t hdr;
     uint32_t maps[0x20];

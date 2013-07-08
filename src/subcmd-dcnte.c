@@ -112,6 +112,10 @@ int subcmd_translate_dc_to_nte(ship_client_t *c, subcmd_pkt_t *pkt) {
     int rv;
 
     switch(pkt->type) {
+        case SUBCMD_SET_AREA_21:
+            newtype = 0x1D;
+            break;
+
         case SUBCMD_FINISH_LOAD:
             newtype = 0x1F;
             break;
@@ -159,6 +163,10 @@ int subcmd_translate_bb_to_nte(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
     int rv;
 
     switch(pkt->type) {
+        case SUBCMD_SET_AREA_21:
+            newtype = 0x1D;
+            break;
+
         case SUBCMD_FINISH_LOAD:
             newtype = 0x1F;
             break;
@@ -206,6 +214,10 @@ int subcmd_translate_nte_to_dc(ship_client_t *c, subcmd_pkt_t *pkt) {
     int rv;
 
     switch(pkt->type) {
+        case 0x1D:
+            newtype = SUBCMD_SET_AREA_21;
+            break;
+
         case 0x1F:
             newtype = SUBCMD_FINISH_LOAD;
             break;

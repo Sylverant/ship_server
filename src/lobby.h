@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -149,6 +149,7 @@ TAILQ_HEAD(lobby_queue, lobby);
 #define LOBBY_FLAG_EP3          0x00000800
 #define LOBBY_FLAG_SERVER_DROPS 0x00001000
 #define LOBBY_FLAG_MK           0x00002000
+#define LOBBY_FLAG_DCNTE        0x00004000
 
 /* Events that can be set on games */
 #define GAME_EVENT_NONE         0

@@ -188,6 +188,9 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
     if(single_player)
         l->flags |= LOBBY_FLAG_SINGLEPLAYER;
 
+    if(c->flags & CLIENT_FLAG_IS_DCNTE)
+        l->flags |= LOBBY_FLAG_DCNTE;
+
     /* Copy the game name and password. */
     strncpy(l->name, name, 64);
     strncpy(l->passwd, passwd, 64);
