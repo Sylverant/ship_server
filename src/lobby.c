@@ -557,8 +557,9 @@ static int lobby_add_client_locked(ship_client_t *c, lobby_t *l) {
     }
 
     /* First client goes in slot 1, not 0 on DC/PC. Why Sega did this, who
-       knows? */
-    if(!l->num_clients && l->version < CLIENT_VERSION_GC &&
+       knows? Also slot 1 gets priority for all DC/PC teams, even if slot 0 is
+       empty. */
+    if(!l->clients[1] && l->version < CLIENT_VERSION_GC &&
        l->type == LOBBY_TYPE_GAME) {
         l->clients[1] = c;
         c->cur_lobby = l;
@@ -567,10 +568,14 @@ static int lobby_add_client_locked(ship_client_t *c, lobby_t *l) {
         c->join_time = time(NULL);
         ++l->num_clients;
 
-        /* Obviously if this is the only person in the lobby, the challenge
-           level is that which they've unlocked.  */
-        if(l->challenge) {
+        /* If this player is at a lower challenge level than the rest of the
+           lobby, fix the maximum challenge level down to their level. */
+        if(l->challenge && l->max_chal > clev) {
             l->max_chal = clev;
+        }
+
+        if(l->num_clients == 1) {
+            l->leader_id = c->client_id;
         }
 
         return 0;

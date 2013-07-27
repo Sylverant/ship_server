@@ -27,6 +27,20 @@
 #include "ship_packets.h"
 #include "utils.h"
 
+static int handle_set_area(ship_client_t *c, subcmd_set_area_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+
+    /* Make sure the area is valid */
+    if(pkt->area > 17)
+        return -1;
+
+    /* Save the new area and move along */
+    if(c->client_id == pkt->client_id)
+        c->cur_area = pkt->area;
+
+    return subcmd_send_lobby_dcnte(l, c, (subcmd_pkt_t *)pkt, 0);
+}
+
 static int handle_set_pos(ship_client_t *c, subcmd_set_pos_t *pkt) {
     lobby_t *l = c->cur_lobby;
 
@@ -66,12 +80,16 @@ int subcmd_dcnte_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
     pthread_mutex_lock(&l->mutex);
 
     switch(type) {
-        case 0x36:
+        case SUBCMD_DCNTE_SET_AREA:
+            rv = handle_set_area(c, (subcmd_set_area_t *)pkt);
+            break;
+            
+        case SUBCMD_DCNTE_SET_POS:
             rv = handle_set_pos(c, (subcmd_set_pos_t *)pkt);
             break;
 
-        case 0x37:
-        case 0x39:
+        case SUBCMD_DCNTE_MOVE_SLOW:
+        case SUBCMD_DCNTE_MOVE_FAST:
             rv = handle_move(c, (subcmd_move_t *)pkt);
             break;
 
@@ -113,27 +131,27 @@ int subcmd_translate_dc_to_nte(ship_client_t *c, subcmd_pkt_t *pkt) {
 
     switch(pkt->type) {
         case SUBCMD_SET_AREA_21:
-            newtype = 0x1D;
+            newtype = SUBCMD_DCNTE_SET_AREA;
             break;
 
         case SUBCMD_FINISH_LOAD:
-            newtype = 0x1F;
+            newtype = SUBCMD_DCNTE_FINISH_LOAD;
             break;
 
         case SUBCMD_SET_POS_3F:
-            newtype = 0x36;
+            newtype = SUBCMD_DCNTE_SET_POS;
             break;
 
         case SUBCMD_MOVE_SLOW:
-            newtype = 0x37;
+            newtype = SUBCMD_DCNTE_MOVE_SLOW;
             break;
 
         case SUBCMD_MOVE_FAST:
-            newtype = 0x39;
+            newtype = SUBCMD_DCNTE_MOVE_FAST;
             break;
 
         case SUBCMD_TALK_DESK:
-            newtype = 0x46;
+            newtype = SUBCMD_DCNTE_TALK_DESK;
             break;
 
         default:
@@ -164,27 +182,27 @@ int subcmd_translate_bb_to_nte(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
 
     switch(pkt->type) {
         case SUBCMD_SET_AREA_21:
-            newtype = 0x1D;
+            newtype = SUBCMD_DCNTE_SET_AREA;
             break;
 
         case SUBCMD_FINISH_LOAD:
-            newtype = 0x1F;
+            newtype = SUBCMD_DCNTE_FINISH_LOAD;
             break;
 
         case SUBCMD_SET_POS_3F:
-            newtype = 0x36;
+            newtype = SUBCMD_DCNTE_SET_POS;
             break;
 
         case SUBCMD_MOVE_SLOW:
-            newtype = 0x37;
+            newtype = SUBCMD_DCNTE_MOVE_SLOW;
             break;
 
         case SUBCMD_MOVE_FAST:
-            newtype = 0x39;
+            newtype = SUBCMD_DCNTE_MOVE_FAST;
             break;
 
         case SUBCMD_TALK_DESK:
-            newtype = 0x46;
+            newtype = SUBCMD_DCNTE_TALK_DESK;
             break;
 
         default:
@@ -214,27 +232,27 @@ int subcmd_translate_nte_to_dc(ship_client_t *c, subcmd_pkt_t *pkt) {
     int rv;
 
     switch(pkt->type) {
-        case 0x1D:
+        case SUBCMD_DCNTE_SET_AREA:
             newtype = SUBCMD_SET_AREA_21;
             break;
 
-        case 0x1F:
+        case SUBCMD_DCNTE_FINISH_LOAD:
             newtype = SUBCMD_FINISH_LOAD;
             break;
 
-        case 0x36:
+        case SUBCMD_DCNTE_SET_POS:
             newtype = SUBCMD_SET_POS_3F;
             break;
 
-        case 0x37:
+        case SUBCMD_DCNTE_MOVE_SLOW:
             newtype = SUBCMD_MOVE_SLOW;
             break;
 
-        case 0x39:
+        case SUBCMD_DCNTE_MOVE_FAST:
             newtype = SUBCMD_MOVE_FAST;
             break;
 
-        case 0x46:
+        case SUBCMD_DCNTE_TALK_DESK:
             newtype = SUBCMD_TALK_DESK;
             break;
 

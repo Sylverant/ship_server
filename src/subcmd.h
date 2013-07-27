@@ -806,6 +806,14 @@ typedef struct subcmd_mkill {
 #define SUBCMD_MEDIC        0xC5    /* Blue Burst - Use the medical center */
 #define SUBCMD_REQ_EXP      0xC8    /* Blue Burst - Request Experience */
 
+/* Subcommands that we might care about in the Dreamcast NTE (0x60) */
+#define SUBCMD_DCNTE_SET_AREA       0x1D    /* 0x21 */
+#define SUBCMD_DCNTE_FINISH_LOAD    0x1F    /* 0x23 */
+#define SUBCMD_DCNTE_SET_POS        0x36    /* 0x3F */
+#define SUBCMD_DCNTE_MOVE_SLOW      0x37    /* 0x40 */
+#define SUBCMD_DCNTE_MOVE_FAST      0x39    /* 0x42 */
+#define SUBCMD_DCNTE_TALK_DESK      0x46    /* 0x52 */
+
 /* The commands OK to send during bursting (0x62/0x6D). These are named for the
    order in which they're sent, hence why the names are out of order... */
 #define SUBCMD_BURST2       0x6B
