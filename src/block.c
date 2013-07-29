@@ -1096,6 +1096,7 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
     if(type == LEAVE_GAME_PL_DATA_TYPE) {
         /* Remove the client from the lobby they're in, which will force the
            0x84 sent later to act like we're adding them to any lobby. */
+        c->flags &= ~CLIENT_FLAG_TRACK_INVENTORY;
         pthread_mutex_unlock(&c->mutex);
         return lobby_remove_player(c);
     }

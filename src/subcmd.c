@@ -670,26 +670,21 @@ static int handle_take_item(ship_client_t *c, subcmd_take_item_t *pkt) {
     lobby_t *l = c->cur_lobby;
     sylverant_iitem_t item;
     uint32_t v;
-#ifdef NONBB_ITEM_TRACKING
     int i;
-#endif
 
     /* We can't get these in default lobbies without someone messing with
        something that they shouldn't be... Disconnect anyone that tries. */
-    if(l->type == LOBBY_TYPE_DEFAULT) {
+    if(l->type == LOBBY_TYPE_DEFAULT)
         return -1;
-    }
 
     /* Buggy PSO version is buggy... */
-    if(c->version == CLIENT_VERSION_DCV1 && pkt->size == 0x06) {
+    if(c->version == CLIENT_VERSION_DCV1 && pkt->size == 0x06)
         pkt->size = 0x07;
-    }
 
     /* Sanity check... Make sure the size of the subcommand and the client id
        match with what we expect. Disconnect the client if not. */
-    if(pkt->size != 0x07 || pkt->client_id != c->client_id) {
+    if(pkt->size != 0x07 || pkt->client_id != c->client_id)
         return -1;
-    }
 
     /* If we're in legit mode, we need to check the newly taken item. */
     if((l->flags & LOBBY_FLAG_LEGIT_MODE) && ship->limits) {
@@ -734,7 +729,10 @@ static int handle_take_item(ship_client_t *c, subcmd_take_item_t *pkt) {
        actually legit, so make a note of the ID, add it to the inventory and
        forward the packet on. */
     l->highest_item[c->client_id] = (uint16_t)LE32(pkt->item_id);
-#ifdef NONBB_ITEM_TRACKING
+
+    if(!(c->flags & CLIENT_FLAG_TRACK_INVENTORY))
+        goto send_pkt;
+
     v = LE32(pkt->data_l[0]);
 
     /* See if its a stackable item, since we have to treat them differently. */
@@ -753,7 +751,6 @@ static int handle_take_item(ship_client_t *c, subcmd_take_item_t *pkt) {
            sizeof(uint32_t) * 5);
 
 send_pkt:
-#endif /* NONBB_ITEM_TRACKING */
     return subcmd_send_lobby_dc(c->cur_lobby, c, (subcmd_pkt_t *)pkt, 0);
 }
 
@@ -984,23 +981,21 @@ static int handle_bb_move(ship_client_t *c, subcmd_bb_move_t *pkt) {
 
 static int handle_delete_inv(ship_client_t *c, subcmd_destroy_item_t *pkt) {
     lobby_t *l = c->cur_lobby;
-#ifdef NONBB_ITEM_TRACKING
     int num;
-#endif
 
     /* We can't get these in default lobbies without someone messing with
        something that they shouldn't be... Disconnect anyone that tries. */
-    if(l->type == LOBBY_TYPE_DEFAULT) {
+    if(l->type == LOBBY_TYPE_DEFAULT)
         return -1;
-    }
 
     /* Sanity check... Make sure the size of the subcommand and the client id
        match with what we expect. Disconnect the client if not. */
-    if(pkt->size != 0x03) {
+    if(pkt->size != 0x03)
         return -1;
-    }
 
-#ifdef NONBB_ITEM_TRACKING
+    if(!(c->flags & CLIENT_FLAG_TRACK_INVENTORY))
+        goto send_pkt;
+
     /* Ignore meseta */
     if(pkt->item_id != 0xFFFFFFFF) {
         /* Remove the item from the user's inventory */
@@ -1013,33 +1008,32 @@ static int handle_delete_inv(ship_client_t *c, subcmd_destroy_item_t *pkt) {
             c->item_count -= num;
         }
     }
-#endif /* NONBB_ITEM_TRACKING */
 
+send_pkt:
     return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
 }
 
 static int handle_buy(ship_client_t *c, subcmd_buy_t *pkt) {
     lobby_t *l = c->cur_lobby;
-#ifdef NONBB_ITEM_TRACKING
     uint32_t ic;
     int i;
-#endif
 
     /* We can't get these in default lobbies without someone messing with
        something that they shouldn't be... Disconnect anyone that tries. */
-    if(l->type == LOBBY_TYPE_DEFAULT) {
+    if(l->type == LOBBY_TYPE_DEFAULT)
         return -1;
-    }
 
     /* Sanity check... Make sure the size of the subcommand and the client id
        match with what we expect. Disconnect the client if not. */
-    if(pkt->size != 0x06 || pkt->client_id != c->client_id) {
+    if(pkt->size != 0x06 || pkt->client_id != c->client_id)
         return -1;
-    }
 
     /* Make a note of the item ID, and add to the inventory */
     l->highest_item[c->client_id] = LE32(pkt->item_id);
-#ifdef NONBB_ITEM_TRACKING
+
+    if(!(c->flags & CLIENT_FLAG_TRACK_INVENTORY))
+        goto send_pkt;
+
     ic = LE32(pkt->item[0]);
 
     /* See if its a stackable item, since we have to treat them differently. */
@@ -1059,39 +1053,34 @@ static int handle_buy(ship_client_t *c, subcmd_buy_t *pkt) {
     c->items[c->item_count++].data2_l = 0;
 
 send_pkt:
-#endif /* NONBB_ITEM_TRACKING */
     return subcmd_send_lobby_dc(c->cur_lobby, c, (subcmd_pkt_t *)pkt, 0);
 }
 
 static int handle_use_item(ship_client_t *c, subcmd_use_item_t *pkt) {
     lobby_t *l = c->cur_lobby;
-#ifdef NONBB_ITEM_TRACKING
     int num;
-#endif
 
     /* We can't get these in default lobbies without someone messing with
        something that they shouldn't be... Disconnect anyone that tries. */
-    if(l->type == LOBBY_TYPE_DEFAULT) {
+    if(l->type == LOBBY_TYPE_DEFAULT)
         return -1;
-    }
 
     /* Sanity check... Make sure the size of the subcommand and the client id
        match with what we expect. Disconnect the client if not. */
-    if(pkt->size != 0x02) {
+    if(pkt->size != 0x02)
         return -1;
-    }
 
-#ifdef NONBB_ITEM_TRACKING
+    if(!(c->flags & CLIENT_FLAG_TRACK_INVENTORY))
+        goto send_pkt;
+
     /* Remove the item from the user's inventory */
     num = item_remove_from_inv(c->items, c->item_count, pkt->item_id, 1);
-    if(num < 0) {
+    if(num < 0)
         debug(DBG_WARN, "Couldn't remove item from inventory!\n");
-    }
-    else {
+    else
         c->item_count -= num;
-    }
-#endif /* NONBB_ITEM_TRACKING */
 
+send_pkt:
     return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
 }
 

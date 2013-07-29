@@ -34,6 +34,7 @@
 #include "utils.h"
 #include "bans.h"
 #include "scripts.h"
+#include "admin.h"
 
 extern int enable_ipv6;
 extern uint32_t ship_ip4;
@@ -62,18 +63,6 @@ static void clean_shiplist(ship_t *s) {
     }
 
     free(s->menu_codes);
-}
-
-static void clean_quests(ship_t *s) {
-    int i, j;
-
-    for(i = 0; i < CLIENT_VERSION_COUNT; ++i) {
-        for(j = 0; j < CLIENT_LANG_COUNT; ++j) {
-            sylverant_quests_destroy(&s->qlist[i][j]);
-        }
-    }
-
-    quest_cleanup(&s->qmap);
 }
 
 static sylverant_event_t *find_current_event(ship_t *s) {
@@ -557,8 +546,6 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     int dcsock[2] = { -1, -1 }, pcsock[2] = { -1, -1 };
     int gcsock[2] = { -1, -1 }, ep3sock[2] = { -1, -1 };
     int bbsock[2] = { -1, -1 };
-    int i, j;
-    char fn[512];
 
     debug(DBG_LOG, "Starting server for ship %s...\n", s->name);
 
@@ -627,7 +614,6 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
 
     /* Clear it out */
     memset(rv, 0, sizeof(ship_t));
-    TAILQ_INIT(&rv->qmap);
 
     /* Make the pipe */
     if(pipe(rv->pipes) == -1) {
@@ -656,29 +642,9 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
         debug(DBG_WARN, "%s: Ignoring old quests configuration!\n", s->name);
     }
 
-    if(s->quests_dir && s->quests_dir[0]) {
-        for(i = 0; i < CLIENT_VERSION_COUNT; ++i) {
-            for(j = 0; j < CLIENT_LANG_COUNT; ++j) {
-                sprintf(fn, "%s/%s-%s/quests.xml", s->quests_dir,
-                        version_codes[i], language_codes[j]);
-                if(!sylverant_quests_read(fn, &rv->qlist[i][j])) {
-                    if(!quest_map(&rv->qmap, &rv->qlist[i][j], i, j)) { 
-                        debug(DBG_LOG, "Read quests for %s-%s\n",
-                              version_codes[i], language_codes[j]);
-                    }
-                    else {
-                        debug(DBG_LOG, "Unable to map quests for %s-%s\n",
-                              version_codes[i], language_codes[j]);
-                        sylverant_quests_destroy(&rv->qlist[i][j]);
-                    }
-                }
-            }
-        }
-
-        if(quest_cache_maps(rv, &rv->qmap, s->quests_dir)) {
-            debug(DBG_WARN, "Unable to build quest map cache!\n");
-        }
-    }
+    /* Deal with loading the quest data... */
+    pthread_rwlock_init(&rv->qlock, NULL);
+    load_quests(rv, s, 1);
 
     /* Attempt to read the GM list in. */
     if(s->gm_file) {
@@ -701,7 +667,6 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     }
 
     /* Fill in the structure. */
-    pthread_rwlock_init(&rv->qlock, NULL);
     pthread_rwlock_init(&rv->banlock, NULL);
     pthread_rwlock_init(&rv->llock, NULL);
     TAILQ_INIT(rv->clients);
@@ -755,11 +720,11 @@ err_bans_locks:
     ban_list_clear(rv);
     pthread_rwlock_destroy(&rv->llock);
     pthread_rwlock_destroy(&rv->banlock);
-    pthread_rwlock_destroy(&rv->qlock);
     sylverant_free_limits(rv->limits);
 err_gms:
     free(rv->gm_list);
 err_quests:
+    pthread_rwlock_destroy(&rv->qlock);
     clean_quests(rv);
     free(rv->clients);
 err_blocks:

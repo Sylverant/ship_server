@@ -2708,6 +2708,24 @@ static int handle_mk(ship_client_t *c, const char *params) {
     return send_txt(c, "%s", __(c, "\tE\tC7Flag set."));
 }
 
+/* Usage: /trackinv */
+static int handle_trackinv(ship_client_t *c, const char *params) {
+    lobby_t *l = c->cur_lobby;
+
+    /* Make sure the requester is a local GM, at least. */
+    if(!LOCAL_GM(c))
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
+
+    /* Make sure that the requester is in a plain old lobby. */
+    if(l->type != LOBBY_TYPE_DEFAULT)
+        return send_txt(c, "%s", __(c, "\tE\tC7Not valid in a game."));
+
+    /* Set the flag... */
+    c->flags |= CLIENT_FLAG_TRACK_INVENTORY;
+
+    return send_txt(c, "%s", __(c, "\tE\tC7Flag set."));
+}
+
 static command_t cmds[] = {
     { "warp"     , handle_warp      },
     { "kill"     , handle_kill      },
@@ -2786,6 +2804,7 @@ static command_t cmds[] = {
     { "sdrops"   , handle_sdrops    },
     { "gcprotect", handle_gcprotect },
     { "mk"       , handle_mk        },
+    { "trackinv" , handle_trackinv  },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

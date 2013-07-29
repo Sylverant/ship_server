@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -91,24 +91,19 @@ int kill_guildcard(ship_client_t *c, uint32_t gc, const char *reason) {
     return 0;
 }
 
-int refresh_quests(ship_client_t *c, msgfunc f) {
+int load_quests(ship_t *s, sylverant_ship_t *cfg, int initial) {
     sylverant_quest_list_t qlist[CLIENT_VERSION_COUNT][CLIENT_LANG_COUNT];
     quest_map_t qmap;
     int i, j;
     char fn[512];
 
-    /* Make sure we don't have anyone trying to escalate their privileges. */
-    if(!LOCAL_GM(c)) {
-        return -1;
-    }
+    TAILQ_INIT(&qmap);
 
-    if(ship->cfg->quests_dir && ship->cfg->quests_dir[0]) {
-        /* Read in the new quests first */
-        TAILQ_INIT(&qmap);
-
+    /* Read the quest files in... */
+    if(cfg->quests_dir && cfg->quests_dir[0]) {
         for(i = 0; i < CLIENT_VERSION_COUNT; ++i) {
             for(j = 0; j < CLIENT_LANG_COUNT; ++j) {
-                sprintf(fn, "%s/%s-%s/quests.xml", ship->cfg->quests_dir,
+                sprintf(fn, "%s/%s-%s/quests.xml", cfg->quests_dir,
                         version_codes[i], language_codes[j]);
                 if(!sylverant_quests_read(fn, &qlist[i][j])) {
                     if(!quest_map(&qmap, &qlist[i][j], i, j)) { 
@@ -125,26 +120,66 @@ int refresh_quests(ship_client_t *c, msgfunc f) {
         }
 
         /* Lock the mutex to prevent anyone from trying anything funny. */
-        pthread_rwlock_wrlock(&ship->qlock);
+        pthread_rwlock_wrlock(&s->qlock);
 
         /* Out with the old, and in with the new. */
-        for(i = 0; i < CLIENT_VERSION_COUNT; ++i) {
-            for(j = 0; j < CLIENT_LANG_COUNT; ++j) {
-                sylverant_quests_destroy(&ship->qlist[i][j]);
-                ship->qlist[i][j] = qlist[i][j];
+        if(!initial) {
+            for(i = 0; i < CLIENT_VERSION_COUNT; ++i) {
+                for(j = 0; j < CLIENT_LANG_COUNT; ++j) {
+                    sylverant_quests_destroy(&s->qlist[i][j]);
+                    s->qlist[i][j] = qlist[i][j];
+                }
+            }
+        }
+        else {
+            for(i = 0; i < CLIENT_VERSION_COUNT; ++i) {
+                for(j = 0; j < CLIENT_LANG_COUNT; ++j) {
+                    s->qlist[i][j] = qlist[i][j];
+                }
             }
         }
 
-        quest_cleanup(&ship->qmap);
-        ship->qmap = qmap;
+        if(!initial)
+            quest_cleanup(&s->qmap);
+
+        s->qmap = qmap;
+
+        /* XXXX: Hopefully this doesn't fail... >_> */
+        if(quest_cache_maps(s, &s->qmap, cfg->quests_dir))
+            debug(DBG_WARN, "Unable to build quest map cache!\n");
 
         /* Unlock the lock, we're done. */
-        pthread_rwlock_unlock(&ship->qlock);
-        return f(c, "%s", __(c, "\tE\tC7Updated quest list."));
+        pthread_rwlock_unlock(&s->qlock);
+
+        return 0;
     }
-    else {
-        return f(c, "%s", __(c, "\tE\tC7No quest list configured."));
+
+    debug(DBG_WARN, "No quests configured!\n");
+    s->qmap = qmap;
+    return -1;
+}
+
+void clean_quests(ship_t *s) {
+    int i, j;
+
+    for(i = 0; i < CLIENT_VERSION_COUNT; ++i) {
+        for(j = 0; j < CLIENT_LANG_COUNT; ++j) {
+            sylverant_quests_destroy(&s->qlist[i][j]);
+        }
     }
+
+    quest_cleanup(&s->qmap);
+}
+
+int refresh_quests(ship_client_t *c, msgfunc f) {
+    /* Make sure we don't have anyone trying to escalate their privileges. */
+    if(!LOCAL_GM(c))
+        return -1;
+
+    if(!load_quests(ship, ship->cfg, 0))
+        return f(c, "%s", __(c, "\tE\tC7Updated quests."));
+    else
+        return f(c, "%s", __(c, "\tE\tC7No quests configured."));
 }
 
 int refresh_gms(ship_client_t *c, msgfunc f) {

@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2011 Lawrence Sebald
+    Copyright (C) 2011, 2013 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -18,6 +18,7 @@
 #ifndef ADMIN_H
 #define ADMIN_H
 
+#include <sylverant/config.h>
 #include "clients.h"
 
 /* Some macros for commonly used privilege checks. */
@@ -40,6 +41,9 @@
 typedef int (*msgfunc)(ship_client_t *, const char *, ...);
 
 int kill_guildcard(ship_client_t *c, uint32_t gc, const char *reason);
+
+int load_quests(ship_t *s, sylverant_ship_t *cfg, int initial);
+void clean_quests(ship_t *s);
 
 int refresh_quests(ship_client_t *c, msgfunc f);
 int refresh_gms(ship_client_t *c, msgfunc f);

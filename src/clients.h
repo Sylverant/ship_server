@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -246,6 +246,7 @@ extern pthread_key_t sendbuf_key;
 #define CLIENT_FLAG_SERVER_DROPS    0x00004000
 #define CLIENT_FLAG_GC_PROTECT      0x00008000
 #define CLIENT_FLAG_IS_DCNTE        0x00010000
+#define CLIENT_FLAG_TRACK_INVENTORY 0x00020000
 
 /* The list of language codes for the quest directories. */
 static const char language_codes[][3] __attribute__((unused)) = {
