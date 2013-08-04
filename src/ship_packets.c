@@ -2451,8 +2451,8 @@ int send_lobby_wchat(lobby_t *l, ship_client_t *sender, const uint16_t *msg,
     int i;
 
     if((sender->flags & CLIENT_FLAG_STFU)) {
-        return send_dc_lobby_wchat(l, sender, sender, msg, len);
-    }    
+        return send_pc_lobby_wchat(l, sender, sender, msg, len);
+    }
 
     for(i = 0; i < l->max_clients; ++i) {
         if(l->clients[i] != NULL) {
