@@ -2129,7 +2129,16 @@ static int handle_mhit(ship_client_t *c, subcmd_mhit_pkt_t *pkt) {
     mid = LE16(pkt->enemy_id);
     if(mid > l->map_enemies->count) {
         debug(DBG_WARN, "Guildcard %" PRIu32 " hit invalid enemy (%d -- max: "
-              "%d)!\n", c->guildcard, mid, l->map_enemies->count);
+              "%d)!\n"
+              "Episode: %d, Floor: %d, Map: (%d, %d)\n", c->guildcard, mid,
+              l->map_enemies->count, l->episode, c->cur_area,
+              l->maps[c->cur_area << 1], l->maps[(c->cur_area << 1) + 1]);
+
+        /* If server-side drops aren't on, then just send it on and hope for the
+           best. We've probably got a bug somewhere on our end anyway... */
+        if(!(l->flags & LOBBY_FLAG_SERVER_DROPS))
+            return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
+
         return -1;
     }
 
