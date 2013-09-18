@@ -7130,9 +7130,8 @@ static int send_dc_warp(ship_client_t *c, uint8_t area) {
     dc_pkt_hdr_t *pkt = (dc_pkt_hdr_t *)sendbuf;
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Fill in the basics. */
     pkt->pkt_type = GAME_COMMAND2_TYPE;
@@ -7157,9 +7156,8 @@ static int send_pc_warp(ship_client_t *c, uint8_t area) {
     pc_pkt_hdr_t *pkt = (pc_pkt_hdr_t *)sendbuf;
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Fill in the basics. */
     pkt->pkt_type = GAME_COMMAND2_TYPE;
@@ -7179,6 +7177,32 @@ static int send_pc_warp(ship_client_t *c, uint8_t area) {
     return crypt_send(c, 12, sendbuf);
 }
 
+static int send_bb_warp(ship_client_t *c, uint8_t area) {
+    uint8_t *sendbuf = get_sendbuf();
+    bb_pkt_hdr_t *pkt = (bb_pkt_hdr_t *)sendbuf;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf)
+        return -1;
+
+    /* Fill in the basics. */
+    pkt->pkt_type = LE16(GAME_COMMAND2_TYPE);
+    pkt->flags = c->client_id;
+    pkt->pkt_len = LE16(0x0010);
+
+    /* Fill in the stuff that will make us warp. */
+    sendbuf[8] = SUBCMD_WARP;
+    sendbuf[9] = 0x02;
+    sendbuf[10] = c->client_id;
+    sendbuf[11] = 0x00;
+    sendbuf[12] = area;
+    sendbuf[13] = 0x00;
+    sendbuf[14] = 0x00;
+    sendbuf[15] = 0x00;
+
+    return crypt_send(c, 16, sendbuf);
+}
+
 int send_warp(ship_client_t *c, uint8_t area) {
     /* Call the appropriate function. */
     switch(c->version) {
@@ -7189,6 +7213,9 @@ int send_warp(ship_client_t *c, uint8_t area) {
 
         case CLIENT_VERSION_PC:
             return send_pc_warp(c, area);
+
+        case CLIENT_VERSION_BB:
+            return send_bb_warp(c, area);
     }
 
     return -1;
