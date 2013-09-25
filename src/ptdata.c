@@ -1784,8 +1784,8 @@ int pt_generate_gc_drop(ship_client_t *c, lobby_t *l, void *r) {
     game_enemy_t *enemy;
 
     /* Make sure the PT index in the packet is sane */
-    if(req->pt_index > 0x33)
-        return -1;
+    //if(req->pt_index > 0x33)
+    //    return -1;
 
     /* If the PT index is 0x30, this is a box, not an enemy! */
     if(req->pt_index == 0x30)
@@ -2298,8 +2298,8 @@ int pt_generate_bb_drop(ship_client_t *c, lobby_t *l, void *r) {
     ent = &bb_ptdata[l->episode - 1][l->difficulty][l->section];
 
     /* Make sure the PT index in the packet is sane */
-    if(req->pt_index > 0x33)
-        return -1;
+    //if(req->pt_index > 0x33)
+    //    return -1;
 
     /* If the PT index is 0x30, this is a box, not an enemy! */
     if(req->pt_index == 0x30)
