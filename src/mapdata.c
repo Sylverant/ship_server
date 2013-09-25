@@ -187,6 +187,7 @@ static int parse_map(map_enemy_t *en, int en_ct, game_enemies_t *game,
     game_enemy_t *gen;
     void *tmp;
     uint32_t count = 0;
+    uint16_t n_clones;
     int acc;
 
     /* Allocate the space first */
@@ -200,6 +201,8 @@ static int parse_map(map_enemy_t *en, int en_ct, game_enemies_t *game,
 
     /* Parse each enemy. */
     for(i = 0; i < en_ct; ++i) {
+        n_clones = en[i].num_clones;
+
         switch(en[i].base) {
             case 0x0040:    /* Hildebear & Hildetorr */
                 acc = en[i].skin & 0x01;
@@ -333,8 +336,8 @@ static int parse_map(map_enemy_t *en, int en_ct, game_enemies_t *game,
                     gen[count].rt_index = 0x1A;
                 }
 
-                if(!en[i].num_clones)
-                    en[i].num_clones = 4;
+                if(!n_clones)
+                    n_clones = 4;
                 break;
 
             case 0x0083:    /* Canadine */
@@ -539,13 +542,13 @@ static int parse_map(map_enemy_t *en, int en_ct, game_enemies_t *game,
                 gen[count].bp_entry = 0x41;
                 gen[count].rt_index = 0x43;
 
-                for(j = 1; j <= en[i].num_clones; ++j) {
-                    gen[count + j].bp_entry = 0x42;
-                    gen[count + j].rt_index = 0x44;
+                for(j = 1; j <= n_clones; ++j) {
+                    gen[++count].bp_entry = 0x42;
+                    gen[count].rt_index = 0x44;
                 }
 
                 /* Don't double count them. */
-                en[i].num_clones = 0;
+                n_clones = 0;
                 break;
 
             case 0x00E0:    /* Epsilon, Sinow Zoa & Zele */
@@ -645,8 +648,8 @@ static int parse_map(map_enemy_t *en, int en_ct, game_enemies_t *game,
         }
 
         /* Increment the counter, as needed */
-        if(en[i].num_clones) {
-            for(j = 0; j < en[i].num_clones; ++j, ++count) {
+        if(n_clones) {
+            for(j = 0; j < n_clones; ++j, ++count) {
                 gen[count + 1].rt_index = gen[count].rt_index;
                 gen[count + 1].bp_entry = gen[count].bp_entry;
             }
