@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2013 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -39,7 +39,7 @@ int gm_list_read(const char *fn, ship_t *s) {
     xmlParserCtxtPtr cxt;
     xmlDoc *doc;
     xmlNode *n;
-    xmlChar *serial, *access, *guildcard, *root;
+    xmlChar *guildcard, *root;
     local_gm_t *oldlist = NULL;
     int oldcount = 0, rv = 0;
     void *tmp;
@@ -104,12 +104,10 @@ int gm_list_read(const char *fn, ship_t *s) {
         }
         else {
             /* We've got the right tag, see if we have all the attributes... */
-            serial = xmlGetProp(n, XC"serial");
-            access = xmlGetProp(n, XC"accesskey");
             guildcard = xmlGetProp(n, XC"guildcard");
             root = xmlGetProp(n, XC"root");
 
-            if(!serial || !access || !guildcard) {
+            if(!guildcard) {
                 debug(DBG_WARN, "Incomplete GM entry on line %hu\n", n->line);
                 goto next;
             }
@@ -120,8 +118,6 @@ int gm_list_read(const char *fn, ship_t *s) {
             if(!tmp) {
                 debug(DBG_WARN, "Couldn't make space for GM\n");
                 perror("realloc");
-                xmlFree(serial);
-                xmlFree(access);
                 xmlFree(guildcard);
                 xmlFree(root);
                 rv = -6;
@@ -135,8 +131,6 @@ int gm_list_read(const char *fn, ship_t *s) {
             memset(&s->gm_list[s->gm_count], 0, sizeof(local_gm_t));
             s->gm_list[s->gm_count].flags = CLIENT_PRIV_LOCAL_GM;
 
-            strncpy(s->gm_list[s->gm_count].serial_num, (char *)serial, 16);
-            strncpy(s->gm_list[s->gm_count].access_key, (char *)access, 16);
             s->gm_list[s->gm_count].guildcard =
                 (uint32_t)strtoul((char *)guildcard, NULL, 0);
 
@@ -149,8 +143,6 @@ int gm_list_read(const char *fn, ship_t *s) {
 
 next:
             /* Free the memory we allocated here... */
-            xmlFree(serial);
-            xmlFree(access);
             xmlFree(guildcard);
             xmlFree(root);
         }
@@ -177,14 +169,12 @@ err:
     return rv;
 }
 
-int is_gm(uint32_t guildcard, char serial[], char access[], ship_t *s) {
+int is_gm(uint32_t guildcard, ship_t *s) {
     int i;
 
     /* Look through the list for this person. */
     for(i = 0; i < s->gm_count; ++i) {
-        if(guildcard == s->gm_list[i].guildcard &&
-           !strcmp(serial, s->gm_list[i].serial_num) &&
-           !strcmp(access, s->gm_list[i].access_key)) {
+        if(guildcard == s->gm_list[i].guildcard) {
             return s->gm_list[i].flags;
         }
     }

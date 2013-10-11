@@ -791,7 +791,7 @@ static int dcnte_process_login(ship_client_t *c, dcnte_login_8b_pkt *pkt) {
     c->flags |= CLIENT_FLAG_IS_DCNTE;
 
     /* See if this person is a GM. */
-    c->privilege = is_gm(c->guildcard, pkt->serial, pkt->access_key, ship);
+    c->privilege = is_gm(c->guildcard, ship);
 
     if(send_dc_security(c, c->guildcard, NULL, 0)) {
         return -1;
@@ -825,7 +825,7 @@ static int dc_process_login(ship_client_t *c, dc_login_93_pkt *pkt) {
     c->q_lang = pkt->language_code;
 
     /* See if this person is a GM. */
-    c->privilege = is_gm(c->guildcard, pkt->serial, pkt->access_key, ship);
+    c->privilege = is_gm(c->guildcard, ship);
 
     if(send_dc_security(c, c->guildcard, NULL, 0)) {
         return -1;
@@ -872,7 +872,7 @@ static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
         c->version = CLIENT_VERSION_DCV2;
 
     /* See if this person is a GM. */
-    c->privilege = is_gm(c->guildcard, pkt->serial, pkt->access_key, ship);
+    c->privilege = is_gm(c->guildcard, ship);
 
     if(send_dc_security(c, c->guildcard, NULL, 0)) {
         return -1;
@@ -918,7 +918,7 @@ static int gc_process_login(ship_client_t *c, gc_login_9e_pkt *pkt) {
     c->q_lang = pkt->language_code;
 
     /* See if this person is a GM. */
-    c->privilege = is_gm(c->guildcard, pkt->serial, pkt->access_key, ship);
+    c->privilege = is_gm(c->guildcard, ship);
 
     if(send_dc_security(c, c->guildcard, NULL, 0)) {
         return -1;
@@ -949,6 +949,9 @@ static int bb_process_login(ship_client_t *c, bb_login_93_pkt *pkt) {
 
     c->guildcard = LE32(pkt->guildcard);
     team_id = LE32(pkt->team_id);
+
+    /* See if this person is a GM. */
+    c->privilege = is_gm(c->guildcard, ship);
 
     /* Copy in the security data */
     memcpy(&c->sec_data, pkt->security_data, sizeof(bb_security_data_t));
