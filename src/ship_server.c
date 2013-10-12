@@ -292,27 +292,54 @@ static void install_signal_handlers() {
 static int init_gnutls(sylverant_ship_t *cfg) {
     int rv;
 
-    /* XXXX: Should really check return values in here */
     /* Do the global init */
     gnutls_global_init();
 
     /* Set up our credentials */
-    rv = gnutls_certificate_allocate_credentials(&tls_cred);
-    rv = gnutls_certificate_set_x509_trust_file(tls_cred, cfg->shipgate_ca,
-                                                GNUTLS_X509_FMT_PEM);
-    rv = gnutls_certificate_set_x509_key_file(tls_cred, cfg->ship_cert,
-                                              cfg->ship_key,
-                                              GNUTLS_X509_FMT_PEM);
+    if((rv = gnutls_certificate_allocate_credentials(&tls_cred))) {
+        debug(DBG_ERROR, "Cannot allocate GnuTLS credentials: %s (%s)\n",
+              gnutls_strerror(rv), gnutls_strerror_name(rv));
+        return -1;
+    }
+
+    if((rv = gnutls_certificate_set_x509_trust_file(tls_cred, cfg->shipgate_ca,
+                                                    GNUTLS_X509_FMT_PEM) < 0)) {
+        debug(DBG_ERROR, "Cannot set GnuTLS CA Certificate: %s (%s)\n",
+              gnutls_strerror(rv), gnutls_strerror_name(rv));
+        return -1;
+    }
+
+    if((rv = gnutls_certificate_set_x509_key_file(tls_cred, cfg->ship_cert,
+                                                  cfg->ship_key,
+                                                  GNUTLS_X509_FMT_PEM))) {
+        debug(DBG_ERROR, "Cannot set GnuTLS key file: %s (%s)\n",
+              gnutls_strerror(rv), gnutls_strerror_name(rv));
+        return -1;
+    }
 
     /* Generate Diffie-Hellman parameters */
     debug(DBG_LOG, "Generating Diffie-Hellman parameters...\n"
           "This may take a little while.\n");
-    rv = gnutls_dh_params_init(&dh_params);
-    rv = gnutls_dh_params_generate2(dh_params, 1024);
+    if((rv = gnutls_dh_params_init(&dh_params))) {
+        debug(DBG_ERROR, "Cannot initialize GnuTLS DH parameters: %s (%s)\n",
+              gnutls_strerror(rv), gnutls_strerror_name(rv));
+        return -1;
+    }
+
+    if((rv = gnutls_dh_params_generate2(dh_params, 1024))) {
+        debug(DBG_ERROR, "Cannot generate GnuTLS DH parameters: %s (%s)\n",
+              gnutls_strerror(rv), gnutls_strerror_name(rv));
+        return -1;
+    }
+
     debug(DBG_LOG, "Done!\n");
 
     /* Set our priorities */
-    rv = gnutls_priority_init(&tls_prio, "NORMAL:+COMP-DEFLATE", NULL);
+    if((rv = gnutls_priority_init(&tls_prio, "NORMAL:+COMP-DEFLATE", NULL))) {
+        debug(DBG_ERROR, "Cannot initialize GnuTLS priorities: %s (%s)\n",
+              gnutls_strerror(rv), gnutls_strerror_name(rv));
+        return -1;
+    }
 
     /* Set the Diffie-Hellman parameters */
     gnutls_certificate_set_dh_params(tls_cred, dh_params);
