@@ -1604,27 +1604,10 @@ int v2_load_game_enemies(lobby_t *l) {
         index2 += osets[i]->count;
     }
 
-    /* Fixup Dark Falz' data for difficulties other than normal and the special
-       Rappy data too... */
+    /* Fixup Dark Falz' data for difficulties other than normal... */
     for(i = 0; i < en->count; ++i) {
         if(en->enemies[i].bp_entry == 0x37 && l->difficulty) {
             en->enemies[i].bp_entry = 0x38;
-        }
-        else if(en->enemies[i].rt_index == (uint8_t)-1) {
-            switch(l->event) {
-                case LOBBY_EVENT_CHRISTMAS:
-                    en->enemies[i].rt_index = 79;
-                    break;
-                case LOBBY_EVENT_EASTER:
-                    en->enemies[i].rt_index = 81;
-                    break;
-                case LOBBY_EVENT_HALLOWEEN:
-                    en->enemies[i].rt_index = 80;
-                    break;
-                default:
-                    en->enemies[i].rt_index = 51;
-                    break;
-            }
         }
     }
 
@@ -1717,10 +1700,27 @@ int gc_load_game_enemies(lobby_t *l) {
         index2 += osets[i]->count;
     }
 
-    /* Fixup Dark Falz' data for difficulties other than normal... */
+    /* Fixup Dark Falz' data for difficulties other than normal and the special
+       Rappy data too... */
     for(i = 0; i < en->count; ++i) {
         if(en->enemies[i].bp_entry == 0x37 && l->difficulty) {
             en->enemies[i].bp_entry = 0x38;
+        }
+        else if(en->enemies[i].rt_index == (uint8_t)-1) {
+            switch(l->event) {
+                case LOBBY_EVENT_CHRISTMAS:
+                    en->enemies[i].rt_index = 79;
+                    break;
+                case LOBBY_EVENT_EASTER:
+                    en->enemies[i].rt_index = 81;
+                    break;
+                case LOBBY_EVENT_HALLOWEEN:
+                    en->enemies[i].rt_index = 80;
+                    break;
+                default:
+                    en->enemies[i].rt_index = 51;
+                    break;
+            }
         }
     }
 
