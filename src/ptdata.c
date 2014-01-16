@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2012, 2013 Lawrence Sebald
+    Copyright (C) 2012, 2013, 2014 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -1243,6 +1243,7 @@ static int check_and_send(ship_client_t *c, lobby_t *l, uint32_t item[4],
                           int area, subcmd_itemreq_t *req) {
     uint32_t v;
     sylverant_iitem_t iitem;
+    int section;
 
     if(ship->limits) {
         switch(c->version) {
@@ -1270,12 +1271,13 @@ static int check_and_send(ship_client_t *c, lobby_t *l, uint32_t item[4],
         iitem.data2_l = LE32(item[3]);
 
         if(!sylverant_limits_check_item(ship->limits, &iitem, v)) {
+            section = l->clients[l->leader_id]->pl->v1.section;
             debug(DBG_LOG, "Potentially non-legit dropped by server:\n"
                   "%08x %08x %08x %08x\n"
                   "Team Info: Difficulty: %d, Section: %d, flags: %08x\n"
                   "Version: %d, Floor: %d (%d %d)\n", item[0], item[1], item[2],
-                  item[3], l->difficulty, l->section, l->flags, l->version,
-                  area, l->maps[(area << 1)], l->maps[(area << 1) + 1]);
+                  item[3], l->difficulty, section, l->flags, l->version, area,
+                  l->maps[(area << 1)], l->maps[(area << 1) + 1]);
 
             /* The item failed the check, so don't send it! */
             return 0;
@@ -1330,7 +1332,8 @@ static int check_and_send_bb(ship_client_t *c, lobby_t *l, uint32_t item[4],
    and thus is appropriate for any version before PSOGC. */
 int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
     subcmd_itemreq_t *req = (subcmd_itemreq_t *)r;
-    pt_v2_entry_t *ent = &v2_ptdata[l->difficulty][l->section];
+    int section = l->clients[l->leader_id]->pl->v1.section;
+    pt_v2_entry_t *ent = &v2_ptdata[l->difficulty][section];
     uint32_t rnd;
     uint32_t item[4];
     int area, do_rare = 1;
@@ -1541,7 +1544,8 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
 
 int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
     subcmd_itemreq_t *req = (subcmd_itemreq_t *)r;
-    pt_v2_entry_t *ent = &v2_ptdata[l->difficulty][l->section];
+    int section = l->clients[l->leader_id]->pl->v1.section;
+    pt_v2_entry_t *ent = &v2_ptdata[l->difficulty][section];
     uint16_t obj_id;
     game_object_t *gobj;
     map_object_t *obj;
@@ -1775,7 +1779,8 @@ generate_meseta:
    This function only works for PSOGC. */
 int pt_generate_gc_drop(ship_client_t *c, lobby_t *l, void *r) {
     subcmd_itemreq_t *req = (subcmd_itemreq_t *)r;
-    pt_v3_entry_t *ent = &gc_ptdata[l->episode - 1][l->difficulty][l->section];
+    int section = l->clients[l->leader_id]->pl->v1.section;
+    pt_v3_entry_t *ent = &gc_ptdata[l->episode - 1][l->difficulty][section];
     uint32_t rnd;
     uint32_t item[4];
     int area, do_rare = 1;
@@ -2022,7 +2027,8 @@ int pt_generate_gc_drop(ship_client_t *c, lobby_t *l, void *r) {
 
 int pt_generate_gc_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
     subcmd_bitemreq_t *req = (subcmd_bitemreq_t *)r;
-    pt_v3_entry_t *ent = &gc_ptdata[l->episode][l->difficulty][l->section];
+    int section = l->clients[l->leader_id]->pl->v1.section;
+    pt_v3_entry_t *ent = &gc_ptdata[l->episode][l->difficulty][section];
     uint16_t obj_id;
     game_object_t *gobj;
     map_object_t *obj;
@@ -2283,6 +2289,7 @@ generate_meseta:
 
 int pt_generate_bb_drop(ship_client_t *c, lobby_t *l, void *r) {
     subcmd_bb_itemreq_t *req = (subcmd_bb_itemreq_t *)r;
+    int section = l->clients[l->leader_id]->pl->bb.character.section;
     pt_v3_entry_t *ent;
     uint32_t rnd;
     uint32_t item[4];
@@ -2295,7 +2302,7 @@ int pt_generate_bb_drop(ship_client_t *c, lobby_t *l, void *r) {
     if(l->episode == 3)
         return 0;
 
-    ent = &bb_ptdata[l->episode - 1][l->difficulty][l->section];
+    ent = &bb_ptdata[l->episode - 1][l->difficulty][section];
 
     /* Make sure the PT index in the packet is sane */
     //if(req->pt_index > 0x33)
@@ -2527,6 +2534,7 @@ int pt_generate_bb_drop(ship_client_t *c, lobby_t *l, void *r) {
 
 int pt_generate_bb_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
     subcmd_bb_bitemreq_t *req = (subcmd_bb_bitemreq_t *)r;
+    int section = l->clients[l->leader_id]->pl->bb.character.section;
     pt_v3_entry_t *ent;
     uint16_t obj_id;
     game_object_t *gobj;
@@ -2541,7 +2549,7 @@ int pt_generate_bb_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
     if(l->episode == 3)
         return 0;
 
-    ent = &bb_ptdata[l->episode][l->difficulty][l->section];
+    ent = &bb_ptdata[l->episode][l->difficulty][section];
 
     /* Make sure this is actually a box drop... */
     if(req->pt_index != 0x30)

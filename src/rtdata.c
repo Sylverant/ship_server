@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2012, 2013 Lawrence Sebald
+    Copyright (C) 2012, 2013, 2014 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -307,6 +307,7 @@ uint32_t rt_generate_v2_rare(ship_client_t *c, lobby_t *l, int rt_index,
     double rnd;
     rt_set_t *set;
     int i;
+    int section = l->clients[l->leader_id]->pl->v1.section;
 
     /* Make sure we read in a rare table and we have a sane index */
     if(!have_v2rt)
@@ -316,7 +317,7 @@ uint32_t rt_generate_v2_rare(ship_client_t *c, lobby_t *l, int rt_index,
         return -1;
 
     /* Grab the rare set for the game */
-    set = &v2_rtdata[l->difficulty][l->section];
+    set = &v2_rtdata[l->difficulty][section];
 
     /* Are we doing a drop for an enemy or a box? */
     if(rt_index >= 0) {
@@ -345,6 +346,7 @@ uint32_t rt_generate_gc_rare(ship_client_t *c, lobby_t *l, int rt_index,
     double rnd;
     rt_set_t *set;
     int i;
+    int section = l->clients[l->leader_id]->pl->v1.section;
 
     /* Make sure we read in a rare table and we have a sane index */
     if(!have_gcrt)
@@ -354,7 +356,7 @@ uint32_t rt_generate_gc_rare(ship_client_t *c, lobby_t *l, int rt_index,
         return -1;
 
     /* Grab the rare set for the game */
-    set = &gc_rtdata[l->episode - 1][l->difficulty][l->section];
+    set = &gc_rtdata[l->episode - 1][l->difficulty][section];
 
     /* Are we doing a drop for an enemy or a box? */
     if(rt_index >= 0) {
