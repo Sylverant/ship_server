@@ -1194,8 +1194,8 @@ static int generate_tool_v3(pt_v3_entry_t *ent, int area, uint32_t item[4],
                             struct mt19937_state *rng) {
     item[0] = generate_tool_base(ent->tool_frequency, area, rng);
 
-    /* Neither of these should happen, but just in case... */
-    if(item[0] == Item_Photon_Drop || item[0] == Item_NoSuchItem) {
+    /* This shouldn't happen happen, but just in case... */
+    if(item[0] == Item_NoSuchItem) {
         debug(DBG_WARN, "Generated invalid v3 tool! Please check your "
               "ItemPT.gsl file for validity!\n");
         return -1;
