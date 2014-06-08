@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2010, 2011 Lawrence Sebald
+    Copyright (C) 2010, 2011, 2014 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -1056,9 +1056,9 @@ static const uint16_t word_select_dc_map[WORD_SELECT_DC_MAX + 1][2] = {
     { 0x05F4, 0x063B }, /* 0x0406: can "slow mo" */
     { 0x05F5, 0x063C }, /* 0x0407: can "confuse */
     { 0x05F6, 0x063D }, /* 0x0408: powered up with "STR UP" */
-    { 0xFFFF, 0xFFFF }, /* 0x0409: powered up with "DE UP" */
+    { 0x05F7, 0x063E }, /* 0x0409: powered up with "DE UP" */
     { 0x05F8, 0x063F }, /* 0x040A: powered down with "STR DOWN" */
-    { 0xFFFF, 0xFFFF }, /* 0x040B: powered up with "DE DOWN" */
+    { 0x05F9, 0x0640 }, /* 0x040B: powered up with "DE DOWN" */
     { 0x05FA, 0x0641 }, /* 0x040C: frozen */
     { 0x05FB, 0x0642 }, /* 0x040D: glad */
     { 0x05FC, 0x0643 }, /* 0x040E: sad */

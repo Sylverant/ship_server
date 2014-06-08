@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2010, 2011, 2012 Lawrence Sebald
+    Copyright (C) 2010, 2011, 2012, 2014 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -72,6 +72,13 @@ int word_select_send_dc(ship_client_t *c, subcmd_word_select_t *pkt) {
     bb.unused1 = 0;
     bb.ws_type = pkt->ws_type;
     bb.unused2 = 0;
+
+    /* No versions other than PSODC sport the lovely LIST ALL menu. Oh well, I
+       guess I can't go around saying "HELL HELL HELL" to everyone. */
+    if(pkt->ws_type == 6) {
+        pcuntrans = 1;
+        gcuntrans = 1;
+    }
 
     for(i = 0; i < 8; ++i) {
         dcw = LE16(pkt->words[i]);
