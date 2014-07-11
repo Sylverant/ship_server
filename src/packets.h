@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -933,6 +933,16 @@ typedef struct pc_quest_list {
     } entries[0];
 } PACKED pc_quest_list_pkt;
 
+typedef struct bb_quest_list {
+    bb_pkt_hdr_t hdr;
+    struct {
+        uint32_t menu_id;
+        uint32_t item_id;
+        uint16_t name[32];
+        uint16_t desc[122];
+    } entries[0];
+} PACKED bb_quest_list_pkt;
+
 /* The packet sent to inform a client of a quest file that will be coming down
    the pipe */
 typedef struct dc_quest_file {
@@ -962,6 +972,16 @@ typedef struct gc_quest_file {
     uint32_t length;
 } PACKED gc_quest_file_pkt;
 
+typedef struct bb_quest_file {
+    bb_pkt_hdr_t hdr;
+    char unused1[32];
+    uint16_t unused2;
+    uint16_t flags;
+    char filename[16];
+    uint32_t length;
+    char name[24];
+} PACKED bb_quest_file_pkt;
+
 /* The packet sent to actually send quest data */
 typedef struct dc_quest_chunk {
     union {
@@ -972,6 +992,13 @@ typedef struct dc_quest_chunk {
     char data[1024];
     uint32_t length;
 } PACKED dc_quest_chunk_pkt;
+
+typedef struct bb_quest_chunk {
+    bb_pkt_hdr_t hdr;
+    char filename[16];
+    char data[1024];
+    uint32_t length;
+} PACKED bb_quest_chunk_pkt;
 
 /* The packet sent to update the list of arrows in a lobby */
 typedef struct dc_arrow_list {
@@ -1588,7 +1615,7 @@ typedef struct bb_guildcard_comment {
 #define BB_UPDATE_TECH_MENU             0x06ED
 #define BB_UPDATE_CONFIG                0x07ED
 #define BB_SCROLL_MSG_TYPE              0x00EE
- 
+
 #define DC_WELCOME_LENGTH               0x004C
 #define BB_WELCOME_LENGTH               0x00C8
 #define BB_SECURITY_LENGTH              0x0044
@@ -1615,8 +1642,11 @@ typedef struct bb_guildcard_comment {
 #define EP3_GAME_JOIN_LENGTH            0x1184
 #define DC_QUEST_INFO_LENGTH            0x0128
 #define PC_QUEST_INFO_LENGTH            0x024C
+#define BB_QUEST_INFO_LENGTH            0x0250
 #define DC_QUEST_FILE_LENGTH            0x003C
+#define BB_QUEST_FILE_LENGTH            0x0058
 #define DC_QUEST_CHUNK_LENGTH           0x0418
+#define BB_QUEST_CHUNK_LENGTH           0x041C
 #define DC_SIMPLE_MAIL_LENGTH           0x0220
 #define PC_SIMPLE_MAIL_LENGTH           0x0430
 #define BB_SIMPLE_MAIL_LENGTH           0x045C
@@ -1695,5 +1725,5 @@ typedef struct bb_guildcard_comment {
 #define BB_CHAR_ACK_SELECT                  1
 #define BB_CHAR_ACK_NONEXISTANT             2
 
-#endif /* !PACKETS_H_HAVE_PACKETS */ 
+#endif /* !PACKETS_H_HAVE_PACKETS */
 #endif /* !PACKETS_H_HEADERS_ONLY */

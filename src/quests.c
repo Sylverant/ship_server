@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2011, 2013 Lawrence Sebald
+    Copyright (C) 2011, 2013, 2014 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -211,6 +211,7 @@ static uint8_t *read_and_dec_dat(const char *fn, uint32_t *osz) {
 static uint32_t qst_dat_size(const uint8_t *buf, int ver) {
     const dc_quest_file_pkt *dchdr = (const dc_quest_file_pkt *)buf;
     const pc_quest_file_pkt *pchdr = (const pc_quest_file_pkt *)buf;
+    const bb_quest_file_pkt *bbhdr = (const bb_quest_file_pkt *)buf;
     char fn[32];
     char *ptr;
 
@@ -252,6 +253,25 @@ static uint32_t qst_dat_size(const uint8_t *buf, int ver) {
 
             if((ptr = strrchr(fn, '.')) && !strcmp(ptr, ".dat"))
                 return LE32(pchdr->length);
+
+            /* Didn't find it, punt. */
+            return 0;
+
+        case CLIENT_VERSION_BB:
+            /* Check the first file to see if it is the dat. */
+            strncpy(fn, bbhdr->filename, 16);
+            fn[16] = 0;
+
+            if((ptr = strrchr(fn, '.')) && !strcmp(ptr, ".dat"))
+                return LE32(bbhdr->length);
+
+            /* Try the second file in the qst */
+            bbhdr = (const bb_quest_file_pkt *)(buf + 0x58);
+            strncpy(fn, bbhdr->filename, 16);
+            fn[16] = 0;
+
+            if((ptr = strrchr(fn, '.')) && !strcmp(ptr, ".dat"))
+                return LE32(bbhdr->length);
 
             /* Didn't find it, punt. */
             return 0;
@@ -302,6 +322,58 @@ static int copy_dc_qst_dat(const uint8_t *buf, uint8_t *rbuf, off_t sz,
         }
 
         ptr += 0x0418;
+    }
+
+    if(optr != dsz) {
+        debug(DBG_WARN, "Quest file appears to be corrupted!\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+static int copy_bb_qst_dat(const uint8_t *buf, uint8_t *rbuf, off_t sz,
+                           uint32_t dsz) {
+    const bb_quest_chunk_pkt *ck;
+    uint32_t ptr = 176, optr = 0;
+    char fn[32];
+    char *cptr;
+    uint32_t clen;
+
+    while(ptr < sz) {
+        ck = (const bb_quest_chunk_pkt *)(buf + ptr);
+
+        /* Check the chunk for validity. */
+        if(ck->hdr.pkt_type != LE16(QUEST_CHUNK_TYPE) ||
+           ck->hdr.pkt_len != LE16(0x041C)) {
+            debug(DBG_WARN, "Unknown or damaged quest chunk!\n");
+            return -1;
+        }
+
+        /* Grab the vitals... */
+        strncpy(fn, ck->filename, 16);
+        fn[16] = 0;
+        clen = LE32(ck->length);
+        cptr = strrchr(fn, '.');
+
+        /* Sanity check... */
+        if(clen > 1024 || !cptr) {
+            debug(DBG_WARN, "Damaged quest chunk!\n");
+            return -1;
+        }
+
+        /* See if this is part of the .dat file */
+        if(!strcmp(cptr, ".dat")) {
+            if(optr + clen > dsz) {
+                debug(DBG_WARN, "Quest file appears to be corrupted!\n");
+                return -1;
+            }
+
+            memcpy(rbuf + optr, ck->data, clen);
+            optr += clen;
+        }
+
+        ptr += 0x0420;
     }
 
     if(optr != dsz) {
@@ -367,13 +439,24 @@ static uint8_t *read_and_dec_qst(const char *fn, uint32_t *osz, int ver) {
         return NULL;
     }
 
-    /* XXXX: Handle BB quests at some point too. Note, we'll never get PC quests
-       in here, since we don't look at them. */
+    /* Note, we'll never get PC quests in here, since we don't look at them. The
+       primary thing this means is that PSOPC and DCv2 must have the same set of
+       quests. */
     switch(ver) {
         case CLIENT_VERSION_DCV1:
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_GC:
             if(copy_dc_qst_dat(buf, buf2, sz, dsz)) {
+                debug(DBG_WARN, "Error decoding qst \"%s\", see above.\n", fn);
+                free(buf2);
+                free(buf);
+                return NULL;
+            }
+
+            break;
+
+        case CLIENT_VERSION_BB:
+            if(copy_bb_qst_dat(buf, buf2, sz, dsz)) {
                 debug(DBG_WARN, "Error decoding qst \"%s\", see above.\n", fn);
                 free(buf2);
                 free(buf);
@@ -507,4 +590,3 @@ int quest_cache_maps(ship_t *s, quest_map_t *map, const char *dir) {
 
     return 0;
 }
-

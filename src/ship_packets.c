@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -90,7 +90,7 @@ static gm_opt_t gm_opts[] = {
         CLIENT_PRIV_LOCAL_GM    , "Refresh Quests"  },
     {   MENU_ID_GM              , ITEM_ID_GM_REF_GMS    , 0x07,
         CLIENT_PRIV_LOCAL_ROOT  , "Refresh GMs"     },
-    {   MENU_ID_GM              , ITEM_ID_GM_REF_LIMITS , 0x07, 
+    {   MENU_ID_GM              , ITEM_ID_GM_REF_LIMITS , 0x07,
         CLIENT_PRIV_LOCAL_GM    , "Refresh Limits"  },
     {   MENU_ID_GM              , ITEM_ID_GM_SHUTDOWN   , 0x07,
         CLIENT_PRIV_LOCAL_ROOT  , "Shutdown"        },
@@ -407,7 +407,7 @@ int send_bb_security(ship_client_t *c, uint32_t gc, uint32_t err,
         memcpy(pkt->security_data, data, data_len);
 
     /* Send the packet away */
-    return crypt_send(c, BB_SECURITY_LENGTH, sendbuf);    
+    return crypt_send(c, BB_SECURITY_LENGTH, sendbuf);
 }
 
 /* Send a redirect packet to the given client. */
@@ -479,7 +479,7 @@ int send_redirect(ship_client_t *c, in_addr_t ip, uint16_t port) {
         case CLIENT_VERSION_BB:
             return send_bb_redirect(c, ip, port);
     }
-    
+
     return -1;
 }
 
@@ -494,7 +494,7 @@ static int send_redirect6_dc(ship_client_t *c, const uint8_t ip[16],
     if(!sendbuf) {
         return -1;
     }
-    
+
     /* Wipe the packet */
     memset(pkt, 0, DC_REDIRECT6_LENGTH);
 
@@ -615,7 +615,7 @@ int send_timestamp(ship_client_t *c) {
         case CLIENT_VERSION_EP3:
             return send_dc_timestamp(c);
     }
-    
+
     return -1;
 }
 
@@ -1317,7 +1317,7 @@ static int send_dc_lobby_join(ship_client_t *c, lobby_t *l) {
         else {
             memcpy(pkt->entries[pls].hdr.name, l->clients[i]->pl->v1.name, 16);
         }
-        
+
         make_disp_data(l->clients[i], c, &pkt->entries[pls].data);
 
         /* Normalize costumes to the set that PSODC knows about, and make sure
@@ -1367,7 +1367,7 @@ static int send_pc_lobby_join(ship_client_t *c, lobby_t *l) {
     uint16_t pkt_size = 0x10;
     uint16_t costume;
     uint8_t ch_class;
-    
+
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
         return -1;
@@ -1457,7 +1457,7 @@ static int send_bb_lobby_join(ship_client_t *c, lobby_t *l) {
     bb_lobby_join_pkt *pkt = (bb_lobby_join_pkt *)sendbuf;
     int i, pls = 0;
     uint16_t pkt_size = 0x14;
-    
+
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
         return -1;
@@ -1667,7 +1667,7 @@ static int send_dcnte_lobby_add_player(lobby_t *l, ship_client_t *c,
     memset(pkt, 0, sizeof(dcnte_lobby_join_pkt));
 
     /* Fill in the basics. */
-    pkt->hdr.pkt_type = (l->type == LOBBY_TYPE_DEFAULT) ? 
+    pkt->hdr.pkt_type = (l->type == LOBBY_TYPE_DEFAULT) ?
         LOBBY_ADD_PLAYER_TYPE : GAME_ADD_PLAYER_TYPE;
     pkt->hdr.flags = 1;
     pkt->hdr.pkt_len = LE16(0x0444);
@@ -1747,7 +1747,7 @@ static int send_dc_lobby_add_player(lobby_t *l, ship_client_t *c,
     memset(pkt, 0, sizeof(dc_lobby_join_pkt));
 
     /* Fill in the basics. */
-    pkt->hdr.pkt_type = (l->type == LOBBY_TYPE_DEFAULT) ? 
+    pkt->hdr.pkt_type = (l->type == LOBBY_TYPE_DEFAULT) ?
         LOBBY_ADD_PLAYER_TYPE : GAME_ADD_PLAYER_TYPE;
     pkt->hdr.flags = 1;
     pkt->hdr.pkt_len = LE16(0x044C);
@@ -1822,7 +1822,7 @@ static int send_pc_lobby_add_player(lobby_t *l, ship_client_t *c,
     pc_lobby_join_pkt *pkt = (pc_lobby_join_pkt *)sendbuf;
     uint16_t costume;
     uint8_t ch_class;
-    
+
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
         return -1;
@@ -1832,7 +1832,7 @@ static int send_pc_lobby_add_player(lobby_t *l, ship_client_t *c,
     memset(pkt, 0, sizeof(pc_lobby_join_pkt));
 
     /* Fill in the basics. */
-    pkt->hdr.pkt_type = (l->type == LOBBY_TYPE_DEFAULT) ? 
+    pkt->hdr.pkt_type = (l->type == LOBBY_TYPE_DEFAULT) ?
         LOBBY_ADD_PLAYER_TYPE : GAME_ADD_PLAYER_TYPE;
     pkt->hdr.flags = 1;
     pkt->hdr.pkt_len = LE16(0x045C);
@@ -1909,7 +1909,7 @@ static int send_bb_lobby_add_player(lobby_t *l, ship_client_t *c,
     uint8_t *sendbuf = get_sendbuf();
     bb_lobby_join_pkt *pkt = (bb_lobby_join_pkt *)sendbuf;
     uint16_t pkt_size = 0x14;
-    
+
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
         return -1;
@@ -1919,7 +1919,7 @@ static int send_bb_lobby_add_player(lobby_t *l, ship_client_t *c,
     memset(pkt, 0, sizeof(bb_lobby_join_pkt));
 
     /* Fill in the basics. */
-    pkt->hdr.pkt_type = (l->type == LOBBY_TYPE_DEFAULT) ? 
+    pkt->hdr.pkt_type = (l->type == LOBBY_TYPE_DEFAULT) ?
         LE16(LOBBY_ADD_PLAYER_TYPE) : LE16(GAME_ADD_PLAYER_TYPE);
     pkt->hdr.flags = LE32(1);
     pkt->client_id = c->client_id;
@@ -2649,7 +2649,7 @@ int send_lobby_bbchat(lobby_t *l, ship_client_t *sender, const uint16_t *msg,
 
     if((sender->flags & CLIENT_FLAG_STFU)) {
         return send_bb_lobby_bbchat(l, sender, sender, msg, len);
-    }    
+    }
 
     for(i = 0; i < l->max_clients; ++i) {
         if(l->clients[i] != NULL) {
@@ -2925,7 +2925,7 @@ int send_guild_reply(ship_client_t *c, ship_client_t *s) {
         case CLIENT_VERSION_BB:
             return send_bb_guild_reply(c, s);
     }
-    
+
     return -1;
 }
 
@@ -3009,7 +3009,7 @@ static int send_dc_guild_reply6(ship_client_t *c, ship_client_t *s) {
         else {
             istrncpy(ic_utf8_to_8859, lname, l->name, 16);
         }
-        
+
         lname[16] = 0;
 
         /* Fill in the location string. Everything here is ASCII, so this is
@@ -3312,7 +3312,7 @@ static int send_pc_guild_reply6_sg(ship_client_t *c, dc_guild_reply6_pkt *dc) {
 
     /* Adjust the port properly... */
     ++port;
-    
+
     /* Clear it out first */
     memset(pkt, 0, PC_GUILD_REPLY6_LENGTH);
 
@@ -3483,7 +3483,7 @@ static int send_dc_message(ship_client_t *c, uint16_t type, const char *fmt,
     inptr = tm;
     outptr = pkt->msg;
     iconv(ic, &inptr, &in, &outptr, &out);
-    
+
     /* Figure out how long the new string is. */
     len = 65520 - out;
 
@@ -3549,7 +3549,7 @@ static int send_bb_message(ship_client_t *c, uint16_t type, const char *fmt,
     inptr = tm;
     outptr = (char *)pkt->msg;
     iconv(ic_utf8_to_utf16, &inptr, &in, &outptr, &out);
-    
+
     /* Figure out how long the new string is. */
     len = 65520 - out + 0x10;
 
@@ -3589,7 +3589,7 @@ int send_message1(ship_client_t *c, const char *fmt, ...) {
     }
 
     va_end(args);
-    
+
     return rv;
 }
 
@@ -3637,10 +3637,10 @@ static int send_dcnte_game_join(ship_client_t *c, lobby_t *l) {
     /* Verify we got the sendbuf. */
     if(!sendbuf)
         return -1;
-    
+
     /* Clear it out first. */
     memset(pkt, 0, sizeof(dcnte_game_join_pkt));
-    
+
     /* Fill in the basics. */
     pkt->hdr.pkt_type = GAME_JOIN_TYPE;
     pkt->hdr.pkt_len = LE16(sizeof(dcnte_game_join_pkt));
@@ -3896,7 +3896,7 @@ static int send_ep3_game_join(ship_client_t *c, lobby_t *l) {
             pkt->players[i].guildcard = LE32(l->clients[i]->guildcard);
             pkt->players[i].ip_addr = 0xFFFFFFFF;
             pkt->players[i].client_id = LE32(i);
-            
+
             /* No need to iconv the names, they'll be good as is */
             memcpy(pkt->players[i].name, l->clients[i]->pl->v1.name, 16);
 
@@ -4241,7 +4241,7 @@ static int send_gc_game_list(ship_client_t *c, block_t *b) {
             pthread_mutex_unlock(&l->mutex);
             continue;
         }
-        
+
         /* Ignore DC/PC games if the user hasn't set the flag to show them or
            the lobby doesn't have the right flag set */
         if(!l->episode && (!(c->flags & CLIENT_FLAG_SHOW_DCPC_ON_GC) ||
@@ -4976,6 +4976,76 @@ static int send_pc_quest_categories(ship_client_t *c, int lang) {
     return crypt_send(c, len, sendbuf);
 }
 
+static int send_bb_quest_categories(ship_client_t *c, int lang) {
+    uint8_t *sendbuf = get_sendbuf();
+    bb_quest_list_pkt *pkt = (bb_quest_list_pkt *)sendbuf;
+    int i, len = 0x08, entries = 0;
+    size_t in, out;
+    ICONV_CONST char *inptr;
+    char *outptr;
+    uint32_t type = SYLVERANT_QUEST_NORMAL;
+    sylverant_quest_list_t *qlist = &ship->qlist[CLIENT_VERSION_BB][lang];
+
+    /* Fall back to English if there's no list for this language... */
+    if(!qlist->cat_count) {
+        lang = CLIENT_LANG_ENGLISH;
+        qlist = &ship->qlist[CLIENT_VERSION_BB][lang];
+    }
+
+    /* If we still don't have a list, then bail out... */
+    if(!qlist->cat_count)
+        return -1;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf)
+        return -1;
+
+    if(c->cur_lobby->battle)
+        type = SYLVERANT_QUEST_BATTLE;
+    else if(c->cur_lobby->challenge)
+        type = SYLVERANT_QUEST_CHALLENGE;
+
+    /* Fill in the header */
+    pkt->hdr.pkt_type = LE16(QUEST_LIST_TYPE);
+
+    for(i = 0; i < qlist->cat_count; ++i) {
+        /* Skip quests not of the right type. */
+        if(qlist->cats[i].type != type)
+            continue;
+
+        /* Clear the entry */
+        memset(pkt->entries + i, 0, 0x13C);
+
+        /* Copy the category's information over to the packet */
+        pkt->entries[entries].menu_id = LE32((MENU_ID_QCATEGORY |
+                                              (lang << 24)));
+        pkt->entries[entries].item_id = LE32(i);
+
+        /* Convert the name and the description to UTF-16. */
+        in = 32;
+        out = 64;
+        inptr = qlist->cats[i].name;
+        outptr = (char *)pkt->entries[entries].name;
+        iconv(ic_utf8_to_utf16, &inptr, &in, &outptr, &out);
+
+        in = 112;
+        out = 244;
+        inptr = qlist->cats[i].desc;
+        outptr = (char *)pkt->entries[entries].desc;
+        iconv(ic_utf8_to_utf16, &inptr, &in, &outptr, &out);
+
+        ++entries;
+        len += 0x13C;
+    }
+
+    /* Fill in the rest of the header */
+    pkt->hdr.flags = LE32(entries);
+    pkt->hdr.pkt_len = LE16(len);
+
+    /* Send it away */
+    return crypt_send(c, len, sendbuf);
+}
+
 int send_quest_categories(ship_client_t *c, int lang) {
     if(lang < 0 || lang >= CLIENT_LANG_COUNT) {
         lang = c->language_code;
@@ -4991,6 +5061,9 @@ int send_quest_categories(ship_client_t *c, int lang) {
 
         case CLIENT_VERSION_PC:
             return send_pc_quest_categories(c, lang);
+
+        case CLIENT_VERSION_BB:
+            return send_bb_quest_categories(c, lang);
     }
 
     return -1;
@@ -5015,7 +5088,7 @@ static int send_dc_quest_list(ship_client_t *c, int cn, int lang) {
     if(!sendbuf) {
         return -1;
     }
-    
+
     if(!l->v2) {
         ver = CLIENT_VERSION_DCV1;
         qlist = &ship->qlist[CLIENT_VERSION_DCV1][lang];
@@ -5259,7 +5332,7 @@ static int send_pc_quest_list(ship_client_t *c, int cn, int lang) {
             }
 
             /* Clear the entry */
-            memset(pkt->entries + entries, 0, 0x98);
+            memset(pkt->entries + entries, 0, 0x128);
 
             /* Copy the category's information over to the packet */
             pkt->entries[entries].menu_id = LE32(((MENU_ID_QUEST) | (cn << 8) |
@@ -5469,10 +5542,131 @@ static int send_gc_quest_list(ship_client_t *c, int cn, int lang) {
     return crypt_send(c, len, sendbuf);
 }
 
-int send_quest_list(ship_client_t *c, int cat, int lang) {
-    if(lang >= CLIENT_LANG_COUNT) {
+static int send_bb_quest_list(ship_client_t *c, int cn, int lang) {
+    uint8_t *sendbuf = get_sendbuf();
+    bb_quest_list_pkt *pkt = (bb_quest_list_pkt *)sendbuf;
+    int i, len = 0x08, entries = 0, max = INT_MAX, j, k;
+    size_t in, out;
+    ICONV_CONST char *inptr;
+    char *outptr;
+    sylverant_quest_list_t *qlist, *qlisten;
+    lobby_t *l = c->cur_lobby;
+    sylverant_quest_category_t *cat, *caten;
+    sylverant_quest_t *quest;
+    quest_map_elem_t *elem;
+    ship_client_t *tmp;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf)
         return -1;
+
+    qlist = &ship->qlist[CLIENT_VERSION_BB][lang];
+    qlisten = &ship->qlist[CLIENT_VERSION_BB][CLIENT_LANG_ENGLISH];
+
+    /* If this quest category isn't in range for this language, try it in
+       English before giving up... */
+    if(qlist->cat_count <= cn) {
+        lang = CLIENT_LANG_ENGLISH;
+        qlist = qlisten;
+
+        /* If we still don't have it, something screwy's going on... */
+        if(qlist->cat_count <= cn)
+            return -1;
     }
+
+    /* Grab the category... This implicitly assumes that the categories are in
+       the same order, regardless of language. At some point, I'll work this out
+       a better way, but for now, this will work. */
+    cat = &qlist->cats[cn];
+    caten = &qlisten->cats[cn];
+
+    /* If this is for challenge mode, figure out our limit. */
+    if(c->cur_lobby->challenge)
+        max = c->cur_lobby->max_chal;
+
+    /* Fill in the header */
+    pkt->hdr.pkt_type = LE16(QUEST_LIST_TYPE);
+
+    for(k = 0; k < 2; ++k) {
+        for(i = 0; i < cat->quest_count && i < max; ++i) {
+            quest = &cat->quests[i];
+            elem = (quest_map_elem_t *)quest->user_data;
+
+            /* Skip quests we should have already covered if we're on the second
+               pass through */
+            if(k && elem->qptr[CLIENT_VERSION_BB][lang])
+                continue;
+
+            /* Skip quests that aren't for the current event */
+            if(!(quest->event & (1 << l->event)))
+                continue;
+
+            /* Skip quests where the number of players isn't in range. */
+            if(quest->max_players < l->num_clients ||
+               quest->min_players > l->num_clients)
+                continue;
+
+            /* Look through to make sure that all clients in the lobby can play
+               the quest */
+            for(j = 0; j < l->max_clients; ++j) {
+                if(!(tmp = l->clients[j]))
+                    continue;
+
+                if(!k && !elem->qptr[tmp->version][tmp->q_lang] &&
+                   !elem->qptr[tmp->version][tmp->language_code] &&
+                   !elem->qptr[tmp->version][CLIENT_LANG_ENGLISH] &&
+                   !elem->qptr[tmp->version][lang])
+                    break;
+            }
+
+            /* Skip quests where we can't play them due to restrictions by
+               users' versions or language codes */
+            if(j != l->max_clients)
+                continue;
+
+            /* Clear the entry */
+            memset(pkt->entries + entries, 0, 0x13C);
+
+            /* Copy the category's information over to the packet */
+            pkt->entries[entries].menu_id = LE32(((MENU_ID_QUEST) | (cn << 8) |
+                                                  (lang << 24)));
+            pkt->entries[entries].item_id = LE32(quest->qid);
+
+            /* Convert the name and the description to UTF-16. */
+            in = 32;
+            out = 64;
+            inptr = quest->name;
+            outptr = (char *)pkt->entries[entries].name;
+            iconv(ic_utf8_to_utf16, &inptr, &in, &outptr, &out);
+
+            in = 112;
+            out = 244;
+            inptr = quest->desc;
+            outptr = (char *)pkt->entries[entries].desc;
+            iconv(ic_utf8_to_utf16, &inptr, &in, &outptr, &out);
+
+            ++entries;
+            len += 0x13C;
+        }
+
+        /* If we already did English, then we're done. */
+        if(cat == caten)
+            break;
+
+        cat = caten;
+    }
+
+    /* Fill in the rest of the header */
+    pkt->hdr.flags = LE32(entries);
+    pkt->hdr.pkt_len = LE16(len);
+
+    /* Send it away */
+    return crypt_send(c, len, sendbuf);
+}
+
+int send_quest_list(ship_client_t *c, int cat, int lang) {
+    if(lang >= CLIENT_LANG_COUNT)
+        return -1;
 
     /* Call the appropriate function. */
     switch(c->version) {
@@ -5486,6 +5680,9 @@ int send_quest_list(ship_client_t *c, int cat, int lang) {
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3: /* XXXX? */
             return send_gc_quest_list(c, cat, lang);
+
+        case CLIENT_VERSION_BB:
+            return send_bb_quest_list(c, cat, lang);
     }
 
     return -1;
@@ -5564,6 +5761,37 @@ static int send_pc_quest_info(ship_client_t *c, sylverant_quest_t *q, int l) {
     return crypt_send(c, PC_QUEST_INFO_LENGTH, sendbuf);
 }
 
+static int send_bb_quest_info(ship_client_t *c, sylverant_quest_t *q, int l) {
+    uint8_t *sendbuf = get_sendbuf();
+    bb_msg_box_pkt *pkt = (bb_msg_box_pkt *)sendbuf;
+    size_t in, out;
+    ICONV_CONST char *inptr;
+    char *outptr;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Clear the packet header */
+    memset(pkt, 0, PC_QUEST_INFO_LENGTH);
+
+    /* Fill in the basics */
+    pkt->hdr.pkt_type = LE16(QUEST_INFO_TYPE);
+    pkt->hdr.flags = 0;
+    pkt->hdr.pkt_len = LE16(BB_QUEST_INFO_LENGTH);
+
+    /* Convert to the right encoding */
+    in = 0x124;
+    inptr = q->long_desc;
+    out = 0x248;
+    outptr = pkt->msg;
+    iconv(ic_utf8_to_utf16, &inptr, &in, &outptr, &out);
+
+    /* Send it away */
+    return crypt_send(c, BB_QUEST_INFO_LENGTH, sendbuf);
+}
+
 int send_quest_info(lobby_t *l, uint32_t qid, int lang) {
     ship_client_t *c;
     int i;
@@ -5625,6 +5853,10 @@ int send_quest_info(lobby_t *l, uint32_t qid, int lang) {
 
                 case CLIENT_VERSION_PC:
                     send_pc_quest_info(c, q, sel_lang);
+                    break;
+
+                case CLIENT_VERSION_BB:
+                    send_bb_quest_info(c, q, sel_lang);
                     break;
             }
         }
@@ -6312,9 +6544,8 @@ static int send_qst_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     sylverant_quest_t *q = qm->qptr[ver][lang];
 
     /* Make sure we got the sendbuf and the quest */
-    if(!sendbuf || !q) {
+    if(!sendbuf || !q)
         return -1;
-    }
 
     /* Figure out what file we're going to send. */
     if(!v1 || (q->versions & SYLVERANT_QUEST_V1)) {
@@ -6398,14 +6629,12 @@ int send_quest(lobby_t *l, uint32_t qid, int lc) {
     int lang, ver;
 
     /* Make sure we get the quest */
-    if(!elem) {
+    if(!elem)
         return -1;
-    }
 
     /* See if we're looking for a v1-compat quest */
-    if(!l->v2 && l->version != CLIENT_VERSION_GC) {
+    if(!l->v2 && l->version < CLIENT_VERSION_GC)
         v1 = 1;
-    }
 
     /* What type of quest file are we sending? */
     for(i = 0; i < l->max_clients; ++i) {
@@ -6436,7 +6665,7 @@ int send_quest(lobby_t *l, uint32_t qid, int lc) {
             if(!q) {
                 q = elem->qptr[ver][lc];
                 lang = lc;
-                
+
                 /* If we still didn't find it, we've got trouble elsewhere... */
                 if(!q) {
                     debug(DBG_WARN, "Couldn't find quest to send!\n"
@@ -7349,7 +7578,7 @@ static int fill_one_choice_entry(uint8_t *sendbuf, int version,
                      it->cur_lobby->name, 0x1C);
             pkt->entries[entry].location[14] = 0;
             pkt->entries[entry].location[15] = 0;
-            len = strlen16(pkt->entries[entry].location);            
+            len = strlen16(pkt->entries[entry].location);
 
             sprintf(tmp, ",BLOCK%02d,%s", b->b, ship->cfg->name);
             istrncpy(ic_utf8_to_utf16,
@@ -7398,7 +7627,7 @@ static int fill_one_choice_entry(uint8_t *sendbuf, int version,
             pkt->entries[entry].port = LE16(b->dc_port + port_off);
             pkt->entries[entry].menu_id = LE32(MENU_ID_LOBBY);
             pkt->entries[entry].item_id = LE32(it->cur_lobby->lobby_id);
-            
+
             return 0xD4;
         }
     }
@@ -7435,7 +7664,7 @@ static int fill_one_choice6_entry(uint8_t *sendbuf, int version,
                      it->cur_lobby->name, 0x1C);
             pkt->entries[entry].location[14] = 0;
             pkt->entries[entry].location[15] = 0;
-            len = strlen16(pkt->entries[entry].location);            
+            len = strlen16(pkt->entries[entry].location);
 
             sprintf(tmp, ",BLOCK%02d,%s", b->b, ship->cfg->name);
             istrncpy(ic_utf8_to_utf16,
@@ -8574,7 +8803,7 @@ static void copy_c_rank_dc(dc_c_rank_update_pkt *pkt, int entry,
             out = 20;
             inptr = (char *)s->pl->pc.c_rank.part.grave_team;
             outptr = pkt->entries[entry].grave_team;
-            
+
             if(s->pl->pc.c_rank.part.grave_team[1] == LE16('J')) {
                 iconv(ic_utf16_to_sjis, &inptr, &in, &outptr, &out);
             }

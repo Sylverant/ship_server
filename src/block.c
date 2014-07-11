@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -153,7 +153,7 @@ static void *block_thd(void *d) {
 
         FD_SET(b->pipes[1], &readfds);
         nfds = nfds > b->pipes[1] ? nfds : b->pipes[1];
-        
+
         /* Wait for some activity... */
         if(select(nfds + 1, &readfds, &writefds, NULL, &timeout) > 0) {
             if(FD_ISSET(b->pipes[1], &readfds)) {
@@ -494,7 +494,7 @@ err_pipes:
     close(rv->pipes[0]);
     close(rv->pipes[1]);
 err_free:
-    free(rv);    
+    free(rv);
 err_close_all:
 #ifdef SYLVERANT_ENABLE_IPV6
     if(enable_ipv6) {
@@ -560,7 +560,7 @@ void block_server_stop(block_t *b) {
     it = TAILQ_FIRST(b->clients);
     while(it) {
         tmp = TAILQ_NEXT(it, qentry);
-        client_destroy_connection(it, b->clients);        
+        client_destroy_connection(it, b->clients);
         it = tmp;
     }
 
@@ -2139,7 +2139,7 @@ static int process_gm_menu(ship_client_t *c, uint32_t menu_id,
                 update_lobby_event();
                 return send_message1(c, "%s", __(c, "\tE\tC7Event set."));
             }
-            
+
             break;
     }
 
@@ -2220,7 +2220,7 @@ static int process_menu(ship_client_t *c, uint32_t menu_id, uint32_t item_id,
                 case CLIENT_VERSION_DCV2:
                     port = ship->blocks[item_id - 1]->dc_port;
                     break;
-                    
+
                 case CLIENT_VERSION_PC:
                     port = ship->blocks[item_id - 1]->pc_port;
                     break;
@@ -2573,7 +2573,7 @@ static int dc_process_arrow(ship_client_t *c, uint8_t flag) {
 static int process_trade(ship_client_t *c, gc_trade_pkt *pkt) {
     lobby_t *l = c->cur_lobby;
     ship_client_t *dest;
-    
+
     /* Find the destination. */
     dest = l->clients[pkt->who];
 
@@ -2936,10 +2936,10 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
         case QUEST_LIST_TYPE:
             pthread_rwlock_rdlock(&ship->qlock);
             pthread_mutex_lock(&c->cur_lobby->mutex);
-            c->cur_lobby->flags |= LOBBY_FLAG_QUESTSEL;
 
             /* Do we have quests configured? */
             if(!TAILQ_EMPTY(&ship->qmap)) {
+                c->cur_lobby->flags |= LOBBY_FLAG_QUESTSEL;
                 rv = send_quest_categories(c, c->q_lang);
             }
             else {
@@ -3060,6 +3060,7 @@ static int bb_process_pkt(ship_client_t *c, uint8_t *pkt) {
     uint16_t type = LE16(hdr->pkt_type);
     uint16_t len = LE16(hdr->pkt_len);
     uint32_t flags = LE32(hdr->flags);
+    int rv;
 
     switch(type) {
         case PING_TYPE:
@@ -3174,7 +3175,44 @@ static int bb_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return bb_process_game_create(c, (bb_game_create_pkt *)pkt);
 
         case LOBBY_NAME_TYPE:
-            return send_lobby_name(c, c->cur_lobby);            
+            return send_lobby_name(c, c->cur_lobby);
+
+        case QUEST_LIST_TYPE:
+            pthread_rwlock_rdlock(&ship->qlock);
+            pthread_mutex_lock(&c->cur_lobby->mutex);
+
+            /* Do we have quests configured? */
+            if(!TAILQ_EMPTY(&ship->qmap)) {
+                c->cur_lobby->flags |= LOBBY_FLAG_QUESTSEL;
+                rv = send_quest_categories(c, c->q_lang);
+            }
+            else {
+                rv = send_message1(c, "%s", __(c, "\tE\tC4Quests not\n"
+                                               "configured."));
+            }
+
+            pthread_mutex_unlock(&c->cur_lobby->mutex);
+            pthread_rwlock_unlock(&ship->qlock);
+            return rv;
+
+        case QUEST_END_LIST_TYPE:
+            pthread_mutex_lock(&c->cur_lobby->mutex);
+            c->cur_lobby->flags &= ~LOBBY_FLAG_QUESTSEL;
+            pthread_mutex_unlock(&c->cur_lobby->mutex);
+            return 0;
+
+        case QUEST_CHUNK_TYPE:
+        case QUEST_FILE_TYPE:
+            /* Uhh... Ignore these for now, we've already sent it by the time we
+               get this packet from the client. */
+            return 0;
+
+        case QUEST_LOAD_DONE_TYPE:
+            /* XXXX: This isn't right... we need to synchronize this. */
+            return send_simple(c, QUEST_LOAD_DONE_TYPE, 0);
+
+        case DONE_BURSTING_TYPE | 0x0100:
+            return 0;
 
         default:
             debug(DBG_LOG, "Unknown packet!\n");
