@@ -60,7 +60,7 @@ static const int tool_base[28] = {
    that is in Tethealla. This is probably in some data file somewhere, and we
    should probably read it from that data file, but this will work for now. */
 static const sylverant_weapon_attr_t attr_list[4][12] = {
-    {   
+    {
         Weapon_Attr_Draw, Weapon_Attr_Heart, Weapon_Attr_Ice,
         Weapon_Attr_Bind, Weapon_Attr_Heat, Weapon_Attr_Shock,
         Weapon_Attr_Dim, Weapon_Attr_Panic, Weapon_Attr_None,
@@ -181,14 +181,14 @@ int pt_read_v2(const char *fn) {
 
             for(k = 0; k < 100; ++k) {
                 for(l = 0; l < 2; ++l) {
-                    v2_ptdata[i][j].enemy_meseta[k][l] = 
+                    v2_ptdata[i][j].enemy_meseta[k][l] =
                         LE16(v2_ptdata[i][j].enemy_meseta[k][l]);
                 }
             }
 
             for(k = 0; k < 10; ++k) {
                 for(l = 0; l < 2; ++l) {
-                    v2_ptdata[i][j].box_meseta[k][l] = 
+                    v2_ptdata[i][j].box_meseta[k][l] =
                         LE16(v2_ptdata[i][j].box_meseta[k][l]);
                 }
             }
@@ -299,14 +299,14 @@ int pt_read_v3(const char *fn, int bb) {
 
                     for(l = 0; l < 100; ++l) {
                         for(m = 0; m < 2; ++m) {
-                            bb_ptdata[i][j][k].enemy_meseta[l][m] = 
+                            bb_ptdata[i][j][k].enemy_meseta[l][m] =
                                 ntohs(bb_ptdata[i][j][k].enemy_meseta[l][m]);
                         }
                     }
 
                     for(l = 0; l < 10; ++l) {
                         for(m = 0; m < 2; ++m) {
-                            bb_ptdata[i][j][k].box_meseta[l][m] = 
+                            bb_ptdata[i][j][k].box_meseta[l][m] =
                                 ntohs(bb_ptdata[i][j][k].box_meseta[l][m]);
                         }
                     }
@@ -347,14 +347,14 @@ int pt_read_v3(const char *fn, int bb) {
 
                     for(l = 0; l < 100; ++l) {
                         for(m = 0; m < 2; ++m) {
-                            gc_ptdata[i][j][k].enemy_meseta[l][m] = 
+                            gc_ptdata[i][j][k].enemy_meseta[l][m] =
                                 ntohs(gc_ptdata[i][j][k].enemy_meseta[l][m]);
                         }
                     }
 
                     for(l = 0; l < 10; ++l) {
                         for(m = 0; m < 2; ++m) {
-                            gc_ptdata[i][j][k].box_meseta[l][m] = 
+                            gc_ptdata[i][j][k].box_meseta[l][m] =
                                 ntohs(gc_ptdata[i][j][k].box_meseta[l][m]);
                         }
                     }
@@ -808,7 +808,7 @@ already_picked:
     return 0;
 }
 
-/* 
+/*
    Generate a random armor, based on data for PSOv2. Luckily, this is a lot
    simpler than the case for weapons, so it needs a lot less explanation.
 
@@ -1319,7 +1319,7 @@ static int check_and_send_bb(ship_client_t *c, lobby_t *l, uint32_t item[4],
                as one (according to Sega's rules), so don't drop it. */
             return 0;
     }
-    
+
     pthread_mutex_lock(&l->mutex);
     it = lobby_add_item_locked(l, item);
     rv = subcmd_send_bb_lobby_item(l, req, it);
@@ -1624,7 +1624,7 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
                 item[1] = (1 << 8);
 
             /* This will make the meseta boxes for Vol Opt work... */
-            if(item[0] == 0x00000004) { 
+            if(item[0] == 0x00000004) {
                 t1 = LE32(obj->dword[3]) >> 16;
                 item[3] = t1 * 10;
             }
@@ -1949,7 +1949,7 @@ int pt_generate_gc_drop(ship_client_t *c, lobby_t *l, void *r) {
 
         return check_and_send(c, l, item, c->cur_area, req);
     }
-    
+
     /* Figure out what type to drop... */
     rnd = mt19937_genrand_int32(rng) % 3;
     switch(rnd) {
@@ -2080,7 +2080,7 @@ int pt_generate_gc_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
                 area = 10;
             /* Invalid areas... */
             else if(area == 0) {
-                debug(DBG_WARN, "Guildcard %u requested enemy drop on Pioneer "
+                debug(DBG_WARN, "Guildcard %u requested box drop on Pioneer "
                       "2\n", c->guildcard);
                 return -1;
             }
@@ -2104,7 +2104,7 @@ int pt_generate_gc_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
             else if(area > 10)
                 area = 10;
             else if(area == 0) {
-                debug(DBG_WARN, "Guildcard %u requested enemy drop on Pioneer "
+                debug(DBG_WARN, "Guildcard %u requested box drop on Pioneer "
                       "2\n", c->guildcard);
                 return -1;
             }
@@ -2137,7 +2137,7 @@ int pt_generate_gc_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
                 item[1] = (1 << 8);
 
             /* This will make the meseta boxes for Vol Opt work... */
-            if(item[0] == 0x00000004) { 
+            if(item[0] == 0x00000004) {
                 t1 = LE32(obj->dword[3]) >> 16;
                 item[3] = t1 * 10;
             }
@@ -2456,7 +2456,7 @@ int pt_generate_bb_drop(ship_client_t *c, lobby_t *l, void *r) {
 
         return check_and_send_bb(c, l, item, c->cur_area, req);
     }
-    
+
     /* Figure out what type to drop... */
     rnd = mt19937_genrand_int32(rng) % 3;
     switch(rnd) {
@@ -2593,7 +2593,7 @@ int pt_generate_bb_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
                 area = 10;
             /* Invalid areas... */
             else if(area == 0) {
-                debug(DBG_WARN, "Guildcard %u requested enemy drop on Pioneer "
+                debug(DBG_WARN, "Guildcard %u requested box drop on Pioneer "
                       "2\n", c->guildcard);
                 return -1;
             }
@@ -2617,7 +2617,7 @@ int pt_generate_bb_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
             else if(area > 10)
                 area = 10;
             else if(area == 0) {
-                debug(DBG_WARN, "Guildcard %u requested enemy drop on Pioneer "
+                debug(DBG_WARN, "Guildcard %u requested box drop on Pioneer "
                       "2\n", c->guildcard);
                 return -1;
             }
@@ -2650,7 +2650,7 @@ int pt_generate_bb_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
                 item[1] = (1 << 8);
 
             /* This will make the meseta boxes for Vol Opt work... */
-            if(item[0] == 0x00000004) { 
+            if(item[0] == 0x00000004) {
                 t1 = LE32(obj->dword[3]) >> 16;
                 item[3] = t1 * 10;
             }
