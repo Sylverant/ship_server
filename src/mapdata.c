@@ -2011,7 +2011,7 @@ int load_quest_enemies(lobby_t *l, uint32_t qid, int ver) {
        through each language of the quest we're loading for one that has the
        monster list set. Thus, you don't have to provide one for each and every
        language -- only one per version (other than PC) will do. */
-    for(i = 0; i < CLIENT_LANG_COUNT; ++i) {
+    for(i = 0; i < CLIENT_LANG_COUNT; ++i, q = el->qptr[ver][i]) {
         if(!(q = el->qptr[ver][i]))
             continue;
 
