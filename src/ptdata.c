@@ -1240,7 +1240,7 @@ static int generate_meseta(int min, int max, uint32_t item[4],
 }
 
 static int check_and_send(ship_client_t *c, lobby_t *l, uint32_t item[4],
-                          int area, subcmd_itemreq_t *req) {
+                          int area, subcmd_itemreq_t *req, int csr) {
     uint32_t v;
     sylverant_iitem_t iitem;
     int section;
@@ -1285,7 +1285,7 @@ static int check_and_send(ship_client_t *c, lobby_t *l, uint32_t item[4],
     }
 
     /* See it is cool to drop "semi-rare" items. */
-    if(l->qid && !(ship->cfg->local_flags & SYLVERANT_SHIP_QUEST_SRARES)) {
+    if(csr) {
         switch(l->version) {
             case CLIENT_VERSION_DCV1:
             case CLIENT_VERSION_DCV2:
@@ -1308,12 +1308,12 @@ ok:
 }
 
 static int check_and_send_bb(ship_client_t *c, lobby_t *l, uint32_t item[4],
-                             int area, subcmd_bb_itemreq_t *req) {
+                             int area, subcmd_bb_itemreq_t *req, int csr) {
     int rv;
     item_t *it;
 
     /* See it is cool to drop "semi-rare" items. */
-    if(l->qid && !(ship->cfg->local_flags & SYLVERANT_SHIP_QUEST_SRARES)) {
+    if(csr) {
         if(pmt_lookup_stars_bb(item[0]) >= 9)
             /* We aren't supposed to drop rares, and this item qualifies
                as one (according to Sega's rules), so don't drop it. */
@@ -1328,6 +1328,17 @@ static int check_and_send_bb(ship_client_t *c, lobby_t *l, uint32_t item[4],
     return rv;
 }
 
+static uint32_t search_enemy_list(uint32_t id, qenemy_t *list, int len) {
+    int i;
+
+    for(i = 0; i < len; ++i) {
+        if(list[i].key == id)
+            return list[i].value;
+    }
+
+    return 0xFFFFFFFF;
+}
+
 /* Generate an item drop from the PT data. This version uses the v2 PT data set,
    and thus is appropriate for any version before PSOGC. */
 int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
@@ -1340,6 +1351,8 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
     struct mt19937_state *rng = &c->cur_block->rng;
     uint16_t mid;
     game_enemy_t *enemy;
+    int csr = 0;
+    uint32_t qdrop = 0xFFFFFFFF;
 
     /* Make sure the PT index in the packet is sane */
     if(req->pt_index > 0x33)
@@ -1401,8 +1414,38 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
         return 0;
 
     /* See if we'll do a rare roll. */
-    if(l->qid && !(ship->cfg->local_flags & SYLVERANT_SHIP_QUEST_RARES))
-        do_rare = 0;
+    if(l->qid) {
+        if(l->mids)
+            qdrop = search_enemy_list(mid, l->mids, l->num_mids);
+        if(qdrop == 0xFFFFFFFF && l->mtypes)
+            qdrop = search_enemy_list(req->pt_index, l->mtypes, l->num_mtypes);
+
+        switch(qdrop) {
+            case SYLVERANT_QUEST_ENDROP_NONE:
+                return 0;
+
+            case SYLVERANT_QUEST_ENDROP_NORARE:
+                do_rare = 0;
+                csr = 1;
+                break;
+
+            case SYLVERANT_QUEST_ENDROP_PARTIAL:
+                do_rare = 0;
+                csr = 0;
+                break;
+
+            case SYLVERANT_QUEST_ENDROP_FREE:
+                do_rare = 1;
+                csr = 0;
+                break;
+
+            default:
+                if(!(ship->cfg->local_flags & SYLVERANT_SHIP_QUEST_RARES))
+                    do_rare = 0;
+                if(!(ship->cfg->local_flags & SYLVERANT_SHIP_QUEST_SRARES))
+                    csr = 1;
+        }
+    }
 
     /* See if the user is lucky today... */
     if(do_rare && (item[0] = rt_generate_v2_rare(c, l, req->pt_index, 0))) {
@@ -1463,7 +1506,7 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
                 return 0;
         }
 
-        return check_and_send(c, l, item, c->cur_area, req);
+        return check_and_send(c, l, item, c->cur_area, req, csr);
     }
 
     /* Figure out what type to drop... */
@@ -1479,7 +1522,7 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
                         return 0;
                     }
 
-                    return check_and_send(c, l, item, c->cur_area, req);
+                    return check_and_send(c, l, item, c->cur_area, req, csr);
 
                 case BOX_TYPE_ARMOR:
                     /* Drop an armor */
@@ -1487,7 +1530,7 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
                         return 0;
                     }
 
-                    return check_and_send(c, l, item, c->cur_area, req);
+                    return check_and_send(c, l, item, c->cur_area, req, csr);
 
                 case BOX_TYPE_SHIELD:
                     /* Drop a shield */
@@ -1495,7 +1538,7 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
                         return 0;
                     }
 
-                    return check_and_send(c, l, item, c->cur_area, req);
+                    return check_and_send(c, l, item, c->cur_area, req, csr);
 
                 case BOX_TYPE_UNIT:
                     /* Drop a unit */
@@ -1503,7 +1546,7 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
                         return 0;
                     }
 
-                    return check_and_send(c, l, item, c->cur_area, req);
+                    return check_and_send(c, l, item, c->cur_area, req, csr);
 
                 case -1:
                     /* This shouldn't happen, but if it does, don't drop
@@ -1525,7 +1568,7 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
                 return 0;
             }
 
-            return check_and_send(c, l, item, c->cur_area, req);
+            return check_and_send(c, l, item, c->cur_area, req, csr);
 
         case 2:
             /* Drop meseta */
@@ -1535,7 +1578,7 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
                 return 0;
             }
 
-            return check_and_send(c, l, item, c->cur_area, req);
+            return check_and_send(c, l, item, c->cur_area, req, csr);
     }
 
     /* Shouldn't ever get here... */
@@ -1554,6 +1597,8 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
     uint32_t item[4];
     float f1, f2;
     struct mt19937_state *rng = &c->cur_block->rng;
+    int csr = 0;
+    uint32_t qdrop = 0xFFFFFFFF;
 
     /* Make sure this is actually a box drop... */
     if(req->pt_index != 0x30)
@@ -1605,6 +1650,38 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
     /* Mark the box as spent now... */
     gobj->flags |= 0x00000001;
 
+    /* See if we'll do a rare roll. */
+    if(l->qid) {
+        if(l->mtypes)
+            qdrop = search_enemy_list(0x30, l->mtypes, l->num_mtypes);
+
+        switch(qdrop) {
+            case SYLVERANT_QUEST_ENDROP_NONE:
+                return 0;
+
+            case SYLVERANT_QUEST_ENDROP_NORARE:
+                do_rare = 0;
+                csr = 1;
+                break;
+
+            case SYLVERANT_QUEST_ENDROP_PARTIAL:
+                do_rare = 0;
+                csr = 0;
+                break;
+
+            case SYLVERANT_QUEST_ENDROP_FREE:
+                do_rare = 1;
+                csr = 0;
+                break;
+
+            default:
+                if(!(ship->cfg->local_flags & SYLVERANT_SHIP_QUEST_RARES))
+                    do_rare = 0;
+                if(!(ship->cfg->local_flags & SYLVERANT_SHIP_QUEST_SRARES))
+                    csr = 1;
+        }
+    }
+
     /* See if the object is fixed-type box */
     t1 = LE32(obj->dword[0]);
     f1 = *((float *)&t1);
@@ -1629,7 +1706,7 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
                 item[3] = t1 * 10;
             }
 
-            return check_and_send(c, l, item, c->cur_area, req);
+            return check_and_send(c, l, item, c->cur_area, req, csr);
         }
 
         t1 = ntohl(obj->dword[2]);
@@ -1651,10 +1728,6 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
                 return 0;
         }
     }
-
-    /* See if we'll do a rare roll. */
-    if(l->qid && !(ship->cfg->local_flags & SYLVERANT_SHIP_QUEST_RARES))
-        do_rare = 0;
 
     /* See if the user is lucky today... */
     if(do_rare && (item[0] = rt_generate_v2_rare(c, l, -1, area + 1))) {
@@ -1716,7 +1789,7 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
                 return 0;
         }
 
-        return check_and_send(c, l, item, c->cur_area, req);
+        return check_and_send(c, l, item, c->cur_area, req, csr);
     }
 
     /* Generate an item, according to the PT data */
@@ -1729,7 +1802,7 @@ generate_weapon:
                               l->version == CLIENT_VERSION_DCV1))
             return 0;
 
-        return check_and_send(c, l, item, c->cur_area, req);
+        return check_and_send(c, l, item, c->cur_area, req, csr);
     }
     else if((rnd -= ent->box_drop[BOX_TYPE_ARMOR][area]) > 100) {
 generate_armor:
@@ -1737,21 +1810,21 @@ generate_armor:
         if(generate_armor_v2(ent, area, item, rng, 0))
             return 0;
 
-        return check_and_send(c, l, item, c->cur_area, req);
+        return check_and_send(c, l, item, c->cur_area, req, csr);
     }
     else if((rnd -= ent->box_drop[BOX_TYPE_SHIELD][area]) > 100) {
         /* Generate a shield */
         if(generate_shield_v2(ent, area, item, rng, 0))
             return 0;
 
-        return check_and_send(c, l, item, c->cur_area, req);
+        return check_and_send(c, l, item, c->cur_area, req, csr);
     }
     else if((rnd -= ent->box_drop[BOX_TYPE_UNIT][area]) > 100) {
         /* Generate a unit */
         if(pmt_random_unit_v2(ent->unit_level[area], item, rng))
             return 0;
 
-        return check_and_send(c, l, item, c->cur_area, req);
+        return check_and_send(c, l, item, c->cur_area, req, csr);
     }
     else if((rnd -= ent->box_drop[BOX_TYPE_TOOL][area]) > 100) {
 generate_tool:
@@ -1759,7 +1832,7 @@ generate_tool:
         if(generate_tool_v2(ent, area, item, rng))
             return 0;
 
-        return check_and_send(c, l, item, c->cur_area, req);
+        return check_and_send(c, l, item, c->cur_area, req, csr);
     }
     else if((rnd -= ent->box_drop[BOX_TYPE_MESETA][area]) > 100) {
 generate_meseta:
@@ -1768,7 +1841,7 @@ generate_meseta:
                            item, rng))
             return 0;
 
-        return check_and_send(c, l, item, c->cur_area, req);
+        return check_and_send(c, l, item, c->cur_area, req, csr);
     }
 
     /* You get nothing! */
@@ -1787,6 +1860,7 @@ int pt_generate_gc_drop(ship_client_t *c, lobby_t *l, void *r) {
     struct mt19937_state *rng = &c->cur_block->rng;
     uint16_t mid;
     game_enemy_t *enemy;
+    int csr = 0;
 
     /* Make sure the PT index in the packet is sane */
     //if(req->pt_index > 0x33)
@@ -1886,8 +1960,12 @@ int pt_generate_gc_drop(ship_client_t *c, lobby_t *l, void *r) {
         return 0;
 
     /* See if we'll do a rare roll. */
-    if(l->qid && !(ship->cfg->local_flags & SYLVERANT_SHIP_QUEST_RARES))
-        do_rare = 0;
+    if(l->qid) {
+        if(!(ship->cfg->local_flags & SYLVERANT_SHIP_QUEST_RARES))
+            do_rare = 0;
+        if(!(ship->cfg->local_flags & SYLVERANT_SHIP_QUEST_SRARES))
+            csr = 1;
+    }
 
     /* See if the user is lucky today... */
     if(do_rare && (item[0] = rt_generate_gc_rare(c, l, req->pt_index, 0))) {
@@ -1947,7 +2025,7 @@ int pt_generate_gc_drop(ship_client_t *c, lobby_t *l, void *r) {
                 return 0;
         }
 
-        return check_and_send(c, l, item, c->cur_area, req);
+        return check_and_send(c, l, item, c->cur_area, req, csr);
     }
 
     /* Figure out what type to drop... */
@@ -1962,7 +2040,7 @@ int pt_generate_gc_drop(ship_client_t *c, lobby_t *l, void *r) {
                         return 0;
                     }
 
-                    return check_and_send(c, l, item, c->cur_area, req);
+                    return check_and_send(c, l, item, c->cur_area, req, csr);
 
                 case BOX_TYPE_ARMOR:
                     /* Drop an armor */
@@ -1970,7 +2048,7 @@ int pt_generate_gc_drop(ship_client_t *c, lobby_t *l, void *r) {
                         return 0;
                     }
 
-                    return check_and_send(c, l, item, c->cur_area, req);
+                    return check_and_send(c, l, item, c->cur_area, req, csr);
 
                 case BOX_TYPE_SHIELD:
                     /* Drop a shield */
@@ -1978,7 +2056,7 @@ int pt_generate_gc_drop(ship_client_t *c, lobby_t *l, void *r) {
                         return 0;
                     }
 
-                    return check_and_send(c, l, item, c->cur_area, req);
+                    return check_and_send(c, l, item, c->cur_area, req, csr);
 
                 case BOX_TYPE_UNIT:
                     /* Drop a unit */
@@ -1986,7 +2064,7 @@ int pt_generate_gc_drop(ship_client_t *c, lobby_t *l, void *r) {
                         return 0;
                     }
 
-                    return check_and_send(c, l, item, c->cur_area, req);
+                    return check_and_send(c, l, item, c->cur_area, req, csr);
 
                 case -1:
                     /* This shouldn't happen, but if it does, don't drop
@@ -2008,7 +2086,7 @@ int pt_generate_gc_drop(ship_client_t *c, lobby_t *l, void *r) {
                 return 0;
             }
 
-            return check_and_send(c, l, item, c->cur_area, req);
+            return check_and_send(c, l, item, c->cur_area, req, csr);
 
         case 2:
             /* Drop meseta */
@@ -2018,7 +2096,7 @@ int pt_generate_gc_drop(ship_client_t *c, lobby_t *l, void *r) {
                 return 0;
             }
 
-            return check_and_send(c, l, item, c->cur_area, req);
+            return check_and_send(c, l, item, c->cur_area, req, csr);
     }
 
     /* Shouldn't ever get here... */
@@ -2037,6 +2115,7 @@ int pt_generate_gc_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
     uint32_t item[4];
     float f1, f2;
     struct mt19937_state *rng = &c->cur_block->rng;
+    int csr = 0;
 
     /* Make sure this is actually a box drop... */
     if(req->pt_index != 0x30)
@@ -2118,6 +2197,14 @@ int pt_generate_gc_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
     /* Mark the box as spent now... */
     gobj->flags |= 0x00000001;
 
+    /* See if we'll do a rare roll. */
+    if(l->qid) {
+        if(!(ship->cfg->local_flags & SYLVERANT_SHIP_QUEST_RARES))
+            do_rare = 0;
+        if(!(ship->cfg->local_flags & SYLVERANT_SHIP_QUEST_SRARES))
+            csr = 1;
+    }
+
     /* See if the object is fixed-type box */
     t1 = LE32(obj->dword[0]);
     f1 = *((float *)&t1);
@@ -2143,7 +2230,7 @@ int pt_generate_gc_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
             }
 
             return check_and_send(c, l, item, c->cur_area,
-                                  (subcmd_itemreq_t *)req);
+                                  (subcmd_itemreq_t *)req, csr);
         }
 
         t1 = ntohl(obj->dword[2]);
@@ -2165,10 +2252,6 @@ int pt_generate_gc_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
                 return 0;
         }
     }
-
-    /* See if we'll do a rare roll. */
-    if(l->qid && !(ship->cfg->local_flags & SYLVERANT_SHIP_QUEST_RARES))
-        do_rare = 0;
 
     /* See if the user is lucky today... */
     if(do_rare && (item[0] = rt_generate_gc_rare(c, l, -1, area + 1))) {
@@ -2229,7 +2312,8 @@ int pt_generate_gc_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
                 return 0;
         }
 
-        return check_and_send(c, l, item, c->cur_area, (subcmd_itemreq_t *)req);
+        return check_and_send(c, l, item, c->cur_area, (subcmd_itemreq_t *)req,
+                              csr);
     }
 
     /* Generate an item, according to the PT data */
@@ -2241,7 +2325,8 @@ generate_weapon:
         if(generate_weapon_v3(ent, area, item, rng, 0, 0))
             return 0;
 
-        return check_and_send(c, l, item, c->cur_area, (subcmd_itemreq_t *)req);
+        return check_and_send(c, l, item, c->cur_area, (subcmd_itemreq_t *)req,
+                              csr);
     }
     else if((rnd -= ent->box_drop[BOX_TYPE_ARMOR][area]) > 100) {
 generate_armor:
@@ -2249,21 +2334,24 @@ generate_armor:
         if(generate_armor_v3(ent, area, item, rng, 0, 0))
             return 0;
 
-        return check_and_send(c, l, item, c->cur_area, (subcmd_itemreq_t *)req);
+        return check_and_send(c, l, item, c->cur_area, (subcmd_itemreq_t *)req,
+                              csr);
     }
     else if((rnd -= ent->box_drop[BOX_TYPE_SHIELD][area]) > 100) {
         /* Generate a shield */
         if(generate_shield_v3(ent, area, item, rng, 0, 0))
             return 0;
 
-        return check_and_send(c, l, item, c->cur_area, (subcmd_itemreq_t *)req);
+        return check_and_send(c, l, item, c->cur_area, (subcmd_itemreq_t *)req,
+                              csr);
     }
     else if((rnd -= ent->box_drop[BOX_TYPE_UNIT][area]) > 100) {
         /* Generate a unit */
         if(pmt_random_unit_gc(ent->unit_level[area], item, rng))
             return 0;
 
-        return check_and_send(c, l, item, c->cur_area, (subcmd_itemreq_t *)req);
+        return check_and_send(c, l, item, c->cur_area, (subcmd_itemreq_t *)req,
+                              csr);
     }
     else if((rnd -= ent->box_drop[BOX_TYPE_TOOL][area]) > 100) {
 generate_tool:
@@ -2271,7 +2359,8 @@ generate_tool:
         if(generate_tool_v3(ent, area, item, rng))
             return 0;
 
-        return check_and_send(c, l, item, c->cur_area, (subcmd_itemreq_t *)req);
+        return check_and_send(c, l, item, c->cur_area, (subcmd_itemreq_t *)req,
+                              csr);
     }
     else if((rnd -= ent->box_drop[BOX_TYPE_MESETA][area]) > 100) {
 generate_meseta:
@@ -2280,7 +2369,8 @@ generate_meseta:
                            item, rng))
             return 0;
 
-        return check_and_send(c, l, item, c->cur_area, (subcmd_itemreq_t *)req);
+        return check_and_send(c, l, item, c->cur_area, (subcmd_itemreq_t *)req,
+                              csr);
     }
 
     /* You get nothing! */
@@ -2297,6 +2387,7 @@ int pt_generate_bb_drop(ship_client_t *c, lobby_t *l, void *r) {
     struct mt19937_state *rng = &c->cur_block->rng;
     uint16_t mid;
     game_enemy_t *enemy;
+    int csr = 0;
 
     /* XXXX: Handle Episode 4 */
     if(l->episode == 3)
@@ -2393,8 +2484,12 @@ int pt_generate_bb_drop(ship_client_t *c, lobby_t *l, void *r) {
         return 0;
 
     /* See if we'll do a rare roll. */
-    if(l->qid && !(ship->cfg->local_flags & SYLVERANT_SHIP_QUEST_RARES))
-        do_rare = 0;
+    if(l->qid) {
+        if(!(ship->cfg->local_flags & SYLVERANT_SHIP_QUEST_RARES))
+            do_rare = 0;
+        if(!(ship->cfg->local_flags & SYLVERANT_SHIP_QUEST_SRARES))
+            csr = 1;
+    }
 
     /* See if the user is lucky today... */
     if(do_rare && (item[0] = rt_generate_gc_rare(c, l, req->pt_index, 0))) {
@@ -2454,7 +2549,7 @@ int pt_generate_bb_drop(ship_client_t *c, lobby_t *l, void *r) {
                 return 0;
         }
 
-        return check_and_send_bb(c, l, item, c->cur_area, req);
+        return check_and_send_bb(c, l, item, c->cur_area, req, csr);
     }
 
     /* Figure out what type to drop... */
@@ -2469,7 +2564,7 @@ int pt_generate_bb_drop(ship_client_t *c, lobby_t *l, void *r) {
                         return 0;
                     }
 
-                    return check_and_send_bb(c, l, item, c->cur_area, req);
+                    return check_and_send_bb(c, l, item, c->cur_area, req, csr);
 
                 case BOX_TYPE_ARMOR:
                     /* Drop an armor */
@@ -2477,7 +2572,7 @@ int pt_generate_bb_drop(ship_client_t *c, lobby_t *l, void *r) {
                         return 0;
                     }
 
-                    return check_and_send_bb(c, l, item, c->cur_area, req);
+                    return check_and_send_bb(c, l, item, c->cur_area, req, csr);
 
                 case BOX_TYPE_SHIELD:
                     /* Drop a shield */
@@ -2485,7 +2580,7 @@ int pt_generate_bb_drop(ship_client_t *c, lobby_t *l, void *r) {
                         return 0;
                     }
 
-                    return check_and_send_bb(c, l, item, c->cur_area, req);
+                    return check_and_send_bb(c, l, item, c->cur_area, req, csr);
 
                 case BOX_TYPE_UNIT:
                     /* Drop a unit */
@@ -2493,7 +2588,7 @@ int pt_generate_bb_drop(ship_client_t *c, lobby_t *l, void *r) {
                         return 0;
                     }
 
-                    return check_and_send_bb(c, l, item, c->cur_area, req);
+                    return check_and_send_bb(c, l, item, c->cur_area, req, csr);
 
                 case -1:
                     /* This shouldn't happen, but if it does, don't drop
@@ -2515,7 +2610,7 @@ int pt_generate_bb_drop(ship_client_t *c, lobby_t *l, void *r) {
                 return 0;
             }
 
-            return check_and_send_bb(c, l, item, c->cur_area, req);
+            return check_and_send_bb(c, l, item, c->cur_area, req, csr);
 
         case 2:
             /* Drop meseta */
@@ -2525,7 +2620,7 @@ int pt_generate_bb_drop(ship_client_t *c, lobby_t *l, void *r) {
                 return 0;
             }
 
-            return check_and_send_bb(c, l, item, c->cur_area, req);
+            return check_and_send_bb(c, l, item, c->cur_area, req, csr);
     }
 
     /* Shouldn't ever get here... */
@@ -2544,6 +2639,7 @@ int pt_generate_bb_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
     uint32_t item[4];
     float f1, f2;
     struct mt19937_state *rng = &c->cur_block->rng;
+    int csr = 0;
 
     /* XXXX: Handle Episode 4 */
     if(l->episode == 3)
@@ -2631,6 +2727,14 @@ int pt_generate_bb_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
     /* Mark the box as spent now... */
     gobj->flags |= 0x00000001;
 
+    /* See if we'll do a rare roll. */
+    if(l->qid) {
+        if(!(ship->cfg->local_flags & SYLVERANT_SHIP_QUEST_RARES))
+            do_rare = 0;
+        if(!(ship->cfg->local_flags & SYLVERANT_SHIP_QUEST_SRARES))
+            csr = 1;
+    }
+
     /* See if the object is fixed-type box */
     t1 = LE32(obj->dword[0]);
     f1 = *((float *)&t1);
@@ -2656,7 +2760,7 @@ int pt_generate_bb_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
             }
 
             return check_and_send_bb(c, l, item, c->cur_area,
-                                     (subcmd_bb_itemreq_t *)req);
+                                     (subcmd_bb_itemreq_t *)req, csr);
         }
 
         t1 = ntohl(obj->dword[2]);
@@ -2678,10 +2782,6 @@ int pt_generate_bb_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
                 return 0;
         }
     }
-
-    /* See if we'll do a rare roll. */
-    if(l->qid && !(ship->cfg->local_flags & SYLVERANT_SHIP_QUEST_RARES))
-        do_rare = 0;
 
     /* See if the user is lucky today... */
     if(do_rare && (item[0] = rt_generate_gc_rare(c, l, -1, area + 1))) {
@@ -2743,7 +2843,7 @@ int pt_generate_bb_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
         }
 
         return check_and_send_bb(c, l, item, c->cur_area,
-                                 (subcmd_bb_itemreq_t *)req);
+                                 (subcmd_bb_itemreq_t *)req, csr);
     }
 
     /* Generate an item, according to the PT data */
@@ -2756,7 +2856,7 @@ generate_weapon:
             return 0;
 
         return check_and_send_bb(c, l, item, c->cur_area,
-                                 (subcmd_bb_itemreq_t *)req);
+                                 (subcmd_bb_itemreq_t *)req, csr);
     }
     else if((rnd -= ent->box_drop[BOX_TYPE_ARMOR][area]) > 100) {
 generate_armor:
@@ -2765,7 +2865,7 @@ generate_armor:
             return 0;
 
         return check_and_send_bb(c, l, item, c->cur_area,
-                                 (subcmd_bb_itemreq_t *)req);
+                                 (subcmd_bb_itemreq_t *)req, csr);
     }
     else if((rnd -= ent->box_drop[BOX_TYPE_SHIELD][area]) > 100) {
         /* Generate a shield */
@@ -2773,7 +2873,7 @@ generate_armor:
             return 0;
 
         return check_and_send_bb(c, l, item, c->cur_area,
-                                 (subcmd_bb_itemreq_t *)req);
+                                 (subcmd_bb_itemreq_t *)req, csr);
     }
     else if((rnd -= ent->box_drop[BOX_TYPE_UNIT][area]) > 100) {
         /* Generate a unit */
@@ -2781,7 +2881,7 @@ generate_armor:
             return 0;
 
         return check_and_send_bb(c, l, item, c->cur_area,
-                                 (subcmd_bb_itemreq_t *)req);
+                                 (subcmd_bb_itemreq_t *)req, csr);
     }
     else if((rnd -= ent->box_drop[BOX_TYPE_TOOL][area]) > 100) {
 generate_tool:
@@ -2790,7 +2890,7 @@ generate_tool:
             return 0;
 
         return check_and_send_bb(c, l, item, c->cur_area,
-                                 (subcmd_bb_itemreq_t *)req);
+                                 (subcmd_bb_itemreq_t *)req, csr);
     }
     else if((rnd -= ent->box_drop[BOX_TYPE_MESETA][area]) > 100) {
 generate_meseta:
@@ -2800,7 +2900,7 @@ generate_meseta:
             return 0;
 
         return check_and_send_bb(c, l, item, c->cur_area,
-                                 (subcmd_bb_itemreq_t *)req);
+                                 (subcmd_bb_itemreq_t *)req, csr);
     }
 
     /* You get nothing! */

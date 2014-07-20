@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2012, 2013 Lawrence Sebald
+    Copyright (C) 2012, 2013, 2014 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -1465,7 +1465,7 @@ int bb_load_game_enemies(lobby_t *l) {
         free(en);
         return -4;
     }
-    
+
     if(!(ob->objs = (game_object_t *)malloc(sizeof(game_object_t) * objects))) {
         debug(DBG_ERROR, "Error allocating objects: %s\n", strerror(errno));
         free(ob);
@@ -1473,7 +1473,7 @@ int bb_load_game_enemies(lobby_t *l) {
         free(en);
         return -5;
     }
-    
+
     en->count = enemies;
     ob->count = objects;
     index = index2 = 0;
@@ -1899,6 +1899,8 @@ int load_quest_enemies(lobby_t *l, uint32_t qid, int ver) {
     char fn[dlen + 40];
     void *tmp;
     uint32_t cnt, i;
+    sylverant_quest_t *q;
+    quest_map_elem_t *el;
 
     /* If we aren't doing server-side drops on this game, don't bother. */
     if(!(l->flags & LOBBY_FLAG_SERVER_DROPS))
@@ -1998,10 +2000,56 @@ int load_quest_enemies(lobby_t *l, uint32_t qid, int ver) {
         }
     }
 
+    /* Find the quest since we need to check the enemies later for drops... */
+    if(!(el = quest_lookup(&ship->qmap, qid))) {
+        debug(DBG_WARN, "Cannot look up quest?!\n");
+        fclose(fp);
+        return -8;
+    }
+
+    /* Try to find a monster list associated with the quest. Basically, we look
+       through each language of the quest we're loading for one that has the
+       monster list set. Thus, you don't have to provide one for each and every
+       language -- only one per version (other than PC) will do. */
+    for(i = 0; i < CLIENT_LANG_COUNT; ++i) {
+        if(!(q = el->qptr[ver][i]))
+            continue;
+
+        if(q->num_monster_ids || q->num_monster_types)
+            break;
+    }
+
+    /* If we never found a monster list, then we don't care about it at all. */
+    if(!q || (!q->num_monster_ids && !q->num_monster_types))
+        goto done;
+
+    /* Make a copy of the monster data from the quest. */
+    l->num_mtypes = q->num_monster_types;
+    if(!(l->mtypes = (qenemy_t *)malloc(sizeof(qenemy_t) * l->num_mtypes))) {
+        debug(DBG_WARN, "Cannot allocate monster types: %s\n", strerror(errno));
+        fclose(fp);
+        l->num_mtypes = 0;
+        return -9;
+    }
+
+    l->num_mids = q->num_monster_ids;
+    if(!(l->mids = (qenemy_t *)malloc(sizeof(qenemy_t) * l->num_mids))) {
+        debug(DBG_WARN, "Cannot allocate monster ids: %s\n", strerror(errno));
+        fclose(fp);
+        free(l->mtypes);
+        l->mtypes = NULL;
+        l->num_mtypes = 0;
+        l->num_mids = 0;
+        return -10;
+    }
+
+    memcpy(l->mtypes, q->monster_types, sizeof(qenemy_t) * l->num_mtypes);
+    memcpy(l->mids, q->monster_ids, sizeof(qenemy_t) * l->num_mids);
+
+done:
     /* Re-set the server drops flag and clean up. */
     l->flags |= LOBBY_FLAG_SERVER_DROPS;
     fclose(fp);
 
     return 0;
 }
-    

@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -22,6 +22,8 @@
 #include <pthread.h>
 #include <inttypes.h>
 #include <sys/queue.h>
+
+#include <sylverant/quest.h>
 
 #define PACKETS_H_HEADERS_ONLY
 #include "packets.h"
@@ -50,6 +52,8 @@ typedef struct block block_t;
 #define SHIP_DEFINED
 typedef struct ship ship_t;
 #endif
+
+typedef struct sylverant_quest_enemy qenemy_t;
 
 typedef struct lobby_pkt {
     STAILQ_ENTRY(lobby_pkt) qentry;
@@ -118,6 +122,12 @@ struct lobby {
     game_enemies_t *map_enemies;
     game_objs_t *map_objs;
     bb_battle_param_t *bb_params;
+
+    int num_mtypes;
+    int num_mids;
+
+    qenemy_t *mtypes;
+    qenemy_t *mids;
 
     int (*dropfunc)(ship_client_t *c, struct lobby *l, void *req);
 };
