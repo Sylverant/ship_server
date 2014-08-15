@@ -579,7 +579,7 @@ typedef struct dc_guild_reply {
     uint32_t gc_search;
     uint32_t gc_target;
     uint32_t padding1;
-    in_addr_t ip;
+    uint32_t ip;
     uint16_t port;
     uint16_t padding2;
     char location[0x44];
@@ -595,7 +595,7 @@ typedef struct pc_guild_reply {
     uint32_t gc_search;
     uint32_t gc_target;
     uint32_t padding1;
-    in_addr_t ip;
+    uint32_t ip;
     uint16_t port;
     uint16_t padding2;
     uint16_t location[0x44];
@@ -612,7 +612,7 @@ typedef struct bb_guild_reply {
     uint32_t gc_target;
     uint32_t padding1;
     uint32_t padding2;
-    in_addr_t ip;
+    uint32_t ip;
     uint16_t port;
     uint16_t padding3;
     uint16_t location[0x44];
@@ -1097,7 +1097,7 @@ typedef struct dc_choice_reply {
         char cl_lvl[0x20];
         char location[0x30];
         uint32_t padding;
-        in_addr_t ip;
+        uint32_t ip;
         uint16_t port;
         uint16_t padding2;
         uint32_t menu_id;
@@ -1114,7 +1114,7 @@ typedef struct pc_choice_reply {
         uint16_t cl_lvl[0x20];
         uint16_t location[0x30];
         uint32_t padding;
-        in_addr_t ip;
+        uint32_t ip;
         uint16_t port;
         uint16_t padding2;
         uint32_t menu_id;
