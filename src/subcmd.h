@@ -248,6 +248,17 @@ typedef struct subcmd_take_damage {
     uint32_t unk2[2];
 } PACKED subcmd_take_damage_t;
 
+typedef struct subcmd_bb_take_damage {
+    bb_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint8_t client_id;
+    uint8_t unused;
+    uint16_t unk1;
+    uint16_t hp_rem;
+    uint32_t unk2[2];
+} PACKED subcmd_bb_take_damage_t;
+
 /* Packet used after a client uses a tech. */
 typedef struct subcmd_used_tech {
     dc_pkt_hdr_t hdr;
@@ -260,6 +271,18 @@ typedef struct subcmd_used_tech {
     uint8_t level;
     uint8_t unused3;
 } PACKED subcmd_used_tech_t;
+
+typedef struct subcmd_bb_used_tech {
+    bb_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint8_t client_id;
+    uint8_t unused;
+    uint8_t tech;
+    uint8_t unused2;
+    uint8_t level;
+    uint8_t unused3;
+} PACKED subcmd_bb_used_tech_t;
 
 /* Packet used when a client drops an item from their inventory */
 typedef struct subcmd_drop_item {

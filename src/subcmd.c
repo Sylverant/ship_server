@@ -373,7 +373,7 @@ static int handle_gc_gcsend(ship_client_t *d, subcmd_gc_gcsend_t *pkt) {
             else {
                 iconv(ic_8859_to_utf16, &inptr, &in, &outptr, &out);
             }
-    
+
             /* Copy the rest over. */
             pc.hdr.pkt_type = pkt->hdr.pkt_type;
             pc.hdr.flags = pkt->hdr.flags;
@@ -711,7 +711,7 @@ static int handle_take_item(ship_client_t *c, subcmd_take_item_t *pkt) {
 
         if(!sylverant_limits_check_item(ship->limits, &item, v)) {
             debug(DBG_LOG, "Potentially non-legit item in legit mode:\n"
-                  "%08x %08x %08x %08x\n", LE32(pkt->data_l[0]), 
+                  "%08x %08x %08x %08x\n", LE32(pkt->data_l[0]),
                   LE32(pkt->data_l[1]), LE32(pkt->data_l[2]),
                   LE32(pkt->data2_l));
 
@@ -802,7 +802,7 @@ static int handle_itemdrop(ship_client_t *c, subcmd_itemgen_t *pkt) {
         if(!sylverant_limits_check_item(ship->limits, &item, v)) {
             /* The item failed the check, deal with it. */
             debug(DBG_LOG, "Potentially non-legit item dropped in legit mode:\n"
-                  "%08x %08x %08x %08x\n", LE32(pkt->item[0]), 
+                  "%08x %08x %08x %08x\n", LE32(pkt->item[0]),
                   LE32(pkt->item[1]), LE32(pkt->item[2]), LE32(pkt->item2[0]));
 
             /* Grab the item name, if we can find it. */
@@ -872,6 +872,27 @@ static int handle_take_damage(ship_client_t *c, subcmd_take_damage_t *pkt) {
     return send_lobby_mod_stat(l, c, SUBCMD_STAT_HPUP, 2000);
 }
 
+static int handle_bb_take_damage(ship_client_t *c,
+                                 subcmd_bb_take_damage_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+
+    /* We can't get these in default lobbies without someone messing with
+       something that they shouldn't be... Disconnect anyone that tries. */
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        return -1;
+    }
+
+    /* If we're in legit mode or the flag isn't set, then don't do anything. */
+    if((l->flags & LOBBY_FLAG_LEGIT_MODE) ||
+       !(c->flags & CLIENT_FLAG_INVULNERABLE)) {
+        return subcmd_send_lobby_bb(l, c, (bb_subcmd_pkt_t *)pkt, 0);
+    }
+
+    /* This aught to do it... */
+    subcmd_send_lobby_bb(l, c, (bb_subcmd_pkt_t *)pkt, 0);
+    return send_lobby_mod_stat(l, c, SUBCMD_STAT_HPUP, 2000);
+}
+
 static int handle_used_tech(ship_client_t *c, subcmd_used_tech_t *pkt) {
     lobby_t *l = c->cur_lobby;
 
@@ -889,6 +910,26 @@ static int handle_used_tech(ship_client_t *c, subcmd_used_tech_t *pkt) {
 
     /* This aught to do it... */
     subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
+    return send_lobby_mod_stat(l, c, SUBCMD_STAT_TPUP, 255);
+}
+
+static int handle_bb_used_tech(ship_client_t *c, subcmd_bb_used_tech_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+
+    /* We can't get these in default lobbies without someone messing with
+       something that they shouldn't be... Disconnect anyone that tries. */
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        return -1;
+    }
+
+    /* If we're in legit mode or the flag isn't set, then don't do anything. */
+    if((l->flags & LOBBY_FLAG_LEGIT_MODE) ||
+       !(c->flags & CLIENT_FLAG_INFINITE_TP)) {
+        return subcmd_send_lobby_bb(l, c, (bb_subcmd_pkt_t *)pkt, 0);
+    }
+
+    /* This aught to do it... */
+    subcmd_send_lobby_bb(l, c, (bb_subcmd_pkt_t *)pkt, 0);
     return send_lobby_mod_stat(l, c, SUBCMD_STAT_TPUP, 255);
 }
 
@@ -1208,7 +1249,7 @@ static int handle_bb_drop_pos(ship_client_t *c, subcmd_bb_drop_pos_t *pkt) {
         meseta = LE32(c->bb_pl->character.meseta);
         amt = LE32(pkt->amount);
 
-        if(meseta < amt) { 
+        if(meseta < amt) {
             debug(DBG_WARN, "Guildcard %" PRIu32 " droppped too much money!\n",
                   c->guildcard);
             return -1;
@@ -1337,7 +1378,7 @@ static int handle_bb_pick_up(ship_client_t *c, subcmd_bb_pick_up_t *pkt) {
     int found;
     uint32_t item, tmp;
     item_t item_data;
-    
+
     /* We can't get these in default lobbies without someone messing with
        something that they shouldn't be... Disconnect anyone that tries. */
     if(l->type == LOBBY_TYPE_DEFAULT) {
@@ -1573,7 +1614,7 @@ static int handle_cmode_grave(ship_client_t *c, subcmd_pkt_t *pkt) {
             dc.client_id = pc.client_id;
             dc.unk0 = pc.unk0;
             dc.unk1 = pc.unk1;
-            
+
             for(i = 0; i < 0x0C; ++i) {
                 dc.string[i] = (char)LE16(dc.string[i]);
             }
@@ -2007,7 +2048,7 @@ static int handle_bb_medic(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
               c->guildcard);
         return -1;
     }
-    
+
     /* Sanity check... Make sure the size of the subcommand and the client id
        match with what we expect. Disconnect the client if not. */
     if(pkt->hdr.pkt_len != LE16(0x0C) || pkt->size != 0x01 ||
@@ -2251,7 +2292,7 @@ static int handle_bb_req_exp(ship_client_t *c, subcmd_bb_req_exp_pkt_t *pkt) {
 
     return client_give_exp(c, exp);
 }
-    
+
 /* Handle a 0x62/0x6D packet. */
 int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
     lobby_t *l = c->cur_lobby;
@@ -2642,6 +2683,15 @@ int subcmd_bb_handle_bcast(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
 
         case SUBCMD_REQ_EXP:
             rv = handle_bb_req_exp(c, (subcmd_bb_req_exp_pkt_t *)pkt);
+            break;
+
+        case SUBCMD_USED_TECH:
+            rv = handle_bb_used_tech(c, (subcmd_bb_used_tech_t *)pkt);
+            break;
+
+        case SUBCMD_TAKE_DAMAGE1:
+        case SUBCMD_TAKE_DAMAGE2:
+            rv = handle_bb_take_damage(c, (subcmd_bb_take_damage_t *)pkt);
             break;
 
         default:
