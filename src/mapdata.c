@@ -434,16 +434,22 @@ static int parse_map(map_enemy_t *en, int en_ct, game_enemies_t *game,
                 gen[count].rt_index = 0x2E;
                 break;
 
-            case 0x00C8:    /* Dark Falz + 510 Helpers */
-                gen[count].bp_entry = 0x37; /* Adjust for other difficulties */
-                gen[count].rt_index = 0x2F;
-
+            case 0x00C8:    /* Dark Falz (3 forms) + 510 Darvants */
+                /* Deal with the Darvants first. */
                 for(j = 0; j < 510; ++j) {
-                    ++count;
                     gen[count].bp_entry = 0x35;
+                    gen[count++].rt_index = 0;
                 }
 
-                ++count;    /* Looks like the first form needs a place too... */
+                /* The forms are backwards in their ordering... */
+                gen[count].bp_entry = 0x38;
+                gen[count++].rt_index = 0x2F;
+
+                gen[count].bp_entry = 0x37;
+                gen[count++].rt_index = 0x2F;
+
+                gen[count].bp_entry = 0x36;
+                gen[count].rt_index = 0x2F;
                 break;
 
             case 0x00CA:    /* Olga Flow */
