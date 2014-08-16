@@ -332,6 +332,58 @@ static int copy_dc_qst_dat(const uint8_t *buf, uint8_t *rbuf, off_t sz,
     return 0;
 }
 
+static int copy_pc_qst_dat(const uint8_t *buf, uint8_t *rbuf, off_t sz,
+                           uint32_t dsz) {
+    const dc_quest_chunk_pkt *ck;
+    uint32_t ptr = 120, optr = 0;
+    char fn[32];
+    char *cptr;
+    uint32_t clen;
+
+    while(ptr < sz) {
+        ck = (const dc_quest_chunk_pkt *)(buf + ptr);
+
+        /* Check the chunk for validity. */
+        if(ck->hdr.pc.pkt_type != QUEST_CHUNK_TYPE ||
+           ck->hdr.pc.pkt_len != LE16(0x0418)) {
+            debug(DBG_WARN, "Unknown or damaged quest chunk!\n");
+            return -1;
+        }
+
+        /* Grab the vitals... */
+        strncpy(fn, ck->filename, 16);
+        fn[16] = 0;
+        clen = LE32(ck->length);
+        cptr = strrchr(fn, '.');
+
+        /* Sanity check... */
+        if(clen > 1024 || !cptr) {
+            debug(DBG_WARN, "Damaged quest chunk!\n");
+            return -1;
+        }
+
+        /* See if this is part of the .dat file */
+        if(!strcmp(cptr, ".dat")) {
+            if(optr + clen > dsz) {
+                debug(DBG_WARN, "Quest file appears to be corrupted!\n");
+                return -1;
+            }
+
+            memcpy(rbuf + optr, ck->data, clen);
+            optr += clen;
+        }
+
+        ptr += 0x0418;
+    }
+
+    if(optr != dsz) {
+        debug(DBG_WARN, "Quest file appears to be corrupted!\n");
+        return -1;
+    }
+
+    return 0;
+}
+
 static int copy_bb_qst_dat(const uint8_t *buf, uint8_t *rbuf, off_t sz,
                            uint32_t dsz) {
     const bb_quest_chunk_pkt *ck;
@@ -447,6 +499,16 @@ static uint8_t *read_and_dec_qst(const char *fn, uint32_t *osz, int ver) {
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_GC:
             if(copy_dc_qst_dat(buf, buf2, sz, dsz)) {
+                debug(DBG_WARN, "Error decoding qst \"%s\", see above.\n", fn);
+                free(buf2);
+                free(buf);
+                return NULL;
+            }
+
+            break;
+
+        case CLIENT_VERSION_PC:
+            if(copy_pc_qst_dat(buf, buf2, sz, dsz)) {
                 debug(DBG_WARN, "Error decoding qst \"%s\", see above.\n", fn);
                 free(buf2);
                 free(buf);
