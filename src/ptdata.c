@@ -1244,6 +1244,7 @@ static int check_and_send(ship_client_t *c, lobby_t *l, uint32_t item[4],
     uint32_t v;
     sylverant_iitem_t iitem;
     int section;
+    uint8_t stars = 0;
 
     if(ship->limits) {
         switch(c->version) {
@@ -1290,18 +1291,19 @@ static int check_and_send(ship_client_t *c, lobby_t *l, uint32_t item[4],
             case CLIENT_VERSION_DCV1:
             case CLIENT_VERSION_DCV2:
             case CLIENT_VERSION_PC:
-                if(pmt_lookup_stars_v2(item[0]) >= 9)
-                    /* We aren't supposed to drop rares, and this item qualifies
-                       as one (according to Sega's rules), so don't drop it. */
-                    return 0;
+                stars = pmt_lookup_stars_v2(item[0]);
+                break;
 
             case CLIENT_VERSION_GC:
-                if(pmt_lookup_stars_gc(item[0]) >= 9)
-                    /* We aren't supposed to drop rares, and this item qualifies
-                       as one (according to Sega's rules), so don't drop it. */
-                    return 0;
+                stars = pmt_lookup_stars_gc(item[0]);
+                break;
         }
     }
+
+    if(stars != (uint8_t)-1 && stars >= 9)
+        /* We aren't supposed to drop rares, and this item qualifies
+           as one (according to Sega's rules), so don't drop it. */
+        return 0;
 
 ok:
     return subcmd_send_lobby_item(l, req, item);
