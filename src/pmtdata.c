@@ -922,7 +922,7 @@ static int build_v2_units(int norestrict) {
     /* Always go one beyond, since we may have to deal with + and ++ on the last
        possible unit. */
     ++unit_max_stars;
-    
+
     /* For now, punt and allocate space for every theoretically possible unit,
        even though some are actually disabled by the game. */
     if(!(units_by_stars = (uint64_t *)malloc((num_units * 5 + 1) *
@@ -982,7 +982,7 @@ static int build_v2_units(int norestrict) {
         units_by_stars = (uint64_t *)tmp;
     }
     else {
-        debug(DBG_WARN, "Cannot resize units_by_stars table: %s\n", 
+        debug(DBG_WARN, "Cannot resize units_by_stars table: %s\n",
               strerror(errno));
     }
 
@@ -1066,7 +1066,7 @@ static int build_gc_units(int norestrict) {
         units_by_stars_gc = (uint64_t *)tmp;
     }
     else {
-        debug(DBG_WARN, "Cannot resize units_by_stars_gc table: %s\n", 
+        debug(DBG_WARN, "Cannot resize units_by_stars_gc table: %s\n",
               strerror(errno));
     }
 
@@ -1150,7 +1150,7 @@ static int build_bb_units(int norestrict) {
         units_by_stars_bb = (uint64_t *)tmp;
     }
     else {
-        debug(DBG_WARN, "Cannot resize units_by_stars_bb table: %s\n", 
+        debug(DBG_WARN, "Cannot resize units_by_stars_bb table: %s\n",
               strerror(errno));
     }
 
@@ -1567,7 +1567,7 @@ void pmt_cleanup(void) {
     for(i = 0; i < num_guard_types_bb; ++i) {
         free(guards_bb[i]);
     }
-    
+
     free(guards_bb);
     free(num_guards_bb);
 
@@ -1643,7 +1643,7 @@ int pmt_lookup_weapon_v2(uint32_t code, pmt_weapon_v2_t *rv) {
     }
 
     /* Grab the data and copy it out */
-    memcpy(rv, &weapons[parts[1] - 1][parts[2]], sizeof(pmt_weapon_v2_t));
+    memcpy(rv, &weapons[parts[1]][parts[2]], sizeof(pmt_weapon_v2_t));
     return 0;
 }
 
@@ -1789,7 +1789,7 @@ int pmt_lookup_weapon_gc(uint32_t code, pmt_weapon_gc_t *rv) {
     }
 
     /* Grab the data and copy it out */
-    memcpy(rv, &weapons_gc[parts[1] - 1][parts[2]], sizeof(pmt_weapon_gc_t));
+    memcpy(rv, &weapons_gc[parts[1]][parts[2]], sizeof(pmt_weapon_gc_t));
     return 0;
 }
 
@@ -1935,7 +1935,7 @@ int pmt_lookup_weapon_bb(uint32_t code, pmt_weapon_bb_t *rv) {
     }
 
     /* Grab the data and copy it out */
-    memcpy(rv, &weapons_bb[parts[1] - 1][parts[2]], sizeof(pmt_weapon_bb_t));
+    memcpy(rv, &weapons_bb[parts[1]][parts[2]], sizeof(pmt_weapon_bb_t));
     return 0;
 }
 
