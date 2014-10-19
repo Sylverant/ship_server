@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2012, 2013 Lawrence Sebald
+    Copyright (C) 2012, 2013, 2014 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -1158,76 +1158,15 @@ static int build_bb_units(int norestrict) {
 }
 
 int pmt_read_v2(const char *fn, int norestrict) {
-    FILE *fp;
-    long len;
-    uint32_t ucsz;
-    uint8_t *cbuf, *ucbuf;
+    int ucsz;
+    uint8_t *ucbuf;
     uint32_t ptrs[21];
 
-    /* Open up the file */
-    if(!(fp = fopen(fn, "rb"))) {
-        debug(DBG_ERROR, "Cannot open %s: %s\n", fn, strerror(errno));
+    /* Read in the file and decompress it. */
+    if((ucsz = prs_decompress_file(fn, &ucbuf)) < 0) {
+        debug(DBG_ERROR, "Cannot read v2 PMT %s: %s\n", fn, strerror(-ucsz));
         return -1;
     }
-
-    /* Figure out how long the file is. */
-    if(fseek(fp, 0, SEEK_END)) {
-        debug(DBG_ERROR, "Cannot seek PMT file: %s\n", strerror(errno));
-        fclose(fp);
-        return -2;
-    }
-
-    if((len = ftell(fp)) < 0) {
-        debug(DBG_ERROR, "Cannot determine size of compressed PMT: %s\n",
-              strerror(errno));
-        fclose(fp);
-        return -3;
-    }
-
-    if(fseek(fp, 0, SEEK_SET)) {
-        debug(DBG_ERROR, "Cannot seek PMT file: %s\n", strerror(errno));
-        fclose(fp);
-        return -4;
-    }
-
-    /* Allocate space for the compressed file and read it in */
-    if(!(cbuf = (uint8_t *)malloc(len))) {
-        debug(DBG_ERROR, "Cannot allocate space for compressed PMT: %s\n",
-              strerror(errno));
-        fclose(fp);
-        return -5;
-    }
-
-    if(fread(cbuf, 1, len, fp) != len) {
-        debug(DBG_ERROR, "Cannot read compressed PMT: %s\n", strerror(errno));
-        free(cbuf);
-        fclose(fp);
-        return -6;
-    }
-
-    /* Figure out how big the uncompressed data is and allocate space for it */
-    ucsz = prs_decompress_size(cbuf);
-
-    if(!(ucbuf = (uint8_t *)malloc(ucsz))) {
-        debug(DBG_ERROR, "Cannot allocate space for uncompressed PMT: %s\n",
-              strerror(errno));
-        free(cbuf);
-        fclose(fp);
-        return -7;
-    }
-
-    /* Decompress the file */
-    if(prs_decompress(cbuf, ucbuf) != ucsz) {
-        debug(DBG_ERROR, "Error uncompressing PMT!\n");
-        free(ucbuf);
-        free(cbuf);
-        fclose(fp);
-        return -8;
-    }
-
-    /* Clean up the stuff we can clean up now */
-    free(cbuf);
-    fclose(fp);
 
     /* Read in the pointers table. */
     if(read_ptr_tbl(ucbuf, ucsz, ptrs)) {
@@ -1273,76 +1212,15 @@ int pmt_read_v2(const char *fn, int norestrict) {
 }
 
 int pmt_read_gc(const char *fn, int norestrict) {
-    FILE *fp;
-    long len;
-    uint32_t ucsz;
-    uint8_t *cbuf, *ucbuf;
+    int ucsz;
+    uint8_t *ucbuf;
     uint32_t ptrs[23];
 
-    /* Open up the file */
-    if(!(fp = fopen(fn, "rb"))) {
-        debug(DBG_ERROR, "Cannot open %s: %s\n", fn, strerror(errno));
+    /* Read in the file and decompress it. */
+    if((ucsz = prs_decompress_file(fn, &ucbuf)) < 0) {
+        debug(DBG_ERROR, "Cannot read GC PMT %s: %s\n", fn, strerror(-ucsz));
         return -1;
     }
-
-    /* Figure out how long the file is. */
-    if(fseek(fp, 0, SEEK_END)) {
-        debug(DBG_ERROR, "Cannot seek PMT file: %s\n", strerror(errno));
-        fclose(fp);
-        return -2;
-    }
-
-    if((len = ftell(fp)) < 0) {
-        debug(DBG_ERROR, "Cannot determine size of compressed PMT: %s\n",
-              strerror(errno));
-        fclose(fp);
-        return -3;
-    }
-
-    if(fseek(fp, 0, SEEK_SET)) {
-        debug(DBG_ERROR, "Cannot seek PMT file: %s\n", strerror(errno));
-        fclose(fp);
-        return -4;
-    }
-
-    /* Allocate space for the compressed file and read it in */
-    if(!(cbuf = (uint8_t *)malloc(len))) {
-        debug(DBG_ERROR, "Cannot allocate space for compressed PMT: %s\n",
-              strerror(errno));
-        fclose(fp);
-        return -5;
-    }
-
-    if(fread(cbuf, 1, len, fp) != len) {
-        debug(DBG_ERROR, "Cannot read compressed PMT: %s\n", strerror(errno));
-        free(cbuf);
-        fclose(fp);
-        return -6;
-    }
-
-    /* Figure out how big the uncompressed data is and allocate space for it */
-    ucsz = prs_decompress_size(cbuf);
-
-    if(!(ucbuf = (uint8_t *)malloc(ucsz))) {
-        debug(DBG_ERROR, "Cannot allocate space for uncompressed PMT: %s\n",
-              strerror(errno));
-        free(cbuf);
-        fclose(fp);
-        return -7;
-    }
-
-    /* Decompress the file */
-    if(prs_decompress(cbuf, ucbuf) != ucsz) {
-        debug(DBG_ERROR, "Error uncompressing PMT!\n");
-        free(ucbuf);
-        free(cbuf);
-        fclose(fp);
-        return -8;
-    }
-
-    /* Clean up the stuff we can clean up now */
-    free(cbuf);
-    fclose(fp);
 
     /* Read in the pointers table. */
     if(read_gcptr_tbl(ucbuf, ucsz, ptrs)) {
@@ -1388,76 +1266,15 @@ int pmt_read_gc(const char *fn, int norestrict) {
 }
 
 int pmt_read_bb(const char *fn, int norestrict) {
-    FILE *fp;
-    long len;
-    uint32_t ucsz;
-    uint8_t *cbuf, *ucbuf;
+    int ucsz;
+    uint8_t *ucbuf;
     uint32_t ptrs[23];
 
-    /* Open up the file */
-    if(!(fp = fopen(fn, "rb"))) {
-        debug(DBG_ERROR, "Cannot open %s: %s\n", fn, strerror(errno));
+    /* Read in the file and decompress it. */
+    if((ucsz = prs_decompress_file(fn, &ucbuf)) < 0) {
+        debug(DBG_ERROR, "Cannot read BB PMT %s: %s\n", fn, strerror(-ucsz));
         return -1;
     }
-
-    /* Figure out how long the file is. */
-    if(fseek(fp, 0, SEEK_END)) {
-        debug(DBG_ERROR, "Cannot seek PMT file: %s\n", strerror(errno));
-        fclose(fp);
-        return -2;
-    }
-
-    if((len = ftell(fp)) < 0) {
-        debug(DBG_ERROR, "Cannot determine size of compressed PMT: %s\n",
-              strerror(errno));
-        fclose(fp);
-        return -3;
-    }
-
-    if(fseek(fp, 0, SEEK_SET)) {
-        debug(DBG_ERROR, "Cannot seek PMT file: %s\n", strerror(errno));
-        fclose(fp);
-        return -4;
-    }
-
-    /* Allocate space for the compressed file and read it in */
-    if(!(cbuf = (uint8_t *)malloc(len))) {
-        debug(DBG_ERROR, "Cannot allocate space for compressed PMT: %s\n",
-              strerror(errno));
-        fclose(fp);
-        return -5;
-    }
-
-    if(fread(cbuf, 1, len, fp) != len) {
-        debug(DBG_ERROR, "Cannot read compressed PMT: %s\n", strerror(errno));
-        free(cbuf);
-        fclose(fp);
-        return -6;
-    }
-
-    /* Figure out how big the uncompressed data is and allocate space for it */
-    ucsz = prs_decompress_size(cbuf);
-
-    if(!(ucbuf = (uint8_t *)malloc(ucsz))) {
-        debug(DBG_ERROR, "Cannot allocate space for uncompressed PMT: %s\n",
-              strerror(errno));
-        free(cbuf);
-        fclose(fp);
-        return -7;
-    }
-
-    /* Decompress the file */
-    if(prs_decompress(cbuf, ucbuf) != ucsz) {
-        debug(DBG_ERROR, "Error uncompressing PMT!\n");
-        free(ucbuf);
-        free(cbuf);
-        fclose(fp);
-        return -8;
-    }
-
-    /* Clean up the stuff we can clean up now */
-    free(cbuf);
-    fclose(fp);
 
     /* Read in the pointers table. */
     if(read_bbptr_tbl(ucbuf, ucsz, ptrs)) {

@@ -157,16 +157,14 @@ static int check_cache_age(const char *fn1, const char *fn2) {
 
 static uint8_t *decompress_dat(uint8_t *inbuf, uint32_t insz, uint32_t *osz) {
     uint8_t *rv;
+    int sz;
 
-    /* Figure out how big it will be and allocate the space we need. */
-    *osz = prs_decompress_size(inbuf);
-    if(!(rv = (uint8_t *)malloc(*osz))) {
-        debug(DBG_WARN, "Cannot allocate memory to decompress dat: %s\n",
-              strerror(errno));
+    if((sz = prs_decompress_buf(inbuf, &rv, (size_t)insz)) < 0) {
+        debug(DBG_WARN, "Cannot decompress data: %s\n", strerror(-sz));
         return NULL;
     }
 
-    prs_decompress(inbuf, rv);
+    *osz = (uint32_t)sz;
     return rv;
 }
 

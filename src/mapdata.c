@@ -103,53 +103,20 @@ static int read_param_file(bb_battle_param_t dst[4][0x60], const char *fn) {
 }
 
 static int read_level_data(const char *fn) {
-    FILE *fp;
-    uint8_t *buf, *buf2;
-    long size;
-    uint32_t decsize;
+    uint8_t *buf;
+    int decsize;
 
 #if defined(WORDS_BIGENDIAN) || defined(__BIG_ENDIAN__)
     int i, j;
 #endif
 
-    if(!(fp = fopen(fn, "rb"))) {
-        debug(DBG_ERROR, "Cannot open %s for reading: %s\n", fn,
-              strerror(errno));
-        return 1;
+    /* Read in the file and decompress it. */
+    if((decsize = prs_decompress_file(fn, &buf)) < 0) {
+        debug(DBG_ERROR, "Cannot read levels %s: %s\n", fn, strerror(-decsize));
+        return -1;
     }
 
-    /* Figure out how long it is and read it in... */
-    fseek(fp, 0, SEEK_END);
-    size = ftell(fp);
-    fseek(fp, 0, SEEK_SET);
-
-    if(!(buf = (uint8_t *)malloc(size))) {
-        debug(DBG_ERROR, "Couldn't allocate space for level table.\n%s\n",
-              strerror(errno));
-        fclose(fp);
-        return -200;
-    }
-
-    if(fread(buf, 1, size, fp) != size) {
-        debug(DBG_ERROR, "Cannot read data from %s: %s\n", fn, strerror(errno));
-        fclose(fp);
-        free(buf);
-        return 1;
-    }
-
-    /* Done with the file, decompress the data */
-    fclose(fp);
-    decsize = prs_decompress_size(buf);
-
-    if(!(buf2 = (uint8_t *)malloc(decsize))) {
-        debug(DBG_ERROR, "Couldn't allocate space for decompressing level "
-              "table.\n%s\n", strerror(errno));
-        free(buf);
-        return -200;
-    }
-
-    prs_decompress(buf, buf2);
-    memcpy(&char_stats, buf2, sizeof(bb_level_table_t));
+    memcpy(&char_stats, buf, sizeof(bb_level_table_t));
 
 #if defined(WORDS_BIGENDIAN) || defined(__BIG_ENDIAN__)
     /* Swap all the exp values */
@@ -161,7 +128,6 @@ static int read_level_data(const char *fn) {
 #endif
 
     /* Clean up... */
-    free(buf2);
     free(buf);
 
     return 0;
