@@ -3041,6 +3041,12 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
         case EP3_GAME_CREATE_TYPE:
             return ep3_process_game_create(c, (ep3_game_create_pkt *)pkt);
 
+        case QUEST_STATS_TYPE:
+            debug(DBG_LOG, "Received quest stats packet from %s (%d)\n",
+                  c->pl->v1.name, c->guildcard);
+            print_packet((unsigned char *)pkt, len);
+            return 0;
+
         default:
 #ifdef HAVE_PYTHON
             if(script_execute_pkt(ScriptActionUnknownBlockPacket, c, pkt,

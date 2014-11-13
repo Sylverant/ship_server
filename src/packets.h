@@ -1482,6 +1482,12 @@ typedef struct bb_guildcard_comment {
     uint16_t text[88];
 } PACKED bb_guildcard_comment_pkt;
 
+/* Gamecube quest statistics packet (from Maximum Attack 2). */
+typedef struct gc_quest_stats {
+    dc_pkt_hdr_t hdr;
+    uint32_t stats[10];
+} PACKED gc_quest_stats_pkt;
+
 #undef PACKED
 
 /* Parameters for the various packets. */
@@ -1550,6 +1556,7 @@ typedef struct bb_guildcard_comment {
 #define DL_QUEST_FILE_TYPE              0x00A6
 #define DL_QUEST_CHUNK_TYPE             0x00A7
 #define QUEST_END_LIST_TYPE             0x00A9
+#define QUEST_STATS_TYPE                0x00AA
 #define QUEST_LOAD_DONE_TYPE            0x00AC
 #define TEXT_MSG_TYPE                   0x00B0
 #define TIMESTAMP_TYPE                  0x00B1
