@@ -225,14 +225,14 @@ static void print_config(sylverant_ship_t *cfg) {
 
     if(cfg->v2_pmtdata_file)
         debug(DBG_LOG, "v2 ItemPMT file: %s\n", cfg->v2_pmtdata_file);
-    
+
     if(cfg->gc_pmtdata_file)
         debug(DBG_LOG, "GC ItemPMT file: %s\n", cfg->gc_pmtdata_file);
 
     if(cfg->bb_pmtdata_file)
         debug(DBG_LOG, "BB ItemPMT file: %s\n", cfg->bb_pmtdata_file);
 
-    debug(DBG_LOG, "Units +/- limit: v2: %s, GC: %s, BB: %s\n", 
+    debug(DBG_LOG, "Units +/- limit: v2: %s, GC: %s, BB: %s\n",
           (cfg->local_flags & SYLVERANT_SHIP_PMT_LIMITV2) ? "true" : "false",
           (cfg->local_flags & SYLVERANT_SHIP_PMT_LIMITGC) ? "true" : "false",
           (cfg->local_flags & SYLVERANT_SHIP_PMT_LIMITBB) ? "true" : "false");
@@ -618,7 +618,8 @@ int main(int argc, char *argv[]) {
 
         /* Set up the ship and start it. */
         ship = ship_server_start(cfg);
-        pthread_join(ship->thd, NULL);
+        if(ship)
+            pthread_join(ship->thd, NULL);
 
         /* Clean up... */
         if((tmp = pthread_getspecific(sendbuf_key))) {
