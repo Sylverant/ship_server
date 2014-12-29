@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -218,7 +218,7 @@ static int handle_max_level(ship_client_t *c, const char *params) {
         return send_txt(c, "%s",
                         __(c, "\tE\tC7Maximum level must be >= minimum."));
     }
-    
+
     /* Set the value in the structure, and be on our way. */
     l->max_level = lvl;
 
@@ -996,7 +996,7 @@ static int handle_friendadd(ship_client_t *c, const char *params) {
 
     /* Send a request to the shipgate to do the rest */
     shipgate_send_friend_add(&ship->sg, c->guildcard, gc, nick + 1);
-    
+
     /* Any further messages will be handled by the shipgate handler */
     return 0;
 }
@@ -1427,7 +1427,7 @@ static int handle_dumpinv(ship_client_t *c, const char *params) {
               c->guildcard);
 
         for(i = 0; i < c->item_count; ++i) {
-            debug(DBG_LOG, "%d (%08x): %08x %08x %08x %08x: %s\n", i, 
+            debug(DBG_LOG, "%d (%08x): %08x %08x %08x %08x: %s\n", i,
                    LE32(c->items[i].item_id), LE32(c->items[i].data_l[0]),
                    LE32(c->items[i].data_l[1]), LE32(c->items[i].data_l[2]),
                    LE32(c->items[i].data2_l), item_get_name(&c->items[i]));
@@ -1438,7 +1438,7 @@ static int handle_dumpinv(ship_client_t *c, const char *params) {
         debug(DBG_LOG, "Inventory dump for %s (%d)\n", name, c->guildcard);
 
         for(i = 0; i < c->bb_pl->inv.item_count; ++i) {
-            debug(DBG_LOG, "%d (%08x): %08x %08x %08x %08x: %s\n", i, 
+            debug(DBG_LOG, "%d (%08x): %08x %08x %08x %08x: %s\n", i,
                   LE32(c->bb_pl->inv.items[i].item_id),
                   LE32(c->bb_pl->inv.items[i].data_l[0]),
                   LE32(c->bb_pl->inv.items[i].data_l[1]),
@@ -1463,7 +1463,7 @@ static int handle_dumpinv(ship_client_t *c, const char *params) {
               l->lobby_id);
 
         TAILQ_FOREACH(j, &l->item_queue, qentry) {
-            debug(DBG_LOG, "%08x: %08x %08x %08x %08x: %s\n", 
+            debug(DBG_LOG, "%08x: %08x %08x %08x %08x: %s\n",
                   LE32(j->d.item_id), LE32(j->d.data_l[0]),
                   LE32(j->d.data_l[1]), LE32(j->d.data_l[2]),
                   LE32(j->d.data2_l), item_get_name(&j->d));
@@ -1629,7 +1629,7 @@ static int handle_ll(ship_client_t *c, const char *params) {
             else {
                 snprintf(str, 511, "%s%d: None   ", str, i);
             }
-            
+
             if((i + 1) < l->max_clients) {
                 if((c2 = l->clients[i + 1])) {
                     snprintf(str, 511, "%s%d: %s\n", str, i + 1,
@@ -2688,26 +2688,6 @@ static int handle_gcprotect(ship_client_t *c, const char *params) {
     return send_txt(c, "%s", __(c, "\tE\tC7Guildcard protection enabled."));
 }
 
-/* Usage: /mk */
-static int handle_mk(ship_client_t *c, const char *params) {
-    lobby_t *l = c->cur_lobby;
-
-    /* Make sure the requester is a local GM, at least. */
-    if(!LOCAL_GM(c)) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
-    }
-
-    /* Make sure that the requester is in a game lobby, not a lobby lobby */
-    if(l->type != LOBBY_TYPE_GAME) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game."));
-    }
-
-    /* Set the flag... */
-    l->flags |= LOBBY_FLAG_MK;
-
-    return send_txt(c, "%s", __(c, "\tE\tC7Flag set."));
-}
-
 /* Usage: /trackinv */
 static int handle_trackinv(ship_client_t *c, const char *params) {
     lobby_t *l = c->cur_lobby;
@@ -2724,6 +2704,32 @@ static int handle_trackinv(ship_client_t *c, const char *params) {
     c->flags |= CLIENT_FLAG_TRACK_INVENTORY;
 
     return send_txt(c, "%s", __(c, "\tE\tC7Flag set."));
+}
+
+/* Usage /trackkill [off] */
+static int handle_trackkill(ship_client_t *c, const char *params) {
+    uint8_t enable = 1;
+
+    /* Make sure they're logged in */
+    if(!(c->flags & CLIENT_FLAG_LOGGED_IN)) {
+        return send_txt(c, "%s", __(c, "\tE\tC7You must be logged in to "
+        "use this command."));
+    }
+
+    /* See if we're turning the flag off. */
+    if(!strcmp(params, "off")) {
+        enable = 0;
+        shipgate_send_user_opt(&ship->sg, c->guildcard, c->cur_block->b,
+                               USER_OPT_TRACK_KILLS, 1, &enable);
+        c->flags &= ~CLIENT_FLAG_TRACK_KILLS;
+        return send_txt(c, "%s", __(c, "\tE\tC7Kill tracking disabled."));
+    }
+
+    /* Send the message to the shipgate */
+    shipgate_send_user_opt(&ship->sg, c->guildcard, c->cur_block->b,
+                           USER_OPT_TRACK_KILLS, 1, &enable);
+    c->flags |= CLIENT_FLAG_TRACK_KILLS;
+    return send_txt(c, "%s", __(c, "\tE\tC7Kill tracking enabled."));
 }
 
 static command_t cmds[] = {
@@ -2803,8 +2809,8 @@ static command_t cmds[] = {
     { "level"    , handle_level     },
     { "sdrops"   , handle_sdrops    },
     { "gcprotect", handle_gcprotect },
-    { "mk"       , handle_mk        },
     { "trackinv" , handle_trackinv  },
+    { "trackkill", handle_trackkill },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

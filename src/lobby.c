@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -51,7 +51,7 @@ lobby_t *lobby_create_default(block_t *block, uint32_t lobby_id, uint8_t ev) {
 
     /* Clear it, and set up the specified parameters. */
     memset(l, 0, sizeof(lobby_t));
-    
+
     l->lobby_id = lobby_id;
     l->type = LOBBY_TYPE_DEFAULT;
     l->max_clients = LOBBY_MAX_CLIENTS;
@@ -433,7 +433,7 @@ static uint8_t lobby_find_max_challenge(lobby_t *l) {
                             break;
                         }
                     }
-                    
+
                     break;
 
                 case CLIENT_VERSION_PC:
@@ -442,7 +442,7 @@ static uint8_t lobby_find_max_challenge(lobby_t *l) {
                             break;
                         }
                     }
-                    
+
                     break;
 
                 case CLIENT_VERSION_GC:
@@ -983,10 +983,8 @@ int lobby_remove_player(ship_client_t *c) {
 
     /* If the client is leaving a game lobby, then send their monster stats
        up to the shipgate. */
-    if(l->type == LOBBY_TYPE_GAME && (l->flags & LOBBY_FLAG_MK)) {
-        shipgate_send_mkill(&ship->sg, c->guildcard, c->cur_block->b,
-                            l->episode, l->difficulty, c->enemy_kills);
-    }
+    if(l->type == LOBBY_TYPE_GAME && (c->flags & CLIENT_FLAG_TRACK_KILLS))
+        shipgate_send_mkill(&ship->sg, c->guildcard, c->cur_block->b, c, l);
 
     /* We have a nice function to handle most of the heavy lifting... */
     client_id = c->client_id;
@@ -1274,7 +1272,7 @@ int lobby_check_player_legit(lobby_t *l, ship_t *s, player_t *pl, uint32_t v) {
 
         if(!irv) {
             debug(DBG_LOG, "Potentially non-legit item in legit mode:\n"
-                  "%08x %08x %08x %08x\n", LE32(item->data_l[0]), 
+                  "%08x %08x %08x %08x\n", LE32(item->data_l[0]),
                   LE32(item->data_l[1]), LE32(item->data_l[2]),
                   LE32(item->data2_l));
             rv = irv;

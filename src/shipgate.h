@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -33,10 +33,22 @@
 
 /* Forward declarations. */
 struct ship;
+struct ship_client;
+struct lobby;
 
 #ifndef SHIP_DEFINED
 #define SHIP_DEFINED
 typedef struct ship ship_t;
+#endif
+
+#ifndef SHIP_CLIENT_DEFINED
+#define SHIP_CLIENT_DEFINED
+typedef struct ship_client ship_client_t;
+#endif
+
+#ifndef LOBBY_DEFINED
+#define LOBBY_DEFINED
+typedef struct lobby lobby_t;
 #endif
 
 #ifdef PACKED
@@ -398,17 +410,19 @@ typedef struct shipgate_bb_opts {
     sylverant_bb_db_opts_t opts;
 } PACKED shipgate_bb_opts_pkt;
 
-/* Packet used to send an update to the user's monster kill counts. */
+/* Packet used to send an update to the user's monster kill counts.
+   Version 1 adds a client version code where there used to be a reserved byte
+   in the packet. */
 typedef struct shipgate_mkill {
     shipgate_hdr_t hdr;
     uint32_t guildcard;
     uint32_t block;
     uint8_t episode;
     uint8_t difficulty;
-    uint8_t reserved[2];
+    uint8_t version;
+    uint8_t reserved;
     uint32_t counts[0x60];
 } PACKED shipgate_mkill_pkt;
-
 #undef PACKED
 
 /* Size of the shipgate login packet. */
@@ -498,10 +512,16 @@ static const char shipgate_login_msg[] =
 #define USER_OPT_QUEST_LANG     0x00000001
 #define USER_OPT_ENABLE_BACKUP  0x00000002
 #define USER_OPT_GC_PROTECT     0x00000003
+#define USER_OPT_TRACK_KILLS    0x00000004
 
 /* Possible values for the fw_flags on a forwarded packet */
 #define FW_FLAG_PREFER_IPV6     0x00000001  /* Prefer IPv6 on reply */
 #define FW_FLAG_IS_PSOPC        0x00000002  /* Client is on PSOPC */
+
+/* Potentially ORed with any version codes, if needed/appropriate. */
+#define CLIENT_QUESTING         0x20
+#define CLIENT_CHALLENGE_MODE   0x40
+#define CLIENT_BATTLE_MODE      0x80
 
 /* Attempt to connect to the shipgate. Returns < 0 on error, returns 0 on
    success. */
@@ -606,6 +626,6 @@ int shipgate_send_cbkup_req(shipgate_conn_t *c, uint32_t gc, uint32_t block,
 
 /* Send a monster kill count update */
 int shipgate_send_mkill(shipgate_conn_t *c, uint32_t gc, uint32_t block,
-                        uint8_t ep, uint8_t d, uint32_t counts[0x60]);
+                        ship_client_t *cl, lobby_t *l);
 
 #endif /* !SHIPGATE_H */

@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2014 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -738,7 +738,7 @@ static int handle_sstatus(shipgate_conn_t *conn, shipgate_ship_status_pkt *p) {
         TAILQ_FOREACH(i, &s->ships, qentry) {
             /* Clear the ship from the list, if we've found the right one */
             if(sid == i->ship_id) {
-                TAILQ_REMOVE(&s->ships, i, qentry);  
+                TAILQ_REMOVE(&s->ships, i, qentry);
                 ship_found = 1;
                 break;
             }
@@ -1658,6 +1658,18 @@ static int  handle_useropt(shipgate_conn_t *c, shipgate_user_opt_pkt *pkt) {
                             i->join_time = time(NULL);
                         }
                         break;
+
+                    case USER_OPT_TRACK_KILLS:
+                        /* Make sure the length is right */
+                        if(length != 16)
+                            break;
+
+                        /* The only byte of the data that's used is the first
+                           one. It is a boolean saying whether or not to enable
+                           kill tracking. */
+                        if(opt->data[0])
+                            i->flags |= CLIENT_FLAG_TRACK_KILLS;
+                        break;
                 }
 
                 /* Adjust the pointers to the next option */
@@ -1759,7 +1771,7 @@ static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
 
             case SHDR_TYPE_ADDFRIEND:
                 return handle_addfriend(conn, (shipgate_friend_err_pkt *)pkt);
-                
+
             case SHDR_TYPE_DELFRIEND:
                 return handle_delfriend(conn, (shipgate_friend_err_pkt *)pkt);
 
@@ -1996,7 +2008,7 @@ int shipgate_send_cdata(shipgate_conn_t *c, uint32_t gc, uint32_t slot,
     pkt->guildcard = htonl(gc);
     pkt->slot = htonl(slot);
     pkt->block = htonl(block);
-    memcpy(pkt->data, cdata, len); 
+    memcpy(pkt->data, cdata, len);
 
     /* Send it away. */
     return send_crypt(c, sizeof(shipgate_char_data_pkt) + len, sendbuf);
@@ -2255,7 +2267,7 @@ int shipgate_send_ban(shipgate_conn_t *c, uint16_t type, uint32_t requester,
     pkt->req_gc = htonl(requester);
     pkt->target = htonl(target);
     pkt->until = htonl(until);
-    strncpy(pkt->message, msg, 255); 
+    strncpy(pkt->message, msg, 255);
 
     /* Send the packet away */
     return send_crypt(c, sizeof(shipgate_ban_req_pkt), sendbuf);
@@ -2687,7 +2699,7 @@ int shipgate_send_cbkup(shipgate_conn_t *c, uint32_t gc, uint32_t block,
     pkt->block = htonl(block);
     strncpy((char *)pkt->name, name, 32);
     pkt->name[31] = 0;
-    memcpy(pkt->data, cdata, len); 
+    memcpy(pkt->data, cdata, len);
 
     /* Send it away. */
     return send_crypt(c, sizeof(shipgate_char_bkup_pkt) + len, sendbuf);
@@ -2720,29 +2732,38 @@ int shipgate_send_cbkup_req(shipgate_conn_t *c, uint32_t gc, uint32_t block,
 
 /* Send a monster kill count update */
 int shipgate_send_mkill(shipgate_conn_t *c, uint32_t gc, uint32_t block,
-                        uint8_t ep, uint8_t d, uint32_t counts[0x60]) {
+                        ship_client_t *cl, lobby_t *l) {
     uint8_t *sendbuf = get_sendbuf();
     shipgate_mkill_pkt *pkt = (shipgate_mkill_pkt *)sendbuf;
     int i;
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Fill in the header and the body. */
     pkt->hdr.pkt_len = htons(sizeof(shipgate_mkill_pkt));
     pkt->hdr.pkt_type = htons(SHDR_TYPE_MKILL);
-    pkt->hdr.version = pkt->hdr.reserved = 0;
+    pkt->hdr.version = 1;
+    pkt->hdr.reserved = 0;
     pkt->hdr.flags = 0;
     pkt->guildcard = htonl(gc);
     pkt->block = htonl(block);
-    pkt->episode = ep ? ep : 1;
-    pkt->difficulty = d;
-    pkt->reserved[0] = pkt->reserved[1] = 0;
+    pkt->episode = l->episode ? l->episode : 1;
+    pkt->difficulty = l->difficulty;
+    pkt->version = (uint8_t)cl->version;
+    pkt->reserved = 0;
+
+    if(l->battle)
+        pkt->version |= CLIENT_BATTLE_MODE;
+    else if(l->challenge)
+        pkt->version |= CLIENT_CHALLENGE_MODE;
+
+    if(l->qid)
+        pkt->version |= CLIENT_QUESTING;
 
     for(i = 0; i < 0x60; ++i) {
-        pkt->counts[i] = ntohl(counts[i]);
+        pkt->counts[i] = ntohl(cl->enemy_kills[i]);
     }
 
     /* Send it away. */
