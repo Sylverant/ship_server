@@ -330,9 +330,17 @@ static int parse_map(map_enemy_t *en, int en_ct, game_enemies_t *game,
                 gen[count].rt_index = 0x1E;
                 break;
 
-            case 0x00A1:    /* Chaos Sorcerer + 2 Bits */
+            case 0x00A1:    /* Chaos Sorcerer */
                 gen[count].bp_entry = 0x0A;
                 gen[count].rt_index = 0x1F;
+
+                /* Bee L */
+                gen[count + 1].bp_entry = 0x0B;
+                gen[count + 1].rt_index = 0x00;
+
+                /* Bee R */
+                gen[count + 2].bp_entry = 0x0C;
+                gen[count + 2].rt_index = 0x00;
                 count += 2;
                 break;
 
