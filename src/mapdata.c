@@ -250,7 +250,7 @@ static int parse_map(map_enemy_t *en, int en_ct, game_enemies_t *game,
 
             case 0x0062:    /* Nano Dragon */
                 gen[count].bp_entry = 0x1A;
-                gen[count].rt_index = 0x0E;
+                gen[count].rt_index = 0x0F;
                 break;
 
             case 0x0063:    /* Shark Family */
