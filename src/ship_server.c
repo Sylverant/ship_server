@@ -560,16 +560,16 @@ int main(int argc, char *argv[]) {
         cfg->shipgate_flags |= SHIPGATE_FLAG_NOBB;
     }
 
-    /* If we could read the v2 ItemPT file, try to read its maps too. */
-    if(pt_v2_enabled() && pmt_v2_enabled() && cfg->v2_map_dir) {
+    /* If we have a v2 map dir set, try to read the maps. */
+    if(cfg->v2_map_dir) {
         rv = v2_read_params(cfg);
 
         if(rv < 0)
             exit(EXIT_FAILURE);
     }
 
-    /* If we could read the GC ItemPT file, try to read its maps too. */
-    if(pt_gc_enabled() && pmt_gc_enabled() && cfg->gc_map_dir) {
+    /* If we have a GC map dir set, try to read the maps. */
+    if(cfg->gc_map_dir) {
         rv = gc_read_params(cfg);
 
         if(rv < 0)
