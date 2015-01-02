@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -2350,6 +2350,13 @@ static int process_menu(ship_client_t *c, uint32_t menu_id, uint32_t item_id,
             /* Do we have quests configured? */
             if(!TAILQ_EMPTY(&ship->qmap)) {
                 c->cur_lobby->flags |= LOBBY_FLAG_QUESTING;
+
+                /* Send the clients' kill counts if any of them have kill
+                   tracking enabled. That way, in case there's an event running
+                   that doesn't allow quest kills to count, the user will still
+                   get an updated count if anything was already killed. */
+                lobby_send_kill_counts(c->cur_lobby);
+
                 c->cur_lobby->qid = item_id;
                 c->cur_lobby->qlang = (uint8_t)lang;
                 load_quest_enemies(c->cur_lobby, item_id,

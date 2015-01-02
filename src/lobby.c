@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -1498,4 +1498,20 @@ int lobby_remove_item_locked(lobby_t *l, uint32_t item_id, item_t *rv) {
     }
 
     return 1;
+}
+
+void lobby_send_kill_counts(lobby_t *l) {
+    int i;
+    ship_client_t *c;
+
+    for(i = 0; i < l->max_clients; ++i) {
+        c = l->clients[i];
+
+        /* Send the client's current count and clear out the counters so that we
+           don't double count any kills. */
+        if(c && (c->flags & CLIENT_FLAG_TRACK_KILLS)) {
+            shipgate_send_mkill(&ship->sg, c->guildcard, c->cur_block->b, c, l);
+            memset(c->enemy_kills, 0, sizeof(uint32_t) * 0x60);
+        }
+    }
 }
