@@ -1886,6 +1886,9 @@ int load_quest_enemies(lobby_t *l, uint32_t qid, int ver) {
     if(!(l->flags & LOBBY_FLAG_SERVER_DROPS))
         return 0;
 
+    /* Unset this, in case something screws up. */
+    l->flags &= ~LOBBY_FLAG_SERVER_DROPS;
+
     /* Map PC->DCv2. */
     if(ver == CLIENT_VERSION_PC)
         ver = CLIENT_VERSION_DCV2;
@@ -1905,9 +1908,6 @@ int load_quest_enemies(lobby_t *l, uint32_t qid, int ver) {
         fclose(fp);
         return -2;
     }
-
-    /* Unset this, in case something screws up. */
-    l->flags &= ~LOBBY_FLAG_SERVER_DROPS;
 
     /* Reallocate the objects array. */
     l->map_objs->count = cnt = LE32(cnt);
