@@ -782,7 +782,6 @@ typedef struct dc_game_join {
     uint8_t section;
     uint8_t challenge;
     uint32_t rand_seed;
-    uint32_t padding;
 } PACKED dc_game_join_pkt;
 
 typedef struct pc_game_join {
@@ -1644,7 +1643,7 @@ typedef struct gc_quest_stats {
 #define DC_GUILD_REPLY6_LENGTH          0x00D0
 #define PC_GUILD_REPLY6_LENGTH          0x0134
 #define BB_GUILD_REPLY6_LENGTH          0x013C
-#define DC_GAME_JOIN_LENGTH             0x0114
+#define DC_GAME_JOIN_LENGTH             0x0110
 #define GC_GAME_JOIN_LENGTH             0x0114
 #define EP3_GAME_JOIN_LENGTH            0x1184
 #define DC_QUEST_INFO_LENGTH            0x0128
