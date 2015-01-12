@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2015 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -42,6 +42,11 @@ static int subcmd_send_destroy_map_item(ship_client_t *c, uint8_t area,
                                         uint32_t item_id);
 static int subcmd_send_destroy_item(ship_client_t *c, uint32_t item_id,
                                     uint8_t amt);
+
+#define SWAP32(x) (((x >> 24) & 0x00FF) | \
+                   ((x >>  8) & 0xFF00) | \
+                   ((x & 0xFF00) <<  8) | \
+                   ((x & 0x00FF) << 24))
 
 /* Handle a Guild card send packet. */
 int handle_dc_gcsend(ship_client_t *d, subcmd_dc_gcsend_t *pkt) {
@@ -2140,6 +2145,8 @@ static int handle_bb_sort_inv(ship_client_t *c, subcmd_bb_sort_inv_t *pkt) {
     return 0;
 }
 
+/* XXXX: We need to handle the b0rked nature of the Gamecube packet for this one
+   still (for more than just kill tracking). */
 static int handle_mhit(ship_client_t *c, subcmd_mhit_pkt_t *pkt) {
     lobby_t *l = c->cur_lobby;
     uint16_t mid;
@@ -2192,6 +2199,12 @@ static int handle_mhit(ship_client_t *c, subcmd_mhit_pkt_t *pkt) {
         /* If the kill flag is set, mark it as dead and update the client's
            counter. */
         flags = LE32(pkt->flags);
+
+        /* Swap the flags on the packet if the user is on GC... Looks like Sega
+           decided that it should be the opposite order as it is on DC/PC/BB. */
+        if(c->version == CLIENT_VERSION_GC)
+            flags = SWAP32(flags);
+
         if(flags & 0x00000800) {
             en->clients_hit |= 0x80;
 
