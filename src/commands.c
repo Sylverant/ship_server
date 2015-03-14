@@ -2321,8 +2321,8 @@ static int handle_override(ship_client_t *c, const char *params) {
 
 /* Usage: /ver */
 static int handle_ver(ship_client_t *c, const char *params) {
-    return send_txt(c, "%s: %s", __(c, "\tE\tC7Ship Revision"),
-                    SVN_REVISION);
+    return send_txt(c, "%s: %s (%s: %s)", __(c, "\tE\tC7Git Build"),
+                    GIT_BUILD, __(c, "Changeset"), GIT_CHANGESET);
 }
 
 /* Usage: /restart minutes */

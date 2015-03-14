@@ -64,8 +64,8 @@ static int check_only = 0;
 /* Print information about this program to stdout. */
 static void print_program_info(void) {
     printf("Sylverant Ship Server version %s\n", VERSION);
-    printf("SVN Revision: %s\n", SVN_REVISION);
-    printf("Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014 Lawrence "
+    printf("Git Build: %s (Changeset: %s)\n", GIT_BUILD, GIT_CHANGESET);
+    printf("Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015 Lawrence "
            "Sebald\n\n");
     printf("This program is free software: you can redistribute it and/or\n"
            "modify it under the terms of the GNU Affero General Public\n"
