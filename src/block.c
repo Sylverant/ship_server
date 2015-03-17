@@ -2753,6 +2753,33 @@ static int bb_process_config(ship_client_t *c, bb_options_update_pkt *pkt) {
     return 0;
 }
 
+static int process_qload_done(ship_client_t *c) {
+    lobby_t *l = c->cur_lobby;
+    ship_client_t *c2;
+    int i;
+
+    c->flags |= CLIENT_FLAG_QLOAD_DONE;
+
+    /* See if everyone's done now. */
+    for(i = 0; i < l->max_clients; ++i) {
+        if((c2 = l->clients[i])) {
+            /* This client isn't done, so we can end the search now. */
+            if(!(c2->flags & CLIENT_FLAG_QLOAD_DONE))
+                return 0;
+        }
+    }
+
+    /* If we get here, everyone's done. Send out the packet to everyone now. */
+    for(i = 0; i < l->max_clients; ++i) {
+        if((c2 = l->clients[i])) {
+            if(send_simple(c2, QUEST_LOAD_DONE_TYPE, 0))
+                c2->flags |= CLIENT_FLAG_DISCONNECTED;
+        }
+    }
+
+    return 0;
+}
+
 int send_motd(ship_client_t *c) {
     FILE *fp;
     char buf[1024];
@@ -2996,8 +3023,7 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return 0;
 
         case QUEST_LOAD_DONE_TYPE:
-            /* XXXX: This isn't right... we need to synchronize this. */
-            return send_simple(c, QUEST_LOAD_DONE_TYPE, 0);
+            return process_qload_done(c);
 
         case INFOBOARD_WRITE_TYPE:
             return process_infoboard(c, (gc_write_info_pkt *)pkt);
