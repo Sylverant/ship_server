@@ -6636,9 +6636,11 @@ int send_quest(lobby_t *l, uint32_t qid, int lc) {
     if(!l->v2 && l->version < CLIENT_VERSION_GC)
         v1 = 1;
 
-    /* What type of quest file are we sending? */
     for(i = 0; i < l->max_clients; ++i) {
         if((c = l->clients[i])) {
+            c->flags &= ~CLIENT_FLAG_QLOAD_DONE;
+
+            /* What type of quest file are we sending? */
             if(v1 && c->version == CLIENT_VERSION_DCV2)
                 ver = CLIENT_VERSION_DCV1;
             else
