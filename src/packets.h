@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -1723,6 +1723,7 @@ typedef struct gc_quest_stats {
 #define LOGIN_93BB_FORCED_DISCONNECT        12
 
 /* Episode 3 - Types of 0xBA commands. */
+#define EP3_COMMAND_LEAVE_TEAM              1
 #define EP3_COMMAND_JUKEBOX_REQUEST         2
 #define EP3_COMMAND_JUKEBOX_SET             3
 

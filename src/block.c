@@ -2640,11 +2640,13 @@ static int process_ep3_command(ship_client_t *c, const uint8_t *pkt) {
     uint16_t tmp;
 
     switch(hdr->flags) {
+        case EP3_COMMAND_LEAVE_TEAM:
+            /* XXXX: Fall through?
+                     This is what schtserv seems to do, so I guess it works. */
         case EP3_COMMAND_JUKEBOX_REQUEST:
             /* Make sure the size looks ok... */
-            if(len != 0x10) {
+            if(len != 0x10)
                 return -1;
-            }
 
             tmp = pkt[0x0E] | (pkt[0x0F] << 8);
             return send_lobby_ep3_jukebox(c->cur_lobby, tmp);
