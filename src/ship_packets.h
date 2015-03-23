@@ -246,6 +246,9 @@ int send_lobby_mod_stat(lobby_t *l, ship_client_t *c, int stat, int amt);
 /* Send an Episode 3 Jukebox music change packet to the lobby. */
 int send_lobby_ep3_jukebox(lobby_t *l, uint16_t music);
 
+/* Send an Episode 3 Jukebox music packet to one player. */
+int send_ep3_jukebox(ship_client_t *c, uint16_t music);
+
 /* Send a user the Blue Burst full character/option data packet. */
 int send_bb_full_char(ship_client_t *c);
 

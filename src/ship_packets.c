@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -4778,7 +4778,7 @@ int send_message_box(ship_client_t *c, const char *fmt, ...) {
 static int send_dc_quest_categories(ship_client_t *c, int lang) {
     uint8_t *sendbuf = get_sendbuf();
     dc_quest_list_pkt *pkt = (dc_quest_list_pkt *)sendbuf;
-    int i, len = 0x04, entries = 0;
+    int i, len = 0x04, entries = 0, ep = 1;
     uint32_t type = SYLVERANT_QUEST_NORMAL;
     size_t in, out;
     ICONV_CONST char *inptr;
@@ -4788,6 +4788,7 @@ static int send_dc_quest_categories(ship_client_t *c, int lang) {
 
     if(l->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3) {
         qlist = &ship->qlist[CLIENT_VERSION_GC][lang];
+        ep = c->cur_lobby->episode;
     }
     else if(!l->v2) {
         qlist = &ship->qlist[CLIENT_VERSION_DCV1][lang];
@@ -4813,16 +4814,13 @@ static int send_dc_quest_categories(ship_client_t *c, int lang) {
     }
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
-    if(c->cur_lobby->battle) {
+    if(c->cur_lobby->battle)
         type = SYLVERANT_QUEST_BATTLE;
-    }
-    else if(c->cur_lobby->challenge) {
+    else if(c->cur_lobby->challenge)
         type = SYLVERANT_QUEST_CHALLENGE;
-    }
 
     /* Clear out the header */
     memset(pkt, 0, 0x04);
@@ -4832,9 +4830,13 @@ static int send_dc_quest_categories(ship_client_t *c, int lang) {
 
     for(i = 0; i < qlist->cat_count; ++i) {
         /* Skip quests not of the right type. */
-        if(qlist->cats[i].type != type) {
+        if(qlist->cats[i].type != type)
             continue;
-        }
+
+        /* If the category doesn't have anything for this episode, don't bother
+           showing it. */
+        if(!(qlist->cats[i].episodes & ep))
+            continue;
 
         /* Clear the entry */
         memset(pkt->entries + entries, 0, 0x98);
@@ -4939,9 +4941,8 @@ static int send_pc_quest_categories(ship_client_t *c, int lang) {
 
     for(i = 0; i < qlist->cat_count; ++i) {
         /* Skip quests not of the right type. */
-        if(qlist->cats[i].type != type) {
+        if(qlist->cats[i].type != type)
             continue;
-        }
 
         /* Clear the entry */
         memset(pkt->entries + i, 0, 0x128);
@@ -9310,6 +9311,23 @@ int send_lobby_ep3_jukebox(lobby_t *l, uint16_t music) {
     pthread_mutex_unlock(&l->mutex);
 
     return 0;
+}
+
+/* Send an Episode 3 Jukebox music packet to one player. */
+int send_ep3_jukebox(ship_client_t *c, uint16_t music) {
+    uint8_t *sendbuf = get_sendbuf();
+    ep3_jukebox_pkt *pkt = (ep3_jukebox_pkt *)sendbuf;
+
+    /* Fill in the packet first... */
+    pkt->hdr.pkt_type = EP3_COMMAND_TYPE;
+    pkt->hdr.flags = EP3_COMMAND_JUKEBOX_SET;
+    pkt->hdr.pkt_len = LE16(0x0010);
+    pkt->unk1 = LE32(0x0000012C);
+    pkt->unk2 = LE32(0x000008E8);
+    pkt->unk3 = LE16(0x0000);
+    pkt->music = LE16(music);
+
+    return crypt_send(c, 0x10, sendbuf);
 }
 
 /* Send a user the Blue Burst full character/option data packet. */
