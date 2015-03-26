@@ -9279,53 +9279,41 @@ int send_lobby_mod_stat(lobby_t *l, ship_client_t *c, int stat, int amt) {
     return 0;
 }
 
-/* Send an Episode 3 Jukebox music change packet to the lobby. */
-int send_lobby_ep3_jukebox(lobby_t *l, uint16_t music) {
-    ep3_jukebox_pkt pkt;
-    int i;
-
-    /* Fill in the packet first... */
-    pkt.hdr.pkt_type = EP3_COMMAND_TYPE;
-    pkt.hdr.flags = EP3_COMMAND_JUKEBOX_SET;
-    pkt.hdr.pkt_len = LE16(0x0010);
-    pkt.unk1 = LE32(0x0000012C);
-    pkt.unk2 = LE32(0x000008E8);
-    pkt.unk3 = LE16(0x0000);
-    pkt.music = LE16(music);
-
-    pthread_mutex_lock(&l->mutex);
-
-    for(i = 0; i < l->max_clients; ++i) {
-        if(l->clients[i]) {
-            pthread_mutex_lock(&l->clients[i]->mutex);
-
-            /* Send to the client if they're on Episode 3. */
-            if(l->clients[i]->version == CLIENT_VERSION_EP3) {
-                send_pkt_dc(l->clients[i], (dc_pkt_hdr_t *)&pkt);
-            }
-
-            pthread_mutex_unlock(&l->clients[i]->mutex);
-        }
-    }
-
-    pthread_mutex_unlock(&l->mutex);
-
-    return 0;
-}
-
-/* Send an Episode 3 Jukebox music packet to one player. */
-int send_ep3_jukebox(ship_client_t *c, uint16_t music) {
+/* Send a reply to an Episode III jukebox request (showing updated meseta values
+   for the requesting client). */
+int send_ep3_jukebox_reply(ship_client_t *c, uint16_t magic) {
     uint8_t *sendbuf = get_sendbuf();
-    ep3_jukebox_pkt *pkt = (ep3_jukebox_pkt *)sendbuf;
+    ep3_ba_pkt *pkt = (ep3_ba_pkt *)sendbuf;
+
+    /* XXXX: Fill in meseta values with correct numbers. */
 
     /* Fill in the packet first... */
     pkt->hdr.pkt_type = EP3_COMMAND_TYPE;
-    pkt->hdr.flags = EP3_COMMAND_JUKEBOX_SET;
+    pkt->hdr.flags = EP3_COMMAND_JUKEBOX_REPLY;
     pkt->hdr.pkt_len = LE16(0x0010);
-    pkt->unk1 = LE32(0x0000012C);
-    pkt->unk2 = LE32(0x000008E8);
-    pkt->unk3 = LE16(0x0000);
-    pkt->music = LE16(music);
+    pkt->meseta = LE32(0x0000012C);
+    pkt->total_meseta = LE32(0x000008E8);
+    pkt->unused = 0;
+    pkt->magic = LE16(magic);
+
+    return crypt_send(c, 0x10, sendbuf);
+}
+
+/* Send a reply to an Episode 3 leave team? packet. */
+int send_ep3_ba01(ship_client_t *c, uint16_t magic) {
+    uint8_t *sendbuf = get_sendbuf();
+    ep3_ba_pkt *pkt = (ep3_ba_pkt *)sendbuf;
+
+    /* XXXX: Fill in meseta values with correct numbers. */
+
+    /* Fill in the packet first... */
+    pkt->hdr.pkt_type = EP3_COMMAND_TYPE;
+    pkt->hdr.flags = EP3_COMMAND_LEAVE_TEAM;
+    pkt->hdr.pkt_len = LE16(0x0010);
+    pkt->meseta = LE32(0x0000012C);
+    pkt->total_meseta = LE32(0x000008E8);
+    pkt->unused = 0;
+    pkt->magic = LE16(magic);
 
     return crypt_send(c, 0x10, sendbuf);
 }

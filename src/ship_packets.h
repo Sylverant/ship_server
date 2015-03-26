@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2015 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -243,11 +243,12 @@ int send_pc_game_type_sel(ship_client_t *c);
 /* Send a statistics mod packet to the lobby. */
 int send_lobby_mod_stat(lobby_t *l, ship_client_t *c, int stat, int amt);
 
-/* Send an Episode 3 Jukebox music change packet to the lobby. */
-int send_lobby_ep3_jukebox(lobby_t *l, uint16_t music);
+/* Send a reply to an Episode III jukebox request (showing updated meseta values
+   for the requesting client). */
+int send_ep3_jukebox_reply(ship_client_t *c, uint16_t magic);
 
-/* Send an Episode 3 Jukebox music packet to one player. */
-int send_ep3_jukebox(ship_client_t *c, uint16_t music);
+/* Send a reply to an Episode 3 leave team? packet. */
+int send_ep3_ba01(ship_client_t *c, uint16_t magic);
 
 /* Send a user the Blue Burst full character/option data packet. */
 int send_bb_full_char(ship_client_t *c);

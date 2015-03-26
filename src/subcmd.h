@@ -823,6 +823,7 @@ typedef struct subcmd_mkill {
 #define SUBCMD_SHOPINV      0xB6    /* Blue Burst - shop inventory */
 #define SUBCMD_BANK_INV     0xBC    /* Blue Burst - bank inventory */
 #define SUBCMD_CREATE_ITEM  0xBE    /* Blue Burst - create new inventory item */
+#define SUBCMD_JUKEBOX      0xBF    /* Episode III - Change background music */
 #define SUBCMD_GIVE_EXP     0xBF    /* Blue Burst - give experience points */
 #define SUBCMD_DROP_POS     0xC3    /* Blue Burst - Drop part of stack coords */
 #define SUBCMD_SORT_INV     0xC4    /* Blue Burst - Sort inventory */

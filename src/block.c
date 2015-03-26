@@ -2646,7 +2646,7 @@ static int process_ep3_command(ship_client_t *c, const uint8_t *pkt) {
                 return -1;
 
             tmp = pkt[0x0E] | (pkt[0x0F] << 8);
-            return send_ep3_jukebox(c, tmp);
+            return send_ep3_ba01(c, tmp);
 
         case EP3_COMMAND_JUKEBOX_REQUEST:
             /* Make sure the size looks ok... */
@@ -2654,7 +2654,7 @@ static int process_ep3_command(ship_client_t *c, const uint8_t *pkt) {
                 return -1;
 
             tmp = pkt[0x0E] | (pkt[0x0F] << 8);
-            return send_lobby_ep3_jukebox(c->cur_lobby, tmp);
+            return send_ep3_jukebox_reply(c, tmp);
 
         default:
             debug(DBG_LOG, "Unknown Episode 3 Command: %02x\n", hdr->flags);
