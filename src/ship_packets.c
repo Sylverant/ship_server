@@ -8735,6 +8735,12 @@ static void copy_c_rank_gc(gc_c_rank_update_pkt *pkt, int entry,
                    s->pl->v2.c_rank.part.times, 9 * sizeof(uint32_t));
             memcpy(pkt->entries[entry].battle,
                    s->pl->v2.c_rank.part.battle, 7 * sizeof(uint32_t));
+
+            /* Really hacky C-Rank color fix? */
+            memcpy(pkt->entries[entry].unk2 + 0xA0,
+                   s->pl->v2.c_rank.part.unk2, sizeof(uint32_t));
+            memcpy(pkt->entries[entry].unk2 + 0xA4,
+                   s->pl->v2.c_rank.part.unk2 + 0x08, sizeof(uint32_t));
             break;
 
         case CLIENT_VERSION_PC:
@@ -8742,7 +8748,8 @@ static void copy_c_rank_gc(gc_c_rank_update_pkt *pkt, int entry,
 
             memset(pkt->entries[entry].c_rank, 0, 0x0118);
 
-            pkt->entries[entry].unk1 = s->pl->pc.c_rank.part.unk1;
+            pkt->entries[entry].unk1 = (s->pl->pc.c_rank.part.unk1 >> 16) |
+                (s->pl->pc.c_rank.part.unk1 << 16);
 
             /* Copy the rank over. */
             for(j = 0; j < 0x0C; ++j) {
@@ -8755,6 +8762,12 @@ static void copy_c_rank_gc(gc_c_rank_update_pkt *pkt, int entry,
                    9 * sizeof(uint32_t));
             memcpy(pkt->entries[entry].battle, s->pl->pc.c_rank.part.battle,
                    7 * sizeof(uint32_t));
+
+            /* Really hacky C-Rank color fix? */
+            memcpy(pkt->entries[entry].unk2 + 0xA0,
+                   s->pl->pc.c_rank.part.unk2, sizeof(uint32_t));
+            memcpy(pkt->entries[entry].unk2 + 0xA4,
+                   s->pl->pc.c_rank.part.unk2 + 0x08, sizeof(uint32_t));
             break;
 
         default:
@@ -8847,6 +8860,12 @@ static void copy_c_rank_dc(dc_c_rank_update_pkt *pkt, int entry,
                    s->pl->v3.c_rank.part.times, 9 * sizeof(uint32_t));
             memcpy(pkt->entries[entry].battle,
                    s->pl->v3.c_rank.part.battle, 7 * sizeof(uint32_t));
+
+            /* Really hacky C-Rank color fix? */
+            memcpy(pkt->entries[entry].unk2,
+                   s->pl->v3.c_rank.part.unk2 + 0xA0, sizeof(uint32_t));
+            memcpy(pkt->entries[entry].unk2 + 0x08,
+                   s->pl->v3.c_rank.part.unk2 + 0xA4, sizeof(uint32_t));
             break;
 
         default:
@@ -8942,6 +8961,12 @@ static void copy_c_rank_pc(pc_c_rank_update_pkt *pkt, int entry,
                    s->pl->v3.c_rank.part.times, 9 * sizeof(uint32_t));
             memcpy(pkt->entries[entry].battle,
                    s->pl->v3.c_rank.part.battle, 7 * sizeof(uint32_t));
+
+            /* Really hacky C-Rank color fix? */
+            memcpy(pkt->entries[entry].unk2,
+                   s->pl->v3.c_rank.part.unk2 + 0xA0, sizeof(uint32_t));
+            memcpy(pkt->entries[entry].unk2 + 0x08,
+                   s->pl->v3.c_rank.part.unk2 + 0xA4, sizeof(uint32_t));
             break;
 
         default:
