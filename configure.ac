@@ -1,7 +1,7 @@
 dnl
 dnl This file is part of Sylverant PSO Server.
 dnl
-dnl Copyright (C) 2009, 2011, 2013 Lawrence Sebald
+dnl Copyright (C) 2009, 2011, 2013, 2015 Lawrence Sebald
 dnl
 dnl This program is free software: you can redistribute it and/or modify
 dnl it under the terms of the GNU Affero General Public License version 3
@@ -54,6 +54,7 @@ LIBS="$LIBS $gnutls_LIBS"
 
 AC_CHECK_LIB([sylverant], [sylverant_read_config], , AC_MSG_ERROR([libsylverant is required!]))
 AC_CHECK_LIB([mini18n], [mini18n_get], , AC_MSG_WARN([Internationalization support requires mini18n]))
+AC_CHECK_LIB([psoarchive], [pso_gsl_read_open], , AC_MSG_ERROR([libpsoarchive is required!]))
 
 AC_ARG_ENABLE([scripting], [AS_HELP_STRING([--enable-scripting],
               [enable scripting support in the binary (requires Python 2.x (x >= 5))])],

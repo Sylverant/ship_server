@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2012, 2013, 2014 Lawrence Sebald
+    Copyright (C) 2012, 2013, 2014, 2015 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -23,7 +23,7 @@
 #include <unistd.h>
 
 #include <sylverant/debug.h>
-#include <sylverant/prs.h>
+#include <psoarchive/PRS.h>
 
 #include "mapdata.h"
 #include "lobby.h"
@@ -111,7 +111,7 @@ static int read_level_data(const char *fn) {
 #endif
 
     /* Read in the file and decompress it. */
-    if((decsize = prs_decompress_file(fn, &buf)) < 0) {
+    if((decsize = pso_prs_decompress_file(fn, &buf)) < 0) {
         debug(DBG_ERROR, "Cannot read levels %s: %s\n", fn, strerror(-decsize));
         return -1;
     }

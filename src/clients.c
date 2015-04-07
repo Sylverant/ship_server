@@ -31,7 +31,6 @@
 #include <sylverant/encryption.h>
 #include <sylverant/mtwist.h>
 #include <sylverant/debug.h>
-#include <sylverant/prs.h>
 
 #include "ship.h"
 #include "utils.h"
@@ -187,7 +186,7 @@ ship_client_t *client_create_connection(int sock, int version, int type,
 
 #ifdef HAVE_PYTHON
     rv->pyobj = client_pyobj_create(rv);
-    
+
     if(!rv->pyobj) {
         goto err;
     }
@@ -857,7 +856,7 @@ static PyObject *Client_privilege(ClientObject *self, PyObject *args UNUSED) {
     if(!self->client) {
         return NULL;
     }
-    
+
     return Py_BuildValue("B", self->client->privilege);
 }
 

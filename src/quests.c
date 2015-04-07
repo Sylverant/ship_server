@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2011, 2013, 2014 Lawrence Sebald
+    Copyright (C) 2011, 2013, 2014, 2015 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -22,7 +22,8 @@
 #include <sys/stat.h>
 
 #include <sylverant/debug.h>
-#include <sylverant/prs.h>
+
+#include <psoarchive/PRS.h>
 
 #include "quests.h"
 #include "clients.h"
@@ -159,7 +160,7 @@ static uint8_t *decompress_dat(uint8_t *inbuf, uint32_t insz, uint32_t *osz) {
     uint8_t *rv;
     int sz;
 
-    if((sz = prs_decompress_buf(inbuf, &rv, (size_t)insz)) < 0) {
+    if((sz = pso_prs_decompress_buf(inbuf, &rv, (size_t)insz)) < 0) {
         debug(DBG_WARN, "Cannot decompress data: %s\n", strerror(-sz));
         return NULL;
     }

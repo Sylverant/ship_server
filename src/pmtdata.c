@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2012, 2013, 2014 Lawrence Sebald
+    Copyright (C) 2012, 2013, 2014, 2015 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -23,9 +23,10 @@
 
 #include <arpa/inet.h>
 
-#include <sylverant/prs.h>
 #include <sylverant/debug.h>
 #include <sylverant/mtwist.h>
+
+#include <psoarchive/PRS.h>
 
 #include "pmtdata.h"
 #include "utils.h"
@@ -1163,7 +1164,7 @@ int pmt_read_v2(const char *fn, int norestrict) {
     uint32_t ptrs[21];
 
     /* Read in the file and decompress it. */
-    if((ucsz = prs_decompress_file(fn, &ucbuf)) < 0) {
+    if((ucsz = pso_prs_decompress_file(fn, &ucbuf)) < 0) {
         debug(DBG_ERROR, "Cannot read v2 PMT %s: %s\n", fn, strerror(-ucsz));
         return -1;
     }
@@ -1217,7 +1218,7 @@ int pmt_read_gc(const char *fn, int norestrict) {
     uint32_t ptrs[23];
 
     /* Read in the file and decompress it. */
-    if((ucsz = prs_decompress_file(fn, &ucbuf)) < 0) {
+    if((ucsz = pso_prs_decompress_file(fn, &ucbuf)) < 0) {
         debug(DBG_ERROR, "Cannot read GC PMT %s: %s\n", fn, strerror(-ucsz));
         return -1;
     }
@@ -1271,7 +1272,7 @@ int pmt_read_bb(const char *fn, int norestrict) {
     uint32_t ptrs[23];
 
     /* Read in the file and decompress it. */
-    if((ucsz = prs_decompress_file(fn, &ucbuf)) < 0) {
+    if((ucsz = pso_prs_decompress_file(fn, &ucbuf)) < 0) {
         debug(DBG_ERROR, "Cannot read BB PMT %s: %s\n", fn, strerror(-ucsz));
         return -1;
     }
