@@ -2306,6 +2306,58 @@ static int handle_bb_req_exp(ship_client_t *c, subcmd_bb_req_exp_pkt_t *pkt) {
     return client_give_exp(c, exp);
 }
 
+static int handle_spawn_npc(ship_client_t *c, subcmd_pkt_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+
+    /* We can't get these in default lobbies without someone messing with
+       something that they shouldn't be... Disconnect anyone that tries. */
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        debug(DBG_WARN, "Attempt by GC %" PRIu32 " to spawn NPC in lobby!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* The only quests that allow NPCs to be loaded are those that require there
+       to only be one player, so limit that here. Also, we only allow /npc in
+       single-player teams, so that'll fall into line too. */
+    if(l->num_clients > 1) {
+        debug(DBG_WARN, "Attempt by GC %" PRIu32 " to spawn NPC in multi-"
+              "player team!\n", c->guildcard);
+        return -1;
+    }
+
+    /* Either this is a legitimate request to spawn a quest NPC, or the player
+       is doing something stupid like trying to NOL himself. We don't care if
+       someone is stupid enough to NOL themselves, so send the packet on now. */
+    return subcmd_send_lobby_dc(l, c, pkt, 0);
+}
+
+static int handle_bb_spawn_npc(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+
+    /* We can't get these in default lobbies without someone messing with
+       something that they shouldn't be... Disconnect anyone that tries. */
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        debug(DBG_WARN, "Attempt by GC %" PRIu32 " to spawn NPC in lobby!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* The only quests that allow NPCs to be loaded are those that require there
+       to only be one player, so limit that here. Also, we only allow /npc in
+       single-player teams, so that'll fall into line too. */
+    if(l->num_clients > 1) {
+        debug(DBG_WARN, "Attempt by GC %" PRIu32 " to spawn NPC in multi-"
+              "player team!\n", c->guildcard);
+        return -1;
+    }
+
+    /* Either this is a legitimate request to spawn a quest NPC, or the player
+       is doing something stupid like trying to NOL himself. We don't care if
+       someone is stupid enough to NOL themselves, so send the packet on now. */
+    return subcmd_send_lobby_bb(l, c, pkt, 0);
+}
+
 /* Handle a 0x62/0x6D packet. */
 int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
     lobby_t *l = c->cur_lobby;
@@ -2586,6 +2638,10 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
             rv = handle_mhit(c, (subcmd_mhit_pkt_t *)pkt);
             break;
 
+        case SUBCMD_SPAWN_NPC:
+            rv = handle_spawn_npc(c, pkt);
+            break;
+
         default:
 #ifdef LOG_UNKNOWN_SUBS
             debug(DBG_LOG, "Unknown 0x60: 0x%02X\n", type);
@@ -2705,6 +2761,10 @@ int subcmd_bb_handle_bcast(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
         case SUBCMD_TAKE_DAMAGE1:
         case SUBCMD_TAKE_DAMAGE2:
             rv = handle_bb_take_damage(c, (subcmd_bb_take_damage_t *)pkt);
+            break;
+
+        case SUBCMD_SPAWN_NPC:
+            rv = handle_bb_spawn_npc(c, pkt);
             break;
 
         default:
