@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2012, 2013 Lawrence Sebald
+    Copyright (C) 2012, 2013, 2015 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -171,6 +171,7 @@ void free_game_enemies(lobby_t *l);
 
 int map_have_v2_maps(void);
 int map_have_gc_maps(void);
+int map_have_bb_maps(void);
 
 int load_quest_enemies(lobby_t *l, uint32_t qid, int ver);
 int cache_quest_enemies(const char *ofn, const uint8_t *dat, uint32_t sz,

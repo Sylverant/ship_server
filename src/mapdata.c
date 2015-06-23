@@ -42,6 +42,9 @@ bb_level_table_t char_stats;
 static parsed_map_t bb_parsed_maps[2][3][0x10];
 static parsed_objs_t bb_parsed_objs[2][3][0x10];
 
+/* Did we read in Blue Burst map data? */
+static int have_bb_maps = 0;
+
 /* V2 Parsed enemy data. This is much simpler, since there's no episodes nor
    single-player mode to worry about. */
 static parsed_map_t v2_parsed_maps[0x10];
@@ -1201,6 +1204,9 @@ bail:
         debug(DBG_ERROR, "Error reading Blue Burst data, disabling Blue Burst "
               "support!\n");
     }
+    else {
+        have_bb_maps = 1;
+    }
 
     /* Clean up and return. */
     free(buf);
@@ -1731,6 +1737,10 @@ int map_have_v2_maps(void) {
 
 int map_have_gc_maps(void) {
     return have_gc_maps;
+}
+
+int map_have_bb_maps(void) {
+    return have_bb_maps;
 }
 
 static void parse_quest_objects(const uint8_t *data, uint32_t len,
