@@ -1109,8 +1109,18 @@ static int generate_tech(uint8_t freqs[19][10], int8_t levels[19][20],
             t1 = levels[i][area << 1];
             t2 = levels[i][(area << 1) + 1];
 
+            /* Make sure that the minimum level isn't -1 and that the minimum is
+               actually less than the maximum. */
             if(t1 == -1 || t1 > t2)
                 return -1;
+
+            /* Cap the levels from the ItemPT data, since Sega's files sometimes
+               have stupid values here. */
+            if(t1 >= 30)
+                t1 = 29;
+
+            if(t2 >= 30)
+                t2 = 29;
 
             if(t1 < t2)
                 level = (rnd % ((t2 + 1) - t1)) + t1;
