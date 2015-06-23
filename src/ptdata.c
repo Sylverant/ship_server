@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2012, 2013, 2014 Lawrence Sebald
+    Copyright (C) 2012, 2013, 2014, 2015 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -24,6 +24,9 @@
 #include <sylverant/items.h>
 #include <sylverant/debug.h>
 #include <sylverant/mtwist.h>
+
+#include <psoarchive/AFS.h>
+#include <psoarchive/GSL.h>
 
 #include "ptdata.h"
 #include "pmtdata.h"
@@ -91,82 +94,43 @@ static const int attr_count[4] = { 8, 10, 12, 12 };
 #define EPSILON 0.001f
 
 int pt_read_v2(const char *fn) {
-    FILE *fp;
-    uint8_t buf[4];
+    pso_afs_read_t *a;
+    pso_error_t err;
+    ssize_t sz;
     int rv = 0, i, j;
-    uint32_t offsets[40];
 #if defined(__BIG_ENDIAN__) || defined(WORDS_BIGENDIAN)
     int k, l;
 #endif
 
-    /* Open up the file */
-    if(!(fp = fopen(fn, "rb"))) {
-        debug(DBG_ERROR, "Cannot open %s: %s\n", fn, strerror(errno));
+    /* Open up the file and make sure it looks sane enough... */
+    if(!(a = pso_afs_read_open(fn, 0, &err))) {
+        debug(DBG_ERROR, "Cannot read %s: %s\n", fn, pso_strerror(err));
         return -1;
     }
 
-    /* Make sure that it looks like a sane AFS file. */
-    if(fread(buf, 1, 4, fp) != 4) {
-        debug(DBG_ERROR, "Error reading file: %s\n", strerror(errno));
+    /* Make sure the archive has the correct number of entries. */
+    if(pso_afs_file_count(a) != 40) {
+        debug(DBG_ERROR, "%s appears to be incomplete.\n", fn);
         rv = -2;
         goto out;
     }
 
-    if(buf[0] != 0x41 || buf[1] != 0x46 || buf[2] != 0x53 || buf[3] != 0x00) {
-        debug(DBG_ERROR, "%s is not an AFS archive!\n", fn);
-        rv = -3;
-        goto out;
-    }
-
-    /* Make sure there are exactly 40 entries */
-    if(fread(buf, 1, 4, fp) != 4) {
-        debug(DBG_ERROR, "Error reading file: %s\n", strerror(errno));
-        rv = -2;
-        goto out;
-    }
-
-    if(buf[0] != 40 || buf[1] != 0 || buf[2] != 0 || buf[3] != 0) {
-        debug(DBG_ERROR, "%s does not appear to be an ItemPT.afs file\n", fn);
-        rv = -4;
-        goto out;
-    }
-
-    /* Read in the offsets and lengths */
-    for(i = 0; i < 40; ++i) {
-        if(fread(buf, 1, 4, fp) != 4) {
-            debug(DBG_ERROR, "Error reading file: %s\n", strerror(errno));
-            rv = -2;
-            goto out;
-        }
-
-        offsets[i] = (buf[0]) | (buf[1] << 8) | (buf[2] << 16) | (buf[3] << 24);
-
-        if(fread(buf, 1, 4, fp) != 4) {
-            debug(DBG_ERROR, "Error reading file: %s\n", strerror(errno));
-            rv = -2;
-            goto out;
-        }
-
-        if(buf[0] != 0x40 || buf[1] != 0x09 || buf[2] != 0 || buf[3] != 0) {
-            debug(DBG_ERROR, "Invalid sized entry in ItemPT.afs!\n");
-            rv = 5;
-            goto out;
-        }
-    }
-
-    /* Now, parse each entry... */
+    /* Parse each entry... */
     for(i = 0; i < 4; ++i) {
         for(j = 0; j < 10; ++j) {
-            if(fseek(fp, (long)offsets[i * 10 + j], SEEK_SET)) {
-                debug(DBG_ERROR, "fseek error: %s\n", strerror(errno));
-                rv = -2;
+            sz = pso_afs_file_size(a, i * 10 + j);
+            if(sz != 0x0940) {
+                debug(DBG_ERROR, "%s has invalid sized entry!\n", fn);
+                rv = -3;
                 goto out;
             }
 
-            if(fread(&v2_ptdata[i][j], 1, sizeof(pt_v2_entry_t), fp) !=
-               sizeof(pt_v2_entry_t)) {
-                debug(DBG_ERROR, "Error reading file: %s\n", strerror(errno));
-                rv = -2;
+            /* Only grab the data we care about... */
+            sz = sizeof(pt_v2_entry_t);
+            if(pso_afs_file_read(a, i * 10 + j, (uint8_t *)&v2_ptdata[i][j],
+                                 (size_t)sz) != sz) {
+                debug(DBG_ERROR, "Cannot read data from %s!\n", i * 10 + j, fn);
+                rv = -4;
                 goto out;
             }
 
@@ -205,79 +169,67 @@ int pt_read_v2(const char *fn) {
     have_v2pt = 1;
 
 out:
-    fclose(fp);
+    pso_afs_read_close(a);
     return rv;
 }
 
 int pt_read_v3(const char *fn, int bb) {
-    FILE *fp;
-    uint8_t buf[4];
+    pso_gsl_read_t *a;
+    const char difficulties[4] = { 'n', 'h', 'v', 'u' };
+    const char *episodes[2] = { "", "l" };
+    char filename[32];
+    uint32_t hnd;
+    const size_t sz = sizeof(pt_v3_entry_t);
+    pso_error_t err;
     int rv = 0, i, j, k;
-    uint32_t offsets[80];
 #if !defined(__BIG_ENDIAN__) && !defined(WORDS_BIGENDIAN)
     int l, m;
 #endif
 
-    /* Open up the file */
-    if(!(fp = fopen(fn, "rb"))) {
-        debug(DBG_ERROR, "Cannot open %s: %s\n", fn, strerror(errno));
+    /* Open up the file and make sure it looks sane enough... */
+    if(!(a = pso_gsl_read_open(fn, 0, &err))) {
+        debug(DBG_ERROR, "Cannot read %s: %s\n", fn, pso_strerror(err));
         return -1;
     }
 
-    /* Read in the offsets and lengths for the Episode I & II data. */
-    for(i = 0; i < 80; ++i) {
-        if(fseek(fp, 32, SEEK_CUR)) {
-            debug(DBG_ERROR, "fseek error: %s\n", strerror(errno));
-            rv = -2;
-            goto out;
-        }
-
-        if(fread(buf, 1, 4, fp) != 4) {
-            debug(DBG_ERROR, "Error reading file: %s\n", strerror(errno));
-            rv = -2;
-            goto out;
-        }
-
-        /* The offsets are in 2048 byte blocks. */
-        offsets[i] = (buf[3]) | (buf[2] << 8) | (buf[1] << 16) | (buf[0] << 24);
-        offsets[i] <<= 11;
-
-        if(fread(buf, 1, 4, fp) != 4) {
-            debug(DBG_ERROR, "Error reading file: %s\n", strerror(errno));
-            rv = -2;
-            goto out;
-        }
-
-        if(buf[0] != 0 || buf[1] != 0 || buf[2] != 0x09 || buf[3] != 0xE0) {
-            debug(DBG_ERROR, "Invalid sized entry in ItemPT.gsl!\n");
-            rv = 5;
-            goto out;
-        }
-
-        /* Skip over the padding. */
-        if(fseek(fp, 8, SEEK_CUR)) {
-            debug(DBG_ERROR, "fseek error: %s\n", strerror(errno));
-            rv = -2;
-            goto out;
-        }
+    /* Make sure the archive has the correct number of entries. */
+    if(pso_gsl_file_count(a) != 160) {
+        debug(DBG_ERROR, "%s appears to be incomplete.\n", fn);
+        rv = -2;
+        goto out;
     }
 
     /* Now, parse each entry... */
     for(i = 0; i < 2; ++i) {
         for(j = 0; j < 4; ++j) {
             for(k = 0; k < 10; ++k) {
-                if(fseek(fp, (long)offsets[i * 40 + j * 10 + k], SEEK_SET)) {
-                    debug(DBG_ERROR, "fseek error: %s\n", strerror(errno));
-                    rv = -2;
+                /* Figure out the name of the file in the archive that we're
+                   looking for... */
+                sprintf(filename, "ItemPT%s%c%d.rel", episodes[i],
+                        difficulties[j], k);
+
+                /* Grab a handle to that file. */
+                hnd = pso_gsl_file_lookup(a, filename);
+                if(hnd == PSOARCHIVE_HND_INVALID) {
+                    debug(DBG_ERROR, "%s is missing file %s!\n", fn, filename);
+                    rv = -3;
+                    goto out;
+                }
+
+                /* Make sure the size is correct. */
+                if(pso_gsl_file_size(a, hnd) != 0x9E0) {
+                    debug(DBG_ERROR, "%s file %s has invalid size!\n", fn,
+                          filename);
+                    rv = -4;
                     goto out;
                 }
 
                 if(bb) {
-                    if(fread(&bb_ptdata[i][j][k], 1, sizeof(pt_v3_entry_t),
-                             fp) != sizeof(pt_v3_entry_t)) {
-                        debug(DBG_ERROR, "Error reading file: %s\n",
-                              strerror(errno));
-                        rv = -2;
+                    if(pso_gsl_file_read(a, hnd, (uint8_t *)&bb_ptdata[i][j][k],
+                                         sz) != sz) {
+                        debug(DBG_ERROR, "Error reading %s from %s!\n",
+                              filename, fn);
+                        rv = -5;
                         goto out;
                     }
 
@@ -321,11 +273,11 @@ int pt_read_v3(const char *fn, int bb) {
 #endif
                 }
                 else {
-                    if(fread(&gc_ptdata[i][j][k], 1, sizeof(pt_v3_entry_t),
-                             fp) != sizeof(pt_v3_entry_t)) {
-                        debug(DBG_ERROR, "Error reading file: %s\n",
-                              strerror(errno));
-                        rv = -2;
+                    if(pso_gsl_file_read(a, hnd, (uint8_t *)&gc_ptdata[i][j][k],
+                                         sz) != sz) {
+                        debug(DBG_ERROR, "Error reading %s from %s!\n",
+                              filename, fn);
+                        rv = -5;
                         goto out;
                     }
 
@@ -378,7 +330,7 @@ int pt_read_v3(const char *fn, int bb) {
         have_gcpt = 1;
 
 out:
-    fclose(fp);
+    pso_gsl_read_close(a);
     return rv;
 }
 
