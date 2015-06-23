@@ -2075,7 +2075,7 @@ int pt_generate_gc_drop(ship_client_t *c, lobby_t *l, void *r) {
 int pt_generate_gc_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
     subcmd_bitemreq_t *req = (subcmd_bitemreq_t *)r;
     int section = l->clients[l->leader_id]->pl->v1.section;
-    pt_v3_entry_t *ent = &gc_ptdata[l->episode][l->difficulty][section];
+    pt_v3_entry_t *ent = &gc_ptdata[l->episode - 1][l->difficulty][section];
     uint16_t obj_id;
     game_object_t *gobj;
     map_object_t *obj;
