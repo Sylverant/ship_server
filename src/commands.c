@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -2632,15 +2632,15 @@ static int handle_sdrops(ship_client_t *c, const char *params) {
                !rt_v2_enabled())
                 return send_txt(c, "%s", __(c, "\tE\tC7Server-side drops not\n"
                                             "suported on this ship for\n"
-                                            "your client version."));
+                                            "this client version."));
             break;
 
         case CLIENT_VERSION_GC:
-            /* XXXX: Need to write in full support for GC still... */
-            if(!pt_gc_enabled())
+            if(!pt_gc_enabled() || !map_have_gc_maps() || !pmt_gc_enabled() ||
+               !rt_gc_enabled())
                 return send_txt(c, "%s", __(c, "\tE\tC7Server-side drops not\n"
                                             "suported on this ship for\n"
-                                            "your client version."));
+                                            "this client version."));
             break;
 
         case CLIENT_VERSION_EP3:
@@ -2713,7 +2713,7 @@ static int handle_trackkill(ship_client_t *c, const char *params) {
     /* Make sure they're logged in */
     if(!(c->flags & CLIENT_FLAG_LOGGED_IN)) {
         return send_txt(c, "%s", __(c, "\tE\tC7You must be logged in to "
-        "use this command."));
+                                       "use this command."));
     }
 
     /* See if we're turning the flag off. */
