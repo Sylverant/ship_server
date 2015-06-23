@@ -35,7 +35,6 @@
 #include "items.h"
 #include "utils.h"
 
-#define MAX(x, y) (x > y ? x : y)
 #define MIN(x, y) (x < y ? x : y)
 
 static int have_v2pt = 0;
@@ -821,7 +820,11 @@ static int generate_armor_v2(pt_v2_entry_t *ent, int area, uint32_t item[4],
         }
 
         /* Figure out what the byte we'll use is */
-        armor = MAX(0, (ent->armor_level - 3 + area + armor));
+        armor = ((int)ent->armor_level) - 3 + area + armor;
+
+        if(armor < 0)
+            armor = 0;
+
         item[0] = 0x00000101 | (armor << 16);
     }
 
@@ -887,7 +890,11 @@ static int generate_armor_v3(pt_v3_entry_t *ent, int area, uint32_t item[4],
         }
 
         /* Figure out what the byte we'll use is */
-        armor = MAX(0, (ent->armor_level - 3 + area + armor));
+        armor = ((int)ent->armor_level) - 3 + area + armor;
+
+        if(armor < 0)
+            armor = 0;
+
         item[0] = 0x00000101 | (armor << 16);
     }
 
@@ -966,7 +973,11 @@ static int generate_shield_v2(pt_v2_entry_t *ent, int area, uint32_t item[4],
         }
 
         /* Figure out what the byte we'll use is */
-        armor = MAX(0, (ent->armor_level - 3 + area + armor));
+        armor = ((int)ent->armor_level) - 3 + area + armor;
+
+        if(armor < 0)
+            armor = 0;
+
         item[0] = 0x00000201 | (armor << 16);
     }
 
@@ -1022,7 +1033,11 @@ static int generate_shield_v3(pt_v3_entry_t *ent, int area, uint32_t item[4],
         }
 
         /* Figure out what the byte we'll use is */
-        armor = MAX(0, (ent->armor_level - 3 + area + armor));
+        armor = ((int)ent->armor_level) - 3 + area + armor;
+
+        if(armor < 0)
+            armor = 0;
+
         item[0] = 0x00000201 | (armor << 16);
     }
 
