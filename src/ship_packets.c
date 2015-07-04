@@ -4778,7 +4778,7 @@ int send_message_box(ship_client_t *c, const char *fmt, ...) {
 static int send_dc_quest_categories(ship_client_t *c, int lang) {
     uint8_t *sendbuf = get_sendbuf();
     dc_quest_list_pkt *pkt = (dc_quest_list_pkt *)sendbuf;
-    int i, len = 0x04, entries = 0, ep = 1;
+    int i, len = 0x04, entries = 0;
     uint32_t type = SYLVERANT_QUEST_NORMAL;
     size_t in, out;
     ICONV_CONST char *inptr;
@@ -4786,31 +4786,23 @@ static int send_dc_quest_categories(ship_client_t *c, int lang) {
     sylverant_quest_list_t *qlist;
     lobby_t *l = c->cur_lobby;
 
-    if(l->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3) {
+    if(l->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3)
         qlist = &ship->qlist[CLIENT_VERSION_GC][lang];
-        ep = c->cur_lobby->episode;
-    }
-    else if(!l->v2) {
+    else if(!l->v2)
         qlist = &ship->qlist[CLIENT_VERSION_DCV1][lang];
-    }
-    else {
+    else
         qlist = &ship->qlist[CLIENT_VERSION_DCV2][lang];
-    }
 
     /* Fall back to English if there's no list for this language... */
     if(!qlist->cat_count) {
         lang = CLIENT_LANG_ENGLISH;
 
-        if(l->version == CLIENT_VERSION_GC ||
-           c->version == CLIENT_VERSION_EP3) {
+        if(l->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3)
             qlist = &ship->qlist[CLIENT_VERSION_GC][lang];
-        }
-        else if(!l->v2) {
+        else if(!l->v2)
             qlist = &ship->qlist[CLIENT_VERSION_DCV1][lang];
-        }
-        else {
+        else
             qlist = &ship->qlist[CLIENT_VERSION_DCV2][lang];
-        }
     }
 
     /* Verify we got the sendbuf. */
@@ -4831,11 +4823,6 @@ static int send_dc_quest_categories(ship_client_t *c, int lang) {
     for(i = 0; i < qlist->cat_count; ++i) {
         /* Skip quests not of the right type. */
         if(qlist->cats[i].type != type)
-            continue;
-
-        /* If the category doesn't have anything for this episode, don't bother
-           showing it. */
-        if(!(qlist->cats[i].episodes & ep))
             continue;
 
         /* Clear the entry */
@@ -4902,36 +4889,29 @@ static int send_pc_quest_categories(ship_client_t *c, int lang) {
     sylverant_quest_list_t *qlist;
     lobby_t *l = c->cur_lobby;
 
-    if(!l->v2) {
+    if(!l->v2)
         qlist = &ship->qlist[CLIENT_VERSION_DCV1][lang];
-    }
-    else {
+    else
         qlist = &ship->qlist[CLIENT_VERSION_PC][lang];
-    }
 
     /* Fall back to English if there's no list for this language... */
     if(!qlist->cat_count) {
         lang = CLIENT_LANG_ENGLISH;
 
-        if(!l->v2) {
+        if(!l->v2)
             qlist = &ship->qlist[CLIENT_VERSION_DCV1][lang];
-        }
-        else {
+        else
             qlist = &ship->qlist[CLIENT_VERSION_DCV2][lang];
-        }
     }
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
-    if(c->cur_lobby->battle) {
+    if(c->cur_lobby->battle)
         type = SYLVERANT_QUEST_BATTLE;
-    }
-    else if(c->cur_lobby->challenge) {
+    else if(c->cur_lobby->challenge)
         type = SYLVERANT_QUEST_CHALLENGE;
-    }
 
     /* Clear out the header */
     memset(pkt, 0, 0x04);
@@ -5048,9 +5028,8 @@ static int send_bb_quest_categories(ship_client_t *c, int lang) {
 }
 
 int send_quest_categories(ship_client_t *c, int lang) {
-    if(lang < 0 || lang >= CLIENT_LANG_COUNT) {
+    if(lang < 0 || lang >= CLIENT_LANG_COUNT)
         lang = c->language_code;
-    }
 
     /* Call the appropriate function. */
     switch(c->version) {
@@ -5086,9 +5065,8 @@ static int send_dc_quest_list(ship_client_t *c, int cn, int lang) {
     ship_client_t *tmp;
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     if(!l->v2) {
         ver = CLIENT_VERSION_DCV1;
@@ -5122,9 +5100,8 @@ static int send_dc_quest_list(ship_client_t *c, int cn, int lang) {
     memset(pkt, 0, 0x04);
 
     /* If this is for challenge mode, figure out our limit. */
-    if(c->cur_lobby->challenge) {
+    if(c->cur_lobby->challenge)
         max = c->cur_lobby->max_chal;
-    }
 
     /* Fill in the header */
     pkt->hdr.pkt_type = QUEST_LIST_TYPE;
@@ -5140,36 +5117,31 @@ static int send_dc_quest_list(ship_client_t *c, int cn, int lang) {
                 continue;
 
             /* Skip quests that aren't for the current event */
-            if(!(quest->event & (1 << l->event))) {
+            if(!(quest->event & (1 << l->event)))
                 continue;
-            }
 
             /* Skip quests where the number of players isn't in range. */
             if(quest->max_players < l->num_clients ||
-               quest->min_players > l->num_clients) {
+               quest->min_players > l->num_clients)
                 continue;
-            }
 
             /* Look through to make sure that all clients in the lobby can play
                the quest */
             for(j = 0; j < l->max_clients; ++j) {
-                if(!(tmp = l->clients[j])) {
+                if(!(tmp = l->clients[j]))
                     continue;
-                }
 
                 if(!k && !elem->qptr[tmp->version][tmp->q_lang] &&
                    !elem->qptr[tmp->version][tmp->language_code] &&
                    !elem->qptr[tmp->version][CLIENT_LANG_ENGLISH] &&
-                   !elem->qptr[tmp->version][lang]) {
+                   !elem->qptr[tmp->version][lang])
                     break;
-                }
             }
 
             /* Skip quests where we can't play them due to restrictions by
                users' versions or language codes */
-            if(j != l->max_clients) {
+            if(j != l->max_clients)
                 continue;
-            }
 
             /* Clear the entry */
             memset(pkt->entries + entries, 0, 0x98);
@@ -5247,9 +5219,8 @@ static int send_pc_quest_list(ship_client_t *c, int cn, int lang) {
     ship_client_t *tmp;
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     if(!l->v2) {
         ver = CLIENT_VERSION_DCV1;
@@ -5283,9 +5254,8 @@ static int send_pc_quest_list(ship_client_t *c, int cn, int lang) {
     memset(pkt, 0, 0x04);
 
     /* If this is for challenge mode, figure out our limit. */
-    if(c->cur_lobby->challenge) {
+    if(c->cur_lobby->challenge)
         max = c->cur_lobby->max_chal;
-    }
 
     /* Fill in the header */
     pkt->hdr.pkt_type = QUEST_LIST_TYPE;
@@ -5301,36 +5271,31 @@ static int send_pc_quest_list(ship_client_t *c, int cn, int lang) {
                 continue;
 
             /* Skip quests that aren't for the current event */
-            if(!(quest->event & (1 << l->event))) {
+            if(!(quest->event & (1 << l->event)))
                 continue;
-            }
 
             /* Skip quests where the number of players isn't in range. */
             if(quest->max_players < l->num_clients ||
-               quest->min_players > l->num_clients) {
+               quest->min_players > l->num_clients)
                 continue;
-            }
 
             /* Look through to make sure that all clients in the lobby can play
                the quest */
             for(j = 0; j < l->max_clients; ++j) {
-                if(!(tmp = l->clients[j])) {
+                if(!(tmp = l->clients[j]))
                     continue;
-                }
 
                 if(!k && !elem->qptr[tmp->version][tmp->q_lang] &&
                    !elem->qptr[tmp->version][tmp->language_code] &&
                    !elem->qptr[tmp->version][CLIENT_LANG_ENGLISH] &&
-                   !elem->qptr[tmp->version][lang]) {
+                   !elem->qptr[tmp->version][lang])
                     break;
-                }
             }
 
             /* Skip quests where we can't play them due to restrictions by
                users' versions or language codes */
-            if(j != l->max_clients) {
+            if(j != l->max_clients)
                 continue;
-            }
 
             /* Clear the entry */
             memset(pkt->entries + entries, 0, 0x128);
@@ -5387,9 +5352,8 @@ static int send_gc_quest_list(ship_client_t *c, int cn, int lang) {
     ship_client_t *tmp;
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     if(l->version == CLIENT_VERSION_GC) {
         ver = CLIENT_VERSION_GC;
@@ -5428,9 +5392,8 @@ static int send_gc_quest_list(ship_client_t *c, int cn, int lang) {
     memset(pkt, 0, 0x04);
 
     /* If this is for challenge mode, figure out our limit. */
-    if(c->cur_lobby->challenge) {
+    if(c->cur_lobby->challenge)
         max = c->cur_lobby->max_chal;
-    }
 
     /* Fill in the header */
     pkt->hdr.pkt_type = QUEST_LIST_TYPE;
@@ -5446,41 +5409,31 @@ static int send_gc_quest_list(ship_client_t *c, int cn, int lang) {
                 continue;
 
             /* Skip quests that aren't for the current event */
-            if(!(quest->event & (1 << l->event))) {
+            if(!(quest->event & (1 << l->event)))
                 continue;
-            }
 
             /* Skip quests where the number of players isn't in range. */
             if(quest->max_players < l->num_clients ||
-               quest->min_players > l->num_clients) {
+               quest->min_players > l->num_clients)
                 continue;
-            }
 
             /* Look through to make sure that all clients in the lobby can play
                the quest */
             for(j = 0; j < l->max_clients; ++j) {
-                if(!(tmp = l->clients[j])) {
+                if(!(tmp = l->clients[j]))
                     continue;
-                }
 
                 if(!k && !elem->qptr[tmp->version][tmp->q_lang] &&
                    !elem->qptr[tmp->version][tmp->language_code] &&
                    !elem->qptr[tmp->version][CLIENT_LANG_ENGLISH] &&
-                   !elem->qptr[tmp->version][lang]) {
+                   !elem->qptr[tmp->version][lang])
                     break;
-                }
             }
 
             /* Skip quests where we can't play them due to restrictions by
                users' versions or language codes */
-            if(j != l->max_clients) {
+            if(j != l->max_clients)
                 continue;
-            }
-
-            /* Make sure the episode matches up */
-            if(quest->episode != c->cur_lobby->episode) {
-                continue;
-            }
 
             /* Clear the entry */
             memset(pkt->entries + entries, 0, 0x98);
