@@ -1552,6 +1552,7 @@ typedef struct gc_quest_stats {
 #define QUEST_LIST_TYPE                 0x00A2
 #define QUEST_INFO_TYPE                 0x00A3
 #define DL_QUEST_LIST_TYPE              0x00A4
+#define DL_QUEST_INFO_TYPE              0x00A5
 #define DL_QUEST_FILE_TYPE              0x00A6
 #define DL_QUEST_CHUNK_TYPE             0x00A7
 #define QUEST_END_LIST_TYPE             0x00A9
