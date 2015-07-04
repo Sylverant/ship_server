@@ -5147,7 +5147,7 @@ static int send_dc_quest_list(ship_client_t *c, int cn, int lang) {
             memset(pkt->entries + entries, 0, 0x98);
 
             /* Copy the category's information over to the packet */
-            pkt->entries[entries].menu_id = LE32(((MENU_ID_QUEST) | (cn << 8) |
+            pkt->entries[entries].menu_id = LE32(((MENU_ID_QUEST) |
                                                   (lang << 24)));
             pkt->entries[entries].item_id = LE32(quest->qid);
 
@@ -5301,7 +5301,7 @@ static int send_pc_quest_list(ship_client_t *c, int cn, int lang) {
             memset(pkt->entries + entries, 0, 0x128);
 
             /* Copy the category's information over to the packet */
-            pkt->entries[entries].menu_id = LE32(((MENU_ID_QUEST) | (cn << 8) |
+            pkt->entries[entries].menu_id = LE32(((MENU_ID_QUEST) |
                                                   (lang << 24)));
             pkt->entries[entries].item_id = LE32(quest->qid);
 
@@ -5439,7 +5439,8 @@ static int send_gc_quest_list(ship_client_t *c, int cn, int lang) {
             memset(pkt->entries + entries, 0, 0x98);
 
             /* Copy the category's information over to the packet */
-            pkt->entries[entries].menu_id = LE32(((MENU_ID_QUEST) | (cn << 8) |
+            pkt->entries[entries].menu_id = LE32(((MENU_ID_QUEST) |
+                                                  (quest->episode << 8) |
                                                   (lang << 24)));
             pkt->entries[entries].item_id = LE32(quest->qid);
 
@@ -5582,7 +5583,8 @@ static int send_bb_quest_list(ship_client_t *c, int cn, int lang) {
             memset(pkt->entries + entries, 0, 0x13C);
 
             /* Copy the category's information over to the packet */
-            pkt->entries[entries].menu_id = LE32(((MENU_ID_QUEST) | (cn << 8) |
+            pkt->entries[entries].menu_id = LE32(((MENU_ID_QUEST) |
+                                                  (quest->episode << 8) |
                                                   (lang << 24)));
             pkt->entries[entries].item_id = LE32(quest->qid);
 
