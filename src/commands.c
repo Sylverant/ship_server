@@ -2732,6 +2732,44 @@ static int handle_trackkill(ship_client_t *c, const char *params) {
     return send_txt(c, "%s", __(c, "\tE\tC7Kill tracking enabled."));
 }
 
+/* Usage: /ep3music [value] */
+static int handle_ep3music(ship_client_t *c, const char *params) {
+    uint32_t song;
+    lobby_t *l = c->cur_lobby;
+    uint8_t rawpkt[12] = { 0 };
+    subcmd_pkt_t *pkt = (subcmd_pkt_t *)rawpkt;
+
+    /* Make sure the requester is a local GM, at least. */
+    if(!LOCAL_GM(c))
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
+
+    /* Make sure that the requester is in a lobby lobby, not a game lobby */
+    if(l->type != LOBBY_TYPE_DEFAULT)
+        return send_txt(c, "%s", __(c, "\tE\tC7Not valid in a game."));
+
+    /* Figure out the level requested */
+    if(!params || !strlen(params))
+        return send_txt(c, "%s", __(c, "\tE\tC7Must specify song."));
+
+    errno = 0;
+    song = (uint32_t)strtoul(params, NULL, 10);
+
+    if(errno != 0)
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid song."));
+
+    /* Prepare the packet. */
+    pkt->hdr.dc.pkt_type = GAME_COMMAND0_TYPE;
+    pkt->hdr.dc.flags = 0;
+    pkt->hdr.dc.pkt_len = LE16(0x000C);
+    pkt->type = SUBCMD_JUKEBOX;
+    pkt->size = 2;
+    pkt->data[2] = (uint8_t)song;
+
+    /* Send it. */
+    subcmd_send_lobby_dc(l, NULL, pkt, 0);
+    return 0;
+}
+
 static command_t cmds[] = {
     { "warp"     , handle_warp      },
     { "kill"     , handle_kill      },
@@ -2811,6 +2849,7 @@ static command_t cmds[] = {
     { "gcprotect", handle_gcprotect },
     { "trackinv" , handle_trackinv  },
     { "trackkill", handle_trackkill },
+    { "ep3music" , handle_ep3music  },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 
