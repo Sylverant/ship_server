@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2014 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2014, 2015 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -2209,7 +2209,7 @@ int shipgate_fw_bb(shipgate_conn_t *c, const void *bbp, uint32_t flags,
 
 /* Send a GM login request. */
 int shipgate_send_gmlogin(shipgate_conn_t *c, uint32_t gc, uint32_t block,
-                          const char *username, const char *password) {
+                          const char *username, const char *password, int tok) {
     uint8_t *sendbuf = get_sendbuf();
     shipgate_gmlogin_req_pkt *pkt = (shipgate_gmlogin_req_pkt *)sendbuf;
 
@@ -2222,14 +2222,19 @@ int shipgate_send_gmlogin(shipgate_conn_t *c, uint32_t gc, uint32_t block,
     memset(pkt, 0, sizeof(shipgate_gmlogin_req_pkt));
 
     pkt->hdr.pkt_len = htons(sizeof(shipgate_gmlogin_req_pkt));
-    pkt->hdr.pkt_type = htons(SHDR_TYPE_GMLOGIN);
+
+    if(!tok)
+        pkt->hdr.pkt_type = htons(SHDR_TYPE_GMLOGIN);
+    else
+        pkt->hdr.pkt_type = htons(SHDR_TYPE_TLOGIN);
+
     pkt->hdr.version = pkt->hdr.reserved = 0;
     pkt->hdr.flags = 0;
 
     pkt->guildcard = htonl(gc);
     pkt->block = htonl(block);
-    strcpy(pkt->username, username);
-    strcpy(pkt->password, password);
+    strncpy(pkt->username, username, 32);
+    strncpy(pkt->password, password, 32);
 
     /* Send the packet away */
     return send_crypt(c, sizeof(shipgate_gmlogin_req_pkt), sendbuf);

@@ -398,9 +398,8 @@ static int handle_login(ship_client_t *c, const char *params) {
         username[len++] = *ch++;
     }
 
-    if(len == 32) {
+    if(len == 32)
         return send_txt(c, "%s", __(c, "\tE\tC7Invalid request."));
-    }
 
     username[len] = '\0';
 
@@ -411,15 +410,14 @@ static int handle_login(ship_client_t *c, const char *params) {
         password[len++] = *ch++;
     }
 
-    if(len == 32) {
+    if(len == 32)
         return send_txt(c, "%s", __(c, "\tE\tC7Invalid request."));
-    }
 
     password[len] = '\0';
 
     /* We'll get success/failure later from the shipgate. */
     return shipgate_send_gmlogin(&ship->sg, c->guildcard, c->cur_block->b,
-                                 username, password);
+                                 username, password, 0);
 }
 
 /* Usage /item item1,item2,item3,item4 */
@@ -2545,7 +2543,7 @@ static int handle_disablebk(ship_client_t *c, const char *params) {
     return send_txt(c, "%s", __(c, "\tE\tC7Character backups disabled."));
 }
 
-/* Usage: /exp [amount] */
+/* Usage: /exp amount */
 static int handle_exp(ship_client_t *c, const char *params) {
     uint32_t amt;
     lobby_t *l = c->cur_lobby;
@@ -2732,7 +2730,7 @@ static int handle_trackkill(ship_client_t *c, const char *params) {
     return send_txt(c, "%s", __(c, "\tE\tC7Kill tracking enabled."));
 }
 
-/* Usage: /ep3music [value] */
+/* Usage: /ep3music value */
 static int handle_ep3music(ship_client_t *c, const char *params) {
     uint32_t song;
     lobby_t *l = c->cur_lobby;
@@ -2768,6 +2766,39 @@ static int handle_ep3music(ship_client_t *c, const char *params) {
     /* Send it. */
     subcmd_send_lobby_dc(l, NULL, pkt, 0);
     return 0;
+}
+
+/* Usage: /tlogin username token */
+static int handle_tlogin(ship_client_t *c, const char *params) {
+    char username[32], token[32];
+    int len = 0;
+    const char *ch = params;
+
+    /* Copy over the username/password. */
+    while(*ch != ' ' && len < 32) {
+        username[len++] = *ch++;
+    }
+
+    if(len == 32)
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid request."));
+
+    username[len] = '\0';
+
+    len = 0;
+    ++ch;
+
+    while(*ch != ' ' && *ch != '\0' && len < 32) {
+        token[len++] = *ch++;
+    }
+
+    if(len == 32)
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid request."));
+
+    token[len] = '\0';
+
+    /* We'll get success/failure later from the shipgate. */
+    return shipgate_send_gmlogin(&ship->sg, c->guildcard, c->cur_block->b,
+                                 username, token, 1);
 }
 
 static command_t cmds[] = {
@@ -2850,6 +2881,7 @@ static command_t cmds[] = {
     { "trackinv" , handle_trackinv  },
     { "trackkill", handle_trackkill },
     { "ep3music" , handle_ep3music  },
+    { "tlogin"   , handle_tlogin    },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 
