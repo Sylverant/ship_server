@@ -2801,6 +2801,100 @@ static int handle_tlogin(ship_client_t *c, const char *params) {
                                  username, token, 1);
 }
 
+/* Usage: /dsdrops version difficulty section episode */
+static int handle_dsdrops(ship_client_t *c, const char *params) {
+#ifdef DEBUG
+    uint8_t ver, diff, section, ep;
+    char *sver, *sdiff, *ssection, *sep;
+    char *tok, *str;
+#endif
+
+    /* Make sure the requester is a local GM, at least. */
+    if(!LOCAL_GM(c))
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
+
+    if(c->version == CLIENT_VERSION_BB)
+        return send_txt(c, "%s", __(c, "\tE\tC7Not valid on Blue Burst."));
+
+#ifndef DEBUG
+    return send_txt(c, "%s", __(c, "\tE\tC7Debug support not compiled in."));
+#else
+    if(!(str = strdup(params)))
+        return send_txt(c, "%s", __(c, "\tE\tC7Internal server error."));
+
+    /* Grab each token we're expecting... */
+    sver = strtok_r(str, " ,", &tok);
+    sdiff = strtok_r(NULL, " ,", &tok);
+    ssection = strtok_r(NULL, " ,", &tok);
+    sep = strtok_r(NULL, " ,", &tok);
+
+    if(!ssection || !sdiff || !sver || !sep) {
+        free(str);
+        return send_txt(c, "%s", __(c, "\tE\tC7Missing argument."));
+    }
+
+    /* Parse the arguments */
+    if(!strcmp(sver, "v2")) {
+        if(!pt_v2_enabled() || !map_have_v2_maps() || !pmt_v2_enabled() ||
+           !rt_v2_enabled()) {
+            free(str);
+            return send_txt(c, "%s", __(c, "\tE\tC7Server-side drops not\n"
+                                        "suported on this ship for\n"
+                                        "this client version."));
+        }
+
+        ver = CLIENT_VERSION_DCV2;
+    }
+    else if(!strcmp(sver, "gc")) {
+        if(!pt_gc_enabled() || !map_have_gc_maps() || !pmt_gc_enabled() ||
+           !rt_gc_enabled()) {
+            free(str);
+            return send_txt(c, "%s", __(c, "\tE\tC7Server-side drops not\n"
+                                        "suported on this ship for\n"
+                                        "this client version."));
+        }
+        ver = CLIENT_VERSION_GC;
+    }
+    else {
+        free(str);
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid version."));
+    }
+
+    errno = 0;
+    diff = (uint8_t)strtoul(sdiff, NULL, 10);
+
+    if(errno || diff > 3) {
+        free(str);
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid difficulty."));
+    }
+
+    section = (uint8_t)strtoul(ssection, NULL, 10);
+
+    if(errno || section > 9) {
+        free(str);
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid section ID."));
+    }
+
+    ep = (uint8_t)strtoul(sep, NULL, 10);
+
+    if(errno || (ep != 1 && ep != 2) ||
+       (ver == CLIENT_VERSION_DCV2 && ep != 1)) {
+        free(str);
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid episode."));
+    }
+
+    /* We got everything, save it in the client structure and we're done. */
+    c->sdrops_ver = ver;
+    c->sdrops_diff = diff;
+    c->sdrops_section = section;
+    c->sdrops_ep = ep;
+    c->flags |= CLIENT_FLAG_DBG_SDROPS;
+    free(str);
+
+    return send_txt(c, "%s", __(c, "\tE\tC7Enabled server-side drop debug."));
+#endif
+}
+
 static command_t cmds[] = {
     { "warp"     , handle_warp      },
     { "kill"     , handle_kill      },
@@ -2882,6 +2976,7 @@ static command_t cmds[] = {
     { "trackkill", handle_trackkill },
     { "ep3music" , handle_ep3music  },
     { "tlogin"   , handle_tlogin    },
+    { "dsdrops"  , handle_dsdrops   },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

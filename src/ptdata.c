@@ -280,6 +280,11 @@ int pt_read_v3(const char *fn, int bb) {
                         goto out;
                     }
 
+#ifdef DEBUG
+                    debug(DBG_LOG, "PSOGC ItemPT.gsl pointer for file %s: %p\n",
+                          filename, &gc_ptdata[i][j][k]);
+#endif
+
                     /* Swap entries, if we need to */
 #if !defined(__BIG_ENDIAN__) && !defined(WORDS_BIGENDIAN)
                     for(l = 0; l < 28; ++l) {
@@ -429,7 +434,8 @@ int pt_bb_enabled(void) {
    below. :P
 */
 static int generate_weapon_v2(pt_v2_entry_t *ent, int area, uint32_t item[4],
-                              struct mt19937_state *rng, int picked, int v1) {
+                              struct mt19937_state *rng, int picked, int v1,
+                              lobby_t *l) {
     uint32_t rnd, upcts = 0;
     int i, j = 0, k, wchance = 0, warea = 0, npcts = 0;
     int wtypes[12] = { 0 }, wranks[12] = { 0 }, gptrn[12] = { 0 };
@@ -594,7 +600,8 @@ already_picked:
 }
 
 static int generate_weapon_v3(pt_v3_entry_t *ent, int area, uint32_t item[4],
-                              struct mt19937_state *rng, int picked, int bb) {
+                              struct mt19937_state *rng, int picked, int bb,
+                              lobby_t *l) {
     uint32_t rnd, upcts = 0;
     int i, j = 0, k, wchance = 0, warea = 0, npcts = 0;
     int wtypes[12] = { 0 }, wranks[12] = { 0 }, gptrn[12] = { 0 };
@@ -794,7 +801,8 @@ already_picked:
    evp range defined in the PMT data.
 */
 static int generate_armor_v2(pt_v2_entry_t *ent, int area, uint32_t item[4],
-                             struct mt19937_state *rng, int picked) {
+                             struct mt19937_state *rng, int picked,
+                             lobby_t *l) {
     uint32_t rnd;
     int i, armor = -1;
     uint8_t *item_b = (uint8_t *)item;
@@ -805,7 +813,19 @@ static int generate_armor_v2(pt_v2_entry_t *ent, int area, uint32_t item[4],
         /* Go through each slot in the armor rankings to figure out which one
            that we'll be generating. */
         rnd = mt19937_genrand_int32(rng) % 100;
+
+#ifdef DEBUG
+        if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+            debug(DBG_LOG, "generate_armor_v2: RNG picked %" PRIu32 "\n", rnd);
+#endif
+
         for(i = 0; i < 5; ++i) {
+#ifdef DEBUG
+            if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+                debug(DBG_LOG, "    Index %d, value: %" PRId8 ", left: %"
+                      PRIu32 "\n", i, ent->armor_ranking[i], rnd);
+#endif
+
             if((rnd -= ent->armor_ranking[i]) > 100) {
                 armor = i;
                 break;
@@ -825,6 +845,12 @@ static int generate_armor_v2(pt_v2_entry_t *ent, int area, uint32_t item[4],
         if(armor < 0)
             armor = 0;
 
+#ifdef DEBUG
+        if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+            debug(DBG_LOG, "    Armor level byte: %d (%d + %d + %d - 3)\n",
+                  armor, (int)ent->armor_level, area, i);
+#endif
+
         item[0] = 0x00000101 | (armor << 16);
     }
 
@@ -832,7 +858,20 @@ static int generate_armor_v2(pt_v2_entry_t *ent, int area, uint32_t item[4],
 
     /* Pick a number of unit slots */
     rnd = mt19937_genrand_int32(rng) % 100;
+
+#ifdef DEBUG
+    if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+        debug(DBG_LOG, "generate_armor_v2: RNG picked %" PRIu32 " for slots\n",
+              rnd);
+#endif
+
     for(i = 0; i < 5; ++i) {
+#ifdef DEBUG
+        if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+            debug(DBG_LOG, "    Index %d, value: %" PRId8 ", left: %"
+                  PRIu32 "\n", i, ent->slot_ranking[i], rnd);
+#endif
+
         if((rnd -= ent->slot_ranking[i]) > 100) {
             item_b[5] = i;
             break;
@@ -847,6 +886,12 @@ static int generate_armor_v2(pt_v2_entry_t *ent, int area, uint32_t item[4],
         return -2;
     }
 
+#ifdef DEBUG
+    if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+        debug(DBG_LOG, "generate_armor_v2: DFP Range: %d, EVP Range: %d\n",
+              guard.dfp_range, guard.evp_range);
+#endif
+
     if(guard.dfp_range) {
         rnd = mt19937_genrand_int32(rng) % (guard.dfp_range + 1);
         item_w[3] = (uint16_t)rnd;
@@ -857,11 +902,18 @@ static int generate_armor_v2(pt_v2_entry_t *ent, int area, uint32_t item[4],
         item_w[4] = (uint16_t)rnd;
     }
 
+#ifdef DEBUG
+    if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+        debug(DBG_LOG, "    DFP: %" PRIu16 ", EVP: %" PRIu16 "\n", item_w[3],
+              item_w[4]);
+#endif
+
     return 0;
 }
 
 static int generate_armor_v3(pt_v3_entry_t *ent, int area, uint32_t item[4],
-                             struct mt19937_state *rng, int picked, int bb) {
+                             struct mt19937_state *rng, int picked, int bb,
+                             lobby_t *l) {
     uint32_t rnd;
     int i, armor = -1;
     uint8_t *item_b = (uint8_t *)item;
@@ -874,7 +926,19 @@ static int generate_armor_v3(pt_v3_entry_t *ent, int area, uint32_t item[4],
         /* Go through each slot in the armor rankings to figure out which one
            that we'll be generating. */
         rnd = mt19937_genrand_int32(rng) % 100;
+
+#ifdef DEBUG
+        if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+            debug(DBG_LOG, "generate_armor_v3: RNG picked %" PRIu32 "\n", rnd);
+#endif
+
         for(i = 0; i < 5; ++i) {
+#ifdef DEBUG
+            if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+                debug(DBG_LOG, "    Index %d, value: %" PRId8 ", left: %"
+                      PRIu32 "\n", i, ent->armor_ranking[i], rnd);
+#endif
+
             if((rnd -= ent->armor_ranking[i]) > 100) {
                 armor = i;
                 break;
@@ -895,6 +959,12 @@ static int generate_armor_v3(pt_v3_entry_t *ent, int area, uint32_t item[4],
         if(armor < 0)
             armor = 0;
 
+#ifdef DEBUG
+        if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+            debug(DBG_LOG, "    Armor level byte: %d (%d + %d + %d - 3)\n",
+                  armor, (int)ent->armor_level, area, i);
+#endif
+
         item[0] = 0x00000101 | (armor << 16);
     }
 
@@ -902,7 +972,19 @@ static int generate_armor_v3(pt_v3_entry_t *ent, int area, uint32_t item[4],
 
     /* Pick a number of unit slots */
     rnd = mt19937_genrand_int32(rng) % 100;
+#ifdef DEBUG
+    if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+        debug(DBG_LOG, "generate_armor_v3: RNG picked %" PRIu32 " for slots\n",
+              rnd);
+#endif
+
     for(i = 0; i < 5; ++i) {
+#ifdef DEBUG
+        if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+            debug(DBG_LOG, "    Index %d, value: %" PRId8 ", left: %"
+                  PRIu32 "\n", i, ent->slot_ranking[i], rnd);
+#endif
+
         if((rnd -= ent->slot_ranking[i]) > 100) {
             item_b[5] = i;
             break;
@@ -932,6 +1014,12 @@ static int generate_armor_v3(pt_v3_entry_t *ent, int area, uint32_t item[4],
         evp = bbg.evp_range;
     }
 
+#ifdef DEBUG
+    if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+        debug(DBG_LOG, "generate_amor_v3: DFP Range: %d, EVP Range: %d\n",
+              dfp, evp);
+#endif
+
     if(dfp) {
         rnd = mt19937_genrand_int32(rng) % (dfp + 1);
         item_w[3] = (uint16_t)rnd;
@@ -942,13 +1030,20 @@ static int generate_armor_v3(pt_v3_entry_t *ent, int area, uint32_t item[4],
         item_w[4] = (uint16_t)rnd;
     }
 
+#ifdef DEBUG
+    if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+        debug(DBG_LOG, "    DFP: %" PRIu16 ", EVP: %" PRIu16 "\n", item_w[3],
+              item_w[4]);
+#endif
+
     return 0;
 }
 
 /* Generate a random shield, based on data for PSOv2. This is exactly the same
    as the armor version, but without unit slots. */
 static int generate_shield_v2(pt_v2_entry_t *ent, int area, uint32_t item[4],
-                              struct mt19937_state *rng, int picked) {
+                              struct mt19937_state *rng, int picked,
+                              lobby_t *l) {
     uint32_t rnd;
     int i, armor = -1;
     uint16_t *item_w = (uint16_t *)item;
@@ -958,7 +1053,19 @@ static int generate_shield_v2(pt_v2_entry_t *ent, int area, uint32_t item[4],
         /* Go through each slot in the armor rankings to figure out which one
            that we'll be generating. */
         rnd = mt19937_genrand_int32(rng) % 100;
+
+#ifdef DEBUG
+        if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+            debug(DBG_LOG, "generate_shield_v2: RNG picked %" PRIu32 "\n", rnd);
+#endif
+
         for(i = 0; i < 5; ++i) {
+#ifdef DEBUG
+            if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+                debug(DBG_LOG, "    Index %d, value: %" PRId8 ", left: %"
+                      PRIu32 "\n", i, ent->armor_ranking[i], rnd);
+#endif
+
             if((rnd -= ent->armor_ranking[i]) > 100) {
                 armor = i;
                 break;
@@ -978,6 +1085,12 @@ static int generate_shield_v2(pt_v2_entry_t *ent, int area, uint32_t item[4],
         if(armor < 0)
             armor = 0;
 
+#ifdef DEBUG
+        if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+            debug(DBG_LOG, "    Armor level byte: %d (%d + %d + %d - 3)\n",
+                  armor, (int)ent->armor_level, area, i);
+#endif
+
         item[0] = 0x00000201 | (armor << 16);
     }
 
@@ -991,6 +1104,12 @@ static int generate_shield_v2(pt_v2_entry_t *ent, int area, uint32_t item[4],
         return -2;
     }
 
+#ifdef DEBUG
+    if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+        debug(DBG_LOG, "generate_shield_v2: DFP Range: %d, EVP Range: %d\n",
+              guard.dfp_range, guard.evp_range);
+#endif
+
     if(guard.dfp_range) {
         rnd = mt19937_genrand_int32(rng) % (guard.dfp_range + 1);
         item_w[3] = (uint16_t)rnd;
@@ -1001,11 +1120,18 @@ static int generate_shield_v2(pt_v2_entry_t *ent, int area, uint32_t item[4],
         item_w[4] = (uint16_t)rnd;
     }
 
+#ifdef DEBUG
+    if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+        debug(DBG_LOG, "    DFP: %" PRIu16 ", EVP: %" PRIu16 "\n", item_w[3],
+              item_w[4]);
+#endif
+
     return 0;
 }
 
 static int generate_shield_v3(pt_v3_entry_t *ent, int area, uint32_t item[4],
-                              struct mt19937_state *rng, int picked, int bb) {
+                              struct mt19937_state *rng, int picked, int bb,
+                              lobby_t *l) {
     uint32_t rnd;
     int i, armor = -1;
     uint16_t *item_w = (uint16_t *)item;
@@ -1017,7 +1143,19 @@ static int generate_shield_v3(pt_v3_entry_t *ent, int area, uint32_t item[4],
         /* Go through each slot in the armor rankings to figure out which one
            that we'll be generating. */
         rnd = mt19937_genrand_int32(rng) % 100;
+
+#ifdef DEBUG
+        if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+            debug(DBG_LOG, "generate_shield_v3: RNG picked %" PRIu32 "\n", rnd);
+#endif
+
         for(i = 0; i < 5; ++i) {
+#ifdef DEBUG
+            if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+                debug(DBG_LOG, "    Index %d, value: %" PRId8 ", left: %"
+                      PRIu32 "\n", i, ent->armor_ranking[i], rnd);
+#endif
+
             if((rnd -= ent->armor_ranking[i]) > 100) {
                 armor = i;
                 break;
@@ -1037,6 +1175,12 @@ static int generate_shield_v3(pt_v3_entry_t *ent, int area, uint32_t item[4],
 
         if(armor < 0)
             armor = 0;
+
+#ifdef DEBUG
+        if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+            debug(DBG_LOG, "    Armor level byte: %d (%d + %d + %d - 3)\n",
+                  armor, (int)ent->armor_level, area, i);
+#endif
 
         item[0] = 0x00000201 | (armor << 16);
     }
@@ -1066,6 +1210,12 @@ static int generate_shield_v3(pt_v3_entry_t *ent, int area, uint32_t item[4],
         evp = bbg.evp_range;
     }
 
+#ifdef DEBUG
+    if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+        debug(DBG_LOG, "generate_shield_v3: DFP Range: %d, EVP Range: %d\n",
+              dfp, evp);
+#endif
+
     if(dfp) {
         rnd = mt19937_genrand_int32(rng) % (dfp + 1);
         item_w[3] = (uint16_t)rnd;
@@ -1076,43 +1226,98 @@ static int generate_shield_v3(pt_v3_entry_t *ent, int area, uint32_t item[4],
         item_w[4] = (uint16_t)rnd;
     }
 
+#ifdef DEBUG
+    if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+        debug(DBG_LOG, "    DFP: %" PRIu16 ", EVP: %" PRIu16 "\n", item_w[3],
+              item_w[4]);
+#endif
+
     return 0;
 }
 
 static uint32_t generate_tool_base(uint16_t freqs[28][10], int area,
-                                   struct mt19937_state *rng) {
+                                   struct mt19937_state *rng, lobby_t *l) {
     uint32_t rnd = mt19937_genrand_int32(rng) % 10000;
     int i;
 
+#ifdef DEBUG
+    if(l->flags & LOBBY_FLAG_DBG_SDROPS) {
+        debug(DBG_LOG, "generate_tool_base: RNG picked %" PRIu32 "\n", rnd);
+    }
+#endif
+
     for(i = 0; i < 28; ++i) {
+#ifdef DEBUG
+        if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+            debug(DBG_LOG, "    index: %d, code %08" PRIx32 " chance: %" PRIu16
+                  " left: %" PRIu32 "\n", i, tool_base[i], LE16(freqs[i][area]),
+                  rnd);
+#endif
         if((rnd -= LE16(freqs[i][area])) > 10000) {
+#ifdef DEBUG
+            if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+                debug(DBG_LOG, "    Generating item.\n");
+#endif
+
             return tool_base[i];
         }
     }
 
+#ifdef DEBUG
+    if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+        debug(DBG_LOG, "    Can't find item to drop! This shouldn't happen.\n");
+#endif
+
     return Item_NoSuchItem;
 }
 
+/* XXXX: There's something afoot here generating invalid techs. */
 static int generate_tech(uint8_t freqs[19][10], int8_t levels[19][20],
                          int area, uint32_t item[4],
-                         struct mt19937_state *rng) {
+                         struct mt19937_state *rng, lobby_t *l) {
     uint32_t rnd, tech, level;
-    uint32_t t1, t2;
+    int8_t t1, t2;
     int i;
 
     rnd = mt19937_genrand_int32(rng);
     tech = rnd % 1000;
+
+#ifdef DEBUG
+    if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+        debug(DBG_LOG, "generate_tech: RNG generated %" PRIu32 " tech part: %"
+              PRIu32 "\n", rnd, tech);
+#endif
+
     rnd /= 1000;
 
     for(i = 0; i < 19; ++i) {
+#ifdef DEBUG
+        if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+            debug(DBG_LOG, "    index: %d, chance: %" PRIu8 " left: %" PRIu32
+                  "\n", i, freqs[i][area], tech);
+#endif
+
         if((tech -= freqs[i][area]) > 1000) {
+#ifdef DEBUG
+            if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+                debug(DBG_LOG, "    Generating tech.\n");
+#endif
+
             t1 = levels[i][area << 1];
             t2 = levels[i][(area << 1) + 1];
 
+#ifdef DEBUG
+            if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+                debug(DBG_LOG, "    Min: %" PRId8 " Max: " PRId8 "\n", t1, t2);
+#endif
+
             /* Make sure that the minimum level isn't -1 and that the minimum is
                actually less than the maximum. */
-            if(t1 == -1 || t1 > t2)
+            if(t1 == -1 || t1 > t2) {
+                debug(DBG_WARN, "Invalid tech level set for area %d, tech %d\n",
+                      area, i);
                 return -1;
+            }
 
             /* Cap the levels from the ItemPT data, since Sega's files sometimes
                have stupid values here. */
@@ -1127,6 +1332,11 @@ static int generate_tech(uint8_t freqs[19][10], int8_t levels[19][20],
             else
                 level = t1;
 
+#ifdef DEBUG
+            if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+                debug(DBG_LOG, "    Level selected: %" PRIu32 "\n", level);
+#endif
+
             item[1] = i;
             item[0] |= (level << 16);
             return 0;
@@ -1134,12 +1344,13 @@ static int generate_tech(uint8_t freqs[19][10], int8_t levels[19][20],
     }
 
     /* Shouldn't get here... */
+    debug(DBG_WARN, "Couldn't find technique to drop for area %d!\n", area);
     return -1;
 }
 
 static int generate_tool_v2(pt_v2_entry_t *ent, int area, uint32_t item[4],
-                            struct mt19937_state *rng) {
-    item[0] = generate_tool_base(ent->tool_frequency, area, rng);
+                            struct mt19937_state *rng, lobby_t *l) {
+    item[0] = generate_tool_base(ent->tool_frequency, area, rng, l);
 
     /* Neither of these should happen, but just in case... */
     if(item[0] == Item_Photon_Drop || item[0] == Item_NoSuchItem) {
@@ -1152,12 +1363,23 @@ static int generate_tool_v2(pt_v2_entry_t *ent, int area, uint32_t item[4],
     item[1] = item[2] = item[3] = 0;
 
     /* If its a stackable item, make sure to give it a quantity of 1 */
-    if(item_is_stackable(item[0]))
+    if(item_is_stackable(item[0])) {
+#ifdef DEBUG
+        if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+            debug(DBG_LOG, "Item is stackable. Setting quantity to 1.\n");
+#endif
+
         item[1] = (1 << 8);
+    }
 
     if(item[0] == Item_Disk_Lv01) {
+#ifdef DEBUG
+        if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+            debug(DBG_LOG, "Item is technique disk. Picking technique.\n");
+#endif
+
         if(generate_tech(ent->tech_frequency, ent->tech_levels, area,
-                         item, rng)) {
+                         item, rng, l)) {
             debug(DBG_WARN, "Generated invalid technique! Please check "
                   "your ItemPT.afs file for validity!\n");
             return -1;
@@ -1168,8 +1390,8 @@ static int generate_tool_v2(pt_v2_entry_t *ent, int area, uint32_t item[4],
 }
 
 static int generate_tool_v3(pt_v3_entry_t *ent, int area, uint32_t item[4],
-                            struct mt19937_state *rng) {
-    item[0] = generate_tool_base(ent->tool_frequency, area, rng);
+                            struct mt19937_state *rng, lobby_t *l) {
+    item[0] = generate_tool_base(ent->tool_frequency, area, rng, l);
 
     /* This shouldn't happen happen, but just in case... */
     if(item[0] == Item_NoSuchItem) {
@@ -1182,12 +1404,23 @@ static int generate_tool_v3(pt_v3_entry_t *ent, int area, uint32_t item[4],
     item[1] = item[2] = item[3] = 0;
 
     /* If its a stackable item, make sure to give it a quantity of 1 */
-    if(item_is_stackable(item[0]))
+    if(item_is_stackable(item[0])) {
+#ifdef DEBUG
+        if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+            debug(DBG_LOG, "Item is stackable. Setting quantity to 1.\n");
+#endif
+
         item[1] = (1 << 8);
+    }
 
     if(item[0] == Item_Disk_Lv01) {
+#ifdef DEBUG
+        if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+            debug(DBG_LOG, "Item is technique disk. Picking technique.\n");
+#endif
+
         if(generate_tech(ent->tech_frequency, ent->tech_levels, area,
-                         item, rng)) {
+                         item, rng, l)) {
             debug(DBG_WARN, "Generated invalid technique! Please check "
                   "your ItemPT.gsl file for validity!\n");
             return -1;
@@ -1198,13 +1431,20 @@ static int generate_tool_v3(pt_v3_entry_t *ent, int area, uint32_t item[4],
 }
 
 static int generate_meseta(int min, int max, uint32_t item[4],
-                           struct mt19937_state *rng) {
+                           struct mt19937_state *rng, lobby_t *l) {
     uint32_t rnd;
 
     if(min < max)
         rnd = (mt19937_genrand_int32(rng) % ((max + 1) - min)) + min;
     else
         rnd = min;
+
+#ifdef DEBUG
+    if(l->flags & LOBBY_FLAG_DBG_SDROPS) {
+        debug(DBG_LOG, "generate_meseta: generated %" PRIu32 " meseta. (min, "
+              " max) = (%d, %d)\n", rnd, min, max);
+    }
+#endif
 
     if(rnd) {
         item[0] = 0x00000004;
@@ -1222,6 +1462,12 @@ static int check_and_send(ship_client_t *c, lobby_t *l, uint32_t item[4],
     sylverant_iitem_t iitem;
     int section;
     uint8_t stars = 0;
+
+#ifdef DEBUG
+    if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+        debug(DBG_LOG, "Final dropped item: %08" PRIx32 " %08" PRIx32 " %08"
+              PRIx32 " %08" PRIx32 "\n", item[0], item[1], item[2], item[3]);
+#endif
 
     if(ship->limits) {
         switch(c->version) {
@@ -1277,12 +1523,24 @@ static int check_and_send(ship_client_t *c, lobby_t *l, uint32_t item[4],
         }
     }
 
-    if(stars != (uint8_t)-1 && stars >= 9)
+    if(stars != (uint8_t)-1 && stars >= 9) {
         /* We aren't supposed to drop rares, and this item qualifies
            as one (according to Sega's rules), so don't drop it. */
+#ifdef DEBUG
+        if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+            debug(DBG_LOG, "Item drop blocked by semi-rare restriction. Has %d "
+                  "stars.\n", stars);
+#endif
+
         return 0;
+    }
 
 ok:
+#ifdef DEBUG
+    if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+        debug(DBG_LOG, "Sending item drop to team.\n");
+#endif
+
     return subcmd_send_lobby_item(l, req, item);
 }
 
@@ -1323,7 +1581,7 @@ static uint32_t search_enemy_list(uint32_t id, qenemy_t *list, int len) {
 int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
     subcmd_itemreq_t *req = (subcmd_itemreq_t *)r;
     int section = l->clients[l->leader_id]->pl->v1.section;
-    pt_v2_entry_t *ent = &v2_ptdata[l->difficulty][section];
+    pt_v2_entry_t *ent;
     uint32_t rnd;
     uint32_t item[4];
     int area, do_rare = 1;
@@ -1340,6 +1598,13 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
     /* If the PT index is 0x30, this is a box, not an enemy! */
     if(req->pt_index == 0x30)
         return pt_generate_v2_boxdrop(c, l, r);
+
+#ifdef DEBUG
+    if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+        ent = &v2_ptdata[l->sdrops_diff][l->sdrops_section];
+    else
+#endif
+    ent = &v2_ptdata[l->difficulty][section];
 
     /* Figure out the area we'll be worried with */
     area = c->cur_area;
@@ -1433,7 +1698,7 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
                 /* Weapon -- add percentages and (potentially) grind values and
                    such... */
                 if(generate_weapon_v2(ent, area, item, rng, 1,
-                                      l->version == CLIENT_VERSION_DCV1))
+                                      l->version == CLIENT_VERSION_DCV1, l))
                     return 0;
                 break;
 
@@ -1442,13 +1707,13 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
                 switch((item[0] >> 8) & 0xFF) {
                     case 1:
                         /* Armor -- Add DFP/EVP boosts and slots */
-                        if(generate_armor_v2(ent, area, item, rng, 1))
+                        if(generate_armor_v2(ent, area, item, rng, 1, l))
                             return 0;
                         break;
 
                     case 2:
                         /* Shield -- Add DFP/EVP boosts */
-                        if(generate_shield_v2(ent, area, item, rng, 1))
+                        if(generate_shield_v2(ent, area, item, rng, 1, l))
                             return 0;
                         break;
 
@@ -1497,7 +1762,8 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
                 case BOX_TYPE_WEAPON:
                     /* Drop a weapon */
                     if(generate_weapon_v2(ent, area, item, rng, 0,
-                                          l->version == CLIENT_VERSION_DCV1)) {
+                                          l->version == CLIENT_VERSION_DCV1,
+                                          l)) {
                         return 0;
                     }
 
@@ -1505,7 +1771,7 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
 
                 case BOX_TYPE_ARMOR:
                     /* Drop an armor */
-                    if(generate_armor_v2(ent, area, item, rng, 0)) {
+                    if(generate_armor_v2(ent, area, item, rng, 0, l)) {
                         return 0;
                     }
 
@@ -1513,7 +1779,7 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
 
                 case BOX_TYPE_SHIELD:
                     /* Drop a shield */
-                    if(generate_shield_v2(ent, area, item, rng, 0)) {
+                    if(generate_shield_v2(ent, area, item, rng, 0, l)) {
                         return 0;
                     }
 
@@ -1521,7 +1787,8 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
 
                 case BOX_TYPE_UNIT:
                     /* Drop a unit */
-                    if(pmt_random_unit_v2(ent->unit_level[area], item, rng)) {
+                    if(pmt_random_unit_v2(ent->unit_level[area], item, rng,
+                                          l)) {
                         return 0;
                     }
 
@@ -1543,7 +1810,7 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
 
         case 1:
             /* Drop a tool */
-            if(generate_tool_v2(ent, area, item, rng)) {
+            if(generate_tool_v2(ent, area, item, rng, l)) {
                 return 0;
             }
 
@@ -1553,7 +1820,7 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
             /* Drop meseta */
             if(generate_meseta(ent->enemy_meseta[req->pt_index][0],
                                ent->enemy_meseta[req->pt_index][1],
-                               item, rng)) {
+                               item, rng, l)) {
                 return 0;
             }
 
@@ -1567,7 +1834,7 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
 int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
     subcmd_itemreq_t *req = (subcmd_itemreq_t *)r;
     int section = l->clients[l->leader_id]->pl->v1.section;
-    pt_v2_entry_t *ent = &v2_ptdata[l->difficulty][section];
+    pt_v2_entry_t *ent;
     uint16_t obj_id;
     game_object_t *gobj;
     map_object_t *obj;
@@ -1582,6 +1849,13 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
     /* Make sure this is actually a box drop... */
     if(req->pt_index != 0x30)
         return -1;
+
+#ifdef DEBUG
+    if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+        ent = &v2_ptdata[l->sdrops_diff][l->sdrops_section];
+    else
+#endif
+    ent = &v2_ptdata[l->difficulty][section];
 
     /* Grab the object ID and make sure its sane, then grab the object itself */
     obj_id = LE16(req->req);
@@ -1715,7 +1989,7 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
                 /* Weapon -- add percentages and (potentially) grind values and
                    such... */
                 if(generate_weapon_v2(ent, area, item, rng, 1,
-                                      l->version == CLIENT_VERSION_DCV1))
+                                      l->version == CLIENT_VERSION_DCV1, l))
                     return 0;
                 break;
 
@@ -1724,13 +1998,13 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
                 switch((item[0] >> 8) & 0xFF) {
                     case 1:
                         /* Armor -- Add DFP/EVP boosts and slots */
-                        if(generate_armor_v2(ent, area, item, rng, 1))
+                        if(generate_armor_v2(ent, area, item, rng, 1, l))
                             return 0;
                         break;
 
                     case 2:
                         /* Shield -- Add DFP/EVP boosts */
-                        if(generate_shield_v2(ent, area, item, rng, 1))
+                        if(generate_shield_v2(ent, area, item, rng, 1, l))
                             return 0;
                         break;
 
@@ -1778,7 +2052,7 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
 generate_weapon:
         /* Generate a weapon */
         if(generate_weapon_v2(ent, area, item, rng, 0,
-                              l->version == CLIENT_VERSION_DCV1))
+                              l->version == CLIENT_VERSION_DCV1, l))
             return 0;
 
         return check_and_send(c, l, item, c->cur_area, req, csr);
@@ -1786,21 +2060,21 @@ generate_weapon:
     else if((rnd -= ent->box_drop[BOX_TYPE_ARMOR][area]) > 100) {
 generate_armor:
         /* Generate an armor */
-        if(generate_armor_v2(ent, area, item, rng, 0))
+        if(generate_armor_v2(ent, area, item, rng, 0, l))
             return 0;
 
         return check_and_send(c, l, item, c->cur_area, req, csr);
     }
     else if((rnd -= ent->box_drop[BOX_TYPE_SHIELD][area]) > 100) {
         /* Generate a shield */
-        if(generate_shield_v2(ent, area, item, rng, 0))
+        if(generate_shield_v2(ent, area, item, rng, 0, l))
             return 0;
 
         return check_and_send(c, l, item, c->cur_area, req, csr);
     }
     else if((rnd -= ent->box_drop[BOX_TYPE_UNIT][area]) > 100) {
         /* Generate a unit */
-        if(pmt_random_unit_v2(ent->unit_level[area], item, rng))
+        if(pmt_random_unit_v2(ent->unit_level[area], item, rng, l))
             return 0;
 
         return check_and_send(c, l, item, c->cur_area, req, csr);
@@ -1808,7 +2082,7 @@ generate_armor:
     else if((rnd -= ent->box_drop[BOX_TYPE_TOOL][area]) > 100) {
 generate_tool:
         /* Generate a tool */
-        if(generate_tool_v2(ent, area, item, rng))
+        if(generate_tool_v2(ent, area, item, rng, l))
             return 0;
 
         return check_and_send(c, l, item, c->cur_area, req, csr);
@@ -1817,7 +2091,7 @@ generate_tool:
 generate_meseta:
         /* Generate money! */
         if(generate_meseta(ent->box_meseta[area][0], ent->box_meseta[area][1],
-                           item, rng))
+                           item, rng, l))
             return 0;
 
         return check_and_send(c, l, item, c->cur_area, req, csr);
@@ -1832,10 +2106,10 @@ generate_meseta:
 int pt_generate_gc_drop(ship_client_t *c, lobby_t *l, void *r) {
     subcmd_itemreq_t *req = (subcmd_itemreq_t *)r;
     int section = l->clients[l->leader_id]->pl->v1.section;
-    pt_v3_entry_t *ent = &gc_ptdata[l->episode - 1][l->difficulty][section];
+    pt_v3_entry_t *ent;
     uint32_t rnd;
     uint32_t item[4];
-    int area, do_rare = 1;
+    int area, darea, do_rare = 1;
     struct mt19937_state *rng = &c->cur_block->rng;
     uint16_t mid;
     game_enemy_t *enemy;
@@ -1849,8 +2123,15 @@ int pt_generate_gc_drop(ship_client_t *c, lobby_t *l, void *r) {
     if(req->pt_index == 0x30)
         return pt_generate_gc_boxdrop(c, l, r);
 
+#ifdef DEBUG
+    if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+        ent = &gc_ptdata[l->sdrops_ep - 1][l->sdrops_diff][l->sdrops_section];
+    else
+#endif
+    ent = &gc_ptdata[l->episode - 1][l->difficulty][section];
+
     /* Figure out the area we'll be worried with */
-    area = c->cur_area;
+    area = darea = c->cur_area;
 
     /* Episode II area list:
        0 = Pioneer 2, 1 = VR Temple Alpha, 2 = VR Temple Beta,
@@ -1865,19 +2146,19 @@ int pt_generate_gc_drop(ship_client_t *c, lobby_t *l, void *r) {
         case 1:
             /* Dragon -> Cave 1 */
             if(area == 11)
-                area = 3;
+                darea = 3;
             /* De Rol Le -> Mine 1 */
             else if(area == 12)
-                area = 6;
+                darea = 6;
             /* Vol Opt -> Ruins 1 */
             else if(area == 13)
-                area = 8;
+                darea = 8;
             /* Dark Falz -> Ruins 3 */
             else if(area == 14)
-                area = 10;
+                darea = 10;
             /* Everything after Dark Falz -> Ruins 3 */
             else if(area > 14)
-                area = 10;
+                darea = 10;
             /* Invalid areas... */
             else if(area == 0) {
                 debug(DBG_WARN, "Guildcard %u requested enemy drop on Pioneer "
@@ -1890,19 +2171,19 @@ int pt_generate_gc_drop(ship_client_t *c, lobby_t *l, void *r) {
         case 2:
             /* Barba Ray -> VR Space Ship Alpha */
             if(area == 14)
-                area = 3;
+                darea = 3;
             /* Gol Dragon -> Jungle North */
             else if(area == 15)
-                area = 6;
+                darea = 6;
             /* Gal Gryphon -> SeaSide Daytime */
             else if(area == 12)
-                area = 9;
+                darea = 9;
             /* Olga Flow -> SeaBed Upper Levels */
             else if(area == 13)
-                area = 10;
+                darea = 10;
             /* All others after SeaBed Upper Levels -> SeaBed Upper Levels */
             else if(area > 10)
-                area = 10;
+                darea = 10;
             else if(area == 0) {
                 debug(DBG_WARN, "Guildcard %u requested enemy drop on Pioneer "
                       "2\n", c->guildcard);
@@ -1913,10 +2194,25 @@ int pt_generate_gc_drop(ship_client_t *c, lobby_t *l, void *r) {
     }
 
     /* Subtract one, since we want the index in the box_drop array */
-    --area;
+    --darea;
 
     /* Make sure the enemy's id is sane... */
     mid = LE16(req->req);
+
+#ifdef DEBUG
+    if(l->flags & LOBBY_FLAG_DBG_SDROPS) {
+        debug(DBG_LOG, "Guildcard %u Debug Drop (GC).\n"
+                       "        Episode %d, Section: %d, Difficulty: %d,\n"
+                       "        Area: %d (%d), Enemy ID: %d,\n"
+                       "        PT Entry Pointer: %p\n",
+              c->guildcard, l->sdrops_ep, l->sdrops_section, l->sdrops_diff,
+              area, darea, mid, ent);
+    }
+#endif
+
+    /* We only really need this separate for debugging... */
+    area = darea;
+
     if(mid > l->map_enemies->count) {
         debug(DBG_WARN, "Guildcard %" PRIu32 " requested drop for invalid "
               "enemy (%d -- max: %d, quest=%" PRIu32 ")!\n", c->guildcard, mid,
@@ -1926,17 +2222,29 @@ int pt_generate_gc_drop(ship_client_t *c, lobby_t *l, void *r) {
 
     /* Grab the map enemy to make sure it hasn't already dropped something. */
     enemy = &l->map_enemies->enemies[mid];
-    if(enemy->drop_done)
+    if(enemy->drop_done) {
+#ifdef DEBUG
+        if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+            debug(DBG_LOG, "Drop already done. Returning no item.\n");
+#endif
         return 0;
+    }
 
     enemy->drop_done = 1;
 
     /* See if the enemy is going to drop anything at all this time... */
     rnd = mt19937_genrand_int32(rng) % 100;
 
-    if(rnd >= ent->enemy_dar[req->pt_index])
+#ifdef DEBUG
+    if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+        debug(DBG_LOG, "DAR: %d, Rolled: %d\n", ent->enemy_dar[req->pt_index],
+              rnd);
+#endif
+
+    if(rnd >= ent->enemy_dar[req->pt_index]) {
         /* Nope. You get nothing! */
         return 0;
+    }
 
     /* See if we'll do a rare roll. */
     if(l->qid) {
@@ -1946,13 +2254,24 @@ int pt_generate_gc_drop(ship_client_t *c, lobby_t *l, void *r) {
             csr = 1;
     }
 
+#ifdef DEBUG
+    if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+        debug(DBG_LOG, "To do rare roll: %s, Allow quest semi-rares: %s\n",
+              do_rare ? "Yes" : "No", csr ? "No" : "Yes");
+#endif
+
     /* See if the user is lucky today... */
     if(do_rare && (item[0] = rt_generate_gc_rare(c, l, req->pt_index, 0))) {
+#ifdef DEBUG
+        if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+            debug(DBG_LOG, "Rare roll succeeded, generating %08x\n", item[0]);
+#endif
+
         switch(item[0] & 0xFF) {
             case 0:
                 /* Weapon -- add percentages and (potentially) grind values and
                    such... */
-                if(generate_weapon_v3(ent, area, item, rng, 1, 0))
+                if(generate_weapon_v3(ent, area, item, rng, 1, 0, l))
                     return 0;
                 break;
 
@@ -1961,13 +2280,13 @@ int pt_generate_gc_drop(ship_client_t *c, lobby_t *l, void *r) {
                 switch((item[0] >> 8) & 0xFF) {
                     case 1:
                         /* Armor -- Add DFP/EVP boosts and slots */
-                        if(generate_armor_v3(ent, area, item, rng, 1, 0))
+                        if(generate_armor_v3(ent, area, item, rng, 1, 0, l))
                             return 0;
                         break;
 
                     case 2:
                         /* Shield -- Add DFP/EVP boosts */
-                        if(generate_shield_v3(ent, area, item, rng, 1, 0))
+                        if(generate_shield_v3(ent, area, item, rng, 1, 0, l))
                             return 0;
                         break;
 
@@ -2009,13 +2328,31 @@ int pt_generate_gc_drop(ship_client_t *c, lobby_t *l, void *r) {
 
     /* Figure out what type to drop... */
     rnd = mt19937_genrand_int32(rng) % 3;
+
+#ifdef DEBUG
+    if(l->flags & LOBBY_FLAG_DBG_SDROPS) {
+        switch(rnd) {
+            case 0:
+                debug(DBG_LOG, "Drop designated item type: %d.\n",
+                      ent->enemy_drop[req->pt_index]);
+                break;
+            case 1:
+                debug(DBG_LOG, "Drop tool\n");
+                break;
+            case 2:
+                debug(DBG_LOG, "Drop meseta\n");
+                break;
+        }
+    }
+#endif
+
     switch(rnd) {
         case 0:
             /* Drop the enemy's designated type of item. */
             switch(ent->enemy_drop[req->pt_index]) {
                 case BOX_TYPE_WEAPON:
                     /* Drop a weapon */
-                    if(generate_weapon_v3(ent, area, item, rng, 0, 0)) {
+                    if(generate_weapon_v3(ent, area, item, rng, 0, 0, l)) {
                         return 0;
                     }
 
@@ -2023,7 +2360,7 @@ int pt_generate_gc_drop(ship_client_t *c, lobby_t *l, void *r) {
 
                 case BOX_TYPE_ARMOR:
                     /* Drop an armor */
-                    if(generate_armor_v3(ent, area, item, rng, 0, 0)) {
+                    if(generate_armor_v3(ent, area, item, rng, 0, 0, l)) {
                         return 0;
                     }
 
@@ -2031,7 +2368,7 @@ int pt_generate_gc_drop(ship_client_t *c, lobby_t *l, void *r) {
 
                 case BOX_TYPE_SHIELD:
                     /* Drop a shield */
-                    if(generate_shield_v3(ent, area, item, rng, 0, 0)) {
+                    if(generate_shield_v3(ent, area, item, rng, 0, 0, l)) {
                         return 0;
                     }
 
@@ -2039,7 +2376,8 @@ int pt_generate_gc_drop(ship_client_t *c, lobby_t *l, void *r) {
 
                 case BOX_TYPE_UNIT:
                     /* Drop a unit */
-                    if(pmt_random_unit_gc(ent->unit_level[area], item, rng)) {
+                    if(pmt_random_unit_gc(ent->unit_level[area], item, rng,
+                                          l)) {
                         return 0;
                     }
 
@@ -2061,7 +2399,7 @@ int pt_generate_gc_drop(ship_client_t *c, lobby_t *l, void *r) {
 
         case 1:
             /* Drop a tool */
-            if(generate_tool_v3(ent, area, item, rng)) {
+            if(generate_tool_v3(ent, area, item, rng, l)) {
                 return 0;
             }
 
@@ -2071,7 +2409,7 @@ int pt_generate_gc_drop(ship_client_t *c, lobby_t *l, void *r) {
             /* Drop meseta */
             if(generate_meseta(ent->enemy_meseta[req->pt_index][0],
                                ent->enemy_meseta[req->pt_index][1],
-                               item, rng)) {
+                               item, rng, l)) {
                 return 0;
             }
 
@@ -2085,12 +2423,12 @@ int pt_generate_gc_drop(ship_client_t *c, lobby_t *l, void *r) {
 int pt_generate_gc_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
     subcmd_bitemreq_t *req = (subcmd_bitemreq_t *)r;
     int section = l->clients[l->leader_id]->pl->v1.section;
-    pt_v3_entry_t *ent = &gc_ptdata[l->episode - 1][l->difficulty][section];
+    pt_v3_entry_t *ent;
     uint16_t obj_id;
     game_object_t *gobj;
     map_object_t *obj;
     uint32_t rnd, t1, t2;
-    int area, do_rare = 1;
+    int area, darea, do_rare = 1;
     uint32_t item[4];
     float f1, f2;
     struct mt19937_state *rng = &c->cur_block->rng;
@@ -2099,6 +2437,13 @@ int pt_generate_gc_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
     /* Make sure this is actually a box drop... */
     if(req->pt_index != 0x30)
         return -1;
+
+#ifdef DEBUG
+    if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+        ent = &gc_ptdata[l->sdrops_ep - 1][l->sdrops_diff][l->sdrops_section];
+    else
+#endif
+    ent = &gc_ptdata[l->episode - 1][l->difficulty][section];
 
     /* Grab the object ID and make sure its sane, then grab the object itself */
     obj_id = LE16(req->req);
@@ -2110,32 +2455,38 @@ int pt_generate_gc_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
 
     /* Don't bother if the box has already been opened */
     gobj = &l->map_objs->objs[obj_id];
-    if(gobj->flags & 0x00000001)
+    if(gobj->flags & 0x00000001) {
+#ifdef DEBUG
+        if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+            debug(DBG_LOG, "Requested drop from opened box: %d\n", obj_id);
+#endif
+
         return 0;
+    }
 
     obj = &gobj->data;
 
     /* Figure out the area we'll be worried with */
-    area = c->cur_area;
+    area = darea = c->cur_area;
 
     switch(l->episode) {
         case 0:
         case 1:
             /* Dragon -> Cave 1 */
             if(area == 11)
-                area = 3;
+                darea = 3;
             /* De Rol Le -> Mine 1 */
             else if(area == 12)
-                area = 6;
+                darea = 6;
             /* Vol Opt -> Ruins 1 */
             else if(area == 13)
-                area = 8;
+                darea = 8;
             /* Dark Falz -> Ruins 3 */
             else if(area == 14)
-                area = 10;
+                darea = 10;
             /* Everything after Dark Falz -> Ruins 3 */
             else if(area > 14)
-                area = 10;
+                darea = 10;
             /* Invalid areas... */
             else if(area == 0) {
                 debug(DBG_WARN, "Guildcard %u requested box drop on Pioneer "
@@ -2148,19 +2499,19 @@ int pt_generate_gc_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
         case 2:
             /* Barba Ray -> VR Space Ship Alpha */
             if(area == 14)
-                area = 3;
+                darea = 3;
             /* Gol Dragon -> Jungle North */
             else if(area == 15)
-                area = 6;
+                darea = 6;
             /* Gal Gryphon -> SeaSide Daytime */
             else if(area == 12)
-                area = 9;
+                darea = 9;
             /* Olga Flow -> SeaBed Upper Levels */
             else if(area == 13)
-                area = 10;
+                darea = 10;
             /* All others after SeaBed Upper Levels -> SeaBed Upper Levels */
             else if(area > 10)
-                area = 10;
+                darea = 10;
             else if(area == 0) {
                 debug(DBG_WARN, "Guildcard %u requested box drop on Pioneer "
                       "2\n", c->guildcard);
@@ -2171,10 +2522,25 @@ int pt_generate_gc_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
     }
 
     /* Subtract one, since we want the index in the box_drop array */
-    --area;
+    --darea;
 
     /* Mark the box as spent now... */
     gobj->flags |= 0x00000001;
+
+#ifdef DEBUG
+    if(l->flags & LOBBY_FLAG_DBG_SDROPS) {
+        debug(DBG_LOG, "Guildcard %u Debug Box Drop (GC).\n"
+                       "        Episode %d, Section: %d, Difficulty: %d,\n"
+                       "        Area: %d (%d), Object ID: %d,\n"
+                       "        Object Skin: %08" PRIx32 ",\n"
+                       "        PT Entry Pointer: %p\n",
+              c->guildcard, l->sdrops_ep, l->sdrops_section, l->sdrops_diff,
+              area, darea, obj_id, LE32(obj->skin), ent);
+    }
+#endif
+
+    /* We only really need this separate for debugging... */
+    area = darea;
 
     /* See if we'll do a rare roll. */
     if(l->qid) {
@@ -2184,11 +2550,22 @@ int pt_generate_gc_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
             csr = 1;
     }
 
+#ifdef DEBUG
+    if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+        debug(DBG_LOG, "To do rare roll: %s, Allow quest semi-rares: %s\n",
+              do_rare ? "Yes" : "No", csr ? "No" : "Yes");
+#endif
+
     /* See if the object is fixed-type box */
     t1 = LE32(obj->dword[0]);
     f1 = *((float *)&t1);
     if((obj->skin == LE32(0x00000092) || obj->skin == LE32(0x00000161)) &&
        f1 < 1.0f + EPSILON && f1 > 1.0f - EPSILON) {
+#ifdef DEBUG
+        if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+            debug(DBG_LOG, "Hit fixed box...\n");
+#endif
+
         /* See if it is a fully-fixed item */
         t2 = LE32(obj->dword[1]);
         f2 = *((float *)&t2);
@@ -2197,6 +2574,12 @@ int pt_generate_gc_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
             /* Drop the requested item */
             item[0] = ntohl(obj->dword[2]);
             item[1] = item[2] = item[3] = 0;
+
+#ifdef DEBUG
+            if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+                debug(DBG_LOG, "Fully-fixed box. Dropping %08" PRIx32 "\n",
+                      ntohl(obj->dword[2]));
+#endif
 
             /* If its a stackable item, make sure to give it a quantity of 1 */
             if(item_is_stackable(item[0]))
@@ -2213,6 +2596,12 @@ int pt_generate_gc_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
         }
 
         t1 = ntohl(obj->dword[2]);
+
+#ifdef DEBUG
+        if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+            debug(DBG_LOG, "Fixed-type box. Generating type %d\n", t1 & 0xFF);
+#endif
+
         switch(t1 & 0xFF) {
             case 0:
                 goto generate_weapon;
@@ -2234,11 +2623,16 @@ int pt_generate_gc_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
 
     /* See if the user is lucky today... */
     if(do_rare && (item[0] = rt_generate_gc_rare(c, l, -1, area + 1))) {
+#ifdef DEBUG
+        if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+            debug(DBG_LOG, "Rare roll succeeded, generating %08x\n", item[0]);
+#endif
+
         switch(item[0] & 0xFF) {
             case 0:
                 /* Weapon -- add percentages and (potentially) grind values and
                    such... */
-                if(generate_weapon_v3(ent, area, item, rng, 1, 0))
+                if(generate_weapon_v3(ent, area, item, rng, 1, 0, l))
                     return 0;
                 break;
 
@@ -2247,13 +2641,13 @@ int pt_generate_gc_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
                 switch((item[0] >> 8) & 0xFF) {
                     case 1:
                         /* Armor -- Add DFP/EVP boosts and slots */
-                        if(generate_armor_v3(ent, area, item, rng, 1, 0))
+                        if(generate_armor_v3(ent, area, item, rng, 1, 0, l))
                             return 0;
                         break;
 
                     case 2:
                         /* Shield -- Add DFP/EVP boosts */
-                        if(generate_shield_v3(ent, area, item, rng, 1, 0))
+                        if(generate_shield_v3(ent, area, item, rng, 1, 0, l))
                             return 0;
                         break;
 
@@ -2298,10 +2692,15 @@ int pt_generate_gc_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
     /* Generate an item, according to the PT data */
     rnd = mt19937_genrand_int32(rng) % 100;
 
+#ifdef DEBUG
+    if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+        debug(DBG_LOG, "RNG generated %d\n", rnd);
+#endif
+
     if((rnd -= ent->box_drop[BOX_TYPE_WEAPON][area]) > 100) {
 generate_weapon:
         /* Generate a weapon */
-        if(generate_weapon_v3(ent, area, item, rng, 0, 0))
+        if(generate_weapon_v3(ent, area, item, rng, 0, 0, l))
             return 0;
 
         return check_and_send(c, l, item, c->cur_area, (subcmd_itemreq_t *)req,
@@ -2310,7 +2709,7 @@ generate_weapon:
     else if((rnd -= ent->box_drop[BOX_TYPE_ARMOR][area]) > 100) {
 generate_armor:
         /* Generate an armor */
-        if(generate_armor_v3(ent, area, item, rng, 0, 0))
+        if(generate_armor_v3(ent, area, item, rng, 0, 0, l))
             return 0;
 
         return check_and_send(c, l, item, c->cur_area, (subcmd_itemreq_t *)req,
@@ -2318,7 +2717,7 @@ generate_armor:
     }
     else if((rnd -= ent->box_drop[BOX_TYPE_SHIELD][area]) > 100) {
         /* Generate a shield */
-        if(generate_shield_v3(ent, area, item, rng, 0, 0))
+        if(generate_shield_v3(ent, area, item, rng, 0, 0, l))
             return 0;
 
         return check_and_send(c, l, item, c->cur_area, (subcmd_itemreq_t *)req,
@@ -2326,7 +2725,7 @@ generate_armor:
     }
     else if((rnd -= ent->box_drop[BOX_TYPE_UNIT][area]) > 100) {
         /* Generate a unit */
-        if(pmt_random_unit_gc(ent->unit_level[area], item, rng))
+        if(pmt_random_unit_gc(ent->unit_level[area], item, rng, l))
             return 0;
 
         return check_and_send(c, l, item, c->cur_area, (subcmd_itemreq_t *)req,
@@ -2335,7 +2734,7 @@ generate_armor:
     else if((rnd -= ent->box_drop[BOX_TYPE_TOOL][area]) > 100) {
 generate_tool:
         /* Generate a tool */
-        if(generate_tool_v3(ent, area, item, rng))
+        if(generate_tool_v3(ent, area, item, rng, l))
             return 0;
 
         return check_and_send(c, l, item, c->cur_area, (subcmd_itemreq_t *)req,
@@ -2345,7 +2744,7 @@ generate_tool:
 generate_meseta:
         /* Generate money! */
         if(generate_meseta(ent->box_meseta[area][0], ent->box_meseta[area][1],
-                           item, rng))
+                           item, rng, l))
             return 0;
 
         return check_and_send(c, l, item, c->cur_area, (subcmd_itemreq_t *)req,
@@ -2476,7 +2875,7 @@ int pt_generate_bb_drop(ship_client_t *c, lobby_t *l, void *r) {
             case 0:
                 /* Weapon -- add percentages and (potentially) grind values and
                    such... */
-                if(generate_weapon_v3(ent, area, item, rng, 1, 1))
+                if(generate_weapon_v3(ent, area, item, rng, 1, 1, l))
                     return 0;
                 break;
 
@@ -2485,13 +2884,13 @@ int pt_generate_bb_drop(ship_client_t *c, lobby_t *l, void *r) {
                 switch((item[0] >> 8) & 0xFF) {
                     case 1:
                         /* Armor -- Add DFP/EVP boosts and slots */
-                        if(generate_armor_v3(ent, area, item, rng, 1, 1))
+                        if(generate_armor_v3(ent, area, item, rng, 1, 1, l))
                             return 0;
                         break;
 
                     case 2:
                         /* Shield -- Add DFP/EVP boosts */
-                        if(generate_shield_v3(ent, area, item, rng, 1, 1))
+                        if(generate_shield_v3(ent, area, item, rng, 1, 1, l))
                             return 0;
                         break;
 
@@ -2539,7 +2938,7 @@ int pt_generate_bb_drop(ship_client_t *c, lobby_t *l, void *r) {
             switch(ent->enemy_drop[req->pt_index]) {
                 case BOX_TYPE_WEAPON:
                     /* Drop a weapon */
-                    if(generate_weapon_v3(ent, area, item, rng, 0, 1)) {
+                    if(generate_weapon_v3(ent, area, item, rng, 0, 1, l)) {
                         return 0;
                     }
 
@@ -2547,7 +2946,7 @@ int pt_generate_bb_drop(ship_client_t *c, lobby_t *l, void *r) {
 
                 case BOX_TYPE_ARMOR:
                     /* Drop an armor */
-                    if(generate_armor_v3(ent, area, item, rng, 0, 1)) {
+                    if(generate_armor_v3(ent, area, item, rng, 0, 1, l)) {
                         return 0;
                     }
 
@@ -2555,7 +2954,7 @@ int pt_generate_bb_drop(ship_client_t *c, lobby_t *l, void *r) {
 
                 case BOX_TYPE_SHIELD:
                     /* Drop a shield */
-                    if(generate_shield_v3(ent, area, item, rng, 0, 1)) {
+                    if(generate_shield_v3(ent, area, item, rng, 0, 1, l)) {
                         return 0;
                     }
 
@@ -2563,7 +2962,8 @@ int pt_generate_bb_drop(ship_client_t *c, lobby_t *l, void *r) {
 
                 case BOX_TYPE_UNIT:
                     /* Drop a unit */
-                    if(pmt_random_unit_bb(ent->unit_level[area], item, rng)) {
+                    if(pmt_random_unit_bb(ent->unit_level[area], item, rng,
+                                          l)) {
                         return 0;
                     }
 
@@ -2585,7 +2985,7 @@ int pt_generate_bb_drop(ship_client_t *c, lobby_t *l, void *r) {
 
         case 1:
             /* Drop a tool */
-            if(generate_tool_v3(ent, area, item, rng)) {
+            if(generate_tool_v3(ent, area, item, rng, l)) {
                 return 0;
             }
 
@@ -2595,7 +2995,7 @@ int pt_generate_bb_drop(ship_client_t *c, lobby_t *l, void *r) {
             /* Drop meseta */
             if(generate_meseta(ent->enemy_meseta[req->pt_index][0],
                                ent->enemy_meseta[req->pt_index][1],
-                               item, rng)) {
+                               item, rng, l)) {
                 return 0;
             }
 
@@ -2768,7 +3168,7 @@ int pt_generate_bb_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
             case 0:
                 /* Weapon -- add percentages and (potentially) grind values and
                    such... */
-                if(generate_weapon_v3(ent, area, item, rng, 1, 1))
+                if(generate_weapon_v3(ent, area, item, rng, 1, 1, l))
                     return 0;
                 break;
 
@@ -2777,13 +3177,13 @@ int pt_generate_bb_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
                 switch((item[0] >> 8) & 0xFF) {
                     case 1:
                         /* Armor -- Add DFP/EVP boosts and slots */
-                        if(generate_armor_v3(ent, area, item, rng, 1, 1))
+                        if(generate_armor_v3(ent, area, item, rng, 1, 1, l))
                             return 0;
                         break;
 
                     case 2:
                         /* Shield -- Add DFP/EVP boosts */
-                        if(generate_shield_v3(ent, area, item, rng, 1, 1))
+                        if(generate_shield_v3(ent, area, item, rng, 1, 1, l))
                             return 0;
                         break;
 
@@ -2831,7 +3231,7 @@ int pt_generate_bb_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
     if((rnd -= ent->box_drop[BOX_TYPE_WEAPON][area]) > 100) {
 generate_weapon:
         /* Generate a weapon */
-        if(generate_weapon_v3(ent, area, item, rng, 0, 1))
+        if(generate_weapon_v3(ent, area, item, rng, 0, 1, l))
             return 0;
 
         return check_and_send_bb(c, l, item, c->cur_area,
@@ -2840,7 +3240,7 @@ generate_weapon:
     else if((rnd -= ent->box_drop[BOX_TYPE_ARMOR][area]) > 100) {
 generate_armor:
         /* Generate an armor */
-        if(generate_armor_v3(ent, area, item, rng, 0, 1))
+        if(generate_armor_v3(ent, area, item, rng, 0, 1, l))
             return 0;
 
         return check_and_send_bb(c, l, item, c->cur_area,
@@ -2848,7 +3248,7 @@ generate_armor:
     }
     else if((rnd -= ent->box_drop[BOX_TYPE_SHIELD][area]) > 100) {
         /* Generate a shield */
-        if(generate_shield_v3(ent, area, item, rng, 0, 1))
+        if(generate_shield_v3(ent, area, item, rng, 0, 1, l))
             return 0;
 
         return check_and_send_bb(c, l, item, c->cur_area,
@@ -2856,7 +3256,7 @@ generate_armor:
     }
     else if((rnd -= ent->box_drop[BOX_TYPE_UNIT][area]) > 100) {
         /* Generate a unit */
-        if(pmt_random_unit_bb(ent->unit_level[area], item, rng))
+        if(pmt_random_unit_bb(ent->unit_level[area], item, rng, l))
             return 0;
 
         return check_and_send_bb(c, l, item, c->cur_area,
@@ -2865,7 +3265,7 @@ generate_armor:
     else if((rnd -= ent->box_drop[BOX_TYPE_TOOL][area]) > 100) {
 generate_tool:
         /* Generate a tool */
-        if(generate_tool_v3(ent, area, item, rng))
+        if(generate_tool_v3(ent, area, item, rng, l))
             return 0;
 
         return check_and_send_bb(c, l, item, c->cur_area,
@@ -2875,7 +3275,7 @@ generate_tool:
 generate_meseta:
         /* Generate money! */
         if(generate_meseta(ent->box_meseta[area][0], ent->box_meseta[area][1],
-                           item, rng))
+                           item, rng, l))
             return 0;
 
         return check_and_send_bb(c, l, item, c->cur_area,

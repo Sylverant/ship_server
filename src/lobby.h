@@ -130,6 +130,12 @@ struct lobby {
     qenemy_t *mids;
 
     int (*dropfunc)(ship_client_t *c, struct lobby *l, void *req);
+
+#ifdef DEBUG
+    uint8_t sdrops_ep;
+    uint8_t sdrops_diff;
+    uint8_t sdrops_section;
+#endif
 };
 
 #ifndef LOBBY_DEFINED
@@ -158,7 +164,7 @@ TAILQ_HEAD(lobby_queue, lobby);
 #define LOBBY_FLAG_SINGLEPLAYER 0x00000400
 #define LOBBY_FLAG_EP3          0x00000800
 #define LOBBY_FLAG_SERVER_DROPS 0x00001000
-/* 0x00002000 currently unused. */
+#define LOBBY_FLAG_DBG_SDROPS   0x00002000
 #define LOBBY_FLAG_DCNTE        0x00004000
 
 /* Events that can be set on games */

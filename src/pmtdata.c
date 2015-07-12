@@ -1895,51 +1895,91 @@ uint8_t pmt_lookup_stars_bb(uint32_t code) {
    is actually defined as a 0 increment anyway).
 */
 int pmt_random_unit_v2(uint8_t max, uint32_t item[4],
-                       struct mt19937_state *rng) {
+                       struct mt19937_state *rng, lobby_t *l) {
     uint64_t unit;
+    uint32_t rnd = mt19937_genrand_int32(rng);
+
+#ifdef DEBUG
+    if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+        debug(DBG_LOG, "pmt_random_unit_v2: max stars: %" PRIu8 "(%" PRIu8
+              ")\n", max, unit_max_stars);
+#endif
 
     if(max > unit_max_stars)
         max = unit_max_stars;
 
     /* Pick one of them, and return it. */
-    unit = units_by_stars[mt19937_genrand_int32(rng) % units_with_stars[max]];
+    unit = units_by_stars[rnd % units_with_stars[max]];
     item[0] = (uint32_t)unit;
     item[1] = (uint32_t)(unit >> 32);
     item[2] = item[3] = 0;
+
+#ifdef DEBUG
+    if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+        debug(DBG_LOG, "    RNG picked %" PRIu32 " max: %" PRIu32 " i: %"
+              PRIu32 "\n", rnd, units_with_stars[max],
+              rnd % units_with_stars[max]);
+#endif
 
     return 0;
 }
 
 int pmt_random_unit_gc(uint8_t max, uint32_t item[4],
-                       struct mt19937_state *rng) {
+                       struct mt19937_state *rng, lobby_t *l) {
     uint64_t unit;
+    uint32_t rnd = mt19937_genrand_int32(rng);
+
+#ifdef DEBUG
+    if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+        debug(DBG_LOG, "pmt_random_unit_gc: max stars: %" PRIu8 "(%" PRIu8
+              ")\n", max, unit_max_stars_gc);
+#endif
 
     if(max > unit_max_stars_gc)
         max = unit_max_stars_gc;
 
     /* Pick one of them, and return it. */
-    unit = units_by_stars_gc[mt19937_genrand_int32(rng) %
-                             units_with_stars_gc[max]];
+    unit = units_by_stars_gc[rnd % units_with_stars_gc[max]];
     item[0] = (uint32_t)unit;
     item[1] = (uint32_t)(unit >> 32);
     item[2] = item[3] = 0;
+
+#ifdef DEBUG
+    if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+        debug(DBG_LOG, "    RNG picked %" PRIu32 " max: %" PRIu32 " i: %"
+              PRIu32 "\n", rnd, units_with_stars_gc[max],
+              rnd % units_with_stars_gc[max]);
+#endif
 
     return 0;
 }
 
 int pmt_random_unit_bb(uint8_t max, uint32_t item[4],
-                       struct mt19937_state *rng) {
+                       struct mt19937_state *rng, lobby_t *l) {
     uint64_t unit;
+    uint32_t rnd = mt19937_genrand_int32(rng);
+
+#ifdef DEBUG
+    if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+        debug(DBG_LOG, "pmt_random_unit_bb: max stars: %" PRIu8 "(%" PRIu8
+              ")\n", max, unit_max_stars_bb);
+#endif
 
     if(max > unit_max_stars_bb)
         max = unit_max_stars_bb;
 
     /* Pick one of them, and return it. */
-    unit = units_by_stars_bb[mt19937_genrand_int32(rng) %
-                             units_with_stars_bb[max]];
+    unit = units_by_stars_bb[rnd % units_with_stars_bb[max]];
     item[0] = (uint32_t)unit;
     item[1] = (uint32_t)(unit >> 32);
     item[2] = item[3] = 0;
+
+#ifdef DEBUG
+    if(l->flags & LOBBY_FLAG_DBG_SDROPS)
+        debug(DBG_LOG, "    RNG picked %" PRIu32 " max: %" PRIu32 " i: %"
+              PRIu32 "\n", rnd, units_with_stars_bb[max],
+              rnd % units_with_stars_bb[max]);
+#endif
 
     return 0;
 }

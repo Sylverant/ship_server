@@ -162,6 +162,13 @@ struct ship_client {
 #ifdef HAVE_PYTHON
     PyObject *pyobj;
 #endif
+
+#ifdef DEBUG
+    uint8_t sdrops_ver;
+    uint8_t sdrops_ep;
+    uint8_t sdrops_diff;
+    uint8_t sdrops_section;
+#endif
 };
 
 #define CLIENT_PRIV_LOCAL_GM    0x01
@@ -249,6 +256,7 @@ extern pthread_key_t sendbuf_key;
 #define CLIENT_FLAG_TRACK_INVENTORY 0x00020000
 #define CLIENT_FLAG_TRACK_KILLS     0x00040000
 #define CLIENT_FLAG_QLOAD_DONE      0x00080000
+#define CLIENT_FLAG_DBG_SDROPS      0x00100000
 
 /* The list of language codes for the quest directories. */
 static const char language_codes[][3] __attribute__((unused)) = {

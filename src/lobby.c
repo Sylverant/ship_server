@@ -79,6 +79,29 @@ lobby_t *lobby_create_default(block_t *block, uint32_t lobby_id, uint8_t ev) {
 }
 
 static void lobby_setup_drops(ship_client_t *c, lobby_t *l, uint32_t rs) {
+#ifdef DEBUG
+    /* See if we have server drop debugging turned on... */
+    if(c->flags & CLIENT_FLAG_DBG_SDROPS) {
+        l->flags |= LOBBY_FLAG_SERVER_DROPS | LOBBY_FLAG_DBG_SDROPS;
+        c->flags &= ~CLIENT_FLAG_DBG_SDROPS;
+
+        switch(c->sdrops_ver) {
+            case CLIENT_VERSION_DCV2:
+                l->dropfunc = pt_generate_v2_drop;
+                break;
+
+            case CLIENT_VERSION_GC:
+                l->dropfunc = pt_generate_gc_drop;
+                break;
+        }
+
+        l->sdrops_ep = c->sdrops_ep;
+        l->sdrops_diff = c->sdrops_diff;
+        l->sdrops_section = c->sdrops_section;
+        return;
+    }
+#endif
+
     if(l->version == CLIENT_VERSION_BB) {
         l->dropfunc = pt_generate_bb_drop;
         l->flags |= LOBBY_FLAG_SERVER_DROPS;

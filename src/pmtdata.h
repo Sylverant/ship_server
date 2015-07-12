@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2012, 2013 Lawrence Sebald
+    Copyright (C) 2012, 2013, 2015 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -21,6 +21,8 @@
 #include <stdint.h>
 
 #include <sylverant/mtwist.h>
+
+#include "lobby.h"
 
 #ifdef PACKED
 #undef PACKED
@@ -269,7 +271,7 @@ int pmt_lookup_unit_v2(uint32_t code, pmt_unit_v2_t *rv);
 
 uint8_t pmt_lookup_stars_v2(uint32_t code);
 int pmt_random_unit_v2(uint8_t max, uint32_t item[4],
-                       struct mt19937_state *rng);
+                       struct mt19937_state *rng, lobby_t *l);
 
 int pmt_lookup_weapon_gc(uint32_t code, pmt_weapon_gc_t *rv);
 int pmt_lookup_guard_gc(uint32_t code, pmt_guard_gc_t *rv);
@@ -277,14 +279,14 @@ int pmt_lookup_unit_gc(uint32_t code, pmt_unit_gc_t *rv);
 
 uint8_t pmt_lookup_stars_gc(uint32_t code);
 int pmt_random_unit_gc(uint8_t max, uint32_t item[4],
-                       struct mt19937_state *rng);
+                       struct mt19937_state *rng, lobby_t *l);
 
 int pmt_lookup_weapon_bb(uint32_t code, pmt_weapon_bb_t *rv);
 int pmt_lookup_guard_bb(uint32_t code, pmt_guard_bb_t *rv);
 int pmt_lookup_unit_bb(uint32_t code, pmt_unit_bb_t *rv);
 
 int pmt_random_unit_bb(uint8_t max, uint32_t item[4],
-                       struct mt19937_state *rng);
+                       struct mt19937_state *rng, lobby_t *l);
 uint8_t pmt_lookup_stars_bb(uint32_t code);
 
 #endif /* !PMTDATA_H */
