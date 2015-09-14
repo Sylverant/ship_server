@@ -254,11 +254,18 @@ typedef struct v3_player {
     union {
         uint8_t all[0x0118];
         struct {
-            uint32_t unk1;              /* Flip the words for dc/pc! */
+            uint32_t unk1;          /* Flip the words for dc/pc! */
             uint32_t times[9];
-            uint8_t unk2[0xB0];
-            char string[0x0C];
-            uint8_t unk3[0x18];
+            uint32_t times_ep2[5];
+            uint8_t unk2[0x24];     /* Probably corresponds to unk2 dc/pc */
+            uint32_t grave_unk4;
+            uint32_t grave_deaths;
+            uint32_t grave_coords_time[5];
+            char grave_team[20];
+            char grave_message[48];
+            uint8_t unk3[24];
+            char string[12];
+            uint8_t unk4[24];
             uint32_t battle[7];
         } part;
     } c_rank;
