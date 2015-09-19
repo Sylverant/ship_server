@@ -5101,7 +5101,7 @@ static int send_dc_quest_list(ship_client_t *c, int cn, int lang) {
 
     /* If this is for challenge mode, figure out our limit. */
     if(c->cur_lobby->challenge)
-        max = c->cur_lobby->max_chal;
+        max = c->cur_lobby->max_chal & 0x0F;
 
     /* Fill in the header */
     pkt->hdr.pkt_type = QUEST_LIST_TYPE;
@@ -5255,7 +5255,7 @@ static int send_pc_quest_list(ship_client_t *c, int cn, int lang) {
 
     /* If this is for challenge mode, figure out our limit. */
     if(c->cur_lobby->challenge)
-        max = c->cur_lobby->max_chal;
+        max = c->cur_lobby->max_chal & 0x0F;
 
     /* Fill in the header */
     pkt->hdr.pkt_type = QUEST_LIST_TYPE;
@@ -5340,7 +5340,7 @@ static int send_pc_quest_list(ship_client_t *c, int cn, int lang) {
 static int send_gc_quest_list(ship_client_t *c, int cn, int lang) {
     uint8_t *sendbuf = get_sendbuf();
     dc_quest_list_pkt *pkt = (dc_quest_list_pkt *)sendbuf;
-    int i, len = 0x04, entries = 0, max = INT_MAX, j, k, ver;
+    int i, len = 0x04, entries = 0, max = INT_MAX, max2 = INT_MAX, j, k, ver;
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
@@ -5392,14 +5392,25 @@ static int send_gc_quest_list(ship_client_t *c, int cn, int lang) {
     memset(pkt, 0, 0x04);
 
     /* If this is for challenge mode, figure out our limit. */
-    if(c->cur_lobby->challenge)
-        max = c->cur_lobby->max_chal;
+    if(c->cur_lobby->challenge) {
+        max = c->cur_lobby->max_chal & 0x0F;
+        max2 = (c->cur_lobby->max_chal >> 4) & 0x0F;
+    }
 
     /* Fill in the header */
     pkt->hdr.pkt_type = QUEST_LIST_TYPE;
 
     for(k = 0; k < 2; ++k) {
-        for(i = 0; i < cat->quest_count && i < max; ++i) {
+        for(i = 0; i < cat->quest_count; ++i) {
+            if(c->cur_lobby->challenge) {
+                /* Skip episode 1 challenge quests we're not qualified for. */
+                if(i < 9 && i >= max)
+                    continue;
+                /* Same for episode 2. */
+                else if(i > 9 && (i - 9) >= max2)
+                    break;
+            }
+
             quest = &cat->quests[i];
             elem = (quest_map_elem_t *)quest->user_data;
 
@@ -5500,7 +5511,7 @@ static int send_gc_quest_list(ship_client_t *c, int cn, int lang) {
 static int send_bb_quest_list(ship_client_t *c, int cn, int lang) {
     uint8_t *sendbuf = get_sendbuf();
     bb_quest_list_pkt *pkt = (bb_quest_list_pkt *)sendbuf;
-    int i, len = 0x08, entries = 0, max = INT_MAX, j, k;
+    int i, len = 0x08, entries = 0, max = INT_MAX, max2 = INT_MAX, j, k;
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
@@ -5536,14 +5547,25 @@ static int send_bb_quest_list(ship_client_t *c, int cn, int lang) {
     caten = &qlisten->cats[cn];
 
     /* If this is for challenge mode, figure out our limit. */
-    if(c->cur_lobby->challenge)
-        max = c->cur_lobby->max_chal;
+    if(c->cur_lobby->challenge) {
+        max = c->cur_lobby->max_chal & 0x0F;
+        max2 = (c->cur_lobby->max_chal >> 4) & 0x0F;
+    }
 
     /* Fill in the header */
     pkt->hdr.pkt_type = LE16(QUEST_LIST_TYPE);
 
     for(k = 0; k < 2; ++k) {
-        for(i = 0; i < cat->quest_count && i < max; ++i) {
+        for(i = 0; i < cat->quest_count; ++i) {
+            if(c->cur_lobby->challenge) {
+                /* Skip episode 1 challenge quests we're not qualified for. */
+                if(i < 9 && i >= max)
+                    continue;
+                /* Same for episode 2. */
+                else if(i > 9 && (i - 9) >= max2)
+                    break;
+            }
+
             quest = &cat->quests[i];
             elem = (quest_map_elem_t *)quest->user_data;
 
