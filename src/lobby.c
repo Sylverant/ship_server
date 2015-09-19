@@ -437,7 +437,7 @@ void lobby_destroy_noremove(lobby_t *l) {
 }
 
 static uint8_t lobby_find_max_challenge(lobby_t *l) {
-    int min_lev = 255, i, j;
+    int min_lev = 255, min_lev2 = 255, i, j, k;
     ship_client_t *c;
 
     if(!l->challenge)
@@ -451,6 +451,7 @@ static uint8_t lobby_find_max_challenge(lobby_t *l) {
         if(c != NULL) {
             switch(c->version) {
                 case CLIENT_VERSION_DCV2:
+                    k = 0;
                     for(i = 0; i < 9; ++i) {
                         if(c->pl->v2.c_rank.part.times[i] == 0) {
                             break;
@@ -460,6 +461,7 @@ static uint8_t lobby_find_max_challenge(lobby_t *l) {
                     break;
 
                 case CLIENT_VERSION_PC:
+                    k = 0;
                     for(i = 0; i < 9; ++i) {
                         if(c->pl->pc.c_rank.part.times[i] == 0) {
                             break;
@@ -469,11 +471,16 @@ static uint8_t lobby_find_max_challenge(lobby_t *l) {
                     break;
 
                 case CLIENT_VERSION_GC:
-                    /* XXXX: Handle ep2 stuff too. */
+                case CLIENT_VERSION_BB:
                     for(i = 0; i < 9; ++i) {
                         if(c->pl->v3.c_rank.part.times[i] == 0) {
                             break;
                         }
+                    }
+
+                    for(k = 0; k < 5; ++k) {
+                        if(c->pl->v3.c_rank.part.times_ep2[k] == 0)
+                            break;
                     }
 
                     break;
@@ -483,13 +490,18 @@ static uint8_t lobby_find_max_challenge(lobby_t *l) {
                     return -1;
             }
 
-            if(i < min_lev) {
+            if(i < min_lev)
                 min_lev = i;
-            }
+
+            if(k < min_lev2)
+                min_lev2 = k;
         }
     }
 
-    return (uint8_t)(min_lev + 1);
+    if(l->version >= CLIENT_VERSION_GC)
+        return (uint8_t)((min_lev + 1) | ((min_lev2 + 1) << 4));
+    else
+        return (uint8_t)(min_lev + 1);
 }
 
 static int td(ship_client_t *c, lobby_t *l, void *req) {
@@ -532,52 +544,10 @@ static int td(ship_client_t *c, lobby_t *l, void *req) {
 
 static int lobby_add_client_locked(ship_client_t *c, lobby_t *l) {
     int i;
-    uint8_t clev = l->max_chal;
 
     /* Sanity check: Do we have space? */
-    if(l->num_clients >= l->max_clients) {
+    if(l->num_clients >= l->max_clients)
         return -1;
-    }
-
-    /* If this is a challenge lobby, check to see what the max level of
-       challenge mode the party can now access is. */
-    if(l->challenge) {
-        switch(c->version) {
-            case CLIENT_VERSION_DCV2:
-                for(i = 0; i < 9; ++i) {
-                    if(c->pl->v2.c_rank.part.times[i] == 0) {
-                        break;
-                    }
-                }
-
-                break;
-
-            case CLIENT_VERSION_PC:
-                for(i = 0; i < 9; ++i) {
-                    if(c->pl->pc.c_rank.part.times[i] == 0) {
-                        break;
-                    }
-                }
-
-                break;
-
-            case CLIENT_VERSION_GC:
-                /* XXXX: Handle ep2 stuff too. */
-                for(i = 0; i < 9; ++i) {
-                    if(c->pl->v3.c_rank.part.times[i] == 0) {
-                        break;
-                    }
-                }
-
-                break;
-
-            default:
-                /* We shouldn't get here... */
-                return -1;
-        }
-
-        clev = (uint8_t)i + 1;
-    }
 
     /* First client goes in slot 1, not 0 on DC/PC. Why Sega did this, who
        knows? Also slot 1 gets priority for all DC/PC teams, even if slot 0 is
@@ -591,15 +561,12 @@ static int lobby_add_client_locked(ship_client_t *c, lobby_t *l) {
         c->join_time = time(NULL);
         ++l->num_clients;
 
-        /* If this player is at a lower challenge level than the rest of the
-           lobby, fix the maximum challenge level down to their level. */
-        if(l->challenge && l->max_chal > clev) {
-            l->max_chal = clev;
-        }
+        /* Update the challenge level as needed. */
+        if(l->challenge)
+            l->max_chal = l->max_chal = lobby_find_max_challenge(l);
 
-        if(l->num_clients == 1) {
+        if(l->num_clients == 1)
             l->leader_id = c->client_id;
-        }
 
         return 0;
     }
@@ -615,15 +582,12 @@ static int lobby_add_client_locked(ship_client_t *c, lobby_t *l) {
             c->join_time = time(NULL);
             ++l->num_clients;
 
-            /* If this player is at a lower challenge level than the rest of the
-               lobby, fix the maximum challenge level down to their level. */
-            if(l->challenge && l->max_chal > clev) {
-                l->max_chal = clev;
-            }
+            /* Update the challenge level as needed. */
+            if(l->challenge)
+                l->max_chal = l->max_chal = lobby_find_max_challenge(l);
 
-            if(l->num_clients == 1) {
+            if(l->num_clients == 1)
                 l->leader_id = c->client_id;
-            }
 
             return 0;
         }
@@ -736,9 +700,8 @@ static int lobby_remove_client_locked(ship_client_t *c, int client_id,
     --l->num_clients;
 
     /* Make sure the maximum challenge level available hasn't changed... */
-    if(l->challenge) {
+    if(l->challenge)
         l->max_chal = lobby_find_max_challenge(l);
-    }
 
     /* If this is the player's current lobby, fix that. */
     if(c->cur_lobby == l) {
