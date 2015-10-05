@@ -2634,8 +2634,9 @@ static int handle_sdrops(ship_client_t *c, const char *params) {
             break;
 
         case CLIENT_VERSION_GC:
+            /* XXXX: GM-only until they're fixed... */
             if(!pt_gc_enabled() || !map_have_gc_maps() || !pmt_gc_enabled() ||
-               !rt_gc_enabled())
+               !rt_gc_enabled() || !LOCAL_GM(c))
                 return send_txt(c, "%s", __(c, "\tE\tC7Server-side drops not\n"
                                             "suported on this ship for\n"
                                             "this client version."));
@@ -2895,6 +2896,18 @@ static int handle_dsdrops(ship_client_t *c, const char *params) {
 #endif
 }
 
+/* Usage: /noevent */
+static int handle_noevent(ship_client_t *c, const char *params) {
+    if(c->version < CLIENT_VERSION_GC)
+        return send_txt(c, "%s", __(c, "\tE\tC7Not valid on this version."));
+
+    /* Make sure that the requester is in a lobby, not a game */
+    if(c->cur_lobby->type != LOBBY_TYPE_DEFAULT)
+        return send_txt(c, "%s", __(c, "\tE\tC7Not valid in a game."));
+
+    return send_simple(c, LOBBY_EVENT_TYPE, LOBBY_EVENT_NONE);
+}
+
 static command_t cmds[] = {
     { "warp"     , handle_warp      },
     { "kill"     , handle_kill      },
@@ -2977,6 +2990,7 @@ static command_t cmds[] = {
     { "ep3music" , handle_ep3music  },
     { "tlogin"   , handle_tlogin    },
     { "dsdrops"  , handle_dsdrops   },
+    { "noevent"  , handle_noevent   },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 
