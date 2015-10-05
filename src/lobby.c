@@ -214,6 +214,11 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
     if(c->flags & CLIENT_FLAG_IS_DCNTE)
         l->flags |= LOBBY_FLAG_DCNTE;
 
+    if(c->flags & CLIENT_FLAG_LEGIT) {
+        l->flags |= LOBBY_FLAG_LEGIT_MODE;
+        c->flags &= ~CLIENT_FLAG_LEGIT;
+    }
+
     /* Copy the game name and password. */
     strncpy(l->name, name, 64);
     strncpy(l->passwd, passwd, 64);
@@ -1245,8 +1250,7 @@ int lobby_check_player_legit(lobby_t *l, ship_t *s, player_t *pl, uint32_t v) {
     pthread_rwlock_rdlock(&s->llock);
 
     /* If we don't have a legit mode set, then everyone's legit! */
-    if(!s->limits || (!(l->flags & LOBBY_FLAG_LEGIT_MODE) &&
-                      !(l->flags & LOBBY_FLAG_LEGIT_CHECK))) {
+    if(!s->limits || !(l->flags & LOBBY_FLAG_LEGIT_MODE)) {
         pthread_rwlock_unlock(&s->llock);
         return 1;
     }
@@ -1299,32 +1303,6 @@ int lobby_check_client_legit(lobby_t *l, ship_t *s, ship_client_t *c) {
     pthread_mutex_unlock(&c->mutex);
 
     return rv;
-}
-
-/* Finish with a legit check. */
-void lobby_legit_check_finish_locked(lobby_t *l) {
-    int i;
-
-    /* If everyone passed, the game is now in legit mode. */
-    if(l->legit_check_passed == l->num_clients) {
-        l->flags |= LOBBY_FLAG_LEGIT_MODE;
-
-        for(i = 0; i < l->max_clients; ++i) {
-            if(l->clients[i]) {
-                send_txt(l->clients[i], "%s",
-                         __(l->clients[i], "\tE\tC7Legit mode active."));
-            }
-        }
-    }
-    else {
-        send_txt(l->clients[l->leader_id], "%s",
-                 __(l->clients[l->leader_id],
-                    "\tE\tC7Team legit check failed."));
-    }
-
-    /* Since the legit check is done, clear the flag for that and the
-       temporarily unavailable flag. */
-    l->flags &= ~(LOBBY_FLAG_LEGIT_CHECK | LOBBY_FLAG_TEMP_UNAVAIL);
 }
 
 /* Send out any queued packets when we get a done burst signal. You must hold

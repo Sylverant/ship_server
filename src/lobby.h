@@ -156,7 +156,7 @@ TAILQ_HEAD(lobby_queue, lobby);
 #define LOBBY_FLAG_QUESTSEL     0x00000004
 #define LOBBY_FLAG_TEMP_UNAVAIL 0x00000008
 #define LOBBY_FLAG_LEGIT_MODE   0x00000010
-#define LOBBY_FLAG_LEGIT_CHECK  0x00000020
+/* 0x00000020 is currently unused (was LOBBY_FLAG_LEGIT_CHECK) */
 #define LOBBY_FLAG_DCONLY       0x00000040
 #define LOBBY_FLAG_PCONLY       0x00000080
 #define LOBBY_FLAG_V1ONLY       0x00000100
@@ -235,9 +235,6 @@ int lobby_check_player_legit(lobby_t *l, ship_t *s, player_t *pl, uint32_t v);
 
 /* Check if a single client is legit enough for the lobby. */
 int lobby_check_client_legit(lobby_t *l, ship_t *s, ship_client_t *c);
-
-/* Finish with a legit check. */
-void lobby_legit_check_finish_locked(lobby_t *l);
 
 /* Send out any queued packets when we get a done burst signal. */
 int lobby_handle_done_burst(lobby_t *l);

@@ -743,60 +743,66 @@ static int handle_list(ship_client_t *c, const char *params) {
     return send_player_list(c, params);
 }
 
-/* Usage: /legit */
+/* Usage: /legit [off] */
 static int handle_legit(ship_client_t *c, const char *params) {
     lobby_t *l = c->cur_lobby;
-    int i;
+    uint32_t v;
+    sylverant_iitem_t *item;
+    int j, irv;
 
-    /* Lock the lobby mutex... we've got some work to do. */
-    pthread_mutex_lock(&l->mutex);
+    /* Make sure the requester is in a lobby, not a team. */
+    if(l->type != LOBBY_TYPE_DEFAULT)
+        return send_txt(c, "%s", __(c, "\tE\tC7Not valid in a game."));
 
-    /* Make sure that the requester is in a game lobby, not a lobby lobby. */
-    if(l->type != LOBBY_TYPE_GAME) {
-        pthread_mutex_unlock(&l->mutex);
-        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game."));
+    /* Figure out what version they're on. */
+    switch(c->version) {
+        case CLIENT_VERSION_DCV1:
+            v = ITEM_VERSION_V1;
+            break;
+
+        case CLIENT_VERSION_DCV2:
+        case CLIENT_VERSION_PC:
+            v = ITEM_VERSION_V2;
+            break;
+
+        case CLIENT_VERSION_GC:
+            v = ITEM_VERSION_GC;
+            break;
+
+        case CLIENT_VERSION_EP3:
+            return send_txt(c, "%s", __(c, "\tE\tC7Not valid on Episode 3."));
+
+        case CLIENT_VERSION_BB:
+            return send_txt(c, "%s", __(c, "\tE\tC7Not valid on Blue Burst."));
+
+        default:
+            return -1;
     }
 
-    /* Make sure the requester is the leader of the team. */
-    if(l->leader_id != c->client_id) {
-        pthread_mutex_unlock(&l->mutex);
-        return send_txt(c, "%s",
-                        __(c, "\tE\tC7Only the leader may use this command."));
+    /* See if we're turning the flag off. */
+    if(!strcmp(params, "off")) {
+        c->flags &= ~CLIENT_FLAG_LEGIT;
+        return send_txt(c, "%s", __(c, "\tE\tC7Legit mode off\n"
+                                    "for any new teams."));
     }
 
-    /* If we're not in normal mode, then this command doesn't do anything... */
-    if((l->flags & LOBBY_FLAG_LEGIT_MODE)) {
-        pthread_mutex_unlock(&l->mutex);
-        return send_txt(c, "%s", __(c, "\tE\tC7Already in legit mode."));
-    }
+    /* Make sure the player qualifies for legit mode... */
+    for(j = 0; j < c->pl->v1.inv.item_count; ++j) {
+        item = (sylverant_iitem_t *)&c->pl->v1.inv.items[j];
+        irv = sylverant_limits_check_item(ship->limits, item, v);
 
-    /* Make sure we're not already checking for legitness... */
-    if((l->flags & LOBBY_FLAG_LEGIT_CHECK)) {
-        pthread_mutex_unlock(&l->mutex);
-        return send_txt(c, "%s", __(c, "\tE\tC7Legit check in progress..."));
-    }
-
-    /* Set the temporarily unavailable flag on the lobby so that we can do the
-       legit check, as well as legit check flag (so we know that we're doing the
-       legit check). */
-    l->flags |= LOBBY_FLAG_TEMP_UNAVAIL | LOBBY_FLAG_LEGIT_CHECK;
-    l->legit_check_passed = 0;
-    l->legit_check_done = 0;
-
-    /* Ask each player for updated player data to do the legit check. */
-    for(i = 0; i < l->max_clients; ++i) {
-        if(l->clients[i]) {
-            if(send_simple(l->clients[i], CHAR_DATA_REQUEST_TYPE, 0)) {
-                l->clients[i]->flags |= CLIENT_FLAG_DISCONNECTED;
-            }
+        if(!irv) {
+            debug(DBG_LOG, "Potentially non-legit item in legit mode:\n"
+                  "%08x %08x %08x %08x\n", LE32(item->data_l[0]),
+                  LE32(item->data_l[1]), LE32(item->data_l[2]),
+                  LE32(item->data2_l));
+            return send_txt(c, "%s", __(c, "\tE\tC7You failed the legit check."));
         }
     }
 
-    /* We're done with the lobby for now... */
-    pthread_mutex_unlock(&l->mutex);
-
-    /* Now, we wait for the legit check to go on. */
-    return 0;
+    c->flags |= CLIENT_FLAG_LEGIT;
+    return send_txt(c, "%s", __(c, "\tE\tC7Legit mode on\n"
+                                "for your next team."));
 }
 
 /* Usage: /normal */
@@ -818,13 +824,6 @@ static int handle_normal(ship_client_t *c, const char *params) {
         pthread_mutex_unlock(&l->mutex);
         return send_txt(c, "%s",
                         __(c, "\tE\tC7Only the leader may use this command."));
-    }
-
-    /* Can't use this while waiting on a legit check. */
-    if((l->flags & LOBBY_FLAG_LEGIT_CHECK)) {
-        pthread_mutex_unlock(&l->mutex);
-        return send_txt(c, "%s", __(c, "\tE\tC7Please wait a while before\n"
-                                    "using this command."));
     }
 
     /* If we're not in legit mode, then this command doesn't do anything... */
@@ -2908,6 +2907,22 @@ static int handle_noevent(ship_client_t *c, const char *params) {
     return send_simple(c, LOBBY_EVENT_TYPE, LOBBY_EVENT_NONE);
 }
 
+/* Usage: /lflags */
+static int handle_lflags(ship_client_t *c, const char *params) {
+    if(!LOCAL_GM(c))
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
+
+    return send_txt(c, "%08x", c->cur_lobby->flags);
+}
+
+/* Usage: /cflags */
+static int handle_cflags(ship_client_t *c, const char *params) {
+    if(!LOCAL_GM(c))
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
+
+    return send_txt(c, "%08x", c->flags);
+}
+
 static command_t cmds[] = {
     { "warp"     , handle_warp      },
     { "kill"     , handle_kill      },
@@ -2991,6 +3006,8 @@ static command_t cmds[] = {
     { "tlogin"   , handle_tlogin    },
     { "dsdrops"  , handle_dsdrops   },
     { "noevent"  , handle_noevent   },
+    { "lflags"   , handle_lflags    },
+    { "cflags"   , handle_cflags    },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 
