@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2015 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -763,6 +763,20 @@ typedef struct subcmd_mkill {
     uint16_t unk;
 } PACKED subcmd_mkill_pkt_t;
 
+/* Packet sent to create a pipe. Most of this, I haven't bothered looking too
+   much at... */
+typedef struct subcmd_pipe {
+    dc_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint16_t unk1;
+    uint8_t client_id;
+    uint8_t unused;
+    uint8_t area_id;
+    uint8_t unused2;
+    uint32_t unk[5];                    /* Location is in here. */
+} PACKED subcmd_pipe_pkt_t;
+
 #undef PACKED
 
 /* Subcommand types we care about (0x62/0x6D). */
@@ -809,6 +823,7 @@ typedef struct subcmd_mkill {
 #define SUBCMD_BUY          0x5E
 #define SUBCMD_ITEMDROP     0x5F
 #define SUBCMD_DESTROY_ITEM 0x63    /* Sent when game inventory is full */
+#define SUBCMD_CREATE_PIPE  0x68
 #define SUBCMD_SPAWN_NPC    0x69
 #define SUBCMD_BURST_DONE   0x72
 #define SUBCMD_WORD_SELECT  0x74

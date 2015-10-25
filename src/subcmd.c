@@ -2358,6 +2358,46 @@ static int handle_bb_spawn_npc(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
     return subcmd_send_lobby_bb(l, c, pkt, 0);
 }
 
+static int handle_create_pipe(ship_client_t *c, subcmd_pipe_pkt_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+
+    /* We can't get these in default lobbies without someone messing with
+       something that they shouldn't be... Disconnect anyone that tries. */
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        debug(DBG_WARN, "Attempt by GC %" PRIu32 " to spawn pipe in lobby!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* See if the user is creating a pipe or destroying it. In my tests, bit 1
+       is always set when creating a pipe, and always clear when destroying
+       it (by the creator using the pipe). This could probably use more
+       testing... */
+    if((pkt->unk1 & 0x02)) {
+        /* Make sure the user is sending a pipe from the area he or she is
+           currently in. */
+        if(pkt->area_id != c->cur_area) {
+            debug(DBG_WARN, "Attempt by GC %" PRIu32 " to spawn pipe to area "
+                "he/she is not in (in: %d, pipe: %d).\n", c->guildcard,
+                c->cur_area, (int)pkt->area_id);
+            return -1;
+        }
+    }
+    else {
+        /* Make sure the area is set to 0.
+           XXXX: After we make sure this doesn't trigger oddly, this should
+           also disconnect the offending user. */
+        if(pkt->area_id != 0) {
+            debug(DBG_WARN, "GC %" PRIu32 " appears to be destroying a pipe "
+                  "incorrectly? (area %d, unk1: %02x)\n", c->guildcard,
+                  (int)pkt->area_id, pkt->unk1);
+            print_packet((unsigned char *)pkt, LE16(pkt->hdr.pkt_len));
+        }
+    }
+
+    return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
+}
+
 /* Handle a 0x62/0x6D packet. */
 int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
     lobby_t *l = c->cur_lobby;
@@ -2592,6 +2632,7 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
             break;
 
         case SUBCMD_SET_AREA:
+        case SUBCMD_SET_AREA_21:
             rv = handle_set_area(c, (subcmd_set_area_t *)pkt);
             break;
 
@@ -2642,6 +2683,10 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
             rv = handle_spawn_npc(c, pkt);
             break;
 
+        case SUBCMD_CREATE_PIPE:
+            rv = handle_create_pipe(c, (subcmd_pipe_pkt_t *)pkt);
+            break;
+
         default:
 #ifdef LOG_UNKNOWN_SUBS
             debug(DBG_LOG, "Unknown 0x60: 0x%02X\n", type);
@@ -2661,7 +2706,6 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
                 }
             }
 
-        case SUBCMD_SET_AREA_21:
         case SUBCMD_LOAD_22:
         case SUBCMD_TALK_NPC:
         case SUBCMD_DONE_NPC:
@@ -2705,6 +2749,7 @@ int subcmd_bb_handle_bcast(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
             break;
 
         case SUBCMD_SET_AREA:
+        case SUBCMD_SET_AREA_21:
             rv = handle_bb_set_area(c, (subcmd_bb_set_area_t *)pkt);
             break;
 
@@ -2786,7 +2831,6 @@ int subcmd_bb_handle_bcast(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
                 }
             }
 
-        case SUBCMD_SET_AREA_21:
         case SUBCMD_LOAD_22:
         case SUBCMD_TALK_NPC:
         case SUBCMD_DONE_NPC:
