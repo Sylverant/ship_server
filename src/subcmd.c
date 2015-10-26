@@ -2369,11 +2369,11 @@ static int handle_create_pipe(ship_client_t *c, subcmd_pipe_pkt_t *pkt) {
         return -1;
     }
 
-    /* See if the user is creating a pipe or destroying it. In my tests, bit 1
-       is always set when creating a pipe, and always clear when destroying
-       it (by the creator using the pipe). This could probably use more
-       testing... */
-    if((pkt->unk1 & 0x02)) {
+    /* See if the user is creating a pipe or destroying it. Destroying a pipe
+       always matches the created pipe, but sets the area to 0. We could keep
+       track of all of the pipe data, but that's probably overkill. For now,
+       blindly accept any pipes where the area is 0. */
+    if(pkt->area_id != 0) {
         /* Make sure the user is sending a pipe from the area he or she is
            currently in. */
         if(pkt->area_id != c->cur_area) {
@@ -2381,17 +2381,6 @@ static int handle_create_pipe(ship_client_t *c, subcmd_pipe_pkt_t *pkt) {
                 "he/she is not in (in: %d, pipe: %d).\n", c->guildcard,
                 c->cur_area, (int)pkt->area_id);
             return -1;
-        }
-    }
-    else {
-        /* Make sure the area is set to 0.
-           XXXX: After we make sure this doesn't trigger oddly, this should
-           also disconnect the offending user. */
-        if(pkt->area_id != 0) {
-            debug(DBG_WARN, "GC %" PRIu32 " appears to be destroying a pipe "
-                  "incorrectly? (area %d, unk1: %02x)\n", c->guildcard,
-                  (int)pkt->area_id, pkt->unk1);
-            print_packet((unsigned char *)pkt, LE16(pkt->hdr.pkt_len));
         }
     }
 
