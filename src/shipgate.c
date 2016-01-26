@@ -74,35 +74,6 @@ static int send_raw(shipgate_conn_t *c, int len, uint8_t *sendbuf, int crypt) {
         }
     }
 
-    rv = len - total;
-
-    if(rv) {
-        /* Move out any already transferred data. */
-        if(c->sendbuf_start) {
-            memmove(c->sendbuf, c->sendbuf + c->sendbuf_start,
-                    c->sendbuf_cur - c->sendbuf_start);
-            c->sendbuf_cur -= c->sendbuf_start;
-            c->sendbuf_start = 0;
-        }
-
-        /* See if we need to reallocate the buffer. */
-        if(c->sendbuf_cur + rv > c->sendbuf_size) {
-            tmp = realloc(c->sendbuf, c->sendbuf_cur + rv);
-
-            /* If we can't allocate the space, bail. */
-            if(tmp == NULL) {
-                return -1;
-            }
-
-            c->sendbuf_size = c->sendbuf_cur + rv;
-            c->sendbuf = (unsigned char *)tmp;
-        }
-
-        /* Copy what's left of the packet into the output buffer. */
-        memcpy(c->sendbuf + c->sendbuf_cur, sendbuf + total, rv);
-        c->sendbuf_cur += rv;
-    }
-
     return 0;
 }
 
