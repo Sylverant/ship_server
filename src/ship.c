@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2016 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -497,7 +497,7 @@ static void *ship_thd(void *d) {
     it = TAILQ_FIRST(s->clients);
     while(it) {
         tmp = TAILQ_NEXT(it, qentry);
-        client_destroy_connection(it, s->clients);        
+        client_destroy_connection(it, s->clients);
         it = tmp;
     }
 
@@ -586,12 +586,12 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
         if(pcsock[1] < 0) {
             goto err_close_dc_6;
         }
-        
+
         gcsock[1] = open_sock(AF_INET6, s->base_port + 2);
         if(gcsock[1] < 0) {
             goto err_close_pc_6;
         }
-        
+
         ep3sock[1] = open_sock(AF_INET6, s->base_port + 3);
         if(ep3sock[1] < 0) {
             goto err_close_gc_6;
@@ -658,11 +658,13 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
         debug(DBG_LOG, "%s: Read %d Local GMs\n", s->name, rv->gm_count);
     }
 
-    /* Attempt to read the item limits list in. */
-    if(s->limits_file) {
-        if(sylverant_read_limits(s->limits_file, &rv->limits)) {
-            debug(DBG_ERROR, "%s: Couldn't read limits file!\n", s->name);
-            goto err_gms;
+    /* Attempt to read the default item limits list in. */
+    /* XXXX: Handle other files! */
+    if(s->limits_count) {
+        if(sylverant_read_limits(s->limits[s->limits_default].filename,
+                                 &rv->limits)) {
+             debug(DBG_ERROR, "%s: Couldn't read limits file!\n", s->name);
+             goto err_gms;
         }
     }
 
@@ -793,7 +795,7 @@ void ship_check_cfg(sylverant_ship_t *s) {
                 sprintf(fn, "%s/%s-%s/quests.xml", s->quests_dir,
                         version_codes[i], language_codes[j]);
                 if(!sylverant_quests_read(fn, &rv->qlist[i][j])) {
-                    if(!quest_map(&rv->qmap, &rv->qlist[i][j], i, j)) { 
+                    if(!quest_map(&rv->qmap, &rv->qlist[i][j], i, j)) {
                         debug(DBG_LOG, "Read quests for %s-%s\n",
                               version_codes[i], language_codes[j]);
                     }
@@ -818,10 +820,12 @@ void ship_check_cfg(sylverant_ship_t *s) {
         debug(DBG_LOG, "%s: Read %d Local GMs\n", s->name, rv->gm_count);
     }
 
-    /* Attempt to read the item limits list in. */
-    if(s->limits_file) {
-        if(sylverant_read_limits(s->limits_file, &rv->limits)) {
-            debug(DBG_ERROR, "%s: Couldn't read limits file!\n", s->name);
+    /* Attempt to read the default item limits list in. */
+    /* XXXX: Handle other files! */
+    if(s->limits_count) {
+        if(sylverant_read_limits(s->limits[s->limits_default].filename,
+                                 &rv->limits)) {
+             debug(DBG_ERROR, "%s: Couldn't read limits file!\n", s->name);
         }
     }
 

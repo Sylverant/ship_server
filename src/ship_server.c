@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2016 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -65,8 +65,7 @@ static int check_only = 0;
 static void print_program_info(void) {
     printf("Sylverant Ship Server version %s\n", VERSION);
     printf("Git Build: %s (Changeset: %s)\n", GIT_BUILD, GIT_CHANGESET);
-    printf("Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015 Lawrence "
-           "Sebald\n\n");
+    printf("Copyright (C) 2009-2016 Lawrence Sebald\n\n");
     printf("This program is free software: you can redistribute it and/or\n"
            "modify it under the terms of the GNU Affero General Public\n"
            "License version 3 as published by the Free Software Foundation.\n\n"
@@ -253,6 +252,17 @@ static void print_config(sylverant_ship_t *cfg) {
         debug(DBG_LOG, "Semi-rares drop in quests: %s\n",
               (cfg->local_flags & SYLVERANT_SHIP_QUEST_SRARES) ? "true" :
               "false");
+    }
+
+    if(cfg->limits_count) {
+        debug(DBG_LOG, "%d /legit files configured:\n", cfg->limits_count);
+
+        for(i = 0; i < cfg->limits_count; ++i) {
+            debug(DBG_LOG, "%d: \"%s\": %s\n", i, cfg->limits[i].name,
+                  cfg->limits[i].filename);
+        }
+
+        debug(DBG_LOG, "Default /legit file number: %d\n", cfg->limits_default);
     }
 
     debug(DBG_LOG, "Flags: 0x%08X\n", cfg->shipgate_flags);

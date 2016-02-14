@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2016 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -106,7 +106,7 @@ int load_quests(ship_t *s, sylverant_ship_t *cfg, int initial) {
                 sprintf(fn, "%s/%s-%s/quests.xml", cfg->quests_dir,
                         version_codes[i], language_codes[j]);
                 if(!sylverant_quests_read(fn, &qlist[i][j])) {
-                    if(!quest_map(&qmap, &qlist[i][j], i, j)) { 
+                    if(!quest_map(&qmap, &qlist[i][j], i, j)) {
                         debug(DBG_LOG, "Read quests for %s-%s\n",
                               version_codes[i], language_codes[j]);
                     }
@@ -204,14 +204,16 @@ int refresh_gms(ship_client_t *c, msgfunc f) {
 
 int refresh_limits(ship_client_t *c, msgfunc f) {
     sylverant_limits_t *limits, *tmplimits;
+    int def = ship->cfg->limits_default;
 
     /* Make sure we don't have anyone trying to escalate their privileges. */
     if(!LOCAL_GM(c)) {
         return -1;
     }
 
-    if(ship->cfg->limits_file && ship->cfg->limits_file[0]) {
-        if(sylverant_read_limits(ship->cfg->limits_file, &limits)) {
+    /* XXXX: Handle all limits files, not just the default.... */
+    if(ship->cfg->limits_count && ship->cfg->limits[def].filename[0]) {
+        if(sylverant_read_limits(ship->cfg->limits[def].filename, &limits)) {
             return f(c, "%s", __(c, "\tE\tC7Couldn't read limits."));
         }
 
