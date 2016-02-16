@@ -686,9 +686,16 @@ static int handle_take_item(ship_client_t *c, subcmd_take_item_t *pkt) {
     if(c->version == CLIENT_VERSION_DCV1 && pkt->size == 0x06)
         pkt->size = 0x07;
 
-    /* Sanity check... Make sure the size of the subcommand and the client id
-       match with what we expect. Disconnect the client if not. */
-    if(pkt->size != 0x07 || pkt->client_id != c->client_id)
+    /* Sanity check... Make sure the size of the subcommand is valid, and
+       disconnect the client if it isn't. */
+    if(pkt->size != 0x07)
+        return -1;
+
+    /* If we have multiple clients in the team, make sure that the client id in
+       the packet matches the user sending the packet.
+       Note: We don't do this in single player teams because NPCs do weird
+       things if you change their equipment in quests. */
+    if(l->num_clients != 1 && pkt->client_id != c->client_id)
         return -1;
 
     /* If we're in legit mode, we need to check the newly taken item. */
