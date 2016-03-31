@@ -55,7 +55,6 @@ static inline ssize_t sg_send(shipgate_conn_t *c, void *buffer, size_t len) {
 /* Send a raw packet away. */
 static int send_raw(shipgate_conn_t *c, int len, uint8_t *sendbuf, int crypt) {
     ssize_t rv, total = 0;
-    void *tmp;
 
     /* Keep trying until the whole thing's sent. */
     if((!crypt || c->has_key) && c->sock >= 0 && !c->sendbuf_cur) {
