@@ -153,6 +153,9 @@ static const uint32_t sp_maps[3][0x20] = {
     {1,1,1,3,1,3,1,3,1,3,1,3,3,1,1,3,3,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1}
 };
 
+static const uint32_t dcnte_maps[0x20] =
+    {1,1,1,2,1,2,2,2,2,2,2,2,1,2,1,2,2,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1};
+
 lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
                            uint8_t difficulty, uint8_t battle, uint8_t chal,
                            uint8_t v2, int version, uint8_t section,
@@ -241,7 +244,15 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
     /* Generate the random maps we'll be using for this game, assuming the
        client hasn't set a maps string. */
     if(!c->next_maps) {
-        if(!single_player) {
+        if((c->flags & CLIENT_FLAG_IS_DCNTE)) {
+            for(i = 0; i < 0x20; ++i) {
+                if(dcnte_maps[i] != 1) {
+                    l->maps[i] = mt19937_genrand_int32(&block->rng) %
+                        dcnte_maps[i];
+                }
+            }
+        }
+        else if(!single_player) {
             for(i = 0; i < 0x20; ++i) {
                 if(maps[episode - 1][i] != 1) {
                     l->maps[i] = mt19937_genrand_int32(&block->rng) %
@@ -259,7 +270,18 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
         }
     }
     else {
-        if(!single_player) {
+        if((c->flags & CLIENT_FLAG_IS_DCNTE)) {
+            for(i = 0; i < 0x20; ++i) {
+                if(c->next_maps[i] < dcnte_maps[i]) {
+                    l->maps[i] = c->next_maps[i];
+                }
+                else {
+                    l->maps[i] = mt19937_genrand_int32(&block->rng) %
+                        dcnte_maps[i];
+                }
+            }
+        }
+        else if(!single_player) {
             for(i = 0; i < 0x20; ++i) {
                 if(c->next_maps[i] < maps[episode - 1][i]) {
                     l->maps[i] = c->next_maps[i];
