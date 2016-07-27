@@ -2918,7 +2918,7 @@ static int handle_lflags(ship_client_t *c, const char *params) {
     if(!LOCAL_GM(c))
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
 
-    return send_txt(c, "%08x", c->cur_lobby->flags);
+    return send_txt(c, "\tE\tC7%08x", c->cur_lobby->flags);
 }
 
 /* Usage: /cflags */
@@ -2926,7 +2926,67 @@ static int handle_cflags(ship_client_t *c, const char *params) {
     if(!LOCAL_GM(c))
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
 
-    return send_txt(c, "%08x", c->flags);
+    return send_txt(c, "\tE\tC7%08x", c->flags);
+}
+
+/* Usage: /showpos */
+static int handle_showpos(ship_client_t *c, const char *params) {
+    return send_txt(c, "\tE\tC7(%f, %f, %f)", c->x, c->y, c->z);
+}
+
+/* Usage: /t x, y, z */
+static int handle_t(ship_client_t *c, const char *params) {
+    char *str, *tok, *xs, *ys, *zs;
+    float x, y, z;
+    subcmd_teleport_t p2;
+    lobby_t *l = c->cur_lobby;
+
+    if(!LOCAL_GM(c))
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
+
+    if(!(str = strdup(params)))
+        return send_txt(c, "%s", __(c, "\tE\tC7Internal server error."));
+
+    /* Grab each token we're expecting... */
+    xs = strtok_r(str, " ,", &tok);
+    ys = strtok_r(NULL, " ,", &tok);
+    zs = strtok_r(NULL, " ,", &tok);
+
+    if(!xs || !ys || !zs) {
+        free(str);
+        return send_txt(c, "%s", __(c, "\tE\tC7Missing argument."));
+    }
+
+    /* Parse out the numerical values... */
+    errno = 0;
+    x = strtof(xs, NULL);
+    y = strtof(ys, NULL);
+    z = strtof(zs, NULL);
+    free(str);
+
+    /* Did they all parse ok? */
+    if(errno)
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid coordinate."));
+
+    /* Hopefully they know what they're doing... Send the packet. */
+    p2.hdr.pkt_type = GAME_COMMAND0_TYPE;
+    p2.hdr.pkt_len = sizeof(subcmd_teleport_t);
+    p2.hdr.flags = 0;
+    p2.type = SUBCMD_TELEPORT;
+    p2.size = 5;
+    p2.client_id = c->client_id;
+    p2.unused = 0;
+    p2.x = x;
+    p2.y = y;
+    p2.z = z;
+    p2.w = c->w;
+
+    c->x = x;
+    c->y = y;
+    c->z = z;
+
+    /* Send the packet to everyone in the lobby */
+    return lobby_send_pkt_dc(l, NULL, (dc_pkt_hdr_t *)&p2, 0);
 }
 
 static command_t cmds[] = {
@@ -3015,6 +3075,8 @@ static command_t cmds[] = {
     { "lflags"   , handle_lflags    },
     { "cflags"   , handle_cflags    },
     { "stalk"    , handle_teleport  },    /* Happy, Aleron Ives? */
+    { "showpos"  , handle_showpos   },
+    { "t"        , handle_t         },    /* Short command = more precision. */
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 
