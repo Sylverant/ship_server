@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -1398,6 +1398,12 @@ static int handle_teleport(ship_client_t *c, const char *params) {
         p2.y = c2->y;
         p2.z = c2->z;
         p2.w = c2->w;
+
+        /* Update the teleporter's position. */
+        c->x = c2->x;
+        c->y = c2->y;
+        c->z = c2->z;
+        c->w = c2->w;
 
         /* Send the packet to everyone in the lobby */
         return lobby_send_pkt_dc(l, NULL, (dc_pkt_hdr_t *)&p2, 0);
@@ -3008,6 +3014,7 @@ static command_t cmds[] = {
     { "noevent"  , handle_noevent   },
     { "lflags"   , handle_lflags    },
     { "cflags"   , handle_cflags    },
+    { "stalk"    , handle_teleport  },    /* Happy, Aleron Ives? */
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 
