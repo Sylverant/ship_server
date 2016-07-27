@@ -4065,10 +4065,21 @@ static int send_dc_game_list(ship_client_t *c, block_t *b) {
             continue;
         }
 
-        /* Don't show DC NTE lobbies... */
-        if((l->flags & LOBBY_FLAG_DCNTE)) {
-            pthread_mutex_unlock(&l->mutex);
-            continue;
+        /* Is the client on the NTE? If not, don't show NTE teams. If they
+           are on the NTE, then only show NTE teams. */
+        if(!(c->flags & CLIENT_FLAG_IS_DCNTE)) {
+            /* Don't show DC NTE teams... */
+            if((l->flags & LOBBY_FLAG_DCNTE)) {
+                pthread_mutex_unlock(&l->mutex);
+                continue;
+            }
+        }
+        else {
+            /* Only show DC NTE teams... */
+            if(!(l->flags & LOBBY_FLAG_DCNTE)) {
+                pthread_mutex_unlock(&l->mutex);
+                continue;
+            }
         }
 
         /* Clear the entry */
