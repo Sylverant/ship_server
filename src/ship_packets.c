@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -6835,6 +6835,11 @@ static int send_bb_lobby_name(ship_client_t *c, lobby_t *l) {
 }
 
 int send_lobby_name(ship_client_t *c, lobby_t *l) {
+    /* If they're not currently in a lobby of some sort (this normally shouldn't
+       happen, but does on occasion), then we have nothing to do here... */
+    if(!l)
+        return 0;
+
     /* Call the appropriate function. */
     switch(c->version) {
         case CLIENT_VERSION_DCV2:
