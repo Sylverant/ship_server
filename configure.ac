@@ -1,7 +1,7 @@
 dnl
 dnl This file is part of Sylverant PSO Server.
 dnl
-dnl Copyright (C) 2009, 2011, 2013, 2015 Lawrence Sebald
+dnl Copyright (C) 2009, 2011, 2013, 2015, 2016 Lawrence Sebald
 dnl
 dnl This program is free software: you can redistribute it and/or modify
 dnl it under the terms of the GNU Affero General Public License version 3
@@ -62,14 +62,37 @@ AC_ARG_ENABLE([scripting], [AS_HELP_STRING([--enable-scripting],
               [enable_scripting=no])
 
 AS_IF([test "x$enable_scripting" != xno], [
-AM_PATH_PYTHON([2.5], , AC_MSG_WARN([Scripting support requires Python >= 2.5]))
+    AM_PATH_PYTHON([2.5], , AC_MSG_WARN([Scripting support requires Python >= 2.5]))
 
-# Add Python's flags into the mix if its enabled.
-if test "$PYTHON" != ":" ; then
-    CFLAGS="$CFLAGS `python-config --cflags` -DHAVE_PYTHON"
-    LIBS="$LIBS `python-config --libs`"
-    LDFLAGS="$LDFLAGS `python-config --ldflags`"
-fi
+    # Add Python's flags into the mix if its enabled.
+    if test "$PYTHON" != ":" ; then
+        AC_ARG_VAR([PYTHON_INCLUDES], [Include directories for python])
+        AC_ARG_VAR([PYTHON_LIBS], [Link libraries for python])
+        AC_ARG_VAR([PYTHON_CONFIG], [Path to python-config])
+        AS_IF([test -z "$PYTHON_CONFIG"], [
+            AC_PATH_PROGS([PYTHON_CONFIG],
+                          [python$PYTHON_VERSION-config python-config],
+                          [no],
+                          [`dirname $PYTHON`])
+            AS_IF([test "$PYTHON_CONFIG" = no],
+                  [AC_MSG_ERROR([cannot find python-config for $PYTHON.])])
+        ])
+
+        AS_IF([test -z "$PYTHON_INCLUDES"], [
+            AC_MSG_CHECKING([python include directories])
+            PYTHON_INCLUDES=`$PYTHON_CONFIG --includes`
+            AC_MSG_RESULT([$PYTHON_INCLUDES])
+        ])
+
+        AS_IF([test -z "$PYTHON_LIBS"], [
+            AC_MSG_CHECKING([python libraries])
+            PYTHON_LIBS=`$PYTHON_CONFIG --libs`
+            AC_MSG_RESULT([$PYTHON_LIBS])
+        ])
+
+        CFLAGS="$CFLAGS $PYTHON_INCLUDES -DHAVE_PYTHON=1"
+        LIBS="$LIBS $PYTHON_LIBS"
+    fi
 ])
 
 AM_ICONV
@@ -113,7 +136,7 @@ AS_IF([test "x$enable_ipv6" != xno],
 
 AS_IF([test "x$enable_debug" != xno],
       [AC_DEFINE([DEBUG], [1], [Define if you want debugging turned on])
-       CFLAGS="$CFLAGS -g -O0"])
+       CFLAGS="$CFLAGS -g -DSYLVERANT_DEBUG"])
 
 AC_CONFIG_FILES([Makefile]
                 [l10n/Makefile])
