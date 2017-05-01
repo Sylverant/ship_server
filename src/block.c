@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2017 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -2749,14 +2749,15 @@ static int process_qload_done(ship_client_t *c) {
     for(i = 0; i < l->max_clients; ++i) {
         if((c2 = l->clients[i])) {
             /* This client isn't done, so we can end the search now. */
-            if(!(c2->flags & CLIENT_FLAG_QLOAD_DONE))
+            if(!(c2->flags & CLIENT_FLAG_QLOAD_DONE) &&
+               c2->version >= CLIENT_VERSION_GC)
                 return 0;
         }
     }
 
     /* If we get here, everyone's done. Send out the packet to everyone now. */
     for(i = 0; i < l->max_clients; ++i) {
-        if((c2 = l->clients[i])) {
+        if((c2 = l->clients[i]) && c2->version >= CLIENT_VERSION_GC) {
             if(send_simple(c2, QUEST_LOAD_DONE_TYPE, 0))
                 c2->flags |= CLIENT_FLAG_DISCONNECTED;
         }
