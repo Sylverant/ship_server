@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2011 Lawrence Sebald
+    Copyright (C) 2011, 2016 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -46,7 +46,7 @@ uint32_t hashbig(const void *key, size_t length, uint32_t initval);
 /* Scripting stuff in scripts.c */
 typedef struct script_entry {
     TAILQ_ENTRY(script_entry) qentry;
-    
+
     char *filename;
     PyObject *module;
 } script_entry_t;
@@ -61,6 +61,7 @@ typedef enum script_action {
     ScriptActionClientBlockLogout,
     ScriptActionUnknownShipPacket,
     ScriptActionUnknownBlockPacket,
+    ScriptActionEnemyKill,
     ScriptActionCount
 } script_action_t;
 

@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2011 Lawrence Sebald
+    Copyright (C) 2011, 2016 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -50,6 +50,7 @@ static const xmlChar *script_action_text[] = {
     XC"client block logout",
     XC"unknown ship packet",
     XC"unknown block packet",
+    XC"enemy kill"
 };
 
 #define SCRIPT_HASH_ENTRIES 24
