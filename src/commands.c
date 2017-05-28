@@ -1,6 +1,7 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016,
+                  2017 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -1410,22 +1411,11 @@ static int handle_teleport(ship_client_t *c, const char *params) {
     }
 }
 
-/* Usage: /dumpinv [lobby] */
-static int handle_dumpinv(ship_client_t *c, const char *params) {
-    int i;
-    lobby_t *l = c->cur_lobby;
-    lobby_item_t *j;
-    int is_char;
+static void dumpinv_internal(ship_client_t *c) {
     char name[64];
+    int i;
 
-    /* Make sure the requester is a GM. */
-    if(!LOCAL_GM(c)) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
-    }
-
-    is_char = !params || strcmp(params, "lobby");
-
-    if(is_char && c->version != CLIENT_VERSION_BB) {
+    if(c->version != CLIENT_VERSION_BB) {
         debug(DBG_LOG, "Inventory dump for %s (%d)\n", c->pl->v1.name,
               c->guildcard);
 
@@ -1436,8 +1426,9 @@ static int handle_dumpinv(ship_client_t *c, const char *params) {
                    LE32(c->items[i].data2_l), item_get_name(&c->items[i]));
         }
     }
-    else if(is_char) {
-        istrncpy16(ic_utf16_to_utf8, name, &c->bb_pl->character.name[2], 64);
+    else {
+        istrncpy16(ic_utf16_to_utf8, name, &c->bb_pl->character.name[2],
+                   64);
         debug(DBG_LOG, "Inventory dump for %s (%d)\n", name, c->guildcard);
 
         for(i = 0; i < c->bb_pl->inv.item_count; ++i) {
@@ -1454,7 +1445,24 @@ static int handle_dumpinv(ship_client_t *c, const char *params) {
                   LE16(c->bb_pl->inv.items[i].tech));
         }
     }
-    else {
+}
+
+/* Usage: /dumpinv [lobby/clientid/guildcard] */
+static int handle_dumpinv(ship_client_t *c, const char *params) {
+    lobby_t *l = c->cur_lobby;
+    lobby_item_t *j;
+    int do_lobby;
+    uint32_t client;
+
+    /* Make sure the requester is a GM. */
+    if(!LOCAL_GM(c)) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
+    }
+
+    do_lobby = params && !strcmp(params, "lobby");
+
+    /* If the arguments say "lobby", then dump the lobby's inventory. */
+    if(do_lobby) {
         pthread_mutex_lock(&l->mutex);
 
         if(l->type != LOBBY_TYPE_GAME || l->version != CLIENT_VERSION_BB) {
@@ -1474,8 +1482,53 @@ static int handle_dumpinv(ship_client_t *c, const char *params) {
 
         pthread_mutex_unlock(&l->mutex);
     }
+    /* If there's no arguments, then dump the caller's inventory. */
+    else if(!params || params[0] == '\0') {
+        dumpinv_internal(c);
+    }
+    /* Otherwise, try to parse the arguments. */
+    else {
+        /* Figure out the user requested */
+        errno = 0;
+        client = strtoul(params, NULL, 10);
 
-    return 0;
+        if(errno) {
+            return send_txt(c, "%s", __(c, "\tE\tC7Invalid Target."));
+        }
+
+        /* See if we have a client ID or a guild card number... */
+        if(client < 12) {
+            pthread_mutex_lock(&l->mutex);
+
+            if(client >= 4 && l->type == LOBBY_TYPE_GAME) {
+                pthread_mutex_unlock(&l->mutex);
+                return send_txt(c, "%s", __(c, "\tE\tC7Invalid Client ID."));
+            }
+
+            if(l->clients[client]) {
+                dumpinv_internal(l->clients[client]);
+            }
+            else {
+                pthread_mutex_unlock(&l->mutex);
+                return send_txt(c, "%s", __(c, "\tE\tC7Invalid Client ID."));
+            }
+
+            pthread_mutex_unlock(&l->mutex);
+        }
+        /* Otherwise, assume we're looking for a guild card number. */
+        else {
+            ship_client_t *target = block_find_client(c->cur_block, client);
+
+            if(!target) {
+                return send_txt(c, "%s", __(c, "\tE\tC7Requested user not\n"
+                                               "found."));
+            }
+
+            dumpinv_internal(target);
+        }
+    }
+
+    return send_txt(c, "%s", __(c, "\tE\tC7Dumped inventory to log file."));
 }
 
 /* Usage: /showdcpc [off] */

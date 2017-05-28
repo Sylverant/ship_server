@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2017 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -87,6 +87,8 @@ int block_process_pkt(ship_client_t *c, uint8_t *pkt);
 
 lobby_t *block_get_lobby(block_t *b, uint32_t lobby_id);
 int block_info_reply(ship_client_t *c, uint32_t block);
+
+ship_client_t *block_find_client(block_t *b, uint32_t gc);
 
 int send_motd(ship_client_t *c);
 

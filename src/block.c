@@ -2831,6 +2831,22 @@ int send_motd(ship_client_t *c) {
     return send_message_box(c, "%s", buf);
 }
 
+ship_client_t *block_find_client(block_t *b, uint32_t gc) {
+    ship_client_t *it;
+
+    pthread_rwlock_rdlock(&b->lock);
+
+    TAILQ_FOREACH(it, b->clients, qentry) {
+        if(it->guildcard == gc) {
+            pthread_rwlock_unlock(&b->lock);
+            return it;
+        }
+    }
+
+    pthread_rwlock_unlock(&b->lock);
+    return NULL;
+}
+
 /* Process block commands for a Dreamcast client. */
 static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
     uint8_t type;
