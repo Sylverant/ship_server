@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2011, 2013, 2014, 2015 Lawrence Sebald
+    Copyright (C) 2011, 2013, 2014, 2015, 2017 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -161,7 +161,7 @@ static uint8_t *decompress_dat(uint8_t *inbuf, uint32_t insz, uint32_t *osz) {
     int sz;
 
     if((sz = pso_prs_decompress_buf(inbuf, &rv, (size_t)insz)) < 0) {
-        debug(DBG_WARN, "Cannot decompress data: %s\n", strerror(-sz));
+        debug(DBG_WARN, "Cannot decompress data: %s\n", pso_strerror(sz));
         return NULL;
     }
 
