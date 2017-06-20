@@ -917,6 +917,16 @@ static int gc_process_login(ship_client_t *c, gc_login_9e_pkt *pkt) {
     c->language_code = pkt->language_code;
     c->q_lang = pkt->language_code;
 
+    /* See if this user can get message boxes properly... */
+    switch(pkt->version) {
+        case 0x32: /* Episode 1 & 2 (Europe, 50hz) */
+        case 0x33: /* Episode 1 & 2 (Europe, 60hz) */
+        case 0x36: /* Episode 1 & 2 Plus (US) */
+        case 0x39: /* Episode 1 & 2 Plus (Japan) */
+            c->flags |= CLIENT_FLAG_GC_MSG_BOXES;
+            break;
+    }
+
     /* See if this person is a GM. */
     c->privilege = is_gm(c->guildcard, ship);
 
@@ -1084,14 +1094,18 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
 
             /* Set up to send the Message of the Day if we have one and the
                client hasn't already gotten it this session.
-               Disabled for Gamecube, due to bugginess (of the game). */
-            if(c->version != CLIENT_VERSION_GC &&
-               c->version != CLIENT_VERSION_EP3 &&
-               !(c->flags & CLIENT_FLAG_IS_DCNTE)) {
-                send_simple(c, PING_TYPE, 0);
+               Disabled for some Gamecube versions, due to bugginess (of the
+               game) and for the DC NTE. */
+            if((c->flags & CLIENT_FLAG_IS_DCNTE) ||
+               ((c->version == CLIENT_VERSION_GC ||
+                 c->version == CLIENT_VERSION_EP3) &&
+                 !(c->flags & CLIENT_FLAG_GC_MSG_BOXES))) {
+                /* Just say that we sent the MOTD, even though we won't ever do
+                   it at all. */
+                c->flags |= CLIENT_FLAG_SENT_MOTD;
             }
             else {
-                c->flags |= CLIENT_FLAG_SENT_MOTD;
+                send_simple(c, PING_TYPE, 0);
             }
         }
         else {
@@ -2787,6 +2801,10 @@ int send_motd(ship_client_t *c) {
             ver = SYLVERANT_INFO_PC;
             break;
 
+        case CLIENT_VERSION_GC:
+            ver = SYLVERANT_INFO_GC;
+            break;
+
         default:
             return 0;
     }
@@ -2892,9 +2910,7 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return dc_process_change_lobby(c, (dc_select_pkt *)pkt);
 
         case PING_TYPE:
-            if(!(c->flags & CLIENT_FLAG_SENT_MOTD) &&
-               c->version != CLIENT_VERSION_GC &&
-               c->version != CLIENT_VERSION_EP3) {
+            if(!(c->flags & CLIENT_FLAG_SENT_MOTD)) {
                 send_motd(c);
                 c->flags |= CLIENT_FLAG_SENT_MOTD;
             }

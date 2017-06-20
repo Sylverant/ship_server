@@ -578,7 +578,7 @@ static int handle_bug(ship_client_t *c, const char *params) {
     gcpkt.language = CLIENT_LANG_ENGLISH;
     gcpkt.section = 0;
     gcpkt.char_class = 8;
-    gcpkt.padding[0] = gcpkt.padding[1] = gcpkt.padding[1] = 0;
+    gcpkt.padding[0] = gcpkt.padding[1] = gcpkt.padding[2] = 0;
     sprintf(gcpkt.name, __(c, "Report Bug"));
     sprintf(gcpkt.text, __(c, "Send a Simple Mail to this guildcard to report "
                            "a bug."));
@@ -3042,6 +3042,22 @@ static int handle_t(ship_client_t *c, const char *params) {
     return lobby_send_pkt_dc(l, NULL, (dc_pkt_hdr_t *)&p2, 0);
 }
 
+/* Usage /info */
+static int handle_info(ship_client_t *c, const char *params) {
+    /* Don't let certain versions even try... */
+    if(c->version == CLIENT_VERSION_EP3)
+        return send_txt(c, "%s", __(c, "\tE\tC7Not valid on Episode III."));
+    else if(c->version == CLIENT_VERSION_BB)
+        return send_txt(c, "%s", __(c, "\tE\tC7Not valid on Blue Burst."));
+    else if(c->flags & CLIENT_FLAG_IS_DCNTE)
+        return send_txt(c, "%s", __(c, "\tE\tC7Not valid on DC NTE."));
+    else if(c->version == CLIENT_VERSION_GC &&
+            !(c->flags & CLIENT_FLAG_GC_MSG_BOXES))
+        return send_txt(c, "%s", __(c, "\tE\tC7Not valid on this GC version."));
+
+    return send_info_list(c, ship);
+}
+
 static command_t cmds[] = {
     { "warp"     , handle_warp      },
     { "kill"     , handle_kill      },
@@ -3130,6 +3146,7 @@ static command_t cmds[] = {
     { "stalk"    , handle_teleport  },    /* Happy, Aleron Ives? */
     { "showpos"  , handle_showpos   },
     { "t"        , handle_t         },    /* Short command = more precision. */
+    { "info"     , handle_info      },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

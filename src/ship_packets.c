@@ -1,6 +1,7 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016,
+                  2017 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -4621,6 +4622,13 @@ int send_info_list(ship_client_t *c, ship_t *s) {
         case CLIENT_VERSION_DCV2:
             return send_dc_info_list(c, s, SYLVERANT_INFO_V2);
 
+        case CLIENT_VERSION_GC:
+            /* Don't bother if they can't see the results anyway... */
+            if(!(c->flags & CLIENT_FLAG_GC_MSG_BOXES))
+                return 0;
+
+            return send_dc_info_list(c, s, SYLVERANT_INFO_GC);
+
         case CLIENT_VERSION_PC:
             return send_pc_info_list(c, s);
     }
@@ -4697,10 +4705,10 @@ static int send_dc_message_box(ship_client_t *c, const char *fmt,
         return -1;
     }
 
-    /* Don't send these to GC players, its very likely they'll crash if they're
-       on a US GC (apparently). */
+    /* Don't send these to GC players with buggy versions. */
     if((c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3) &&
-       !(c->flags & CLIENT_FLAG_TYPE_SHIP)) {
+       !(c->flags & CLIENT_FLAG_TYPE_SHIP) &&
+       !(c->flags & CLIENT_FLAG_GC_MSG_BOXES)) {
         debug(DBG_LOG, "Silently (to the user) dropping message box for GC\n");
         return 0;
     }
