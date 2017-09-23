@@ -2044,7 +2044,7 @@ int shipgate_send_ship_info(shipgate_conn_t *c, ship_t *ship) {
     pkt->menu_code = htons(ship->cfg->menu_code);
 
 #ifdef HAVE_PYTHON
-    pkt->flags |= htonl(LOGIN_FLAG_PYTHON2);
+    pkt->flags |= htonl(LOGIN_FLAG_PYTHON3);
 #endif
 
     /* Send it away */
