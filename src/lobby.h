@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -24,6 +24,7 @@
 #include <sys/queue.h>
 
 #include <sylverant/quest.h>
+#include <sylverant/items.h>
 
 #define PACKETS_H_HEADERS_ONLY
 #include "packets.h"
@@ -128,6 +129,7 @@ struct lobby {
 
     qenemy_t *mtypes;
     qenemy_t *mids;
+    sylverant_limits_t *limits_list;
 
     int (*dropfunc)(ship_client_t *c, struct lobby *l, void *req);
 

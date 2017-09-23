@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -23,6 +23,7 @@
 #include <sylverant/mtwist.h>
 #include <sylverant/debug.h>
 #include <sylverant/checksum.h>
+#include <sylverant/memory.h>
 
 #include "lobby.h"
 #include "utils.h"
@@ -217,9 +218,12 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
     if(c->flags & CLIENT_FLAG_IS_DCNTE)
         l->flags |= LOBBY_FLAG_DCNTE;
 
-    if(c->flags & CLIENT_FLAG_LEGIT) {
+    if(c->flags & CLIENT_FLAG_LEGIT && c->limits) {
+        /* Steal the client's reference to the legit list. */
         l->flags |= LOBBY_FLAG_LEGIT_MODE;
+        l->limits_list = c->limits;
         c->flags &= ~CLIENT_FLAG_LEGIT;
+        c->limits = NULL;
     }
 
     /* Copy the game name and password. */
@@ -311,6 +315,10 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
     /* If its a Blue Burst lobby, set up the enemy data. */
     if(version == CLIENT_VERSION_BB && bb_load_game_enemies(l)) {
         debug(DBG_WARN, "Error setting up blue burst enemies!\n");
+
+        if(l->limits_list)
+            release(l->limits_list);
+
         pthread_mutex_destroy(&l->mutex);
         free(l);
         return NULL;
@@ -318,6 +326,10 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
     else if(version <= CLIENT_VERSION_PC && map_have_v2_maps() && !battle &&
             !chal && v2_load_game_enemies(l)) {
         debug(DBG_WARN, "Error setting up v1/v2 enemy data!\n");
+
+        if(l->limits_list)
+            release(l->limits_list);
+
         pthread_mutex_destroy(&l->mutex);
         free(l);
         return NULL;
@@ -325,6 +337,10 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
     else if(version == CLIENT_VERSION_GC && map_have_gc_maps() && !battle &&
             !chal && gc_load_game_enemies(l)) {
         debug(DBG_WARN, "Error setting up GC enemy data!\n");
+
+        if(l->limits_list)
+            release(l->limits_list);
+
         pthread_mutex_destroy(&l->mutex);
         free(l);
         return NULL;
@@ -433,6 +449,10 @@ static void lobby_destroy_locked(lobby_t *l, int remove) {
     }
 
     lobby_empty_pkt_queue(l);
+
+    /* Clear any limits lists we have attached to this lobby. */
+    if(l->limits_list)
+        release(l->limits_list);
 
     /* Free up any items left in the lobby for Blue Burst. */
     i = TAILQ_FIRST(&l->item_queue);
@@ -1269,18 +1289,15 @@ int lobby_check_player_legit(lobby_t *l, ship_t *s, player_t *pl, uint32_t v) {
     int j, rv = 1, irv = 1;
     sylverant_iitem_t *item;
 
-    pthread_rwlock_rdlock(&s->llock);
-
     /* If we don't have a legit mode set, then everyone's legit! */
-    if(!s->limits || !(l->flags & LOBBY_FLAG_LEGIT_MODE)) {
-        pthread_rwlock_unlock(&s->llock);
+    if(!l->limits_list || !(l->flags & LOBBY_FLAG_LEGIT_MODE)) {
         return 1;
     }
 
     /* Look through each item */
     for(j = 0; j < pl->v1.inv.item_count; ++j) {
         item = (sylverant_iitem_t *)&pl->v1.inv.items[j];
-        irv = sylverant_limits_check_item(s->limits, item, v);
+        irv = sylverant_limits_check_item(l->limits_list, item, v);
 
         if(!irv) {
             debug(DBG_LOG, "Potentially non-legit item in legit mode:\n"
@@ -1290,8 +1307,6 @@ int lobby_check_player_legit(lobby_t *l, ship_t *s, player_t *pl, uint32_t v) {
             rv = irv;
         }
     }
-
-    pthread_rwlock_unlock(&s->llock);
 
     return rv;
 }

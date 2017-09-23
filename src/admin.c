@@ -17,6 +17,9 @@
 
 #include <stdint.h>
 #include <pthread.h>
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
 
 #include <sylverant/debug.h>
 
@@ -203,32 +206,69 @@ int refresh_gms(ship_client_t *c, msgfunc f) {
 }
 
 int refresh_limits(ship_client_t *c, msgfunc f) {
-    sylverant_limits_t *limits, *tmplimits;
-    int def = ship->cfg->limits_default;
+    sylverant_limits_t *l, *def = NULL;
+    int i;
+    struct limits_queue lq;
+    sylverant_ship_t *s = ship->cfg;
+    limits_entry_t *ent;
 
     /* Make sure we don't have anyone trying to escalate their privileges. */
-    if(!LOCAL_GM(c)) {
+    if(!LOCAL_GM(c))
         return -1;
-    }
 
-    /* XXXX: Handle all limits files, not just the default.... */
-    if(ship->cfg->limits_count && ship->cfg->limits[def].filename[0]) {
-        if(sylverant_read_limits(ship->cfg->limits[def].filename, &limits)) {
-            return f(c, "%s", __(c, "\tE\tC7Couldn't read limits."));
+    /* Make sure we had limits configured in the first place... */
+    if(!s->limits_count)
+        return f(c, "%s", __(c, "\tE\tC7No configured limits."));
+
+    TAILQ_INIT(&lq);
+
+    /* First, read in all the new files. That way, if something goes wrong, we
+       don't clear out existing lists... */
+    for(i = 0; i < s->limits_count; ++i) {
+        if(sylverant_read_limits(s->limits[i].filename, &l)) {
+            debug(DBG_ERROR, "%s: Couldn't read limits file for %s: %s\n",
+                  s->name, s->limits[i].name, s->limits[i].filename);
+            goto err;
         }
 
-        pthread_rwlock_wrlock(&ship->llock);
-        tmplimits = ship->limits;
-        ship->limits = limits;
-        pthread_rwlock_unlock(&ship->llock);
+        if(!(ent = malloc(sizeof(limits_entry_t)))) {
+            debug(DBG_ERROR, "%s: %s\n", s->name, strerror(errno));
+            sylverant_free_limits(l);
+            goto err;
+        }
 
-        sylverant_free_limits(tmplimits);
+        if(s->limits[i].name) {
+            if(!(ent->name = strdup(s->limits[i].name))) {
+                debug(DBG_ERROR, "%s: %s\n", s->name, strerror(errno));
+                sylverant_free_limits(l);
+                free(ent);
+                goto err;
+            }
+        }
+        else {
+            ent->name = NULL;
+        }
 
-        return f(c, "%s", __(c, "\tE\tC7Updated limits."));
+        ent->limits = l;
+        TAILQ_INSERT_TAIL(&lq, ent, qentry);
+
+        if(s->limits[i].enforce)
+            def = l;
     }
-    else {
-        return f(c, "%s", __(c, "\tE\tC7No configured limits."));
-    }
+
+    /* If we get here, then everything has at least been read in successfully,
+       go ahead and replace the data in the ship's structure. */
+    pthread_rwlock_wrlock(&ship->llock);
+    ship_free_limits_ex(&ship->all_limits);
+    ship->all_limits = lq;
+    ship->def_limits = def;
+    pthread_rwlock_unlock(&ship->llock);
+
+    return f(c, "%s", __(c, "\tE\tC7Updated limits."));
+
+err:
+    ship_free_limits_ex(&lq);
+    return f(c, "%s", __(c, "\tE\tC7Error updating limits."));
 }
 
 int broadcast_message(ship_client_t *c, const char *message, int prefix) {

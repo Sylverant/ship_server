@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2016 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -31,6 +31,7 @@
 #include <sylverant/encryption.h>
 #include <sylverant/mtwist.h>
 #include <sylverant/debug.h>
+#include <sylverant/memory.h>
 
 #include "ship.h"
 #include "utils.h"
@@ -354,6 +355,9 @@ void client_destroy_connection(ship_client_t *c,
         close(c->sock);
     }
 
+    if(c->limits)
+        release(c->limits);
+
     if(c->recvbuf) {
         free(c->recvbuf);
     }
@@ -460,6 +464,21 @@ int client_process_pkt(ship_client_t *c) {
 
             default:
                 return -1;
+        }
+
+        /* A packet with a size less than that of it's header is obviously bad.
+           Quite possibly, malicious. Boot the user and log it. */
+        if(pkt_sz < hsz) {
+            if(c->guildcard)
+                debug(DBG_WARN, "User %" PRIu32 " sent packet with invalid "
+                      "length!\n", c->guildcard);
+            else
+                debug(DBG_WARN, "Got invalid length packet from unknown "
+                      "client.\n");
+
+            /* Print out the header of the packet, not that it tells us much. */
+            print_packet(&c->pkt, hsz);
+            return -1;
         }
 
         /* We'll always need a multiple of 8 or 4 (depending on the type of

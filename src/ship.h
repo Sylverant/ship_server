@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2016 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -70,6 +70,15 @@ typedef struct miniship {
 
 TAILQ_HEAD(miniship_queue, miniship);
 
+typedef struct limits_entry {
+    TAILQ_ENTRY(limits_entry) qentry;
+
+    char *name;
+    sylverant_limits_t *limits;
+} limits_entry_t;
+
+TAILQ_HEAD(limits_queue, limits_entry);
+
 struct ship {
     sylverant_ship_t *cfg;
 
@@ -97,7 +106,6 @@ struct ship {
 
     shipgate_conn_t sg;
     pthread_rwlock_t qlock;
-    sylverant_limits_t *limits;
     pthread_rwlock_t llock;
 
     local_gm_t *gm_list;
@@ -111,6 +119,9 @@ struct ship {
     uint16_t *menu_codes;
 
     struct mt19937_state rng;
+
+    struct limits_queue all_limits;
+    sylverant_limits_t *def_limits;
 };
 
 #ifndef SHIP_DEFINED
@@ -134,5 +145,11 @@ void ship_inc_clients(ship_t *s);
 void ship_dec_clients(ship_t *s);
 void ship_inc_games(ship_t *s);
 void ship_dec_games(ship_t *s);
+
+void ship_free_limits(ship_t *s);
+void ship_free_limits_ex(struct limits_queue *l);
+
+/* This function assumes that you already hold the read lock! */
+sylverant_limits_t *ship_lookup_limits(const char *name);
 
 #endif /* !SHIP_H */

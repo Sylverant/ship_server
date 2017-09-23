@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -57,7 +57,7 @@ typedef struct lobby lobby_t;
 
 #define PACKED __attribute__((packed))
 
-#define SHIPGATE_PROTO_VER  14
+#define SHIPGATE_PROTO_VER  15
 
 /* New header in protocol version 10 and newer. */
 typedef struct shipgate_hdr {
@@ -479,6 +479,8 @@ static const char shipgate_login_msg[] =
 #define LOGIN_FLAG_NOEP3    0x00000100  /* Do not allow PSO Ep3 clients */
 #define LOGIN_FLAG_NOBB     0x00000200  /* Do not allow PSOBB clients */
 #define LOGIN_FLAG_NODCNTE  0x00000400  /* Do not allowe DC NTE clients */
+/* 0x00000400 - 0x00008000 reserved. */
+#define LOGIN_FLAG_PYTHON3  0x00010000  /* Ship supports Python 3.x scripting */
 
 /* General error codes */
 #define ERR_NO_ERROR            0x00000000

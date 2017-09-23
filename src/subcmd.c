@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2015 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2015, 2016 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -699,7 +699,7 @@ static int handle_take_item(ship_client_t *c, subcmd_take_item_t *pkt) {
         return -1;
 
     /* If we're in legit mode, we need to check the newly taken item. */
-    if((l->flags & LOBBY_FLAG_LEGIT_MODE) && ship->limits) {
+    if((l->flags & LOBBY_FLAG_LEGIT_MODE) && l->limits_list) {
         switch(c->version) {
             case CLIENT_VERSION_DCV1:
                 v = ITEM_VERSION_V1;
@@ -721,7 +721,7 @@ static int handle_take_item(ship_client_t *c, subcmd_take_item_t *pkt) {
         /* Fill in the item structure so we can check it. */
         memcpy(&item.data_l[0], &pkt->data_l[0], sizeof(uint32_t) * 5);
 
-        if(!sylverant_limits_check_item(ship->limits, &item, v)) {
+        if(!sylverant_limits_check_item(l->limits_list, &item, v)) {
             debug(DBG_LOG, "Potentially non-legit item in legit mode:\n"
                   "%08x %08x %08x %08x\n", LE32(pkt->data_l[0]),
                   LE32(pkt->data_l[1]), LE32(pkt->data_l[2]),
@@ -789,7 +789,7 @@ static int handle_itemdrop(ship_client_t *c, subcmd_itemgen_t *pkt) {
     }
 
     /* If we're in legit mode, we need to check the item. */
-    if((l->flags & LOBBY_FLAG_LEGIT_MODE) && ship->limits) {
+    if((l->flags & LOBBY_FLAG_LEGIT_MODE) && l->limits_list) {
         switch(c->version) {
             case CLIENT_VERSION_DCV1:
                 v = ITEM_VERSION_V1;
@@ -811,7 +811,7 @@ static int handle_itemdrop(ship_client_t *c, subcmd_itemgen_t *pkt) {
         /* Fill in the item structure so we can check it. */
         memcpy(&item.data_l[0], &pkt->item[0], 5 * sizeof(uint32_t));
 
-        if(!sylverant_limits_check_item(ship->limits, &item, v)) {
+        if(!sylverant_limits_check_item(l->limits_list, &item, v)) {
             /* The item failed the check, deal with it. */
             debug(DBG_LOG, "Potentially non-legit item dropped in legit mode:\n"
                   "%08x %08x %08x %08x\n", LE32(pkt->item[0]),

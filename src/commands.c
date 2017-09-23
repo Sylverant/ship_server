@@ -28,6 +28,7 @@
 #include <sys/socket.h>
 
 #include <sylverant/debug.h>
+#include <sylverant/memory.h>
 
 #include "ship_packets.h"
 #include "lobby.h"
@@ -749,6 +750,7 @@ static int handle_legit(ship_client_t *c, const char *params) {
     lobby_t *l = c->cur_lobby;
     uint32_t v;
     sylverant_iitem_t *item;
+    sylverant_limits_t *limits;
     int j, irv;
 
     /* Make sure the requester is in a lobby, not a team. */
@@ -787,21 +789,38 @@ static int handle_legit(ship_client_t *c, const char *params) {
                                     "for any new teams."));
     }
 
+    /* XXXX: Select the appropriate limits file. */
+    pthread_rwlock_rdlock(&ship->llock);
+    if(!ship->def_limits) {
+        pthread_rwlock_unlock(&ship->llock);
+        return send_txt(c, "%s", __(c, "\tE\tC7Legit mode not\n"
+                                    "available on this\n"
+                                    "ship."));
+    }
+
+    limits = ship->def_limits;
+
     /* Make sure the player qualifies for legit mode... */
     for(j = 0; j < c->pl->v1.inv.item_count; ++j) {
         item = (sylverant_iitem_t *)&c->pl->v1.inv.items[j];
-        irv = sylverant_limits_check_item(ship->limits, item, v);
+        irv = sylverant_limits_check_item(limits, item, v);
 
         if(!irv) {
             debug(DBG_LOG, "Potentially non-legit item in legit mode:\n"
                   "%08x %08x %08x %08x\n", LE32(item->data_l[0]),
                   LE32(item->data_l[1]), LE32(item->data_l[2]),
                   LE32(item->data2_l));
+            pthread_rwlock_unlock(&ship->llock);
             return send_txt(c, "%s", __(c, "\tE\tC7You failed the legit check."));
         }
     }
 
+    /* Set the flag and retain the limits list on the client. */
     c->flags |= CLIENT_FLAG_LEGIT;
+    c->limits = retain(limits);
+
+    pthread_rwlock_unlock(&ship->llock);
+
     return send_txt(c, "%s", __(c, "\tE\tC7Legit mode on\n"
                                 "for your next team."));
 }

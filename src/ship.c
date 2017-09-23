@@ -514,7 +514,7 @@ static void *ship_thd(void *d) {
     pthread_rwlock_destroy(&s->banlock);
     pthread_rwlock_destroy(&s->qlock);
     pthread_rwlock_destroy(&s->llock);
-    sylverant_free_limits(s->limits);
+    ship_free_limits(s);
     shipgate_cleanup(&s->sg);
     free(s->gm_list);
     clean_quests(s);
@@ -546,6 +546,9 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     int dcsock[2] = { -1, -1 }, pcsock[2] = { -1, -1 };
     int gcsock[2] = { -1, -1 }, ep3sock[2] = { -1, -1 };
     int bbsock[2] = { -1, -1 };
+    int i;
+    sylverant_limits_t *l;
+    limits_entry_t *ent;
 
     debug(DBG_LOG, "Starting server for ship %s...\n", s->name);
 
@@ -658,19 +661,52 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
         debug(DBG_LOG, "%s: Read %d Local GMs\n", s->name, rv->gm_count);
     }
 
-    /* Attempt to read the default item limits list in. */
-    /* XXXX: Handle other files! */
-    if(s->limits_count) {
-        if(sylverant_read_limits(s->limits[s->limits_default].filename,
-                                 &rv->limits)) {
-             debug(DBG_ERROR, "%s: Couldn't read limits file!\n", s->name);
-             goto err_gms;
+    /* Read in all limits files. */
+    TAILQ_INIT(&rv->all_limits);
+    pthread_rwlock_init(&rv->llock, NULL);
+
+    for(i = 0; i < s->limits_count; ++i) {
+        /* Check if they've given us one of the reserved names... */
+        if(s->limits[i].name && (!strcmp(s->limits[i].name, "default") ||
+                                 !strcmp(s->limits[i].name, "list"))) {
+            debug(DBG_ERROR, "%s: Illegal limits list name: %s\n",
+                  s->name, s->limits[i].name);
+            goto err_limits;
         }
+
+        if(sylverant_read_limits(s->limits[i].filename, &l)) {
+            debug(DBG_ERROR, "%s: Couldn't read limits file for %s: %s\n",
+                  s->name, s->limits[i].name, s->limits[i].filename);
+            goto err_limits;
+        }
+
+        if(!(ent = malloc(sizeof(limits_entry_t)))) {
+            debug(DBG_ERROR, "%s: %s\n", s->name, strerror(errno));
+            sylverant_free_limits(l);
+            goto err_limits;
+        }
+
+        if(s->limits[i].name) {
+            if(!(ent->name = strdup(s->limits[i].name))) {
+                debug(DBG_ERROR, "%s: %s\n", s->name, strerror(errno));
+                sylverant_free_limits(l);
+                free(ent);
+                goto err_limits;
+            }
+        }
+        else {
+            ent->name = NULL;
+        }
+
+        ent->limits = l;
+        TAILQ_INSERT_TAIL(&rv->all_limits, ent, qentry);
+
+        if(s->limits[i].enforce)
+            rv->def_limits = l;
     }
 
     /* Fill in the structure. */
     pthread_rwlock_init(&rv->banlock, NULL);
-    pthread_rwlock_init(&rv->llock, NULL);
     TAILQ_INIT(rv->clients);
     TAILQ_INIT(&rv->ships);
     TAILQ_INIT(&rv->guildcard_bans);
@@ -719,11 +755,11 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
 err_shipgate:
     shipgate_cleanup(&rv->sg);
 err_bans_locks:
-    ban_list_clear(rv);
-    pthread_rwlock_destroy(&rv->llock);
     pthread_rwlock_destroy(&rv->banlock);
-    sylverant_free_limits(rv->limits);
-err_gms:
+    ban_list_clear(rv);
+err_limits:
+    ship_free_limits(rv);
+    pthread_rwlock_destroy(&rv->llock);
     free(rv->gm_list);
 err_quests:
     pthread_rwlock_destroy(&rv->qlock);
@@ -768,6 +804,8 @@ void ship_check_cfg(sylverant_ship_t *s) {
     ship_t *rv;
     int i, j;
     char fn[512];
+    sylverant_limits_t *l;
+    limits_entry_t *ent;
 
     debug(DBG_LOG, "Checking config for ship %s...\n", s->name);
 
@@ -782,6 +820,7 @@ void ship_check_cfg(sylverant_ship_t *s) {
     /* Clear it out */
     memset(rv, 0, sizeof(ship_t));
     TAILQ_INIT(&rv->qmap);
+    TAILQ_INIT(&rv->all_limits);
 
     /* Attempt to read the quest list in. */
     if(s->quests_file && s->quests_file[0]) {
@@ -820,13 +859,42 @@ void ship_check_cfg(sylverant_ship_t *s) {
         debug(DBG_LOG, "%s: Read %d Local GMs\n", s->name, rv->gm_count);
     }
 
-    /* Attempt to read the default item limits list in. */
-    /* XXXX: Handle other files! */
-    if(s->limits_count) {
-        if(sylverant_read_limits(s->limits[s->limits_default].filename,
-                                 &rv->limits)) {
-             debug(DBG_ERROR, "%s: Couldn't read limits file!\n", s->name);
+    /* Read in all limits files. */
+    TAILQ_INIT(&rv->all_limits);
+    pthread_rwlock_init(&rv->llock, NULL);
+
+    for(i = 0; i < s->limits_count; ++i) {
+        /* Check if they've given us one of the reserved names... */
+        if(s->limits[i].name && (!strcmp(s->limits[i].name, "default") ||
+                                 !strcmp(s->limits[i].name, "list"))) {
+            debug(DBG_ERROR, "%s: Illegal limits list name: %s\n", s->name,
+                  s->limits[i].name);
         }
+
+        if(sylverant_read_limits(s->limits[i].filename, &l)) {
+            debug(DBG_ERROR, "%s: Couldn't read limits file for %s: %s\n",
+                  s->name, s->limits[i].name, s->limits[i].filename);
+        }
+
+        if(!(ent = malloc(sizeof(limits_entry_t)))) {
+            debug(DBG_ERROR, "%s: %s\n", s->name, strerror(errno));
+        }
+
+        if(s->limits[i].name) {
+            if(!(ent->name = strdup(s->limits[i].name))) {
+                debug(DBG_ERROR, "%s: %s\n", s->name, strerror(errno));
+                free(ent);
+            }
+        }
+        else {
+            ent->name = NULL;
+        }
+
+        ent->limits = l;
+        TAILQ_INSERT_TAIL(&rv->all_limits, ent, qentry);
+
+        if(s->limits[i].enforce)
+            rv->def_limits = l;
     }
 
     /* Initialize scripting support */
@@ -840,7 +908,8 @@ void ship_check_cfg(sylverant_ship_t *s) {
     }
 
     ban_list_clear(rv);
-    sylverant_free_limits(rv->limits);
+    ship_free_limits(rv);
+    pthread_rwlock_destroy(&rv->llock);
     free(rv->gm_list);
     clean_quests(rv);
     free(rv);
@@ -1400,4 +1469,37 @@ void ship_inc_games(ship_t *s) {
 void ship_dec_games(ship_t *s) {
     --s->num_games;
     shipgate_send_cnt(&s->sg, s->num_clients, s->num_games);
+}
+
+void ship_free_limits(ship_t *s) {
+    pthread_rwlock_wrlock(&s->llock);
+    ship_free_limits_ex(&s->all_limits);
+    pthread_rwlock_unlock(&s->llock);
+}
+
+void ship_free_limits_ex(struct limits_queue *l) {
+    limits_entry_t *it, *tmp;
+
+    it = TAILQ_FIRST(l);
+
+    while(it) {
+        tmp = TAILQ_NEXT(it, qentry);
+        sylverant_free_limits(it->limits);
+        free(it->name);
+        it = tmp;
+    }
+
+    TAILQ_INIT(l);
+}
+
+sylverant_limits_t *ship_lookup_limits(const char *name) {
+    limits_entry_t *it;
+
+    /* Not really efficient, but simple. */
+    TAILQ_FOREACH(it, &ship->all_limits, qentry) {
+        if(!strcmp(name, it->name))
+            return it->limits;
+    }
+
+    return NULL;
 }

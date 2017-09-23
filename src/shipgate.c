@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2014, 2015 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2014, 2015, 2016 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -2042,6 +2042,10 @@ int shipgate_send_ship_info(shipgate_conn_t *c, ship_t *ship) {
     pkt->clients = htons(ship->num_clients);
     pkt->games = htons(ship->num_games);
     pkt->menu_code = htons(ship->cfg->menu_code);
+
+#ifdef HAVE_PYTHON
+    pkt->flags |= htonl(LOGIN_FLAG_PYTHON2);
+#endif
 
     /* Send it away */
     return send_raw(c, sizeof(shipgate_login6_reply_pkt), sendbuf, 0);

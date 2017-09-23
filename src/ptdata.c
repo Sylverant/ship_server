@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2012, 2013, 2014, 2015 Lawrence Sebald
+    Copyright (C) 2012, 2013, 2014, 2015, 2016 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -1469,7 +1469,7 @@ static int check_and_send(ship_client_t *c, lobby_t *l, uint32_t item[4],
               PRIx32 " %08" PRIx32 "\n", item[0], item[1], item[2], item[3]);
 #endif
 
-    if(ship->limits) {
+    if(l->limits_list) {
         switch(c->version) {
             case CLIENT_VERSION_DCV1:
                 v = ITEM_VERSION_V1;
@@ -1494,7 +1494,7 @@ static int check_and_send(ship_client_t *c, lobby_t *l, uint32_t item[4],
         iitem.data_l[2] = LE32(item[2]);
         iitem.data2_l = LE32(item[3]);
 
-        if(!sylverant_limits_check_item(ship->limits, &iitem, v)) {
+        if(!sylverant_limits_check_item(l->limits_list, &iitem, v)) {
             section = l->clients[l->leader_id]->pl->v1.section;
             debug(DBG_LOG, "Potentially non-legit dropped by server:\n"
                   "%08x %08x %08x %08x\n"

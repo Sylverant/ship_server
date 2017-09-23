@@ -1,6 +1,7 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2017 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016,
+                  2017 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -38,6 +39,7 @@
 #include <netinet/in.h>
 
 #include <sylverant/config.h>
+#include <sylverant/items.h>
 
 #include "ship.h"
 #include "block.h"
@@ -149,6 +151,7 @@ struct ship_client {
 
     uint32_t *next_maps;
     uint32_t *enemy_kills;
+    sylverant_limits_t *limits;
 
     time_t last_message;
     time_t last_sent;
