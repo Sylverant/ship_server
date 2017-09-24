@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2016 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2016, 2017 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -476,8 +476,6 @@ int client_process_pkt(ship_client_t *c) {
                 debug(DBG_WARN, "Got invalid length packet from unknown "
                       "client.\n");
 
-            /* Print out the header of the packet, not that it tells us much. */
-            print_packet(&c->pkt, hsz);
             return -1;
         }
 
