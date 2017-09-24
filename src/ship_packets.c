@@ -6698,7 +6698,8 @@ int send_quest(lobby_t *l, uint32_t qid, int lc) {
                         rv = send_gc_quest(c, elem, v1, lang);
                         break;
 
-                    case CLIENT_VERSION_EP3:
+                    case CLIENT_VERSION_EP3:    /* XXXX */
+                    default:
                         return -1;
                 }
             }
