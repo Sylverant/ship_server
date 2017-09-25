@@ -516,4 +516,13 @@ void init_scripts(ship_t *s) {
 void cleanup_scripts(ship_t *s) {
 }
 
+int script_execute_pkt(script_action_t event, ship_client_t *c, const void *pkt,
+                       uint16_t len) {
+    return 0;
+}
+
+int script_execute(script_action_t event, ...) {
+    return 0;
+}
+
 #endif /* HAVE_PYTHON */
