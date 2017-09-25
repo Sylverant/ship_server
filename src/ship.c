@@ -666,6 +666,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     pthread_rwlock_init(&rv->llock, NULL);
 
     for(i = 0; i < s->limits_count; ++i) {
+        debug(DBG_LOG, "%s: Parsing /legit list %d...\n", i);
         /* Check if they've given us one of the reserved names... */
         if(s->limits[i].name && (!strcmp(s->limits[i].name, "default") ||
                                  !strcmp(s->limits[i].name, "list"))) {
@@ -674,11 +675,15 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
             goto err_limits;
         }
 
+        debug(DBG_LOG, "%s:     Name: %s\n", s->limits[i].name);
+
         if(sylverant_read_limits(s->limits[i].filename, &l)) {
             debug(DBG_ERROR, "%s: Couldn't read limits file for %s: %s\n",
                   s->name, s->limits[i].name, s->limits[i].filename);
             goto err_limits;
         }
+
+        debug(DBG_LOG, "%s:    Parsed!\n");
 
         if(!(ent = malloc(sizeof(limits_entry_t)))) {
             debug(DBG_ERROR, "%s: %s\n", s->name, strerror(errno));
@@ -821,6 +826,8 @@ void ship_check_cfg(sylverant_ship_t *s) {
     memset(rv, 0, sizeof(ship_t));
     TAILQ_INIT(&rv->qmap);
     TAILQ_INIT(&rv->all_limits);
+    pthread_rwlock_init(&rv->llock, NULL);
+    rv->cfg = s;
 
     /* Attempt to read the quest list in. */
     if(s->quests_file && s->quests_file[0]) {
@@ -860,10 +867,9 @@ void ship_check_cfg(sylverant_ship_t *s) {
     }
 
     /* Read in all limits files. */
-    TAILQ_INIT(&rv->all_limits);
-    pthread_rwlock_init(&rv->llock, NULL);
-
     for(i = 0; i < s->limits_count; ++i) {
+        debug(DBG_LOG, "%s: Parsing /legit list %d...\n", s->name, i);
+
         /* Check if they've given us one of the reserved names... */
         if(s->limits[i].name && (!strcmp(s->limits[i].name, "default") ||
                                  !strcmp(s->limits[i].name, "list"))) {
@@ -871,10 +877,14 @@ void ship_check_cfg(sylverant_ship_t *s) {
                   s->limits[i].name);
         }
 
+        debug(DBG_LOG, "%s:     Name: %s\n", s->name, s->limits[i].name);
+
         if(sylverant_read_limits(s->limits[i].filename, &l)) {
             debug(DBG_ERROR, "%s: Couldn't read limits file for %s: %s\n",
                   s->name, s->limits[i].name, s->limits[i].filename);
         }
+
+        debug(DBG_LOG, "%s:     Parsed!\n", s->name);
 
         if(!(ent = malloc(sizeof(limits_entry_t)))) {
             debug(DBG_ERROR, "%s: %s\n", s->name, strerror(errno));
