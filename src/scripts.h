@@ -41,16 +41,6 @@ uint32_t hashbig(const void *key, size_t length, uint32_t initval);
 #define hash(k, l, i) hashlittle(k, l, i)
 #endif
 
-#ifdef HAVE_PYTHON
-
-/* Scripting stuff in scripts.c */
-typedef struct script_entry {
-    TAILQ_ENTRY(script_entry) qentry;
-
-    char *filename;
-    PyObject *module;
-} script_entry_t;
-
 /* Scriptable actions */
 typedef enum script_action {
     ScriptActionInvalid = -1,
@@ -65,6 +55,16 @@ typedef enum script_action {
     ScriptActionCount
 } script_action_t;
 
+#ifdef HAVE_PYTHON
+
+/* Scripting stuff in scripts.c */
+typedef struct script_entry {
+    TAILQ_ENTRY(script_entry) qentry;
+
+    char *filename;
+    PyObject *module;
+} script_entry_t;
+
 typedef struct script_event {
     PyObject *function;
     script_entry_t *module;
@@ -73,13 +73,6 @@ typedef struct script_event {
 void script_eventlist_clear();
 int script_eventlist_read(const char *fn);
 
-/* Call the script function for the given event with the args listed */
-int script_execute(script_action_t event, ...);
-
-/* Call the script function for the given event that involves an unknown pkt */
-int script_execute_pkt(script_action_t event, ship_client_t *c, const void *pkt,
-                       uint16_t len);
-
 script_entry_t *script_lookup(const char *filename, uint32_t *hashv);
 script_entry_t *script_add(const char *filename);
 void script_remove_entry(script_entry_t *entry);
@@ -87,6 +80,13 @@ void script_remove(const char *filename);
 void script_hash_cleanup(void);
 
 #endif
+
+/* Call the script function for the given event with the args listed */
+int script_execute(script_action_t event, ...);
+
+/* Call the script function for the given event that involves an unknown pkt */
+int script_execute_pkt(script_action_t event, ship_client_t *c, const void *pkt,
+                       uint16_t len);
 
 void init_scripts(ship_t *s);
 void cleanup_scripts(ship_t *s);
