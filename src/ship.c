@@ -666,7 +666,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     pthread_rwlock_init(&rv->llock, NULL);
 
     for(i = 0; i < s->limits_count; ++i) {
-        debug(DBG_LOG, "%s: Parsing /legit list %d...\n", i);
+        debug(DBG_LOG, "%s: Parsing /legit list %d...\n", s->name, i);
         /* Check if they've given us one of the reserved names... */
         if(s->limits[i].name && (!strcmp(s->limits[i].name, "default") ||
                                  !strcmp(s->limits[i].name, "list"))) {
@@ -675,7 +675,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
             goto err_limits;
         }
 
-        debug(DBG_LOG, "%s:     Name: %s\n", s->limits[i].name);
+        debug(DBG_LOG, "%s:     Name: %s\n", s->name, s->limits[i].name);
 
         if(sylverant_read_limits(s->limits[i].filename, &l)) {
             debug(DBG_ERROR, "%s: Couldn't read limits file for %s: %s\n",
@@ -683,7 +683,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
             goto err_limits;
         }
 
-        debug(DBG_LOG, "%s:    Parsed!\n");
+        debug(DBG_LOG, "%s:    Parsed!\n", s->name);
 
         if(!(ent = malloc(sizeof(limits_entry_t)))) {
             debug(DBG_ERROR, "%s: %s\n", s->name, strerror(errno));
