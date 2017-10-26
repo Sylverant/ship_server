@@ -776,6 +776,8 @@ static int join_game(ship_client_t *c, lobby_t *l) {
 /* Process a login packet, sending security data, a lobby list, and a character
    data request. */
 static int dcnte_process_login(ship_client_t *c, dcnte_login_8b_pkt *pkt) {
+    char ipstr[INET6_ADDRSTRLEN];
+
     /* Make sure v1 is allowed on this ship. */
     if((ship->cfg->shipgate_flags & SHIPGATE_FLAG_NODCNTE)) {
         send_message_box(c, "%s", __(c, "\tEPSO NTE is not supported on\n"
@@ -805,12 +807,19 @@ static int dcnte_process_login(ship_client_t *c, dcnte_login_8b_pkt *pkt) {
         return -3;
     }
 
+    /* Log the connection. */
+    my_ntop(&c->ip_addr, ipstr);
+    debug(DBG_LOG, "%s(%d): DC NTE Guild Card %d connected with IP %s\n",
+          ship->cfg->name, c->cur_block->b, c->guildcard, ipstr);
+
     return 0;
 }
 
 /* Process a login packet, sending security data, a lobby list, and a character
    data request. */
 static int dc_process_login(ship_client_t *c, dc_login_93_pkt *pkt) {
+    char ipstr[INET6_ADDRSTRLEN];
+
     /* Make sure v1 is allowed on this ship. */
     if((ship->cfg->shipgate_flags & SHIPGATE_FLAG_NOV1)) {
         send_message_box(c, "%s", __(c, "\tEPSO Version 1 is not supported on\n"
@@ -839,12 +848,19 @@ static int dc_process_login(ship_client_t *c, dc_login_93_pkt *pkt) {
         return -3;
     }
 
+    /* Log the connection. */
+    my_ntop(&c->ip_addr, ipstr);
+    debug(DBG_LOG, "%s(%d): DCv1 Guild Card %d connected with IP %s\n",
+          ship->cfg->name, c->cur_block->b, c->guildcard, ipstr);
+
     return 0;
 }
 
 /* Process a v2 login packet, sending security data, a lobby list, and a
    character data request. */
 static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
+    char ipstr[INET6_ADDRSTRLEN];
+
     /* Make sure the client's version is allowed on this ship. */
     if(c->version != CLIENT_VERSION_PC) {
         if((ship->cfg->shipgate_flags & SHIPGATE_FLAG_NOV2)) {
@@ -886,12 +902,19 @@ static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
         return -3;
     }
 
+    /* Log the connection. */
+    my_ntop(&c->ip_addr, ipstr);
+    debug(DBG_LOG, "%s(%d): DCv2 Guild Card %d connected with IP %s\n",
+          ship->cfg->name, c->cur_block->b, c->guildcard, ipstr);
+
     return 0;
 }
 
 /* Process a GC login packet, sending security data, a lobby list, and a
    character data request. */
 static int gc_process_login(ship_client_t *c, gc_login_9e_pkt *pkt) {
+    char ipstr[INET6_ADDRSTRLEN];
+
     /* Make sure PSOGC is allowed on this ship. */
     if(c->version == CLIENT_VERSION_GC) {
         if((ship->cfg->shipgate_flags & SHIPGATE_FLAG_NOEP12)) {
@@ -942,11 +965,17 @@ static int gc_process_login(ship_client_t *c, gc_login_9e_pkt *pkt) {
         return -3;
     }
 
+    /* Log the connection. */
+    my_ntop(&c->ip_addr, ipstr);
+    debug(DBG_LOG, "%s(%d): GC Guild Card %d connected with IP %s\n",
+          ship->cfg->name, c->cur_block->b, c->guildcard, ipstr);
+
     return 0;
 }
 
 static int bb_process_login(ship_client_t *c, bb_login_93_pkt *pkt) {
     uint32_t team_id;
+    char ipstr[INET6_ADDRSTRLEN];
 
     /* Make sure PSOBB is allowed on this ship. */
     if((ship->cfg->shipgate_flags & LOGIN_FLAG_NOBB)) {
@@ -986,6 +1015,11 @@ static int bb_process_login(ship_client_t *c, bb_login_93_pkt *pkt) {
     if(shipgate_send_bb_opt_req(&ship->sg, c->guildcard, c->cur_block->b)) {
         return -4;
     }
+
+    /* Log the connection. */
+    my_ntop(&c->ip_addr, ipstr);
+    debug(DBG_LOG, "%s(%d): BB Guild Card %d connected with IP %s\n",
+          ship->cfg->name, c->cur_block->b, c->guildcard, ipstr);
 
     return 0;
 }
