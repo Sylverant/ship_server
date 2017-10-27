@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2012, 2013, 2015 Lawrence Sebald
+    Copyright (C) 2012, 2013, 2015, 2017 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -114,6 +114,7 @@ typedef struct game_enemy {
     uint8_t clients_hit;
     uint8_t last_client;
     uint8_t drop_done;
+    uint8_t area;
 } game_enemy_t;
 
 typedef struct game_enemies {
@@ -131,6 +132,7 @@ typedef struct parsed_map {
 typedef struct game_object {
     map_object_t data;
     uint32_t flags;
+    uint8_t area;
 } game_object_t;
 
 typedef struct game_objects {

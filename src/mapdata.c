@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2012, 2013, 2014, 2015 Lawrence Sebald
+    Copyright (C) 2012, 2013, 2014, 2015, 2017 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -151,7 +151,7 @@ static const uint32_t sp_maps[3][0x20] = {
 static const int max_area[3] = { 0x0E, 0x0F, 0x09 };
 
 static int parse_map(map_enemy_t *en, int en_ct, game_enemies_t *game,
-                     int ep, int alt) {
+                     int ep, int alt, int area) {
     int i, j;
     game_enemy_t *gen;
     void *tmp;
@@ -171,6 +171,7 @@ static int parse_map(map_enemy_t *en, int en_ct, game_enemies_t *game,
     /* Parse each enemy. */
     for(i = 0; i < en_ct; ++i) {
         n_clones = en[i].num_clones;
+        gen[count].area = area;
 
         switch(en[i].base) {
             case 0x0040:    /* Hildebear & Hildetorr */
@@ -219,6 +220,7 @@ static int parse_map(map_enemy_t *en, int en_ct, game_enemies_t *game,
                     ++count;
                     gen[count].bp_entry = 0x00;
                     gen[count].rt_index = 0x03;
+                    gen[count].area = area;
                 }
                 break;
 
@@ -271,6 +273,7 @@ static int parse_map(map_enemy_t *en, int en_ct, game_enemies_t *game,
                     ++count;
                     gen[count].bp_entry = 0x30;
                     gen[count].rt_index = 0x13;
+                    gen[count].area = area;
                 }
                 break;
 
@@ -278,6 +281,7 @@ static int parse_map(map_enemy_t *en, int en_ct, game_enemies_t *game,
                 for(j = 0; j < 3; ++j) {
                     gen[count + j].bp_entry = 0x31 + j;
                     gen[count + j].rt_index = 0x15 + j;
+                    gen[count + j].area = area;
                 }
 
                 count += 2;
@@ -322,6 +326,7 @@ static int parse_map(map_enemy_t *en, int en_ct, game_enemies_t *game,
                     ++count;
                     gen[count].bp_entry = 0x08;
                     gen[count].rt_index = 0x1C;
+                    gen[count].area = area;
                 }
                 break;
 
@@ -340,10 +345,12 @@ static int parse_map(map_enemy_t *en, int en_ct, game_enemies_t *game,
                 /* Bee L */
                 gen[count + 1].bp_entry = 0x0B;
                 gen[count + 1].rt_index = 0x00;
+                gen[count + 1].area = area;
 
                 /* Bee R */
                 gen[count + 2].bp_entry = 0x0C;
                 gen[count + 2].rt_index = 0x00;
+                gen[count + 2].area = area;
                 count += 2;
                 break;
 
@@ -379,6 +386,7 @@ static int parse_map(map_enemy_t *en, int en_ct, game_enemies_t *game,
                     ++count;
                     gen[count].bp_entry = 0x20;
                     gen[count].rt_index = 0x26;
+                    gen[count].area = area;
                 }
                 break;
 
@@ -415,17 +423,21 @@ static int parse_map(map_enemy_t *en, int en_ct, game_enemies_t *game,
                 /* Deal with the Darvants first. */
                 for(j = 0; j < 510; ++j) {
                     gen[count].bp_entry = 0x35;
+                    gen[count].area = area;
                     gen[count++].rt_index = 0;
                 }
 
                 /* The forms are backwards in their ordering... */
                 gen[count].bp_entry = 0x38;
+                gen[count].area = area;
                 gen[count++].rt_index = 0x2F;
 
                 gen[count].bp_entry = 0x37;
+                gen[count].area = area;
                 gen[count++].rt_index = 0x2F;
 
                 gen[count].bp_entry = 0x36;
+                gen[count].area = area;
                 gen[count].rt_index = 0x2F;
                 break;
 
@@ -526,8 +538,10 @@ static int parse_map(map_enemy_t *en, int en_ct, game_enemies_t *game,
                 gen[count].rt_index = 0x43;
 
                 for(j = 1; j <= n_clones; ++j) {
-                    gen[++count].bp_entry = 0x42;
+                    ++count;
+                    gen[count].bp_entry = 0x42;
                     gen[count].rt_index = 0x44;
+                    gen[count].area = area;
                 }
 
                 /* Don't double count them. */
@@ -635,6 +649,7 @@ static int parse_map(map_enemy_t *en, int en_ct, game_enemies_t *game,
             for(j = 0; j < n_clones; ++j, ++count) {
                 gen[count + 1].rt_index = gen[count].rt_index;
                 gen[count + 1].bp_entry = gen[count].bp_entry;
+                gen[count + 1].area = area;
             }
         }
         ++count;
@@ -768,7 +783,7 @@ static int read_bb_map_set(int solo, int i, int j) {
 
             /* Parse */
             if(parse_map(en, sz / 0x48, &tmp[k * nvars + l], i + 1,
-                         0)) {
+                         0, j)) {
                 free(en);
                 return 9;
             }
@@ -857,6 +872,7 @@ static int read_bb_map_set(int solo, int i, int j) {
             for(m = 0; m < sz / 0x44; ++m) {
                 gobj[m].data = obj[m];
                 gobj[m].flags = 0;
+                gobj[m].area = j;
             }
 
             /* Save it into the struct */
@@ -988,7 +1004,7 @@ static int read_v2_map_set(int j, int gcep) {
             fclose(fp);
 
             /* Parse */
-            if(parse_map(en, sz / 0x48, &tmp[k * nvars + l], ep, 0)) {
+            if(parse_map(en, sz / 0x48, &tmp[k * nvars + l], ep, 0, j)) {
                 free(en);
                 return 9;
             }
@@ -1068,6 +1084,7 @@ static int read_v2_map_set(int j, int gcep) {
             for(i = 0; i < sz / 0x44; ++i) {
                 gobj[i].data = obj[i];
                 gobj[i].flags = 0;
+                gobj[i].area = j;
             }
 
             /* Save it into the struct */
@@ -1847,7 +1864,7 @@ int cache_quest_enemies(const char *ofn, const uint8_t *dat, uint32_t sz,
                 alt = 1;
 
             if(parse_map((map_enemy_t *)(hdr->data), sz / sizeof(map_enemy_t),
-                         &tmp_en, episode, alt)) {
+                         &tmp_en, episode, alt, area)) {
                 debug(DBG_WARN, "Canot parse map for cache!\n");
                 fclose(fp);
                 return -4;

@@ -2197,6 +2197,15 @@ static int handle_mhit(ship_client_t *c, subcmd_mhit_pkt_t *pkt) {
         return -1;
     }
 
+    /* Make sure it looks like they're in the right area for this... */
+    if(c->cur_area != l->map_enemies->enemies[mid].area) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " hit enemy in wrong area "
+              "(%d -- max: %d)!\n Episode: %d, Area: %d, Enemy Area: %d "
+              "Map: (%d, %d)\n", c->guildcard, mid, l->map_enemies->count,
+              l->episode, c->cur_area, l->map_enemies->enemies[mid].area,
+              l->maps[c->cur_area << 1], l->maps[(c->cur_area << 1) + 1]);
+    }
+
     /* Save the hit, assuming the enemy isn't already dead. */
     en = &l->map_enemies->enemies[mid];
     if(!(en->clients_hit & 0x80)) {
