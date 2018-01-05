@@ -2163,7 +2163,7 @@ static int handle_mhit(ship_client_t *c, subcmd_mhit_pkt_t *pkt) {
     /* We can't get these in default lobbies without someone messing with
        something that they shouldn't be... Disconnect anyone that tries. */
     if(l->type == LOBBY_TYPE_DEFAULT) {
-        debug(DBG_WARN, "Guildcard %" PRIu32 " hit monster in lobby!\n",
+        debug(DBG_WARN, "Guild card %" PRIu32 " hit monster in lobby!\n",
               c->guildcard);
         return -1;
     }
@@ -2171,7 +2171,7 @@ static int handle_mhit(ship_client_t *c, subcmd_mhit_pkt_t *pkt) {
     /* Sanity check... Make sure the size of the subcommand matches with what we
        expect. Disconnect the client if not. */
     if(pkt->hdr.pkt_len != LE16(0x0010) || pkt->size != 0x03) {
-        debug(DBG_WARN, "Guildcard %" PRIu32 " sent bad mhit message!\n",
+        debug(DBG_WARN, "Guild card %" PRIu32 " sent bad mhit message!\n",
               c->guildcard);
         return -1;
     }
@@ -2183,7 +2183,7 @@ static int handle_mhit(ship_client_t *c, subcmd_mhit_pkt_t *pkt) {
     /* Make sure the enemy is in range. */
     mid = LE16(pkt->enemy_id);
     if(mid > l->map_enemies->count) {
-        debug(DBG_WARN, "Guildcard %" PRIu32 " hit invalid enemy (%d -- max: "
+        debug(DBG_WARN, "Guild card %" PRIu32 " hit invalid enemy (%d -- max: "
               "%d)!\n"
               "Episode: %d, Floor: %d, Map: (%d, %d)\n", c->guildcard, mid,
               l->map_enemies->count, l->episode, c->cur_area,
@@ -2198,12 +2198,29 @@ static int handle_mhit(ship_client_t *c, subcmd_mhit_pkt_t *pkt) {
     }
 
     /* Make sure it looks like they're in the right area for this... */
-    if(c->cur_area != l->map_enemies->enemies[mid].area) {
-        debug(DBG_WARN, "Guildcard %" PRIu32 " hit enemy in wrong area "
+    /* XXXX: There are some issues still with Episode 2, so only spit this out
+       for now on Episode 1. */
+    if(c->cur_area != l->map_enemies->enemies[mid].area && l->episode == 1) {
+        debug(DBG_WARN, "Guild card %" PRIu32 " hit enemy in wrong area "
               "(%d -- max: %d)!\n Episode: %d, Area: %d, Enemy Area: %d "
               "Map: (%d, %d)\n", c->guildcard, mid, l->map_enemies->count,
               l->episode, c->cur_area, l->map_enemies->enemies[mid].area,
               l->maps[c->cur_area << 1], l->maps[(c->cur_area << 1) + 1]);
+    }
+
+    /* Make sure the person's allowed to be on this floor in the first place. */
+    if((l->flags & LOBBY_FLAG_ONLY_ONE)) {
+        if(l->episode == 1) {
+            switch(c->cur_area) {
+                case 5:     /* Cave 3 */
+                case 12:    /* De Rol Le */
+                    debug(DBG_WARN, "Guild card %" PRIu32 " hit enemy in area "
+                          "impossible to\nreach in a single-player team (%d)\n"
+                          "Team Flags: %08" PRIx32 "\n",
+                          c->guildcard, c->cur_area, l->flags);
+                    break;
+            }
+        }
     }
 
     /* Save the hit, assuming the enemy isn't already dead. */
@@ -2224,7 +2241,7 @@ static int handle_mhit(ship_client_t *c, subcmd_mhit_pkt_t *pkt) {
         if(flags & 0x00000800) {
             en->clients_hit |= 0x80;
 
-            if(en->bp_entry < 0x60)
+            if(en->bp_entry < 0x60 && !(l->flags & LOBBY_FLAG_HAS_NPC))
                 ++c->enemy_kills[en->bp_entry];
         }
     }

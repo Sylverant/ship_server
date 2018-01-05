@@ -1,6 +1,7 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016,
+                  2017 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -211,6 +212,7 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
     l->max_level = 200;
     l->max_chal = 0xFF;
     l->create_time = time(NULL);
+    l->flags = LOBBY_FLAG_ONLY_ONE;
 
     if(single_player)
         l->flags |= LOBBY_FLAG_SINGLEPLAYER;
@@ -595,6 +597,9 @@ static int lobby_add_client_locked(ship_client_t *c, lobby_t *l) {
     /* Sanity check: Do we have space? */
     if(l->num_clients >= l->max_clients)
         return -1;
+
+    if(l->num_clients)
+        l->flags &= ~LOBBY_FLAG_ONLY_ONE;
 
     /* First client goes in slot 1, not 0 on DC/PC. Why Sega did this, who
        knows? Also slot 1 gets priority for all DC/PC teams, even if slot 0 is
