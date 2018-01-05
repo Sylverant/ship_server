@@ -1813,7 +1813,7 @@ static int handle_npc(ship_client_t *c, const char *params) {
     }
 
     /* This command, for now anyway, locks us down to one player mode. */
-    l->flags |= LOBBY_FLAG_SINGLEPLAYER;
+    l->flags |= LOBBY_FLAG_SINGLEPLAYER | LOBBY_FLAG_HAS_NPC;
 
     /* We're done with the lobby data now... */
     pthread_mutex_unlock(&l->mutex);
