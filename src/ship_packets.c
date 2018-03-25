@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
     Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016,
-                  2017 Lawrence Sebald
+                  2017, 2018 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -4841,7 +4841,11 @@ static int send_dc_quest_categories(ship_client_t *c, int lang) {
 
     for(i = 0; i < qlist->cat_count; ++i) {
         /* Skip quests not of the right type. */
-        if(qlist->cats[i].type != type)
+        if((qlist->cats[i].type & SYLVERANT_QUEST_TYPE_MASK) != type)
+            continue;
+
+        /* Only show debug entries to GMs. */
+        if((qlist->cats[i].type & SYLVERANT_QUEST_DEBUG) && !LOCAL_GM(c))
             continue;
 
         /* Clear the entry */
@@ -4940,7 +4944,11 @@ static int send_pc_quest_categories(ship_client_t *c, int lang) {
 
     for(i = 0; i < qlist->cat_count; ++i) {
         /* Skip quests not of the right type. */
-        if(qlist->cats[i].type != type)
+        if((qlist->cats[i].type & SYLVERANT_QUEST_TYPE_MASK) != type)
+            continue;
+
+        /* Only show debug entries to GMs. */
+        if((qlist->cats[i].type & SYLVERANT_QUEST_DEBUG) && !LOCAL_GM(c))
             continue;
 
         /* Clear the entry */
@@ -5010,7 +5018,11 @@ static int send_bb_quest_categories(ship_client_t *c, int lang) {
 
     for(i = 0; i < qlist->cat_count; ++i) {
         /* Skip quests not of the right type. */
-        if(qlist->cats[i].type != type)
+        if((qlist->cats[i].type & SYLVERANT_QUEST_TYPE_MASK) != type)
+            continue;
+
+        /* Only show debug entries to GMs. */
+        if((qlist->cats[i].type & SYLVERANT_QUEST_DEBUG) && !LOCAL_GM(c))
             continue;
 
         /* Clear the entry */
