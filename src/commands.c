@@ -3088,6 +3088,10 @@ static int handle_quest(ship_client_t *c, const char *params) {
     if(!LOCAL_GM(c))
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
 
+    /* Make sure that the requester is in a game lobby, not a lobby lobby. */
+    if(l->type != LOBBY_TYPE_GAME)
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game."));
+
     if(l->flags & LOBBY_FLAG_BURSTING)
         return send_txt(c, "%s", __(c, "\tE\tC4Please wait a moment."));
 
