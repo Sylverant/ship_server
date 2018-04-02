@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<!DOCTYPE items PUBLIC "-//Sylverant//DTD Items List 1.0//EN"
-  "http://sylverant.net/dtd/items1/items.dtd">
+<!DOCTYPE items PUBLIC "-//Sylverant//DTD Items List 1.1//EN"
+  "http://dtd.sylverant.net/items1.1/items.dtd">
 
 <!-- All items not included are automatically allowed -->
-<items byteorder="little" default="allow" check_sranks="true" check_pbs="true">
+<items byteorder="little" default="allow" check_sranks="true" check_pbs="true"
+       check_wrap="sega">
     <!-- Offline Quest Weapons -->
     <!-- SOUL EATER -->
     <item code="0x001100">
