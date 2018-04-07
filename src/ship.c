@@ -903,7 +903,7 @@ void ship_check_cfg(sylverant_ship_t *s) {
         ent->limits = l;
         TAILQ_INSERT_TAIL(&rv->all_limits, ent, qentry);
 
-        if(s->limits[i].enforce)
+        if(s->limits_default == i)
             rv->def_limits = l;
     }
 
