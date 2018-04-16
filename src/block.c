@@ -1,6 +1,7 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2017 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2017,
+                  2018 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -944,6 +945,7 @@ static int gc_process_login(ship_client_t *c, gc_login_9e_pkt *pkt) {
     switch(pkt->version) {
         case 0x32: /* Episode 1 & 2 (Europe, 50hz) */
         case 0x33: /* Episode 1 & 2 (Europe, 60hz) */
+        case 0x34: /* Episode 1 & 2 (Japan, v1.03) */
         case 0x36: /* Episode 1 & 2 Plus (US) */
         case 0x39: /* Episode 1 & 2 Plus (Japan) */
             c->flags |= CLIENT_FLAG_GC_MSG_BOXES;
