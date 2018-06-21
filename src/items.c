@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2010, 2012 Lawrence Sebald
+    Copyright (C) 2010, 2012, 2018 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -605,8 +605,9 @@ static item_map_t item_list[] = {
     { Item_NoSuchItem, "" }
 };
 
-const char *item_get_name_by_code(item_code_t code) {
+const char *item_get_name_by_code(item_code_t code, int version) {
     item_map_t *cur = &item_list[0];
+    (void)version;
 
     /* Take care of mags so that we'll match them properly... */
     if((code & 0xFF) == 0x02) {
@@ -626,7 +627,7 @@ const char *item_get_name_by_code(item_code_t code) {
     return NULL;
 }
 
-const char *item_get_name(item_t *item) {
+const char *item_get_name(item_t *item, int version) {
     uint32_t code = item->data_b[0] | (item->data_b[1] << 8) |
         (item->data_b[2] << 16);
 
@@ -657,7 +658,7 @@ const char *item_get_name(item_t *item) {
             break;
     }
 
-    return item_get_name_by_code((item_code_t)code);
+    return item_get_name_by_code((item_code_t)code, version);
 }
 
 int item_remove_from_inv(item_t *inv, int inv_count, uint32_t item_id,
@@ -709,7 +710,7 @@ int item_add_to_inv(item_t *inv, int inv_count, item_t *it) {
             return -1;
         }
     }
-    
+
     /* Check if the item is stackable, since we may have to do some stuff
        differently... */
     if(item_is_stackable(LE32(it->data_l[0]))) {

@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2016, 2017 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2016, 2017, 2018 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -787,6 +787,145 @@ int client_give_level(ship_client_t *c, uint32_t level_req) {
     if(subcmd_send_bb_level(c))
         return -1;
 
+    return 0;
+}
+
+static int check_char_v1(ship_client_t *c, player_t *pl) {
+    bitfloat_t f1, f2;
+
+    /* Check some stuff that shouldn't ever change first... For these ones,
+       we don't have to worry about byte ordering. */
+    if(c->pl->v1.model != pl->v1.model)
+        return -10;
+
+    if(c->pl->v1.section != pl->v1.section)
+        return -11;
+
+    if(c->pl->v1.ch_class != pl->v1.ch_class)
+        return -12;
+
+    if(c->pl->v1.costume != pl->v1.costume)
+        return -13;
+
+    if(c->pl->v1.skin != pl->v1.skin)
+        return -14;
+
+    if(c->pl->v1.face != pl->v1.face)
+        return -15;
+
+    if(c->pl->v1.head != pl->v1.head)
+        return -16;
+
+    if(c->pl->v1.hair != pl->v1.hair)
+        return -17;
+
+    if(c->pl->v1.hair_r != pl->v1.hair_r)
+        return -18;
+
+    if(c->pl->v1.hair_g != pl->v1.hair_g)
+        return -19;
+
+    if(c->pl->v1.hair_b != pl->v1.hair_b)
+        return -20;
+
+    /* Floating point stuff... Ugh. Pay careful attention to these, just in case
+       they're some special value like NaN or Inf (potentially because of byte
+       ordering or whatnot). */
+    f1.f = c->pl->v1.prop_x;
+    f2.f = pl->v1.prop_x;
+    if(f1.b != f2.b)
+        return -21;
+
+    f1.f = c->pl->v1.prop_y;
+    f2.f = pl->v1.prop_y;
+    if(f1.b != f2.b)
+        return -22;
+
+    if(memcmp(c->pl->v1.name, pl->v1.name, 16))
+        return -23;
+
+    /* Now make sure that nothing has decreased that should never decrease.
+       Since these aren't equality comparisons, we have to deal with byte
+       ordering here... The hp/tp materials count are 8-bits each, but
+       everything else is multi-byte. */
+    if(c->pl->v1.inv.hpmats_used > pl->v1.inv.hpmats_used)
+        return -24;
+
+    if(c->pl->v1.inv.tpmats_used > pl->v1.inv.tpmats_used)
+        return -25;
+
+    if(LE32(c->pl->v1.exp) > LE32(pl->v1.exp))
+        return -26;
+
+    /* Why is the level 32-bits?... */
+    if(LE32(c->pl->v1.level) > LE32(pl->v1.level))
+        return -27;
+
+    /* Other stats omitted for now... */
+
+    /* If we get here, we've passed all the checks... */
+    return 0;
+}
+
+static int check_char_v2(ship_client_t *c, player_t *pl) {
+    return check_char_v1(c, pl);
+}
+
+static int check_char_pc(ship_client_t *c, player_t *pl) {
+    return check_char_v1(c, pl);
+}
+
+static int check_char_gc(ship_client_t *c, player_t *pl) {
+    return 0;
+}
+
+int client_check_character(ship_client_t *c, player_t *pl, uint8_t ver) {
+    switch(ver) {
+        case 1:
+            if(c->version == CLIENT_VERSION_DCV1) {
+                if((c->flags & CLIENT_FLAG_IS_DCNTE))
+                    /* XXXX */
+                    return 0;
+                else
+                    return check_char_v1(c, pl);
+            }
+            else
+                /* This shouldn't happen... */
+                return -1;
+
+        case 2:
+            if(c->version == CLIENT_VERSION_DCV2)
+                return check_char_v2(c, pl);
+            else if(c->version == CLIENT_VERSION_PC)
+                return check_char_pc(c, pl);
+            else
+                /* This shouldn't happen... */
+                return -1;
+
+        case 3:
+            if(c->version == CLIENT_VERSION_GC)
+                return check_char_gc(c, pl);
+            else if(c->version == CLIENT_VERSION_EP3)
+                /* XXXX */
+                return 0;
+            else
+                /* This shouldn't happen... */
+                return -1;
+
+        case 4:
+            if(c->version == CLIENT_VERSION_BB)
+                /* XXXX */
+                return 0;
+            else
+                /* This shouldn't happen... */
+                return -1;
+
+        default:
+            debug(DBG_WARN, "client_check_character: Unknown version %d\n",
+                  (int)ver);
+    }
+
+    /* XXXX */
     return 0;
 }
 

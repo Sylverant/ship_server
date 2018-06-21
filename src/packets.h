@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2018 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -40,6 +40,11 @@
 #define LE32(x) x
 #define LE64(x) x
 #endif
+
+typedef union {
+    float f;
+    uint32_t b;
+} bitfloat_t;
 
 #ifdef PACKED
 #undef PACKED
@@ -1494,6 +1499,13 @@ typedef struct gc_quest_stats {
     uint32_t stats[10];
 } PACKED gc_quest_stats_pkt;
 
+/* Patch return packet. */
+typedef struct patch_return {
+    dc_pkt_hdr_t hdr;
+    uint32_t retval;
+    uint32_t unk;
+} PACKED patch_return_pkt;
+
 #undef PACKED
 
 /* Parameters for the various packets. */
@@ -1567,6 +1579,8 @@ typedef struct gc_quest_stats {
 #define QUEST_LOAD_DONE_TYPE            0x00AC
 #define TEXT_MSG_TYPE                   0x00B0
 #define TIMESTAMP_TYPE                  0x00B1
+#define PATCH_TYPE                      0x00B2
+#define PATCH_RETURN_TYPE               0x00B3
 #define EP3_RANK_UPDATE_TYPE            0x00B7
 #define EP3_CARD_UPDATE_TYPE            0x00B8
 #define EP3_COMMAND_TYPE                0x00BA

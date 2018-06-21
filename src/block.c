@@ -1037,6 +1037,22 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
 
     pthread_mutex_lock(&c->mutex);
 
+    /* If they already had character data, then check if it's still sane. */
+    if(c->pl->v1.name[0]) {
+        i = client_check_character(c, &pkt->data, version);
+        if(i) {
+            debug(DBG_LOG, "%s(%d): Character check failed for GC %" PRIu32
+                 " with error code %d\n", ship->cfg->name, c->cur_block->b,
+                 c->guildcard, i);
+            if(c->cur_lobby) {
+                debug(DBG_LOG, "        Lobby name: %s (type: %d,%d,%d,%d)",
+                      c->cur_lobby->name, c->cur_lobby->difficulty,
+                      c->cur_lobby->battle, c->cur_lobby->challenge,
+                      c->cur_lobby->v2);
+            }
+        }
+    }
+
     /* Copy out the player data, and set up pointers. */
     if(version == 1) {
         memcpy(c->pl, &pkt->data, sizeof(v1_player_t));

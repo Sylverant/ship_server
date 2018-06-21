@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2010, 2012 Lawrence Sebald
+    Copyright (C) 2010, 2012, 2018 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -615,8 +615,8 @@ typedef struct item_map_s {
     const char *name;
 } item_map_t;
 
-const char *item_get_name_by_code(item_code_t code);
-const char *item_get_name(item_t *item);
+const char *item_get_name_by_code(item_code_t code, int version);
+const char *item_get_name(item_t *item, int version);
 int item_remove_from_inv(item_t *inv, int inv_count, uint32_t item_id,
                          uint32_t amt);
 int item_add_to_inv(item_t *inv, int inv_count, item_t *it);

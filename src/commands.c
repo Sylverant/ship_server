@@ -1433,8 +1433,9 @@ static int handle_teleport(ship_client_t *c, const char *params) {
 static void dumpinv_internal(ship_client_t *c) {
     char name[64];
     int i;
+    int v = c->version;
 
-    if(c->version != CLIENT_VERSION_BB) {
+    if(v != CLIENT_VERSION_BB) {
         debug(DBG_LOG, "Inventory dump for %s (%d)\n", c->pl->v1.name,
               c->guildcard);
 
@@ -1442,7 +1443,7 @@ static void dumpinv_internal(ship_client_t *c) {
             debug(DBG_LOG, "%d (%08x): %08x %08x %08x %08x: %s\n", i,
                    LE32(c->items[i].item_id), LE32(c->items[i].data_l[0]),
                    LE32(c->items[i].data_l[1]), LE32(c->items[i].data_l[2]),
-                   LE32(c->items[i].data2_l), item_get_name(&c->items[i]));
+                   LE32(c->items[i].data2_l), item_get_name(&c->items[i], v));
         }
     }
     else {
@@ -1457,7 +1458,7 @@ static void dumpinv_internal(ship_client_t *c) {
                   LE32(c->bb_pl->inv.items[i].data_l[1]),
                   LE32(c->bb_pl->inv.items[i].data_l[2]),
                   LE32(c->bb_pl->inv.items[i].data2_l),
-                  item_get_name(&c->bb_pl->inv.items[i]));
+                  item_get_name(&c->bb_pl->inv.items[i], v));
             debug(DBG_LOG, "\tFlags: %08x %04x %04x\n",
                   LE32(c->bb_pl->inv.items[i].flags),
                   LE16(c->bb_pl->inv.items[i].equipped),
@@ -1496,7 +1497,7 @@ static int handle_dumpinv(ship_client_t *c, const char *params) {
             debug(DBG_LOG, "%08x: %08x %08x %08x %08x: %s\n",
                   LE32(j->d.item_id), LE32(j->d.data_l[0]),
                   LE32(j->d.data_l[1]), LE32(j->d.data_l[2]),
-                  LE32(j->d.data2_l), item_get_name(&j->d));
+                  LE32(j->d.data2_l), item_get_name(&j->d, l->version));
         }
 
         pthread_mutex_unlock(&l->mutex);

@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
     Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016,
-                  2017 Lawrence Sebald
+                  2017, 2018 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -262,6 +262,7 @@ extern pthread_key_t sendbuf_key;
 #define CLIENT_FLAG_DBG_SDROPS      0x00100000
 #define CLIENT_FLAG_LEGIT           0x00200000
 #define CLIENT_FLAG_GC_MSG_BOXES    0x00400000
+#define CLIENT_FLAG_CDATA_CHECK     0x00800000
 
 /* The list of language codes for the quest directories. */
 static const char language_codes[][3] __attribute__((unused)) = {
@@ -320,6 +321,9 @@ int client_give_exp(ship_client_t *c, uint32_t exp);
 
 /* Give a Blue Burst client some free level ups. */
 int client_give_level(ship_client_t *c, uint32_t level_req);
+
+/* Check if a client's newly sent character data looks corrupted. */
+int client_check_character(ship_client_t *c, player_t *pl, uint8_t ver);
 
 #ifdef HAVE_PYTHON
 
