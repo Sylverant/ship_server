@@ -818,7 +818,7 @@ static int handle_itemdrop(ship_client_t *c, subcmd_itemgen_t *pkt) {
                   LE32(pkt->item[1]), LE32(pkt->item[2]), LE32(pkt->item2[0]));
 
             /* Grab the item name, if we can find it. */
-            name = item_get_name((item_t *)&item);
+            name = item_get_name((item_t *)&item, v);
 
             /* Fill in the destroy item packet. */
             memset(&dp, 0, sizeof(subcmd_destroy_item_t));
