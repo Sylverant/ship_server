@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2015 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2015, 2018 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -35,9 +35,21 @@
 #ifndef __printflike
 #define __printflike(n1, n2) __attribute__((format(printf, n1, n2)))
 #endif
+#ifndef __unlikely
+#define __unlikely(x) __builtin_expect((x), 0)
+#endif
+#ifndef __likely
+#define __likely(x) __builtin_expect((x), 1)
+#endif
 #else
 #ifndef __printflike
 #define __printflike(n1, n2)
+#endif
+#ifndef __unlikely
+#define __unlikely(x) x
+#endif
+#ifndef __likely
+#define __likely(x) x
 #endif
 #endif
 
