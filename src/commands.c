@@ -811,7 +811,8 @@ static int handle_legit(ship_client_t *c, const char *params) {
                   LE32(item->data_l[1]), LE32(item->data_l[2]),
                   LE32(item->data2_l));
             pthread_rwlock_unlock(&ship->llock);
-            return send_txt(c, "%s", __(c, "\tE\tC7You failed the legit check."));
+            return send_txt(c, "%s", __(c, "\tE\tC7You failed the legit "
+                                           "check."));
         }
     }
 
@@ -3165,6 +3166,62 @@ static int handle_quest(ship_client_t *c, const char *params) {
     return rv;
 }
 
+/* Usage /autolegit [off] */
+static int handle_autolegit(ship_client_t *c, const char *params) {
+    uint8_t enable = 1;
+    sylverant_limits_t *limits;
+
+    /* Make sure they're logged in */
+    if(!(c->flags & CLIENT_FLAG_LOGGED_IN)) {
+        return send_txt(c, "%s", __(c, "\tE\tC7You must be logged in to "
+                                       "use this command."));
+    }
+
+    /* See if we're turning the flag off. */
+    if(!strcmp(params, "off")) {
+        enable = 0;
+        shipgate_send_user_opt(&ship->sg, c->guildcard, c->cur_block->b,
+                               USER_OPT_LEGIT_ALWAYS, 1, &enable);
+        c->flags &= ~CLIENT_FLAG_ALWAYS_LEGIT;
+        return send_txt(c, "%s", __(c, "\tE\tC7Automatic legit\n"
+                                       "mode disabled."));
+    }
+
+    /* Send the message to the shipgate */
+    shipgate_send_user_opt(&ship->sg, c->guildcard, c->cur_block->b,
+                           USER_OPT_LEGIT_ALWAYS, 1, &enable);
+    c->flags |= CLIENT_FLAG_ALWAYS_LEGIT;
+    send_txt(c, "%s", __(c, "\tE\tC7Automatic legit\nmode enabled."));
+
+    /* Check them now, since they shouldn't have to re-connect to get the
+       flag set... */
+    pthread_rwlock_rdlock(&ship->llock);
+    if(!ship->def_limits) {
+        pthread_rwlock_unlock(&ship->llock);
+        c->flags &= ~CLIENT_FLAG_ALWAYS_LEGIT;
+        send_txt(c, "%s", __(c, "\tE\tC7Legit mode not\n"
+                                "available on this\n"
+                                "ship."));
+        return 0;
+    }
+
+    limits = ship->def_limits;
+
+    if(client_legit_check(c, limits)) {
+        c->flags &= ~CLIENT_FLAG_ALWAYS_LEGIT;
+        send_txt(c, "%s", __(c, "\tE\tC7You failed the legit "
+                                "check."));
+    }
+    else {
+        /* Set the flag and retain the limits list on the client. */
+        c->flags |= CLIENT_FLAG_LEGIT;
+        c->limits = retain(limits);
+    }
+
+    pthread_rwlock_unlock(&ship->llock);
+    return send_txt(c, "%s", __(c, "\tE\tC7Legit check passed."));
+}
+
 static command_t cmds[] = {
     { "warp"     , handle_warp      },
     { "kill"     , handle_kill      },
@@ -3255,6 +3312,7 @@ static command_t cmds[] = {
     { "t"        , handle_t         },    /* Short command = more precision. */
     { "info"     , handle_info      },
     { "quest"    , handle_quest     },
+    { "autolegit", handle_autolegit },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

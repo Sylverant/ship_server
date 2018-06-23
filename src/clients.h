@@ -263,6 +263,7 @@ extern pthread_key_t sendbuf_key;
 #define CLIENT_FLAG_LEGIT           0x00200000
 #define CLIENT_FLAG_GC_MSG_BOXES    0x00400000
 #define CLIENT_FLAG_CDATA_CHECK     0x00800000
+#define CLIENT_FLAG_ALWAYS_LEGIT    0x01000000
 
 /* The list of language codes for the quest directories. */
 static const char language_codes[][3] __attribute__((unused)) = {
@@ -324,6 +325,9 @@ int client_give_level(ship_client_t *c, uint32_t level_req);
 
 /* Check if a client's newly sent character data looks corrupted. */
 int client_check_character(ship_client_t *c, player_t *pl, uint8_t ver);
+
+/* Run a legit check on a given client. */
+int client_legit_check(ship_client_t *c, sylverant_limits_t *limits);
 
 #ifdef HAVE_PYTHON
 

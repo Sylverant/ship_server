@@ -1,6 +1,7 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016,
+                  2018 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -516,6 +517,7 @@ static const char shipgate_login_msg[] =
 #define USER_OPT_ENABLE_BACKUP  0x00000002
 #define USER_OPT_GC_PROTECT     0x00000003
 #define USER_OPT_TRACK_KILLS    0x00000004
+#define USER_OPT_LEGIT_ALWAYS   0x00000005
 
 /* Possible values for the fw_flags on a forwarded packet */
 #define FW_FLAG_PREFER_IPV6     0x00000001  /* Prefer IPv6 on reply */

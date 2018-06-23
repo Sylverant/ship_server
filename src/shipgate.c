@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2014, 2015, 2016 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2014, 2015, 2016, 2018 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -1639,6 +1639,18 @@ static int  handle_useropt(shipgate_conn_t *c, shipgate_user_opt_pkt *pkt) {
                            kill tracking. */
                         if(opt->data[0])
                             i->flags |= CLIENT_FLAG_TRACK_KILLS;
+                        break;
+
+                    case USER_OPT_LEGIT_ALWAYS:
+                        /* Make sure the length is right */
+                        if(length != 16)
+                            break;
+
+                        /* The only byte of the data that's used is the first
+                           one. It is a boolean saying whether or not to always
+                           enable /legit automatically. */
+                        if(opt->data[0])
+                            i->flags |= CLIENT_FLAG_ALWAYS_LEGIT;
                         break;
                 }
 

@@ -29,6 +29,7 @@
 
 #include <sylverant/debug.h>
 #include <sylverant/config.h>
+#include <sylverant/memory.h>
 
 #include "block.h"
 #include "ship.h"
@@ -735,6 +736,13 @@ static int join_game(ship_client_t *c, lobby_t *l) {
                       __(c, "\tC7This game is\nfull."));
     }
     else {
+        /* Clear their legit mode flag... */
+        if((c->flags & CLIENT_FLAG_LEGIT)) {
+            c->flags &= ~CLIENT_FLAG_LEGIT;
+            if(c->limits)
+                release(c->limits);
+        }
+
         if(c->version == CLIENT_VERSION_BB) {
             /* Fix up the inventory for their new lobby */
             id = 0x00010000 | (c->client_id << 21) |
@@ -1111,15 +1119,16 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
     /* If this packet is coming after the client has left a game, then don't
        do anything else here, they'll take care of it by sending an 0x84. */
     if(type == LEAVE_GAME_PL_DATA_TYPE) {
+        c->flags &= ~(CLIENT_FLAG_TRACK_INVENTORY | CLIENT_FLAG_LEGIT);
+        pthread_mutex_unlock(&c->mutex);
+
         /* Remove the client from the lobby they're in, which will force the
            0x84 sent later to act like we're adding them to any lobby. */
-        c->flags &= ~CLIENT_FLAG_TRACK_INVENTORY;
-        pthread_mutex_unlock(&c->mutex);
         return lobby_remove_player(c);
     }
 
-    /* If the client isn't in a lobby already, then add them to the first
-       available default lobby. */
+    /* If the client isn't in a lobby/team already, then add them to the first
+       available lobby. */
     if(!c->cur_lobby) {
         if(lobby_add_to_any(c, NULL)) {
             pthread_mutex_unlock(&c->mutex);
@@ -1156,14 +1165,15 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
                    it at all. */
                 c->flags |= CLIENT_FLAG_SENT_MOTD;
             }
-            else {
-                send_simple(c, PING_TYPE, 0);
-            }
         }
         else {
             shipgate_send_lobby_chg(&ship->sg, c->guildcard,
                                     c->cur_lobby->lobby_id, c->cur_lobby->name);
         }
+
+        /* Send a ping so we know when they're done loading in. This is useful
+           for sending the MOTD as well as enforcing always-legit mode. */
+        send_simple(c, PING_TYPE, 0);
     }
 
     pthread_mutex_unlock(&c->mutex);
@@ -1284,6 +1294,9 @@ static int process_change_lobby(ship_client_t *c, uint32_t item_id) {
                              __(c, "\tC7Unknown error occurred."));
     }
     else {
+        /* Send a ping so we know when they're done loading in. This is useful
+           for enforcing always-legit mode. */
+        send_simple(c, PING_TYPE, 0);
         return rv;
     }
 }
@@ -2965,6 +2978,40 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             if(!(c->flags & CLIENT_FLAG_SENT_MOTD)) {
                 send_motd(c);
                 c->flags |= CLIENT_FLAG_SENT_MOTD;
+            }
+
+            /* If they've got the always legit flag set, but we haven't run the
+               legit check yet, then do so now. The reason we wait until now is
+               so that if they fail the legit check, we can actually inform them
+               of that. */
+            if((c->flags & CLIENT_FLAG_ALWAYS_LEGIT) &&
+               !(c->flags & CLIENT_FLAG_LEGIT)) {
+                sylverant_limits_t *limits;
+
+                pthread_rwlock_rdlock(&ship->llock);
+                if(!ship->def_limits) {
+                    pthread_rwlock_unlock(&ship->llock);
+                    c->flags &= ~CLIENT_FLAG_ALWAYS_LEGIT;
+                    send_txt(c, "%s", __(c, "\tE\tC7Legit mode not\n"
+                                            "available on this\n"
+                                            "ship."));
+                    return 0;
+                }
+
+                limits = ship->def_limits;
+
+                if(client_legit_check(c, limits)) {
+                    c->flags &= ~CLIENT_FLAG_ALWAYS_LEGIT;
+                    send_txt(c, "%s", __(c, "\tE\tC7You failed the legit "
+                                            "check."));
+                }
+                else {
+                    /* Set the flag and retain the limits list on the client. */
+                    c->flags |= CLIENT_FLAG_LEGIT;
+                    c->limits = retain(limits);
+                }
+
+                pthread_rwlock_unlock(&ship->llock);
             }
 
             return 0;

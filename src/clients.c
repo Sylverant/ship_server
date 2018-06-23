@@ -929,6 +929,50 @@ int client_check_character(ship_client_t *c, player_t *pl, uint8_t ver) {
     return 0;
 }
 
+int client_legit_check(ship_client_t *c, sylverant_limits_t *limits) {
+    uint32_t v;
+    sylverant_iitem_t *item;
+    int j, irv;
+
+    /* Figure out what version they're on. */
+    switch(c->version) {
+        case CLIENT_VERSION_DCV1:
+            v = ITEM_VERSION_V1;
+            break;
+
+        case CLIENT_VERSION_DCV2:
+        case CLIENT_VERSION_PC:
+            v = ITEM_VERSION_V2;
+            break;
+
+        case CLIENT_VERSION_GC:
+            v = ITEM_VERSION_GC;
+            break;
+
+        case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_BB:
+        default:
+            /* XXXX */
+            return 0;
+    }
+
+    /* Make sure the player qualifies for legit mode... */
+    for(j = 0; j < c->pl->v1.inv.item_count; ++j) {
+        item = (sylverant_iitem_t *)&c->pl->v1.inv.items[j];
+        irv = sylverant_limits_check_item(limits, item, v);
+
+        if(!irv) {
+            debug(DBG_LOG, "Potentially non-legit found in inventory (GC: %"
+                  PRIu32"):\n%08x %08x %08x %08x\n", c->guildcard,
+                  LE32(item->data_l[0]), LE32(item->data_l[1]),
+                  LE32(item->data_l[2]), LE32(item->data2_l));
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
 #ifdef HAVE_PYTHON
 
 /* Basic client class structure */
