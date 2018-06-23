@@ -3216,10 +3216,11 @@ static int handle_autolegit(ship_client_t *c, const char *params) {
         /* Set the flag and retain the limits list on the client. */
         c->flags |= CLIENT_FLAG_LEGIT;
         c->limits = retain(limits);
+        send_txt(c, "%s", __(c, "\tE\tC7Legit check passed."));
     }
 
     pthread_rwlock_unlock(&ship->llock);
-    return send_txt(c, "%s", __(c, "\tE\tC7Legit check passed."));
+    return 0;
 }
 
 static command_t cmds[] = {
