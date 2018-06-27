@@ -1,7 +1,7 @@
 dnl
 dnl This file is part of Sylverant PSO Server.
 dnl
-dnl Copyright (C) 2009, 2011, 2013, 2015, 2016 Lawrence Sebald
+dnl Copyright (C) 2009, 2011, 2013, 2015, 2016, 2018 Lawrence Sebald
 dnl
 dnl This program is free software: you can redistribute it and/or modify
 dnl it under the terms of the GNU Affero General Public License version 3
@@ -56,6 +56,8 @@ AC_CHECK_LIB([sylverant], [sylverant_read_config], , AC_MSG_ERROR([libsylverant 
 AC_CHECK_LIB([mini18n], [mini18n_get], , AC_MSG_WARN([Internationalization support requires mini18n]))
 AC_CHECK_LIB([psoarchive], [pso_gsl_read_open], , AC_MSG_ERROR([libpsoarchive is required!]))
 
+AC_SEARCH_LIBS([pidfile_open], [util bsd], [CFLAGS="$CFLAGS -DHAVE_PIDFILE=1"], [CFLAGS="$CFLAGS -DNEED_PIDFILE=1"])
+
 AC_ARG_ENABLE([scripting], [AS_HELP_STRING([--enable-scripting],
               [enable scripting support in the binary (requires Python 2.x (x >= 5))])],
               [enable_scripting=$enableval],
@@ -101,6 +103,7 @@ AX_PTHREAD
 
 # Checks for header files.
 AC_CHECK_HEADERS([arpa/inet.h inttypes.h netdb.h netinet/in.h stdlib.h string.h sys/socket.h sys/time.h unistd.h])
+AC_CHECK_HEADERS([libutil.h bsd/libutil.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_TYPE_SIZE_T
@@ -114,9 +117,7 @@ AC_CHECK_SIZEOF([int])
 AC_CHECK_SIZEOF([long int])
 
 # Checks for library functions.
-AC_FUNC_MALLOC
-AC_FUNC_REALLOC
-AC_CHECK_FUNCS([gethostname gettimeofday inet_ntoa memmove memset select socket strtoul])
+AC_CHECK_FUNCS([malloc realloc gethostname gettimeofday inet_ntoa memmove memset select socket strtoul])
 
 CFLAGS="$CFLAGS -Wall -DGIT_BUILD=\"\\\"\`git log --oneline | wc -l | tr -d \'[[:space:]]\'\`\\\"\""
 CFLAGS="$CFLAGS -DGIT_CHANGESET=\"\\\"\`git show -s --pretty=format:%h\`\\\"\""
