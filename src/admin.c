@@ -317,7 +317,7 @@ int schedule_shutdown(ship_client_t *c, uint32_t when, int restart, msgfunc f) {
     extern int restart_on_shutdown;     /* in ship_server.c */
 
     /* Make sure we don't have anyone trying to escalate their privileges. */
-    if(!LOCAL_ROOT(c)) {
+    if(c && !LOCAL_ROOT(c)) {
         return -1;
     }
 
@@ -369,8 +369,14 @@ int schedule_shutdown(ship_client_t *c, uint32_t when, int restart, msgfunc f) {
     }
 
     /* Log the event to the log file */
-    debug(DBG_LOG, "Ship server %s scheduled for %" PRIu32 " minutes by %u\n",
-          restart ? "restart" : "shutdown", when, c->guildcard);
+    if(c) {
+        debug(DBG_LOG, "Ship server %s scheduled for %" PRIu32 " minutes by "
+              "%"PRIu32".\n", restart ? "restart" : "shutdown", when,
+              c->guildcard);
+    }
+    else {
+        debug(DBG_LOG, "Ship server shut down by signal.\n");
+    }
 
     restart_on_shutdown = restart;
     ship_server_shutdown(ship, time(NULL) + (when * 60));

@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2016 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2016, 2018 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -23,6 +23,7 @@
 #include <pthread.h>
 #include <signal.h>
 #include <errno.h>
+#include <pwd.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -34,6 +35,18 @@
 
 #include <libxml/parser.h>
 
+#if HAVE_LIBUTIL_H == 1
+#include <libutil.h>
+#elif HAVE_BSD_LIBUTIL_H == 1
+#include <bsd/libutil.h>
+#else
+/* From pidfile.c */
+struct pidfh;
+struct pidfh *pidfile_open(const char *path, mode_t mode, pid_t *pidptr);
+int pidfile_write(struct pidfh *pfh);
+int pidfile_remove(struct pidfh *pfh);
+#endif
+
 #include "ship.h"
 #include "clients.h"
 #include "shipgate.h"
@@ -43,6 +56,15 @@
 #include "ptdata.h"
 #include "pmtdata.h"
 #include "rtdata.h"
+#include "admin.h"
+
+#ifndef PID_DIR
+#define PID_DIR "/var/run"
+#endif
+
+#ifndef RUNAS_DEFAULT
+#define RUNAS_DEFAULT "sylverant"
+#endif
 
 /* The actual ship structures. */
 ship_t *ship;
@@ -60,6 +82,9 @@ static const char *config_file = NULL;
 static const char *custom_dir = NULL;
 static int dont_daemonize = 0;
 static int check_only = 0;
+static const char *pidfile_name = NULL;
+static struct pidfh *pf = NULL;
+static const char *runas_user = RUNAS_DEFAULT;
 
 /* Print information about this program to stdout. */
 static void print_program_info(void) {
@@ -96,9 +121,13 @@ static void print_help(const char *bin) {
            "--check-config  Load and parse the configuration, but do not\n"
            "                actually start the ship server. This implies the\n"
            "                --nodaemon option as well.\n"
+           "-P filename     Use the specified name for the pid file to write\n"
+           "                instead of the default.\n"
+           "-U username     Run as the specified user instead of '%s'\n"
            "--help          Print this help and exit\n\n"
            "Note that if more than one verbosity level is specified, the last\n"
-           "one specified will be used. The default is --verbose.\n", bin);
+           "one specified will be used. The default is --verbose.\n", bin,
+           RUNAS_DEFAULT);
 }
 
 /* Parse any command-line arguments passed in. */
@@ -121,10 +150,22 @@ static void parse_command_line(int argc, char *argv[]) {
         }
         else if(!strcmp(argv[i], "-C")) {
             /* Save the config file's name. */
+            if(i == argc - 1) {
+                printf("-C requires an argument!\n\n");
+                print_help(argv[0]);
+                exit(EXIT_FAILURE);
+            }
+
             config_file = argv[++i];
         }
         else if(!strcmp(argv[i], "-D")) {
             /* Save the custom dir */
+            if(i == argc - 1) {
+                printf("-D requires an argument!\n\n");
+                print_help(argv[0]);
+                exit(EXIT_FAILURE);
+            }
+
             custom_dir = argv[++i];
         }
         else if(!strcmp(argv[i], "--nodaemon")) {
@@ -136,6 +177,24 @@ static void parse_command_line(int argc, char *argv[]) {
         else if(!strcmp(argv[i], "--check-config")) {
             check_only = 1;
             dont_daemonize = 1;
+        }
+        else if(!strcmp(argv[i], "-P")) {
+            if(i == argc - 1) {
+                printf("-P requires an argument!\n\n");
+                print_help(argv[0]);
+                exit(EXIT_FAILURE);
+            }
+
+            pidfile_name = argv[++i];
+        }
+        else if(!strcmp(argv[i], "-U")) {
+            if(i == argc - 1) {
+                printf("-U requires an argument!\n\n");
+                print_help(argv[0]);
+                exit(EXIT_FAILURE);
+            }
+
+            runas_user = argv[++i];
         }
         else if(!strcmp(argv[i], "--help")) {
             print_help(argv[0]);
@@ -284,6 +343,48 @@ static void open_log(sylverant_ship_t *cfg) {
     debug_set_file(dbgfp);
 }
 
+static void reopen_log(void) {
+    char fn[strlen(ship->cfg->name) + 32];
+    FILE *dbgfp, *ofp;
+
+    sprintf(fn, "logs/%s_debug.log", ship->cfg->name);
+    dbgfp = fopen(fn, "a");
+
+    if(!dbgfp) {
+        /* Uhh... Welp, guess we'll try to continue writing to the old one,
+           then... */
+        debug(DBG_ERROR, "Cannot reopen log file\n");
+        perror("fopen");
+    }
+    else {
+        ofp = debug_set_file(dbgfp);
+        fclose(ofp);
+    }
+}
+
+static void sighup_hnd(int signum, siginfo_t *inf, void *ptr) {
+    (void)signum;
+    (void)inf;
+    (void)ptr;
+    reopen_log();
+}
+
+static void sigterm_hnd(int signum, siginfo_t *inf, void *ptr) {
+    (void)signum;
+    (void)inf;
+    (void)ptr;
+
+    /* Now, shutdown with slightly more grace! */
+    schedule_shutdown(NULL, 0, 0, NULL);
+}
+
+static void sigusr1_hnd(int signum, siginfo_t *inf, void *ptr) {
+    (void)signum;
+    (void)inf;
+    (void)ptr;
+    schedule_shutdown(NULL, 0, 1, NULL);
+}
+
 /* Install any handlers for signals we care about */
 static void install_signal_handlers() {
     struct sigaction sa;
@@ -297,6 +398,42 @@ static void install_signal_handlers() {
     if(sigaction(SIGPIPE, &sa, NULL) == -1) {
         perror("sigaction");
         exit(EXIT_FAILURE);
+    }
+
+    /* Set up a SIGHUP handler to reopen the log file, if we do log rotation. */
+    if(!dont_daemonize) {
+        sigemptyset(&sa.sa_mask);
+        sa.sa_handler = NULL;
+        sa.sa_sigaction = &sighup_hnd;
+        sa.sa_flags = SA_SIGINFO;
+
+        if(sigaction(SIGHUP, &sa, NULL) < 0) {
+            perror("sigaction");
+            fprintf(stderr, "Can't set SIGHUP handler, log rotation may not"
+                    "work.\n");
+        }
+    }
+
+    /* Set up a SIGTERM handler to somewhat gracefully shutdown. */
+    sigemptyset(&sa.sa_mask);
+    sa.sa_handler = NULL;
+    sa.sa_sigaction = &sigterm_hnd;
+    sa.sa_flags = SA_SIGINFO;
+
+    if(sigaction(SIGTERM, &sa, NULL) < 0) {
+        perror("sigaction");
+        fprintf(stderr, "Can't set SIGTERM handler.\n");
+    }
+
+    /* Set up a SIGUSR1 handler to restart... */
+    sigemptyset(&sa.sa_mask);
+    sa.sa_handler = NULL;
+    sa.sa_sigaction = &sigusr1_hnd;
+    sa.sa_flags = SA_SIGINFO;
+
+    if(sigaction(SIGUSR1, &sa, NULL) < 0) {
+        perror("sigaction");
+        fprintf(stderr, "Can't set SIGUSR1 handler.\n");
     }
 }
 
@@ -445,12 +582,61 @@ int setup_addresses(sylverant_ship_t *cfg) {
     return 0;
 }
 
+void cleanup_pidfile(void) {
+    pidfile_remove(pf);
+}
+
+static int drop_privs(void) {
+    struct passwd *pw;
+    uid_t uid;
+    gid_t gid;
+
+    /* Make sure we're actually root, otherwise some of this will fail. */
+    if(getuid() && geteuid())
+        return 0;
+
+    /* Look for users. We're looking for the user "sylverant", generally. */
+    if((pw = getpwnam(runas_user))) {
+        uid = pw->pw_uid;
+        gid = pw->pw_gid;
+    }
+    else {
+        debug(DBG_ERROR, "Cannot find user \"%s\". Bailing out!\n", runas_user);
+        return -1;
+    }
+
+    /* Set privileges. */
+    if(setgroups(1, &gid)) {
+        perror("setgroups");
+        return -1;
+    }
+
+    if(setgid(gid)) {
+        perror("setgid");
+        return -1;
+    }
+
+    if(setuid(uid)) {
+        perror("setuid");
+        return -1;
+    }
+
+    /* Make sure the privileges stick. */
+    if(!getuid() || !geteuid()) {
+        debug(DBG_ERROR, "Cannot set non-root privileges. Bailing out!\n");
+        return -1;
+    }
+
+    return 0;
+}
+
 int main(int argc, char *argv[]) {
     void *tmp;
     sylverant_ship_t *cfg;
     char *initial_path;
     long size;
     int rv;
+    pid_t op;
 
     /* Parse the command line... */
     parse_command_line(argc, argv);
@@ -476,32 +662,62 @@ int main(int argc, char *argv[]) {
 
     /* If we're still alive and we're supposed to daemonize, do it now. */
     if(!dont_daemonize) {
-        open_log(cfg);
+        /* Attempt to open and lock the pid file. */
+        if(!pidfile_name) {
+            char *pn = (char *)malloc(strlen(cfg->name) + strlen(PID_DIR) + 32);
+            sprintf(pn, "%s/ship_server-%s.pid", PID_DIR, cfg->name);
+            pidfile_name = pn;
+        }
+
+        pf = pidfile_open(pidfile_name, 0660, &op);
+
+        if(!pf) {
+            if(errno == EEXIST) {
+                debug(DBG_ERROR, "Ship Server already running? (pid: %ld)\n",
+                      (long)op);
+                exit(EXIT_FAILURE);
+            }
+
+            debug(DBG_WARN, "Cannot create pidfile: %s!\n", strerror(errno));
+        }
+        else {
+            atexit(&cleanup_pidfile);
+        }
 
         if(daemon(1, 0)) {
             debug(DBG_ERROR, "Cannot daemonize\n");
             perror("daemon");
             exit(EXIT_FAILURE);
         }
+
+        if(drop_privs())
+            exit(EXIT_FAILURE);
+
+        open_log(cfg);
+
+        /* Write the pid file. */
+        pidfile_write(pf);
+    }
+    else {
+        if(drop_privs())
+            exit(EXIT_FAILURE);
     }
 
+restart:
     print_config(cfg);
 
     /* Parse the addresses */
-    if(setup_addresses(cfg)) {
+    if(setup_addresses(cfg))
         exit(EXIT_FAILURE);
-    }
 
     /* Initialize GnuTLS stuff... */
     if(!check_only) {
-        if(init_gnutls(cfg)) {
+        if(init_gnutls(cfg))
             exit(EXIT_FAILURE);
-        }
 
         /* Set up things for clients to connect. */
-        if(client_init(cfg)) {
+        if(client_init(cfg))
             exit(EXIT_FAILURE);
-        }
     }
 
     /* Try to read the v2 ItemPT data... */
@@ -615,9 +831,8 @@ int main(int argc, char *argv[]) {
     }
 
     /* Initialize all the iconv contexts we'll need */
-    if(init_iconv()) {
+    if(init_iconv())
         exit(EXIT_FAILURE);
-    }
 
     /* Init mini18n if we have it */
     init_i18n();
@@ -660,14 +875,25 @@ int main(int argc, char *argv[]) {
     gc_free_params();
 
     if(restart_on_shutdown) {
+        cfg = load_config();
+        goto restart;
+#if 0
         chdir(initial_path);
         free(initial_path);
+        xmlCleanupParser();
+
+        /* If we're restarting, remove the pidfile, since atexit handlers do not
+           run when we leave by way of execvp. */
+        if(pf)
+            pidfile_remove(pf);
+
         execvp(argv[0], argv);
 
         /* This should never be reached, since execvp should replace us. If we
            get here, there was a serious problem... */
         debug(DBG_ERROR, "Restart failed: %s\n", strerror(errno));
         return -1;
+#endif
     }
 
     free(initial_path);

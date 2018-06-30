@@ -1,7 +1,7 @@
 #
 #   This file is part of Sylverant PSO Server.
 #
-#   Copyright (C) 2009, 2010, 2011, 2012, 2013 Lawrence Sebald
+#   Copyright (C) 2009, 2010, 2011, 2012, 2013, 2018 Lawrence Sebald
 #
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU Affero General Public License version 3
@@ -35,6 +35,11 @@ ship_server_SOURCES = src/block.c src/block.h src/clients.c src/clients.h \
                       src/admin.h src/admin.c src/mapdata.h src/mapdata.c \
                       src/ptdata.h src/ptdata.c src/pmtdata.h src/pmtdata.c \
                       src/rtdata.h src/rtdata.c src/subcmd-dcnte.c
+
+if NEED_PIDFILE
+AM_CFLAGS += -DNEED_PIDFILE=1
+ship_server_SOURCES += src/pidfile.c
+endif
 
 datarootdir = @datarootdir@
 SUBDIRS = l10n

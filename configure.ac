@@ -56,7 +56,7 @@ AC_CHECK_LIB([sylverant], [sylverant_read_config], , AC_MSG_ERROR([libsylverant 
 AC_CHECK_LIB([mini18n], [mini18n_get], , AC_MSG_WARN([Internationalization support requires mini18n]))
 AC_CHECK_LIB([psoarchive], [pso_gsl_read_open], , AC_MSG_ERROR([libpsoarchive is required!]))
 
-AC_SEARCH_LIBS([pidfile_open], [util bsd], [CFLAGS="$CFLAGS -DHAVE_PIDFILE=1"], [CFLAGS="$CFLAGS -DNEED_PIDFILE=1"])
+AC_SEARCH_LIBS([pidfile_open], [util bsd], [NEED_PIDFILE=0], [NEED_PIDFILE=1])
 
 AC_ARG_ENABLE([scripting], [AS_HELP_STRING([--enable-scripting],
               [enable scripting support in the binary (requires Python 2.x (x >= 5))])],
@@ -99,6 +99,8 @@ AS_IF([test "x$enable_scripting" != xno], [
 
 AM_ICONV
 AM_ICONV_LINK
+AM_CONDITIONAL([NEED_PIDFILE], [test "$NEED_PIDFILE" -eq 1])
+
 AX_PTHREAD
 
 # Checks for header files.
