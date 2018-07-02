@@ -104,7 +104,7 @@ AM_CONDITIONAL([NEED_PIDFILE], [test "$NEED_PIDFILE" -eq 1])
 AX_PTHREAD
 
 # Checks for header files.
-AC_CHECK_HEADERS([arpa/inet.h inttypes.h netdb.h netinet/in.h stdlib.h string.h sys/socket.h sys/time.h unistd.h])
+AC_CHECK_HEADERS([arpa/inet.h inttypes.h netdb.h netinet/in.h stdlib.h string.h sys/socket.h sys/time.h unistd.h pwd.h grp.h])
 AC_CHECK_HEADERS([libutil.h bsd/libutil.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
@@ -119,7 +119,7 @@ AC_CHECK_SIZEOF([int])
 AC_CHECK_SIZEOF([long int])
 
 # Checks for library functions.
-AC_CHECK_FUNCS([malloc realloc gethostname gettimeofday inet_ntoa memmove memset select socket strtoul])
+AC_CHECK_FUNCS([malloc realloc gethostname gettimeofday inet_ntoa memmove memset select socket strtoul getgrouplist])
 
 CFLAGS="$CFLAGS -Wall -DGIT_BUILD=\"\\\"\`git log --oneline | wc -l | tr -d \'[[:space:]]\'\`\\\"\""
 CFLAGS="$CFLAGS -DGIT_CHANGESET=\"\\\"\`git show -s --pretty=format:%h\`\\\"\""
