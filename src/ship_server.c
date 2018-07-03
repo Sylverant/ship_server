@@ -608,6 +608,14 @@ static int drop_privs(void) {
         return -1;
     }
 
+    /* Change the pidfile's uid/gid now, before we drop privileges... */
+    if(pf) {
+        if(fchown(pidfile_fileno(pf), uid, gid)) {
+            debug(DBG_WARN, "Cannot change pidfile owner: %s\n",
+                  strerror(errno));
+        }
+    }
+
 #ifdef HAVE_GETGROUPLIST
     /* Figure out what other groups the user is in... */
     getgrouplist(runas_user, gid, NULL, &gid_count);
