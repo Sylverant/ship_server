@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2012, 2013, 2014, 2015, 2017 Lawrence Sebald
+    Copyright (C) 2012, 2013, 2014, 2015, 2017, 2018 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -35,6 +35,7 @@ static bb_battle_param_t battle_params[2][3][4][0x60];
 
 /* Player levelup data */
 bb_level_table_t char_stats;
+v2_level_table_t v2_char_stats;
 
 /* Parsed enemy data. Organized similarly to the battle parameters, except that
    the last level is the actual areas themselves (and there's no difficulty
@@ -105,7 +106,7 @@ static int read_param_file(bb_battle_param_t dst[4][0x60], const char *fn) {
     return 0;
 }
 
-static int read_level_data(const char *fn) {
+static int read_bb_level_data(const char *fn) {
     uint8_t *buf;
     int decsize;
 
@@ -126,6 +127,37 @@ static int read_level_data(const char *fn) {
     for(j = 0; j < 12; ++j) {
         for(i = 0; i < 200; ++i) {
             char_stats[j][i].exp = LE32(char_stats[j][i].exp);
+        }
+    }
+#endif
+
+    /* Clean up... */
+    free(buf);
+
+    return 0;
+}
+
+static int read_v2_level_data(const char *fn) {
+    uint8_t *buf;
+    int decsize;
+
+#if defined(WORDS_BIGENDIAN) || defined(__BIG_ENDIAN__)
+    int i, j;
+#endif
+
+    /* Read in the file and decompress it. */
+    if((decsize = pso_prs_decompress_file(fn, &buf)) < 0) {
+        debug(DBG_ERROR, "Cannot read levels %s: %s\n", fn, strerror(-decsize));
+        return -1;
+    }
+
+    memcpy(&v2_char_stats, buf + 8, sizeof(v2_level_table_t));
+
+#if defined(WORDS_BIGENDIAN) || defined(__BIG_ENDIAN__)
+    /* Swap all the exp values */
+    for(j = 0; j < 9; ++j) {
+        for(i = 0; i < 200; ++i) {
+            v2_char_stats[j][i].exp = LE32(v2_char_stats[j][i].exp);
         }
     }
 #endif
@@ -1182,7 +1214,7 @@ int bb_read_params(sylverant_ship_t *cfg) {
 
     /* Try to read the levelup data */
     debug(DBG_LOG, "Loading Blue Burst levelup table...\n");
-    rv += read_level_data("PlyLevelTbl.prs");
+    rv += read_bb_level_data("PlyLevelTbl.prs");
 
     /* Change back to the original directory. */
     if(chdir(path)) {
@@ -1253,6 +1285,27 @@ int v2_read_params(sylverant_ship_t *cfg) {
         debug(DBG_ERROR, "Error getting current dir: %s\n", strerror(errno));
         free(buf);
         return -1;
+    }
+
+    if(cfg->v2_param_dir) {
+        if(chdir(cfg->v2_param_dir)) {
+            debug(DBG_ERROR, "Error changing to v2 param dir: %s\n",
+                  strerror(errno));
+            free(buf);
+            return -1;
+        }
+
+        /* Try to read the levelup data */
+        debug(DBG_LOG, "Loading v2 levelup table...\n");
+        read_v2_level_data("PlayerTable.prs");
+
+        /* Change back to the original directory. */
+        if(chdir(path)) {
+            debug(DBG_ERROR, "Cannot change back to original dir: %s\n",
+                  strerror(errno));
+            free(buf);
+            return -1;
+        }
     }
 
     /* Next, try to read the map data */

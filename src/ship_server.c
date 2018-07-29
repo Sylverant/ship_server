@@ -270,6 +270,9 @@ static void print_config(sylverant_ship_t *cfg) {
     if(cfg->bb_param_dir)
         debug(DBG_LOG, "BB Param Directory: %s\n", cfg->bb_param_dir);
 
+    if(cfg->v2_param_dir)
+        debug(DBG_LOG, "v2 Param Directory: %s\n", cfg->v2_param_dir);
+
     if(cfg->bb_map_dir)
         debug(DBG_LOG, "BB Map Directory: %s\n", cfg->bb_map_dir);
 

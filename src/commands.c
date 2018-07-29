@@ -2664,38 +2664,67 @@ static int handle_level(ship_client_t *c, const char *params) {
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
     }
 
-    /* Make sure that the requester is in a game lobby, not a lobby lobby */
-    if(l->type != LOBBY_TYPE_GAME) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game."));
-    }
+    if(c->version == CLIENT_VERSION_BB) {
+        /* Make sure that the requester is in a game lobby, not a lobby lobby */
+        if(l->type != LOBBY_TYPE_GAME) {
+            return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game."));
+        }
 
-    /* Make sure the requester is on Blue Burst */
-    if(c->version != CLIENT_VERSION_BB) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Only valid on Blue Burst."));
-    }
+        /* Figure out the level requested */
+        if(params && strlen(params)) {
+            errno = 0;
+            amt = (uint32_t)strtoul(params, NULL, 10);
 
-    /* Figure out the level requested */
-    if(params && strlen(params)) {
-        errno = 0;
-        amt = (uint32_t)strtoul(params, NULL, 10);
+            if(errno != 0) {
+                /* Send a message saying invalid amount */
+                return send_txt(c, "%s", __(c, "\tE\tC7Invalid level."));
+            }
 
-        if(errno != 0) {
-            /* Send a message saying invalid amount */
+            amt -= 1;
+        }
+        else {
+            amt = LE32(c->bb_pl->character.level) + 1;
+        }
+
+        /* If the level is too high, let them know. */
+        if(amt > 199) {
             return send_txt(c, "%s", __(c, "\tE\tC7Invalid level."));
         }
 
-        amt -= 1;
+        return client_give_level(c, amt);
+    }
+    else if(c->version == CLIENT_VERSION_DCV2) {
+        /* Make sure that the requester is in a lobby, not a team */
+        if(l->type == LOBBY_TYPE_GAME) {
+            return send_txt(c, "%s", __(c, "\tE\tC7Not valid in a team."));
+        }
+
+        /* Figure out the level requested */
+        if(params && strlen(params)) {
+            errno = 0;
+            amt = (uint32_t)strtoul(params, NULL, 10);
+
+            if(errno != 0) {
+                /* Send a message saying invalid amount */
+                return send_txt(c, "%s", __(c, "\tE\tC7Invalid level."));
+            }
+
+            amt -= 1;
+        }
+        else {
+            amt = LE32(c->pl->v1.level) + 1;
+        }
+
+        /* If the level is too high, let them know. */
+        if(amt > 199) {
+            return send_txt(c, "%s", __(c, "\tE\tC7Invalid level."));
+        }
+
+        return client_give_level_v2(c, amt);
     }
     else {
-        amt = LE32(c->bb_pl->character.level) + 1;
+        return send_txt(c, "%s", __(c, "\tE\tC7Not valid on your version."));
     }
-
-    /* If the level is too high, let them know. */
-    if(amt > 199) {
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid level."));
-    }
-
-    return client_give_level(c, amt);
 }
 
 /* Usage: /sdrops [off] */

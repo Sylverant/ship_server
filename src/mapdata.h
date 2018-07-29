@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2012, 2013, 2015, 2017 Lawrence Sebald
+    Copyright (C) 2012, 2013, 2015, 2017, 2018 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -47,7 +47,7 @@ typedef struct bb_battle_param {
 } PACKED bb_battle_param_t;
 
 /* A single entry in the level table. */
-typedef struct bb_level_entry {
+typedef struct level_entry {
     uint8_t atp;
     uint8_t mst;
     uint8_t evp;
@@ -56,7 +56,9 @@ typedef struct bb_level_entry {
     uint8_t ata;
     uint8_t unk[2];
     uint32_t exp;
-} PACKED bb_level_entry_t;
+} PACKED level_entry_t;
+
+typedef level_entry_t bb_level_entry_t;
 
 /* Level-up information table from PlyLevelTbl.prs */
 typedef struct bb_level_table {
@@ -70,8 +72,13 @@ typedef struct bb_level_table {
         uint16_t lck;
     } start_stats[12];
     uint32_t unk[12];
-    bb_level_entry_t levels[12][200];
+    level_entry_t levels[12][200];
 } PACKED bb_level_table_t;
+
+/* PSOv2 level-up information table from PlayerTable.prs */
+typedef struct v2_level_table {
+    level_entry_t levels[9][200];
+} PACKED v2_level_table_t;
 
 /* Enemy data in the map files. This the same as the ENEMY_ENTRY struct from
    newserv. */
@@ -156,6 +163,7 @@ typedef struct lobby lobby_t;
 
 /* Player levelup data */
 extern bb_level_table_t char_stats;
+extern v2_level_table_t v2_char_stats;
 
 int bb_read_params(sylverant_ship_t *cfg);
 void bb_free_params(void);

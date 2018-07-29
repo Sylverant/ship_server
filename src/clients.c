@@ -790,6 +790,58 @@ int client_give_level(ship_client_t *c, uint32_t level_req) {
     return 0;
 }
 
+static void give_stats_v2(ship_client_t *c, level_entry_t *ent) {
+    uint16_t tmp;
+
+    tmp = LE16(c->pl->v1.atp) + ent->atp;
+    c->pl->v1.atp = LE16(tmp);
+
+    tmp = LE16(c->pl->v1.mst) + ent->mst;
+    c->pl->v1.mst = LE16(tmp);
+
+    tmp = LE16(c->pl->v1.evp) + ent->evp;
+    c->pl->v1.evp = LE16(tmp);
+
+    tmp = LE16(c->pl->v1.hp) + ent->hp;
+    c->pl->v1.hp = LE16(tmp);
+
+    tmp = LE16(c->pl->v1.dfp) + ent->dfp;
+    c->pl->v1.dfp = LE16(tmp);
+
+    tmp = LE16(c->pl->v1.ata) + ent->ata;
+    c->pl->v1.ata = LE16(tmp);
+
+    c->pl->v1.exp = LE32(ent->exp);
+}
+
+/* Give a PSOv2 client some free level ups. */
+int client_give_level_v2(ship_client_t *c, uint32_t level_req) {
+    level_entry_t *ent;
+    int cl, i;
+
+    if(c->version != CLIENT_VERSION_DCV2 || !c->pl || level_req > 199)
+        return -1;
+
+    /* No need if they've already at that level. */
+    if(c->pl->v1.level >= level_req)
+        return 0;
+
+    /* Give all the stat boosts for the intervening levels... */
+    cl = c->pl->v1.ch_class;
+
+    for(i = c->pl->v1.level + 1; i <= level_req; ++i) {
+        ent = &v2_char_stats.levels[cl][i];
+        give_stats_v2(c, ent);
+    }
+
+    c->pl->v1.level = LE32(level_req);
+
+    /* Reload them into the lobby. */
+    send_lobby_join(c, c->cur_lobby);
+
+    return 0;
+}
+
 static int check_char_v1(ship_client_t *c, player_t *pl) {
     bitfloat_t f1, f2;
 

@@ -323,6 +323,9 @@ int client_give_exp(ship_client_t *c, uint32_t exp);
 /* Give a Blue Burst client some free level ups. */
 int client_give_level(ship_client_t *c, uint32_t level_req);
 
+/* Give a PSOv2 client some free level ups. */
+int client_give_level_v2(ship_client_t *c, uint32_t level_req);
+
 /* Check if a client's newly sent character data looks corrupted. */
 int client_check_character(ship_client_t *c, player_t *pl, uint8_t ver);
 
