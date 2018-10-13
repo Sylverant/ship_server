@@ -1061,6 +1061,21 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
         }
     }
 
+    /* Do some more sanity checking...
+       XXXX: This should probably be more thorough and done as part of the
+       client_check_character() function. */
+    v = LE32(pkt->data.v1.level);
+    if(v > 199) {
+        send_message_box(c, __(c, "\tEHacked characters are not allowed\n"
+                                  "on this server.\n\n"
+                                  "This will be reported to the server\n"
+                                  "administration."));
+        debug(DBG_WARN, "%s(%d): Character with invalid level detected!\n"
+                        "        GC %" PRIu32 ", Level: %" PRIu32 "\n",
+              c->guildcard, v + 1);
+        return -1;
+    }
+
     /* Copy out the player data, and set up pointers. */
     if(version == 1) {
         memcpy(c->pl, &pkt->data, sizeof(v1_player_t));
