@@ -481,7 +481,7 @@ static const char shipgate_login_msg[] =
 #define LOGIN_FLAG_NOBB     0x00000200  /* Do not allow PSOBB clients */
 #define LOGIN_FLAG_NODCNTE  0x00000400  /* Do not allowe DC NTE clients */
 /* 0x00000400 - 0x00008000 reserved. */
-#define LOGIN_FLAG_PYTHON3  0x00010000  /* Ship supports Python 3.x scripting */
+#define LOGIN_FLAG_PYTHON   0x00010000  /* Ship supports Python 2.x scripting */
 
 /* General error codes */
 #define ERR_NO_ERROR            0x00000000

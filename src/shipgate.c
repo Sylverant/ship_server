@@ -2055,10 +2055,6 @@ int shipgate_send_ship_info(shipgate_conn_t *c, ship_t *ship) {
     pkt->games = htons(ship->num_games);
     pkt->menu_code = htons(ship->cfg->menu_code);
 
-#ifdef HAVE_PYTHON
-    pkt->flags |= htonl(LOGIN_FLAG_PYTHON3);
-#endif
-
     /* Send it away */
     return send_raw(c, sizeof(shipgate_login6_reply_pkt), sendbuf, 0);
 }

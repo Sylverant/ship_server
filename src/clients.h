@@ -28,10 +28,6 @@
 #ifndef CLIENTS_H
 #define CLIENTS_H
 
-#ifdef HAVE_PYTHON
-#include <Python.h>
-#endif
-
 #include <time.h>
 #include <inttypes.h>
 #include <pthread.h>
@@ -161,10 +157,6 @@ struct ship_client {
     bb_security_data_t sec_data;
     sylverant_bb_db_char_t *bb_pl;
     sylverant_bb_db_opts_t *bb_opts;
-
-#ifdef HAVE_PYTHON
-    PyObject *pyobj;
-#endif
 
 #ifdef DEBUG
     uint8_t sdrops_ver;
@@ -331,13 +323,6 @@ int client_check_character(ship_client_t *c, player_t *pl, uint8_t ver);
 
 /* Run a legit check on a given client. */
 int client_legit_check(ship_client_t *c, sylverant_limits_t *limits);
-
-#ifdef HAVE_PYTHON
-
-/* Initialize the Client class for Python */
-void client_init_scripting(PyObject *m);
-
-#endif
 
 #endif /* !CLIENTS_H */
 #endif /* !CLIENTS_H_COUNTS_ONLY */

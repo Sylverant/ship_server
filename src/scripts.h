@@ -18,10 +18,6 @@
 #ifndef SCRIPTS_H
 #define SCRIPTS_H
 
-#ifdef HAVE_PYTHON
-#include <Python.h>
-#endif
-
 #include <stdint.h>
 #include <sys/queue.h>
 
@@ -54,32 +50,6 @@ typedef enum script_action {
     ScriptActionEnemyKill,
     ScriptActionCount
 } script_action_t;
-
-#ifdef HAVE_PYTHON
-
-/* Scripting stuff in scripts.c */
-typedef struct script_entry {
-    TAILQ_ENTRY(script_entry) qentry;
-
-    char *filename;
-    PyObject *module;
-} script_entry_t;
-
-typedef struct script_event {
-    PyObject *function;
-    script_entry_t *module;
-} script_event_t;
-
-void script_eventlist_clear();
-int script_eventlist_read(const char *fn);
-
-script_entry_t *script_lookup(const char *filename, uint32_t *hashv);
-script_entry_t *script_add(const char *filename);
-void script_remove_entry(script_entry_t *entry);
-void script_remove(const char *filename);
-void script_hash_cleanup(void);
-
-#endif
 
 /* Call the script function for the given event with the args listed */
 int script_execute(script_action_t event, ...);

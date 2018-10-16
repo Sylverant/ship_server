@@ -15,10 +15,6 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifdef HAVE_PYTHON
-#include <Python.h>
-#endif
-
 #include <string.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -39,7 +35,7 @@
 
 #define XC (const xmlChar *)
 
-#ifdef HAVE_PYTHON
+#if 0
 
 /* Text versions of the script actions. This must match the list in the
    script_action_t enum in scripts.h. */
@@ -525,4 +521,4 @@ int script_execute(script_action_t event, ...) {
     return 0;
 }
 
-#endif /* HAVE_PYTHON */
+#endif /* 0 */
