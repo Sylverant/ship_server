@@ -58,44 +58,30 @@ AC_CHECK_LIB([psoarchive], [pso_gsl_read_open], , AC_MSG_ERROR([libpsoarchive is
 
 AC_SEARCH_LIBS([pidfile_open], [util bsd], [NEED_PIDFILE=0], [NEED_PIDFILE=1])
 
-dnl AC_ARG_ENABLE([scripting], [AS_HELP_STRING([--enable-scripting],
-dnl               [enable scripting support in the binary (requires Python 2.x (x >= 5))])],
-dnl               [enable_scripting=$enableval],
-dnl               [enable_scripting=no])
+AC_ARG_ENABLE([scripting], [AS_HELP_STRING([--enable-scripting],
+              [enable scripting support in the binary (requires Lua 5.2.x)])],
+              [enable_scripting=$enableval],
+              [enable_scripting=no])
 
-dnl AS_IF([test "x$enable_scripting" != xno], [
-dnl     AM_PATH_PYTHON([2.5], , AC_MSG_WARN([Scripting support requires Python >= 2.5]))
-dnl
-dnl     # Add Python's flags into the mix if its enabled.
-dnl     if test "$PYTHON" != ":" ; then
-dnl         AC_ARG_VAR([PYTHON_INCLUDES], [Include directories for python])
-dnl         AC_ARG_VAR([PYTHON_LIBS], [Link libraries for python])
-dnl         AC_ARG_VAR([PYTHON_CONFIG], [Path to python-config])
-dnl         AS_IF([test -z "$PYTHON_CONFIG"], [
-dnl             AC_PATH_PROGS([PYTHON_CONFIG],
-dnl                           [python$PYTHON_VERSION-config python-config],
-dnl                           [no],
-dnl                           [`dirname $PYTHON`])
-dnl             AS_IF([test "$PYTHON_CONFIG" = no],
-dnl                   [AC_MSG_ERROR([cannot find python-config for $PYTHON.])])
-dnl         ])
-dnl
-dnl         AS_IF([test -z "$PYTHON_INCLUDES"], [
-dnl             AC_MSG_CHECKING([python include directories])
-dnl             PYTHON_INCLUDES=`$PYTHON_CONFIG --includes`
-dnl             AC_MSG_RESULT([$PYTHON_INCLUDES])
-dnl         ])
-dnl
-dnl         AS_IF([test -z "$PYTHON_LIBS"], [
-dnl             AC_MSG_CHECKING([python libraries])
-dnl             PYTHON_LIBS=`$PYTHON_CONFIG --libs`
-dnl             AC_MSG_RESULT([$PYTHON_LIBS])
-dnl         ])
-dnl
-dnl         CFLAGS="$CFLAGS $PYTHON_INCLUDES -DHAVE_PYTHON=1"
-dnl         LIBS="$LIBS $PYTHON_LIBS"
-dnl     fi
-dnl ])
+AS_IF([test "x$enable_scripting" != xno], [
+    PKG_CHECK_MODULES([lua], [lua-5.2], , [
+        PKG_CHECK_MODULES([lua], [lua5.2], , [
+            PKG_CHECK_MODULES([lua], [lua >= 5.2 lua < 5.3], , [
+                AC_MSG_ERROR([Scripting support requires Lua 5.2.x!])
+            ])
+        ])
+    ])
+
+    CFLAGS="$CFLAGS $lua_CFLAGS"
+    LIBS="$LIBS $lua_LIBS"
+
+    AC_CHECK_LIB([tolua], [tolua_open], , [
+        AC_MSG_ERROR([Scripting support requires libtolua!])
+    ])
+
+    AC_PATH_PROG([TOLUA], [tolua], [no])
+    AS_IF([test "x$TOLUA" == xno], [AC_MSG_ERROR([Scripting support requires tolua!])])
+])
 
 AM_ICONV
 AM_ICONV_LINK
