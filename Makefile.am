@@ -38,7 +38,7 @@ ship_server_SOURCES = src/block.c src/block.h src/clients.c src/clients.h \
 
 if NEED_PIDFILE
 AM_CFLAGS += -DNEED_PIDFILE=1
-ship_server_SOURCES += src/pidfile.c
+ship_server_SOURCES += src/pidfile.c src/flopen.c
 endif
 
 datarootdir = @datarootdir@

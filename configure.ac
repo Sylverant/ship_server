@@ -56,7 +56,7 @@ AC_CHECK_LIB([sylverant], [sylverant_read_config], , AC_MSG_ERROR([libsylverant 
 AC_CHECK_LIB([mini18n], [mini18n_get], , AC_MSG_WARN([Internationalization support requires mini18n]))
 AC_CHECK_LIB([psoarchive], [pso_gsl_read_open], , AC_MSG_ERROR([libpsoarchive is required!]))
 
-AC_SEARCH_LIBS([pidfile_open], [util bsd], [NEED_PIDFILE=0], [NEED_PIDFILE=1])
+AC_SEARCH_LIBS([pidfile_fileno], [util bsd], [NEED_PIDFILE=0], [NEED_PIDFILE=1])
 
 AC_ARG_ENABLE([scripting], [AS_HELP_STRING([--enable-scripting],
               [enable scripting support in the binary (requires Lua 5.2.x)])],
@@ -64,23 +64,16 @@ AC_ARG_ENABLE([scripting], [AS_HELP_STRING([--enable-scripting],
               [enable_scripting=no])
 
 AS_IF([test "x$enable_scripting" != xno], [
-    PKG_CHECK_MODULES([lua], [lua-5.2], , [
-        PKG_CHECK_MODULES([lua], [lua5.2], , [
-            PKG_CHECK_MODULES([lua], [lua >= 5.2 lua < 5.3], , [
-                AC_MSG_ERROR([Scripting support requires Lua 5.2.x!])
+    PKG_CHECK_MODULES([lua], [lua-5.3], , [
+        PKG_CHECK_MODULES([lua], [lua5.3], , [
+            PKG_CHECK_MODULES([lua], [lua >= 5.3], , [
+                AC_MSG_ERROR([Scripting support requires Lua 5.3.x!])
             ])
         ])
     ])
 
     CFLAGS="$CFLAGS $lua_CFLAGS"
     LIBS="$LIBS $lua_LIBS"
-
-    AC_CHECK_LIB([tolua], [tolua_open], , [
-        AC_MSG_ERROR([Scripting support requires libtolua!])
-    ])
-
-    AC_PATH_PROG([TOLUA], [tolua], [no])
-    AS_IF([test "x$TOLUA" == xno], [AC_MSG_ERROR([Scripting support requires tolua!])])
 ])
 
 AM_ICONV

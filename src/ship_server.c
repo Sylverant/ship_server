@@ -46,6 +46,7 @@ struct pidfh;
 struct pidfh *pidfile_open(const char *path, mode_t mode, pid_t *pidptr);
 int pidfile_write(struct pidfh *pfh);
 int pidfile_remove(struct pidfh *pfh);
+int pidfile_fileno(struct pidfh *pfh);
 #endif
 
 #include "ship.h"
