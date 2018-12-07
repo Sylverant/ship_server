@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2011, 2016 Lawrence Sebald
+    Copyright (C) 2011, 2016, 2018 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -29,6 +29,12 @@
 #include "utils.h"
 #include "clients.h"
 
+#ifdef ENABLE_LUA
+#include <lua.h>
+#include <lauxlib.h>
+#include <lualib.h>
+#endif
+
 #ifndef LIBXML_TREE_ENABLED
 #error You must have libxml2 with tree support built-in.
 #endif
@@ -36,327 +42,6 @@
 #define XC (const xmlChar *)
 
 #if 0
-
-/* Text versions of the script actions. This must match the list in the
-   script_action_t enum in scripts.h. */
-static const xmlChar *script_action_text[] = {
-    XC"client ship login",
-    XC"client ship logout",
-    XC"client block login",
-    XC"client block logout",
-    XC"unknown ship packet",
-    XC"unknown block packet",
-    XC"enemy kill"
-};
-
-#define SCRIPT_HASH_ENTRIES 24
-
-/* Set up the hash table of script files */
-TAILQ_HEAD(script_queue, script_entry);
-static struct script_queue scripts[SCRIPT_HASH_ENTRIES];
-
-/* List of scripts defined */
-static script_event_t scriptevents[ScriptActionCount];
-static int scripts_initialized = 0;
-
-/* Method list in the sylverant package in Python (currently none) */
-static PyMethodDef sylverant_methods[] = {
-    { NULL }
-};
-
-/* Figure out what index a given script action sits at */
-static inline int script_action_to_index(xmlChar *str) {
-    int i;
-
-    for(i = 0; i < ScriptActionCount; ++i) {
-        if(!xmlStrcmp(script_action_text[i], str)) {
-            return i;
-        }
-    }
-
-    return ScriptActionInvalid;
-}
-
-/* Clean up the whole list of scripts */
-void script_eventlist_clear() {
-    int i;
-
-    for(i = 0; i < ScriptActionCount; ++i) {
-        if(scriptevents[i].function) {
-            Py_DECREF(scriptevents[i].function);
-            scriptevents[i].function = NULL;
-            scriptevents[i].module = NULL;
-        }
-    }
-}
-
-/* Parse the XML for the script definitions */
-int script_eventlist_read(const char *fn) {
-    xmlParserCtxtPtr cxt;
-    xmlDoc *doc;
-    xmlNode *n;
-    xmlChar *module, *function, *event;
-    script_entry_t *mod_entry;
-    PyObject *func_entry;
-    int rv = 0, idx;
-
-    /* If we're reloading, kill the old list. */
-    if(scripts_initialized) {
-        script_eventlist_clear();
-    }
-
-    /* Create an XML Parsing context */
-    cxt = xmlNewParserCtxt();
-    if(!cxt) {
-        debug(DBG_ERROR, "Couldn't create XML parsing context for scripts\n");
-        rv = -1;
-        goto err;
-    }
-
-    /* Open the script list XML file for reading. */
-    doc = xmlReadFile(fn, NULL, 0 /* XML_PARSE_DTDVALID */);
-    if(!doc) {
-        xmlParserError(cxt, "Error in parsing script List");
-        rv = -2;
-        goto err_cxt;
-    }
-
-    /* Make sure the document validated properly. */
-    if(!cxt->valid) {
-        xmlParserValidityError(cxt, "Validity Error parsing script List");
-        rv = -3;
-        goto err_doc;
-    }
-
-    /* If we've gotten this far, we have a valid document, now go through and
-       add in entries for everything... */
-    n = xmlDocGetRootElement(doc);
-
-    if(!n) {
-        debug(DBG_WARN, "Empty script List document\n");
-        rv = -4;
-        goto err_doc;
-    }
-
-    /* Make sure the list looks sane. */
-    if(xmlStrcmp(n->name, XC"scripts")) {
-        debug(DBG_WARN, "Script list does not appear to be the right type\n");
-        rv = -5;
-        goto err_doc;
-    }
-
-    n = n->children;
-    while(n) {
-        if(n->type != XML_ELEMENT_NODE) {
-            /* Ignore non-elements. */
-            n = n->next;
-            continue;
-        }
-        else if(xmlStrcmp(n->name, XC"script")) {
-            debug(DBG_WARN, "Invalid Tag %s on line %hu\n", n->name, n->line);
-        }
-        else {
-            /* We've got the right tag, see if we have all the attributes... */
-            event = xmlGetProp(n, XC"event");
-            module = xmlGetProp(n, XC"module");
-            function = xmlGetProp(n, XC"function");
-
-            if(!event || !module || !function) {
-                debug(DBG_WARN, "Incomplete script entry on line %hu\n",
-                      n->line);
-                goto next;
-            }
-
-            /* Figure out the entry we're looking at */
-            idx = script_action_to_index(event);
-
-            if(idx == ScriptActionInvalid) {
-                debug(DBG_WARN, "Ignoring unknown event (%s) on line %hu\n",
-                      (char *)event, n->line);
-                goto next;
-            }
-
-            /* Issue a warning if we're redefining something */
-            if(scriptevents[idx].function) {
-                debug(DBG_WARN, "Redefining event \"%s\" on line %hu\n",
-                      (char *)event, n->line);
-                Py_DECREF(scriptevents[idx].function);
-                scriptevents[idx].function = NULL;
-                scriptevents[idx].module = NULL;
-            }
-
-            /* Try to grab the module */
-            mod_entry = script_add((const char *)module);
-            if(!mod_entry) {
-                debug(DBG_WARN, "Couldn't load module \"%s\" on line %hu\n",
-                      (char *)module, n->line);
-                goto next;
-            }
-
-            /* Ok, got the module, now look for the function */
-            func_entry = PyObject_GetAttrString(mod_entry->module,
-                                                (char *)function);
-            if(!func_entry || !PyCallable_Check(func_entry)) {
-                debug(DBG_WARN, "Function %s does not exist in module %s (line "
-                      "%hu)\n", (char *)function, (char *)module, n->line);
-                Py_XDECREF(func_entry);
-                goto next;
-            }
-
-            /* Everything's set up, now all we have to do is fill in the entry
-               in the list */
-            scriptevents[idx].module = mod_entry;
-            scriptevents[idx].function = func_entry;
-
-        next:
-            /* Free the memory we allocated here... */
-            xmlFree(event);
-            xmlFree(module);
-            xmlFree(function);
-        }
-
-        n = n->next;
-    }
-
-    /* Cleanup/error handling below... */
-err_doc:
-    xmlFreeDoc(doc);
-err_cxt:
-    xmlFreeParserCtxt(cxt);
-err:
-
-    return rv;
-}
-
-/* Call the script function for the given event with the args listed */
-int script_execute(script_action_t event, ...) {
-    va_list ap;
-    int argcount = 0, i = 0;
-    PyObject *args, *obj, *rv;
-
-    /* Make sure the event is sane */
-    if(event < ScriptActionFirst || event >= ScriptActionCount) {
-        return -1;
-    }
-
-    /* Short circuit if the event isn't defined */
-    if(!scriptevents[event].function) {
-        return 0;
-    }
-
-    /* Figure out how many arguments there are */
-    va_start(ap, event);
-    while(va_arg(ap, void *)) {
-        ++argcount;
-    }
-    va_end(ap);
-
-    /* Build up the tuple of arguments */
-    args = PyTuple_New(argcount);
-    if(!args) {
-        return -2;
-    }
-
-    va_start(ap, event);
-    while((obj = va_arg(ap, PyObject *))) {
-        /* PyTuple_SetItem() steals a reference, so increment the refcount */
-        Py_INCREF(obj);
-        PyTuple_SetItem(args, i++, obj);
-    }
-    va_end(ap);
-
-    /* Attempt to call the function */
-    rv = PyObject_CallObject(scriptevents[event].function, args);
-    Py_DECREF(args);
-
-    if(!rv) {
-        debug(DBG_WARN, "Error calling function for event \"%s\":\n",
-              script_action_text[event]);
-        PyErr_Print();
-        return -3;
-    }
-
-    /* Ignore the return value from Python, and return success. */
-    Py_DECREF(rv);
-
-    return 0;
-}
-
-/* Call the script function for the given event that involves an unknown pkt */
-int script_execute_pkt(script_action_t event, ship_client_t *c, const void *pkt,
-                       uint16_t len) {
-    PyObject *args, *obj, *rv;
-    int irv = 0;
-
-    /* Make sure the event is sane */
-    if(event < ScriptActionFirst || event >= ScriptActionCount) {
-        return -1;
-    }
-
-    /* Short circuit if the event isn't defined */
-    if(!scriptevents[event].function) {
-        return 0;
-    }
-
-    /* Build up the tuple of arguments */
-    args = PyTuple_New(2);
-    if(!args) {
-        return -2;
-    }
-
-    /* First argument is the client object */
-    Py_INCREF(c->pyobj);
-    PyTuple_SetItem(args, 0, c->pyobj);
-
-    /* Second object is the bad packet */
-    obj = Py_BuildValue("s#", pkt, (int)len);
-    if(!obj) {
-        Py_DECREF(args);
-        return -4;
-    }
-
-    PyTuple_SetItem(args, 1, obj);
-
-    /* Attempt to call the function */
-    rv = PyObject_CallObject(scriptevents[event].function, args);
-    Py_DECREF(args);
-
-    if(!rv) {
-        debug(DBG_WARN, "Error calling function for event \"%s\":\n",
-              script_action_text[event]);
-        PyErr_Print();
-        return -3;
-    }
-
-    if(PyBool_Check(rv) && rv == Py_True) {
-        irv = 1;
-    }
-
-    Py_DECREF(rv);
-
-    return irv;
-}
-
-/* Look for an entry with the given filename */
-script_entry_t *script_lookup(const char *filename, uint32_t *hashv) {
-    uint32_t hashval;
-    script_entry_t *i;
-
-    /* First look to see if its already there */
-    hashval = hash(filename, strlen(filename), 0);
-
-    if(hashv) {
-        *hashv = hashval % SCRIPT_HASH_ENTRIES;
-    }
-
-    TAILQ_FOREACH(i, &scripts[hashval % SCRIPT_HASH_ENTRIES], qentry) {
-        if(!strcmp(filename, i->filename)) {
-            return i;
-        }
-    }
-
-    return NULL;
-}
 
 script_entry_t *script_add(const char *filename) {
     uint32_t hashval;
@@ -429,69 +114,188 @@ void script_remove(const char *filename) {
     }
 }
 
-void script_hash_cleanup(void) {
+#elif defined(ENABLE_LUA)
+
+static pthread_mutex_t script_mutex = PTHREAD_MUTEX_INITIALIZER;
+static lua_State *lstate;
+static int scripts_ref = 0;
+
+static int script_ids[ScriptActionCount] = { 0 };
+
+/* Text versions of the script actions. This must match the list in the
+   script_action_t enum in scripts.h. */
+static const xmlChar *script_action_text[] = {
+    XC"STARTUP",
+    XC"SHUTDOWN",
+    XC"SHIP_LOGIN",
+    XC"SHIP_LOGOUT",
+    XC"BLOCK_LOGIN",
+    XC"BLOCK_LOGOUT",
+    XC"UNK_SHIP_PKT",
+    XC"UNK_BLOCK_PKT",
+    XC"ENEMY_KILL"
+};
+
+/* Figure out what index a given script action sits at */
+static inline int script_action_to_index(xmlChar *str) {
     int i;
-    script_entry_t *j, *tmp;
 
-    for(i = 0; i < SCRIPT_HASH_ENTRIES; ++i) {
-        j = TAILQ_FIRST(&scripts[i]);
+    for(i = 0; i < ScriptActionCount; ++i) {
+        if(!xmlStrcmp(script_action_text[i], str)) {
+            return i;
+        }
+    }
 
-        while(j) {
-            tmp = TAILQ_NEXT(j, qentry);
-            TAILQ_REMOVE(&scripts[i], j, qentry);
+    return ScriptActionInvalid;
+}
 
-            Py_DECREF(j->module);
-            free(j->filename);
-            free(j);
-            j = tmp;
+/* Parse the XML for the script definitions */
+int script_eventlist_read(const char *fn) {
+    xmlParserCtxtPtr cxt;
+    xmlDoc *doc;
+    xmlNode *n;
+    xmlChar *file, *event;
+    int rv = 0, idx;
+
+    /* If we're reloading, kill the old list. */
+    if(scripts_ref) {
+        luaL_unref(lstate, LUA_REGISTRYINDEX, scripts_ref);
+    }
+
+    /* Create an XML Parsing context */
+    cxt = xmlNewParserCtxt();
+    if(!cxt) {
+        debug(DBG_ERROR, "Couldn't create XML parsing context for scripts\n");
+        rv = -1;
+        goto err;
+    }
+
+    /* Open the script list XML file for reading. */
+    doc = xmlReadFile(fn, NULL, 0);
+    if(!doc) {
+        xmlParserError(cxt, "Error in parsing script List");
+        rv = -2;
+        goto err_cxt;
+    }
+
+    /* Make sure the document validated properly. */
+    if(!cxt->valid) {
+        xmlParserValidityError(cxt, "Validity Error parsing script List");
+        rv = -3;
+        goto err_doc;
+    }
+
+    /* If we've gotten this far, we have a valid document, now go through and
+       add in entries for everything... */
+    n = xmlDocGetRootElement(doc);
+
+    if(!n) {
+        debug(DBG_WARN, "Empty script List document\n");
+        rv = -4;
+        goto err_doc;
+    }
+
+    /* Make sure the list looks sane. */
+    if(xmlStrcmp(n->name, XC"scripts")) {
+        debug(DBG_WARN, "Script list does not appear to be the right type\n");
+        rv = -5;
+        goto err_doc;
+    }
+
+    /* Create a table for storing our pre-parsed scripts in... */
+    lua_newtable(lstate);
+
+    n = n->children;
+    while(n) {
+        if(n->type != XML_ELEMENT_NODE) {
+            /* Ignore non-elements. */
+            n = n->next;
+            continue;
+        }
+        else if(xmlStrcmp(n->name, XC"script")) {
+            debug(DBG_WARN, "Invalid Tag %s on line %hu\n", n->name, n->line);
+        }
+        else {
+            /* We've got the right tag, see if we have all the attributes... */
+            event = xmlGetProp(n, XC"event");
+            file = xmlGetProp(n, XC"file");
+
+            if(!event || !file) {
+                debug(DBG_WARN, "Incomplete script entry on line %hu\n",
+                      n->line);
+                goto next;
+            }
+
+            /* Figure out the entry we're looking at */
+            idx = script_action_to_index(event);
+
+            if(idx == ScriptActionInvalid) {
+                debug(DBG_WARN, "Ignoring unknown event (%s) on line %hu\n",
+                      (char *)event, n->line);
+                goto next;
+            }
+
+            /* Issue a warning if we're redefining something */
+            if(script_ids[idx]) {
+                debug(DBG_WARN, "Redefining event \"%s\" on line %hu\n",
+                      (char *)event, n->line);
+            }
+
+            /* Attempt to read in the script. */
+            if(luaL_loadfile(lstate, (const char *)file) != LUA_OK) {
+                debug(DBG_WARN, "Couldn't load script \"%s\" on line %hu\n",
+                      (char *)file, n->line);
+                goto next;
+            }
+
+            /* Add the script to the Lua table. */
+            script_ids[idx] = luaL_ref(lstate, -2);
+            debug(DBG_LOG, "Script for type %s added as ID %d\n", event,
+                  script_ids[idx]);
+
+        next:
+            /* Free the memory we allocated here... */
+            xmlFree(event);
+            xmlFree(file);
         }
 
-        TAILQ_INIT(&scripts[i]);
+        n = n->next;
     }
+
+    /* Store the table of scripts to the registry for later use. */
+    scripts_ref = luaL_ref(lstate, LUA_REGISTRYINDEX);
+
+    /* Cleanup/error handling below... */
+err_doc:
+    xmlFreeDoc(doc);
+err_cxt:
+    xmlFreeParserCtxt(cxt);
+err:
+
+    return rv;
 }
 
 void init_scripts(ship_t *s) {
-    PyObject* m;
-    int i;
-    char *origpath;
-    char *scriptdir;
-
-    Py_InitializeEx(0);
-
-    /* Add the scripts directory to the path */
-    origpath = Py_GetPath();
-    scriptdir = (char *)malloc(strlen(origpath) + 1 +
-                               strlen(sylverant_directory) + 9);
-
-#ifndef _WIN32
-    sprintf(scriptdir, "%s:%s/scripts", origpath, sylverant_directory);
-#else
-    sprintf(scriptdir, "%s;%s/scripts", origpath, sylverant_directory);
-#endif
-
-    PySys_SetPath(scriptdir);
-    free(scriptdir);
-
-    m = Py_InitModule3("sylverant", sylverant_methods, "Sylveant module.");
-
-    /* Init each class here */
-    client_init_scripting(m);
-
-    /* Clean up the scripting hash entries */
-    for(i = 0; i < SCRIPT_HASH_ENTRIES; ++i) {
-        TAILQ_INIT(&scripts[i]);
-    }
-
-    memset(scriptevents, 0, sizeof(script_event_t) * ScriptActionCount);
-
-    /* No reason to try to load if nothing's configured... */
-    if(!s->cfg->scripts_file) {
+    /* Not that this should happen, but just in case... */
+    if(lstate) {
+        debug(DBG_WARN, "Attempt to initialize scripting twice!\n");
         return;
     }
 
-    /* Read in the configuration */
+    /* Initialize the Lua interpreter */
+    debug(DBG_LOG, "Initializing scripting support...\n");
+    if(!(lstate = luaL_newstate())) {
+        debug(DBG_ERROR, "Cannot initialize Lua!\n");
+        return;
+    }
+
+    /* Load up the standard libraries. */
+    luaL_openlibs(lstate);
+
+    /* Read in the configuration into our script table */
     if(script_eventlist_read(s->cfg->scripts_file)) {
         debug(DBG_WARN, "Couldn't load scripts configuration!\n");
+
     }
     else {
         debug(DBG_LOG, "Read script configuration\n");
@@ -499,9 +303,174 @@ void init_scripts(ship_t *s) {
 }
 
 void cleanup_scripts(ship_t *s) {
-    script_eventlist_clear();
-    script_hash_cleanup();
-    Py_Finalize();
+    if(lstate) {
+        /* For good measure, remove the scripts table from the registry. This
+           should garbage collect everything in it, I hope. */
+        if(scripts_ref)
+            luaL_unref(lstate, LUA_REGISTRYINDEX, scripts_ref);
+
+        lua_close(lstate);
+    }
+}
+
+int script_execute_pkt(script_action_t event, ship_client_t *c, const void *pkt,
+                       uint16_t len) {
+    lua_Integer rv = 0;
+    int err = 0;
+
+    /* Can't do anything if we don't have any scripts loaded. */
+    if(!scripts_ref)
+        return 0;
+
+    pthread_mutex_lock(&script_mutex);
+
+    /* Pull the scripts table out to the top of the stack. */
+    lua_rawgeti(lstate, LUA_REGISTRYINDEX, scripts_ref);
+
+    /* See if there's a script event defined */
+    if(!script_ids[event])
+        goto out;
+
+    /* There is an script defined, grab it from the table. */
+    lua_rawgeti(lstate, -1, script_ids[event]);
+
+    /* Now, push the arguments onto the stack. First up is a light userdata
+       for the client object. */
+    lua_pushlightuserdata(lstate, c);
+
+    /* Next is a string of the packet itself. */
+    lua_pushlstring(lstate, (const char *)pkt, (size_t)len);
+
+    /* Done with that, call the function. */
+    if(lua_pcall(lstate, 2, 1, 0) != LUA_OK) {
+        debug(DBG_ERROR, "Error running Lua script for event %d\n", (int)event);
+        lua_pop(lstate, 1);
+        goto out;
+    }
+
+    /* Grab the return value from the lua function (it should be of type
+       integer). */
+    rv = lua_tointegerx(lstate, -1, &err);
+    if(err) {
+        debug(DBG_ERROR, "Script for event %d didn't return int\n",(int)event);
+    }
+
+    /* Pop off the return value. */
+    lua_pop(lstate, 1);
+
+out:
+    /* Pop off the table reference that we pushed up above. */
+    lua_pop(lstate, 1);
+    pthread_mutex_unlock(&script_mutex);
+    return (int)rv;
+}
+
+int script_execute(script_action_t event, ...) {
+    lua_Integer rv = 0;
+    int err = 0, argtype, argcount = 0;
+    va_list ap;
+
+    /* Can't do anything if we don't have any scripts loaded. */
+    if(!scripts_ref)
+        return 0;
+
+    pthread_mutex_lock(&script_mutex);
+
+    /* Pull the scripts table out to the top of the stack. */
+    lua_rawgeti(lstate, LUA_REGISTRYINDEX, scripts_ref);
+
+    /* See if there's a script event defined */
+    if(!script_ids[event])
+        goto out;
+
+    /* There is an script defined, grab it from the table. */
+    lua_rawgeti(lstate, -1, script_ids[event]);
+
+    /* Now, push the arguments onto the stack. */
+    va_start(ap, event);
+    while((argtype = va_arg(ap, int))) {
+        switch(argtype) {
+            case SCRIPT_ARG_INT:
+            {
+                int arg = va_arg(ap, int);
+                lua_Integer larg = (lua_Integer)arg;
+                lua_pushinteger(lstate, larg);
+                break;
+            }
+
+            case SCRIPT_ARG_UINT8:
+            {
+                uint8_t arg = (uint8_t)va_arg(ap, int);
+                lua_Integer larg = (lua_Integer)arg;
+                lua_pushinteger(lstate, larg);
+                break;
+            }
+
+            case SCRIPT_ARG_UINT16:
+            {
+                uint16_t arg = (uint16_t)va_arg(ap, int);
+                lua_Integer larg = (lua_Integer)arg;
+                lua_pushinteger(lstate, larg);
+                break;
+            }
+
+            case SCRIPT_ARG_UINT32:
+            {
+                uint32_t arg = va_arg(ap, uint32_t);
+                lua_Integer larg = (lua_Integer)arg;
+                lua_pushinteger(lstate, larg);
+                break;
+            }
+
+            case SCRIPT_ARG_FLOAT:
+            {
+                double arg = va_arg(ap, double);
+                lua_Number larg = (lua_Number)arg;
+                lua_pushnumber(lstate, larg);
+                break;
+            }
+
+            case SCRIPT_ARG_PTR:
+            {
+                void *arg = va_arg(ap, void *);
+                lua_pushlightuserdata(lstate, arg);
+                break;
+            }
+
+            default:
+                /* Fix the stack and stop trying to parse now... */
+                debug(DBG_WARN, "Invalid script argument type: %d\n", argtype);
+                lua_pop(lstate, argcount);
+                rv = 0;
+                goto out;
+        }
+
+        ++argcount;
+    }
+    va_end(ap);
+
+    /* Done with that, call the function. */
+    if(lua_pcall(lstate, argcount, 1, 0) != LUA_OK) {
+        debug(DBG_ERROR, "Error running Lua script for event %d\n", (int)event);
+        lua_pop(lstate, 1);
+        goto out;
+    }
+
+    /* Grab the return value from the lua function (it should be of type
+       integer). */
+    rv = lua_tointegerx(lstate, -1, &err);
+    if(err) {
+        debug(DBG_ERROR, "Script for event %d didn't return int\n",(int)event);
+    }
+
+    /* Pop off the return value. */
+    lua_pop(lstate, 1);
+
+out:
+    /* Pop off the table reference that we pushed up above. */
+    lua_pop(lstate, 1);
+    pthread_mutex_unlock(&script_mutex);
+    return (int)rv;
 }
 
 #else

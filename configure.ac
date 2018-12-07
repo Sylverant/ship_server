@@ -72,7 +72,7 @@ AS_IF([test "x$enable_scripting" != xno], [
         ])
     ])
 
-    CFLAGS="$CFLAGS $lua_CFLAGS"
+    CFLAGS="$CFLAGS $lua_CFLAGS -DENABLE_LUA"
     LIBS="$LIBS $lua_LIBS"
 ])
 

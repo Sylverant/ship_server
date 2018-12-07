@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2011, 2016 Lawrence Sebald
+    Copyright (C) 2011, 2016, 2018 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -24,24 +24,13 @@
 #include "clients.h"
 #include "ship.h"
 
-/* Hash functions from lookup3.c */
-uint32_t hashword(const uint32_t *k, size_t length, uint32_t initval);
-void hashword2(const uint32_t *k, size_t length, uint32_t *pc, uint32_t *pb);
-uint32_t hashlittle(const void *key, size_t length, uint32_t initval);
-void hashlittle2(const void *key, size_t length, uint32_t *pc, uint32_t *pb);
-uint32_t hashbig(const void *key, size_t length, uint32_t initval);
-
-#if defined(WORDS_BIGENDIAN) || defined(__BIG_ENDIAN__)
-#define hash(k, l, i) hashbig(k, l, i)
-#else
-#define hash(k, l, i) hashlittle(k, l, i)
-#endif
-
 /* Scriptable actions */
 typedef enum script_action {
     ScriptActionInvalid = -1,
     ScriptActionFirst = 0,
-    ScriptActionClientShipLogin = 0,
+    ScriptActionStartup = 0,
+    ScriptActionShutdown,
+    ScriptActionClientShipLogin,
     ScriptActionClientShipLogout,
     ScriptActionClientBlockLogin,
     ScriptActionClientBlockLogout,
@@ -50,6 +39,16 @@ typedef enum script_action {
     ScriptActionEnemyKill,
     ScriptActionCount
 } script_action_t;
+
+/* Argument types. */
+#define SCRIPT_ARG_NONE     0
+#define SCRIPT_ARG_END      SCRIPT_ARG_NONE
+#define SCRIPT_ARG_INT      1
+#define SCRIPT_ARG_PTR      2
+#define SCRIPT_ARG_FLOAT    3
+#define SCRIPT_ARG_UINT8    4
+#define SCRIPT_ARG_UINT16   5
+#define SCRIPT_ARG_UINT32   6
 
 /* Call the script function for the given event with the args listed */
 int script_execute(script_action_t event, ...);
@@ -60,6 +59,5 @@ int script_execute_pkt(script_action_t event, ship_client_t *c, const void *pkt,
 
 void init_scripts(ship_t *s);
 void cleanup_scripts(ship_t *s);
-
 
 #endif /* !SCRIPTS_H */
