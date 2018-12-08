@@ -293,10 +293,10 @@ void init_scripts(ship_t *s) {
     luaL_openlibs(lstate);
 
     /* Register various scripting libraries. */
-    luaL_requiref(lstate, "ship", ship_register_lua, 1);
-    lua_pop(lstate, 1);
-    luaL_requiref(lstate, "client", client_register_lua, 1);
-    lua_pop(lstate, 1);
+    ship_register_lua(lstate);
+    lua_setglobal(lstate, "ship");
+    client_register_lua(lstate);
+    lua_setglobal(lstate, "client");
 
     /* Read in the configuration into our script table */
     if(script_eventlist_read(s->cfg->scripts_file)) {
