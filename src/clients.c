@@ -1137,6 +1137,42 @@ static int client_sendpkt_lua(lua_State *l) {
     }
 }
 
+static int client_lobby_lua(lua_State *l) {
+    ship_client_t *c;
+
+    if(lua_islightuserdata(l, 1)) {
+        c = (ship_client_t *)lua_touserdata(l, 1);
+
+        if(c->cur_lobby)
+            lua_pushlightuserdata(l, c->cur_lobby);
+        else
+            lua_pushnil(l);
+    }
+    else {
+        lua_pushnil(l);
+    }
+
+    return 1;
+}
+
+static int client_block_lua(lua_State *l) {
+    ship_client_t *c;
+
+    if(lua_islightuserdata(l, 1)) {
+        c = (ship_client_t *)lua_touserdata(l, 1);
+
+        if(c->cur_block)
+            lua_pushlightuserdata(l, c->cur_block);
+        else
+            lua_pushnil(l);
+    }
+    else {
+        lua_pushnil(l);
+    }
+
+    return 1;
+}
+
 static const luaL_Reg clientlib[] = {
     { "guildcard", client_guildcard_lua },
     { "isOnBlock", client_isOnBlock_lua },
@@ -1146,6 +1182,8 @@ static const luaL_Reg clientlib[] = {
     { "clientID", client_clientid_lua },
     { "privilege", client_privilege_lua },
     { "send", client_sendpkt_lua },
+    { "lobby", client_lobby_lua },
+    { "block", client_block_lua },
     { NULL, NULL }
 };
 
