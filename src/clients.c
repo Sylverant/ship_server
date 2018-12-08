@@ -1138,14 +1138,14 @@ static int client_sendpkt_lua(lua_State *l) {
 }
 
 static const luaL_Reg clientlib[] = {
-    { "client_get_guildcard", client_guildcard_lua },
-    { "client_isOnBlock", client_isOnBlock_lua },
-    { "client_disconnect", client_disconnect_lua },
-    { "client_get_addr", client_addr_lua },
-    { "client_get_version", client_version_lua },
-    { "client_get_clientID", client_clientid_lua },
-    { "client_get_privilege", client_privilege_lua },
-    { "client_send", client_sendpkt_lua },
+    { "guildcard", client_guildcard_lua },
+    { "isOnBlock", client_isOnBlock_lua },
+    { "disconnect", client_disconnect_lua },
+    { "addr", client_addr_lua },
+    { "version", client_version_lua },
+    { "clientID", client_clientid_lua },
+    { "privilege", client_privilege_lua },
+    { "send", client_sendpkt_lua },
     { NULL, NULL }
 };
 

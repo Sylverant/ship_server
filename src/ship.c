@@ -1544,7 +1544,7 @@ static int ship_name_lua(lua_State *l) {
 }
 
 static const luaL_Reg shiplib[] = {
-    { "ship_name", ship_name_lua },
+    { "name", ship_name_lua },
     { NULL, NULL }
 };
 
