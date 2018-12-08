@@ -36,6 +36,12 @@
 #include "scripts.h"
 #include "admin.h"
 
+#ifdef ENABLE_LUA
+#include <lua.h>
+#include <lualib.h>
+#include <lauxlib.h>
+#endif
+
 extern int enable_ipv6;
 extern uint32_t ship_ip4;
 extern uint8_t ship_ip6[16];
@@ -1520,3 +1526,30 @@ sylverant_limits_t *ship_lookup_limits(const char *name) {
 
     return NULL;
 }
+
+#ifdef ENABLE_LUA
+
+static int ship_name_lua(lua_State *l) {
+    ship_t *sl;
+
+    if(lua_islightuserdata(l, 1)) {
+        sl = (ship_t *)lua_touserdata(l, 1);
+        lua_pushstring(l, sl->cfg->name);
+    }
+    else {
+        lua_pushstring(l, "");
+    }
+
+    return 1;
+}
+
+static const luaL_Reg shiplib[] = {
+    { "ship_name", ship_name_lua },
+    { NULL, NULL }
+};
+
+void ship_register_lua(lua_State *l) {
+    luaL_newlib(l, shiplib);
+}
+
+#endif /* ENABLE_LUA */

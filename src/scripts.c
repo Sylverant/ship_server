@@ -292,6 +292,10 @@ void init_scripts(ship_t *s) {
     /* Load up the standard libraries. */
     luaL_openlibs(lstate);
 
+    /* Register various scripting libraries. */
+    ship_register_lua(lstate);
+    client_register_lua(lstate);
+
     /* Read in the configuration into our script table */
     if(script_eventlist_read(s->cfg->scripts_file)) {
         debug(DBG_WARN, "Couldn't load scripts configuration!\n");
@@ -300,9 +304,6 @@ void init_scripts(ship_t *s) {
     else {
         debug(DBG_LOG, "Read script configuration\n");
     }
-
-    /* Register various scripting libraries. */
-    client_register_lua(lstate);
 }
 
 void cleanup_scripts(ship_t *s) {
