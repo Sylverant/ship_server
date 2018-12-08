@@ -86,6 +86,7 @@ ship_client_t *client_create_connection(int sock, int version, int type,
     int i;
     pthread_mutexattr_t attr;
     struct mt19937_state *rng;
+    script_action_t action = ScriptActionClientShipLogin;
 
     if(!rv) {
         perror("malloc");
@@ -95,6 +96,7 @@ ship_client_t *client_create_connection(int sock, int version, int type,
     memset(rv, 0, sizeof(ship_client_t));
 
     if(type == CLIENT_TYPE_BLOCK) {
+        action = ScriptActionClientBlockLogin;
         rv->pl = (player_t *)malloc(sizeof(player_t));
 
         if(!rv->pl) {
@@ -174,6 +176,8 @@ ship_client_t *client_create_connection(int sock, int version, int type,
     else {
         rng = &block->rng;
     }
+
+    script_execute(action, SCRIPT_ARG_PTR, rv, 0);
 
     switch(version) {
         case CLIENT_VERSION_DCV1:
@@ -272,6 +276,10 @@ void client_destroy_connection(ship_client_t *c,
                                struct client_queue *clients) {
     time_t now = time(NULL);
     char tstr[26];
+    script_action_t action = ScriptActionClientShipLogout;
+
+    if(!(c->flags & CLIENT_FLAG_TYPE_SHIP))
+        action = ScriptActionClientBlockLogout;
 
     TAILQ_REMOVE(clients, c, qentry);
 
@@ -284,6 +292,8 @@ void client_destroy_connection(ship_client_t *c,
                             c->cur_block->b);
         shipgate_send_bb_opts(&ship->sg, c);
     }
+
+    script_execute(action, SCRIPT_ARG_PTR, c, 0);
 
     /* If the user was on a block, notify the shipgate */
     if(c->version != CLIENT_VERSION_BB && c->pl && c->pl->v1.name[0]) {
