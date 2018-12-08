@@ -37,6 +37,12 @@
 #include "subcmd.h"
 #include "mapdata.h"
 
+#ifdef ENABLE_LUA
+#include <lua.h>
+#include <lualib.h>
+#include <lauxlib.h>
+#endif
+
 #ifdef UNUSED
 #undef UNUSED
 #endif
@@ -990,3 +996,124 @@ int client_legit_check(ship_client_t *c, sylverant_limits_t *limits) {
 
     return 0;
 }
+
+#ifdef ENABLE_LUA
+
+static int client_guildcard_lua(lua_State *l) {
+    ship_client_t *c;
+
+    if(lua_islightuserdata(l, 1)) {
+        c = (ship_client_t *)lua_touserdata(l, 1);
+        lua_pushinteger(l, c->guildcard);
+    }
+    else {
+        lua_pushinteger(l, -1);
+    }
+
+    return 1;
+}
+
+static int client_isOnBlock_lua(lua_State *l) {
+    ship_client_t *c;
+
+    if(lua_islightuserdata(l, 1)) {
+        c = (ship_client_t *)lua_touserdata(l, 1);
+        lua_pushboolean(l, !(c->flags & CLIENT_FLAG_TYPE_SHIP));
+    }
+    else {
+        lua_pushboolean(l, 0);
+    }
+
+    return 1;
+}
+
+static int client_disconnect_lua(lua_State *l) {
+    ship_client_t *c;
+
+    if(lua_islightuserdata(l, 1)) {
+        c = (ship_client_t *)lua_touserdata(l, 1);
+        c->flags |= CLIENT_FLAG_DISCONNECTED;
+    }
+
+    return 0;
+}
+
+static int client_addr_lua(lua_State *l) {
+    ship_client_t *c;
+    char str[INET6_ADDRSTRLEN];
+
+    if(lua_islightuserdata(l, 1)) {
+        c = (ship_client_t *)lua_touserdata(l, 1);
+        my_ntop(&c->ip_addr, str);
+        lua_pushstring(l, str);
+    }
+    else {
+        lua_pushliteral(l, "");
+    }
+
+    return 1;
+}
+
+static int client_version_lua(lua_State *l) {
+    ship_client_t *c;
+
+    if(lua_islightuserdata(l, 1)) {
+        c = (ship_client_t *)lua_touserdata(l, 1);
+        lua_pushinteger(l, c->version);
+    }
+    else {
+        lua_pushinteger(l, -1);
+    }
+
+    return 1;
+}
+
+static int client_clientid_lua(lua_State *l) {
+    ship_client_t *c;
+
+    if(lua_islightuserdata(l, 1)) {
+        c = (ship_client_t *)lua_touserdata(l, 1);
+        lua_pushinteger(l, c->client_id);
+    }
+    else {
+        lua_pushinteger(l, -1);
+    }
+
+    return 1;
+}
+
+static int client_privilege_lua(lua_State *l) {
+    ship_client_t *c;
+
+    if(lua_islightuserdata(l, 1)) {
+        c = (ship_client_t *)lua_touserdata(l, 1);
+        lua_pushinteger(l, c->privilege);
+    }
+    else {
+        lua_pushinteger(l, -1);
+    }
+
+    return 1;
+}
+
+static int client_sendpkt_lua(lua_State *l) {
+    return 0;
+}
+
+static const luaL_Reg clientlib[] = {
+    { "client_get_guildcard", client_guildcard_lua },
+    { "client_isOnBlock", client_isOnBlock_lua },
+    { "client_disconnect", client_disconnect_lua },
+    { "client_get_addr", client_addr_lua },
+    { "client_get_version", client_version_lua },
+    { "client_get_clientID", client_clientid_lua },
+    { "client_get_privilege", client_privilege_lua },
+    { "client_send", client_sendpkt_lua },
+    { NULL, NULL }
+};
+
+void client_register_lua(lua_State *l) {
+    luaL_newlib(l, clientlib);
+}
+
+#endif /* ENABLE_LUA */

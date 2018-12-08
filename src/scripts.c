@@ -300,6 +300,9 @@ void init_scripts(ship_t *s) {
     else {
         debug(DBG_LOG, "Read script configuration\n");
     }
+
+    /* Register various scripting libraries. */
+    client_register_lua(lstate);
 }
 
 void cleanup_scripts(ship_t *s) {

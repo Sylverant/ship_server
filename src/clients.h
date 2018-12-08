@@ -324,5 +324,11 @@ int client_check_character(ship_client_t *c, player_t *pl, uint8_t ver);
 /* Run a legit check on a given client. */
 int client_legit_check(ship_client_t *c, sylverant_limits_t *limits);
 
+#ifdef ENABLE_LUA
+#include <lua.h>
+
+void client_register_lua(lua_State *l);
+#endif
+
 #endif /* !CLIENTS_H */
 #endif /* !CLIENTS_H_COUNTS_ONLY */
