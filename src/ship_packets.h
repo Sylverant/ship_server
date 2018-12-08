@@ -137,8 +137,8 @@ int send_lobby_list(ship_client_t *c);
 int send_lobby_join(ship_client_t *c, lobby_t *l);
 
 /* Send a prepared packet to the given client. */
-int send_pkt_dc(ship_client_t *c, dc_pkt_hdr_t *pkt);
-int send_pkt_bb(ship_client_t *c, bb_pkt_hdr_t *pkt);
+int send_pkt_dc(ship_client_t *c, const dc_pkt_hdr_t *pkt);
+int send_pkt_bb(ship_client_t *c, const bb_pkt_hdr_t *pkt);
 
 /* Send a packet to all clients in the lobby when a new player joins. */
 int send_lobby_add_player(lobby_t *l, ship_client_t *c);
