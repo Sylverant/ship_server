@@ -1548,8 +1548,9 @@ static const luaL_Reg shiplib[] = {
     { NULL, NULL }
 };
 
-void ship_register_lua(lua_State *l) {
+int ship_register_lua(lua_State *l) {
     luaL_newlib(l, shiplib);
+    return 1;
 }
 
 #endif /* ENABLE_LUA */

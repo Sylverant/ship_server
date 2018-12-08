@@ -154,7 +154,8 @@ sylverant_limits_t *ship_lookup_limits(const char *name);
 
 #ifdef ENABLE_LUA
 #include <lua.h>
-void ship_register_lua(lua_State *l);
+
+int ship_register_lua(lua_State *l);
 #endif
 
 #endif /* !SHIP_H */

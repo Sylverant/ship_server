@@ -1149,8 +1149,9 @@ static const luaL_Reg clientlib[] = {
     { NULL, NULL }
 };
 
-void client_register_lua(lua_State *l) {
+int client_register_lua(lua_State *l) {
     luaL_newlib(l, clientlib);
+    return 1;
 }
 
 #endif /* ENABLE_LUA */

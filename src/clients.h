@@ -327,7 +327,7 @@ int client_legit_check(ship_client_t *c, sylverant_limits_t *limits);
 #ifdef ENABLE_LUA
 #include <lua.h>
 
-void client_register_lua(lua_State *l);
+int client_register_lua(lua_State *l);
 #endif
 
 #endif /* !CLIENTS_H */
