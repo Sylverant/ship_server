@@ -2729,8 +2729,7 @@ static int process_ep3_command(ship_client_t *c, const uint8_t *pkt) {
             return send_ep3_jukebox_reply(c, tmp);
 
         default:
-            if(script_execute_pkt(ScriptActionUnknownBlockPacket, c, pkt,
-                                  len)) {
+            if(script_execute_pkt(ScriptActionUnknownEp3Packet, c, pkt, len)) {
                 debug(DBG_LOG, "Unknown Episode 3 Command: %02x\n", hdr->flags);
                 print_packet(pkt, len);
                 return -1;

@@ -133,7 +133,13 @@ static const xmlChar *script_action_text[] = {
     XC"BLOCK_LOGOUT",
     XC"UNK_SHIP_PKT",
     XC"UNK_BLOCK_PKT",
-    XC"ENEMY_KILL"
+    XC"UNK_EP3_PKT",
+    XC"ENEMY_KILL",
+    XC"ENEMY_HIT",
+    XC"TEAM_CREATE",
+    XC"TEAM_DESTROY",
+    XC"TEAM_JOIN",
+    XC"TEAM_LEAVE",
 };
 
 /* Figure out what index a given script action sits at */
