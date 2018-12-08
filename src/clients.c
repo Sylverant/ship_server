@@ -1097,7 +1097,44 @@ static int client_privilege_lua(lua_State *l) {
 }
 
 static int client_sendpkt_lua(lua_State *l) {
-    return 0;
+    ship_client_t *c;
+    const uint8_t *s;
+    size_t len;
+    uint16_t len2;
+
+    if(lua_islightuserdata(l, 1) && lua_isstring(l, 2)) {
+        c = (ship_client_t *)lua_touserdata(l, 1);
+        s = (const uint8_t *)lua_tolstring(l, 2, &len);
+
+        if(!s) {
+            lua_pushinteger(l, -1);
+            return 1;
+        }
+
+        /* Check it for sanity. */
+        if(len < 4 || (len & 0x03)) {
+            lua_pushinteger(l, -1);
+            return 1;
+        }
+
+        len2 = s[2] | (s[3] << 8);
+        if(len2 != len) {
+            lua_pushinteger(l, -1);
+            return 1;
+        }
+
+        if(send_pkt_dc(c, (const dc_pkt_hdr_t *)s)) {
+            lua_pushinteger(l, -1);
+            return 1;
+        }
+
+        lua_pushinteger(l, 0);
+        return 1;
+    }
+    else {
+        lua_pushinteger(l, -1);
+        return 1;
+    }
 }
 
 static const luaL_Reg clientlib[] = {
