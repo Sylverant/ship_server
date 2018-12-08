@@ -2729,9 +2729,13 @@ static int process_ep3_command(ship_client_t *c, const uint8_t *pkt) {
             return send_ep3_jukebox_reply(c, tmp);
 
         default:
-            debug(DBG_LOG, "Unknown Episode 3 Command: %02x\n", hdr->flags);
-            print_packet(pkt, len);
-            return -1;
+            if(script_execute_pkt(ScriptActionUnknownBlockPacket, c, pkt,
+                                  len)) {
+                debug(DBG_LOG, "Unknown Episode 3 Command: %02x\n", hdr->flags);
+                print_packet(pkt, len);
+                return -1;
+            }
+            return 0;
     }
 }
 
@@ -3213,9 +3217,13 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return 0;
 
         default:
-            debug(DBG_LOG, "Unknown packet!\n");
-            print_packet((unsigned char *)pkt, len);
-            return -3;
+            if(script_execute_pkt(ScriptActionUnknownBlockPacket, c, pkt,
+                                  len)) {
+                debug(DBG_LOG, "Unknown packet!\n");
+                print_packet((unsigned char *)pkt, len);
+                return -3;
+            }
+            return 0;
     }
 }
 
@@ -3379,9 +3387,13 @@ static int bb_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return 0;
 
         default:
-            debug(DBG_LOG, "Unknown packet!\n");
-            print_packet((unsigned char *)pkt, len);
-            return -3;
+            if(script_execute_pkt(ScriptActionUnknownBlockPacket, c, pkt,
+                                  len)) {
+                debug(DBG_LOG, "Unknown packet!\n");
+                print_packet((unsigned char *)pkt, len);
+                return -3;
+            }
+            return 0;
     }
 }
 

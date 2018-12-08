@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2016 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2016, 2018 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -1414,9 +1414,12 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return 0;
 
         default:
-            debug(DBG_LOG, "Unknown packet!\n");
-            print_packet((unsigned char *)pkt, len);
-            return -3;
+            if(script_execute_pkt(ScriptActionUnknownShipPacket, c, pkt, len)) {
+                debug(DBG_LOG, "Unknown packet!\n");
+                print_packet((unsigned char *)pkt, len);
+                return -3;
+            }
+            return 0;
     }
 }
 
@@ -1440,9 +1443,12 @@ static int bb_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return bb_process_info_req(c, (bb_select_pkt *)pkt);
 
         default:
-            debug(DBG_LOG, "Unknown packet!\n");
-            print_packet((unsigned char *)pkt, len);
-            return -3;
+            if(script_execute_pkt(ScriptActionUnknownShipPacket, c, pkt, len)) {
+                debug(DBG_LOG, "Unknown packet!\n");
+                print_packet((unsigned char *)pkt, len);
+                return -3;
+            }
+            return 0;
     }
 }
 
