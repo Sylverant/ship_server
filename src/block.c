@@ -2036,7 +2036,7 @@ static int ep3_process_game_create(ship_client_t *c, ep3_game_create_pkt *pkt) {
 
     /* Create the lobby structure. */
     l = lobby_create_ep3_game(c->cur_block, name, pkt->password,
-                              pkt->view_battle, c->pl->v1.section);
+                              pkt->view_battle, c->pl->v1.section, c);
 
     /* If we don't have a game, something went wrong... tell the user. */
     if(!l) {

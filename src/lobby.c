@@ -38,6 +38,7 @@
 #include "ptdata.h"
 #include "pmtdata.h"
 #include "rtdata.h"
+#include "scripts.h"
 
 #ifdef ENABLE_LUA
 #include <lua.h>
@@ -368,11 +369,16 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
 
     lobby_setup_drops(c, l, sylverant_crc32((uint8_t *)l->name, 16));
 
+    /* Run the team creation script, if one exists. */
+    script_execute(ScriptActionTeamCreate, SCRIPT_ARG_PTR, c, SCRIPT_ARG_PTR, l,
+                   SCRIPT_ARG_END);
+
     return l;
 }
 
 lobby_t *lobby_create_ep3_game(block_t *block, char *name, char *passwd,
-                               uint8_t view_battle, uint8_t section) {
+                               uint8_t view_battle, uint8_t section,
+                               ship_client_t *c) {
     lobby_t *l = (lobby_t *)malloc(sizeof(lobby_t));
     uint32_t id = 0x20;
 
@@ -427,6 +433,10 @@ lobby_t *lobby_create_ep3_game(block_t *block, char *name, char *passwd,
     pthread_rwlock_unlock(&block->lobby_lock);
     ship_inc_games(block->ship);
 
+    /* Run the team creation script, if one exists. */
+    script_execute(ScriptActionTeamCreate, SCRIPT_ARG_PTR, c, SCRIPT_ARG_PTR, l,
+                   SCRIPT_ARG_END);
+
     return l;
 }
 
@@ -443,6 +453,9 @@ static void lobby_empty_pkt_queue(lobby_t *l) {
 static void lobby_destroy_locked(lobby_t *l, int remove) {
     pthread_mutex_t m = l->mutex;
     lobby_item_t *i, *tmp;
+
+    /* Run the team deletion script, if one exists. */
+    script_execute(ScriptActionTeamDestroy, SCRIPT_ARG_PTR, l,  SCRIPT_ARG_END);
 
     /* TAILQ_REMOVE may or may not be safe to use if the item was never actually
        inserted in a list, so don't remove it if it wasn't. */
@@ -607,6 +620,11 @@ static int lobby_add_client_locked(ship_client_t *c, lobby_t *l) {
     if(l->num_clients)
         l->flags &= ~LOBBY_FLAG_ONLY_ONE;
 
+    /* If this is a team, run the team join script, if it exists. */
+    if(l->type != LOBBY_TYPE_DEFAULT)
+        script_execute(ScriptActionTeamJoin, SCRIPT_ARG_PTR, c, SCRIPT_ARG_PTR,
+                       l, SCRIPT_ARG_END);
+
     /* First client goes in slot 1, not 0 on DC/PC. Why Sega did this, who
        knows? Also slot 1 gets priority for all DC/PC teams, even if slot 0 is
        empty. */
@@ -766,6 +784,11 @@ static int lobby_remove_client_locked(ship_client_t *c, int client_id,
         c->cur_lobby = NULL;
         c->client_id = 0;
     }
+
+    /* If this is a team, run the team leave script, if it exists. */
+    if(l->type != LOBBY_TYPE_DEFAULT)
+        script_execute(ScriptActionTeamLeave, SCRIPT_ARG_PTR, c, SCRIPT_ARG_PTR,
+                       l, SCRIPT_ARG_END);
 
     return l->type == LOBBY_TYPE_DEFAULT ? 0 : !l->num_clients;
 }

@@ -208,7 +208,8 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
                            uint8_t event, uint8_t episode, ship_client_t *c,
                            uint8_t single_player);
 lobby_t *lobby_create_ep3_game(block_t *block, char *name, char *passwd,
-                               uint8_t view_battle, uint8_t section);
+                               uint8_t view_battle, uint8_t section,
+                               ship_client_t *c);
 void lobby_destroy(lobby_t *l);
 void lobby_destroy_noremove(lobby_t *l);
 
