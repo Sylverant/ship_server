@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
     Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016,
-                  2017 Lawrence Sebald
+                  2017, 2018 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -256,5 +256,10 @@ int lobby_remove_item_locked(lobby_t *l, uint32_t item_id, item_t *rv);
 /* Send the kill counts for all clients in the lobby that have kill tracking
    enabled. */
 void lobby_send_kill_counts(lobby_t *l);
+
+#ifdef ENABLE_LUA
+#include <lua.h>
+int lobby_register_lua(lua_State *l);
+#endif
 
 #endif /* !LOBBY_H */

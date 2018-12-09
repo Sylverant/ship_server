@@ -303,6 +303,8 @@ void init_scripts(ship_t *s) {
     lua_pop(lstate, 1);
     luaL_requiref(lstate, "client", client_register_lua, 1);
     lua_pop(lstate, 1);
+    luaL_requiref(lstate, "lobby", lobby_register_lua, 1);
+    lua_pop(lstate, 1);
 
     /* Read in the configuration into our script table */
     if(script_eventlist_read(s->cfg->scripts_file)) {

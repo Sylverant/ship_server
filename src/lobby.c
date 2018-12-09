@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
     Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016,
-                  2017 Lawrence Sebald
+                  2017, 2018 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -38,6 +38,12 @@
 #include "ptdata.h"
 #include "pmtdata.h"
 #include "rtdata.h"
+
+#ifdef ENABLE_LUA
+#include <lua.h>
+#include <lualib.h>
+#include <lauxlib.h>
+#endif
 
 static int td(ship_client_t *c, lobby_t *l, void *req);
 
@@ -1521,3 +1527,290 @@ void lobby_send_kill_counts(lobby_t *l) {
         }
     }
 }
+
+#ifdef ENABLE_LUA
+
+static int lobby_id_lua(lua_State *l) {
+    lobby_t *lb;
+
+    if(lua_islightuserdata(l, 1)) {
+        lb = (lobby_t *)lua_touserdata(l, 1);
+        lua_pushinteger(l, lb->lobby_id);
+    }
+    else {
+        lua_pushinteger(l, -1);
+    }
+
+    return 1;
+}
+
+static int lobby_type_lua(lua_State *l) {
+    lobby_t *lb;
+
+    if(lua_islightuserdata(l, 1)) {
+        lb = (lobby_t *)lua_touserdata(l, 1);
+        lua_pushinteger(l, lb->type);
+    }
+    else {
+        lua_pushinteger(l, -1);
+    }
+
+    return 1;
+}
+
+static int lobby_flags_lua(lua_State *l) {
+    lobby_t *lb;
+
+    if(lua_islightuserdata(l, 1)) {
+        lb = (lobby_t *)lua_touserdata(l, 1);
+        lua_pushinteger(l, lb->flags);
+    }
+    else {
+        lua_pushinteger(l, -1);
+    }
+
+    return 1;
+}
+
+static int lobby_numclients_lua(lua_State *l) {
+    lobby_t *lb;
+
+    if(lua_islightuserdata(l, 1)) {
+        lb = (lobby_t *)lua_touserdata(l, 1);
+        lua_pushinteger(l, lb->num_clients);
+    }
+    else {
+        lua_pushinteger(l, -1);
+    }
+
+    return 1;
+}
+
+static int lobby_block_lua(lua_State *l) {
+    lobby_t *lb;
+
+    if(lua_islightuserdata(l, 1)) {
+        lb = (lobby_t *)lua_touserdata(l, 1);
+        lua_pushlightuserdata(l, lb->block);
+    }
+    else {
+        lua_pushnil(l);
+    }
+
+    return 1;
+}
+
+static int lobby_version_lua(lua_State *l) {
+    lobby_t *lb;
+
+    if(lua_islightuserdata(l, 1)) {
+        lb = (lobby_t *)lua_touserdata(l, 1);
+        lua_pushinteger(l, lb->version);
+    }
+    else {
+        lua_pushinteger(l, -1);
+    }
+
+    return 1;
+}
+
+static int lobby_leaderID_lua(lua_State *l) {
+    lobby_t *lb;
+
+    if(lua_islightuserdata(l, 1)) {
+        lb = (lobby_t *)lua_touserdata(l, 1);
+        lua_pushinteger(l, lb->leader_id);
+    }
+    else {
+        lua_pushinteger(l, -1);
+    }
+
+    return 1;
+}
+
+static int lobby_leader_lua(lua_State *l) {
+    lobby_t *lb;
+
+    if(lua_islightuserdata(l, 1)) {
+        lb = (lobby_t *)lua_touserdata(l, 1);
+        lua_pushlightuserdata(l, lb->clients[lb->leader_id]);
+    }
+    else {
+        lua_pushnil(l);
+    }
+
+    return 1;
+}
+
+static int lobby_difficulty_lua(lua_State *l) {
+    lobby_t *lb;
+
+    if(lua_islightuserdata(l, 1)) {
+        lb = (lobby_t *)lua_touserdata(l, 1);
+        lua_pushinteger(l, lb->difficulty);
+    }
+    else {
+        lua_pushinteger(l, -1);
+    }
+
+    return 1;
+}
+
+static int lobby_isBattleMode_lua(lua_State *l) {
+    lobby_t *lb;
+
+    if(lua_islightuserdata(l, 1)) {
+        lb = (lobby_t *)lua_touserdata(l, 1);
+        lua_pushboolean(l, lb->battle);
+    }
+    else {
+        lua_pushboolean(l, 0);
+    }
+
+    return 1;
+}
+
+static int lobby_isChallengeMode_lua(lua_State *l) {
+    lobby_t *lb;
+
+    if(lua_islightuserdata(l, 1)) {
+        lb = (lobby_t *)lua_touserdata(l, 1);
+        lua_pushboolean(l, lb->challenge);
+    }
+    else {
+        lua_pushboolean(l, 0);
+    }
+
+    return 1;
+}
+
+static int lobby_section_lua(lua_State *l) {
+    lobby_t *lb;
+
+    if(lua_islightuserdata(l, 1)) {
+        lb = (lobby_t *)lua_touserdata(l, 1);
+        lua_pushinteger(l, lb->section);
+    }
+    else {
+        lua_pushinteger(l, -1);
+    }
+
+    return 1;
+}
+
+static int lobby_episode_lua(lua_State *l) {
+    lobby_t *lb;
+
+    if(lua_islightuserdata(l, 1)) {
+        lb = (lobby_t *)lua_touserdata(l, 1);
+        lua_pushinteger(l, lb->episode);
+    }
+    else {
+        lua_pushinteger(l, -1);
+    }
+
+    return 1;
+}
+
+static int lobby_name_lua(lua_State *l) {
+    lobby_t *lb;
+
+    if(lua_islightuserdata(l, 1)) {
+        lb = (lobby_t *)lua_touserdata(l, 1);
+        lua_pushstring(l, lb->name);
+    }
+    else {
+        lua_pushnil(l);
+    }
+
+    return 1;
+}
+
+static int lobby_questID_lua(lua_State *l) {
+    lobby_t *lb;
+
+    if(lua_islightuserdata(l, 1)) {
+        lb = (lobby_t *)lua_touserdata(l, 1);
+        if((lb->flags & LOBBY_FLAG_QUESTING))
+            lua_pushinteger(l, lb->qid);
+        else
+            lua_pushinteger(l, 0);
+    }
+    else {
+        lua_pushinteger(l, -1);
+    }
+
+    return 1;
+}
+
+static int lobby_client_lua(lua_State *l) {
+    lobby_t *lb;
+    lua_Integer cn;
+
+    if(lua_islightuserdata(l, 1) && lua_isinteger(l, 2)) {
+        lb = (lobby_t *)lua_touserdata(l, 1);
+        cn = lua_tointeger(l, 2);
+
+        if(cn < lb->max_clients && lb->clients[cn])
+            lua_pushlightuserdata(l, lb->clients[cn]);
+        else
+            lua_pushnil(l);
+    }
+    else {
+        lua_pushnil(l);
+    }
+
+    return 1;
+}
+
+static int lobby_clients_lua(lua_State *l) {
+    lobby_t *lb;
+    int i;
+
+    if(lua_islightuserdata(l, 1)) {
+        lb = (lobby_t *)lua_touserdata(l, 1);
+
+        lua_newtable(l);
+        for(i = 0; i < lb->max_clients; ++i) {
+            if(lb->clients[i])
+                lua_pushlightuserdata(l, lb->clients[i]);
+            else
+                lua_pushnil(l);
+
+            lua_rawseti(l, -2, i + 1);
+        }
+    }
+    else {
+        lua_pushnil(l);
+    }
+
+    return 1;
+}
+
+static const luaL_Reg lobbylib[] = {
+    { "id", lobby_id_lua },
+    { "type", lobby_type_lua },
+    { "flags", lobby_flags_lua },
+    { "num_clients", lobby_numclients_lua },
+    { "block", lobby_block_lua },
+    { "version", lobby_version_lua },
+    { "leaderID", lobby_leaderID_lua },
+    { "leader", lobby_leader_lua },
+    { "difficulty", lobby_difficulty_lua },
+    { "isBattleMode", lobby_isBattleMode_lua },
+    { "isChallengeMode", lobby_isChallengeMode_lua },
+    { "section", lobby_section_lua },
+    { "episode", lobby_episode_lua },
+    { "name", lobby_name_lua },
+    { "questID", lobby_questID_lua },
+    { "client", lobby_client_lua },
+    { "clients", lobby_clients_lua },
+    { NULL, NULL }
+};
+
+int lobby_register_lua(lua_State *l) {
+    luaL_newlib(l, lobbylib);
+    return 1;
+}
+
+#endif /* ENABLE_LUA */
