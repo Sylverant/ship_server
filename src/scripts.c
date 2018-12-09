@@ -41,80 +41,7 @@
 
 #define XC (const xmlChar *)
 
-#if 0
-
-script_entry_t *script_add(const char *filename) {
-    uint32_t hashval;
-    script_entry_t *entry;
-    PyObject *name;
-
-    /* See if its already in the table */
-    if((entry = script_lookup(filename, &hashval))) {
-        return entry;
-    }
-
-    /* Allocate space */
-    entry = (script_entry_t *)xmalloc(sizeof(script_entry_t));
-    entry->filename = (char *)xmalloc(strlen(filename) + 1);
-
-    /* Set the data as needed */
-    strcpy(entry->filename, filename);
-
-    /* Read in the file */
-    name = PyString_FromString(filename);
-    if(!name) {
-        goto err;
-    }
-
-    entry->module = PyImport_Import(name);
-    Py_DECREF(name);
-
-    if(!entry->module) {
-        debug(DBG_WARN, "Couldn't load script file %s\n", filename);
-        PyErr_Print();
-        goto err;
-    }
-
-    /* Add it to the list where it belongs, and we're done! */
-    TAILQ_INSERT_TAIL(&scripts[hashval], entry, qentry);
-    return entry;
-
-err:
-    free(entry->filename);
-    free(entry);
-    return NULL;
-}
-
-void script_remove_entry(script_entry_t *entry) {
-    uint32_t hashval;
-
-    /* Figure out where the entry is */
-    hashval = hash(entry->filename, strlen(entry->filename), 0);
-
-    /* Remove it */
-    TAILQ_REMOVE(&scripts[hashval % SCRIPT_HASH_ENTRIES], entry, qentry);
-    Py_DECREF(entry->module);
-    free(entry->filename);
-    free(entry);
-}
-
-void script_remove(const char *filename) {
-    script_entry_t *entry;
-    uint32_t hashval;
-
-    /* Find the entry */
-    entry = script_lookup(filename, &hashval);
-
-    /* Remove it */
-    if(entry) {
-        TAILQ_REMOVE(&scripts[hashval], entry, qentry);
-        Py_DECREF(entry->module);
-        free(entry->filename);
-        free(entry);
-    }
-}
-
-#elif defined(ENABLE_LUA)
+#ifdef ENABLE_LUA
 
 static pthread_mutex_t script_mutex = PTHREAD_MUTEX_INITIALIZER;
 static lua_State *lstate;
@@ -306,10 +233,13 @@ void init_scripts(ship_t *s) {
     luaL_requiref(lstate, "lobby", lobby_register_lua, 1);
     lua_pop(lstate, 1);
 
+    /* Set the module search path to include the scripts/modules dir. */
+    (void)luaL_dostring(lstate, "package.path = package.path .. "
+                        "';scripts/modules/?.lua'");
+
     /* Read in the configuration into our script table */
     if(script_eventlist_read(s->cfg->scripts_file)) {
         debug(DBG_WARN, "Couldn't load scripts configuration!\n");
-
     }
     else {
         debug(DBG_LOG, "Read script configuration\n");
@@ -317,6 +247,8 @@ void init_scripts(ship_t *s) {
 }
 
 void cleanup_scripts(ship_t *s) {
+    int i;
+
     if(lstate) {
         /* For good measure, remove the scripts table from the registry. This
            should garbage collect everything in it, I hope. */
@@ -324,6 +256,13 @@ void cleanup_scripts(ship_t *s) {
             luaL_unref(lstate, LUA_REGISTRYINDEX, scripts_ref);
 
         lua_close(lstate);
+
+        /* Clean everything back to a sensible state. */
+        lstate = NULL;
+        scripts_ref = 0;
+        for(i = 0; i < ScriptActionCount; ++i) {
+            script_ids[i] = 0;
+        }
     }
 }
 
