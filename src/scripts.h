@@ -66,4 +66,7 @@ int script_execute_pkt(script_action_t event, ship_client_t *c, const void *pkt,
 void init_scripts(ship_t *s);
 void cleanup_scripts(ship_t *s);
 
+int script_add(script_action_t action, const char *filename);
+int script_remove(script_action_t action);
+
 #endif /* !SCRIPTS_H */

@@ -70,16 +70,79 @@ static const xmlChar *script_action_text[] = {
 };
 
 /* Figure out what index a given script action sits at */
-static inline int script_action_to_index(xmlChar *str) {
+static inline script_action_t script_action_to_index(xmlChar *str) {
     int i;
 
     for(i = 0; i < ScriptActionCount; ++i) {
         if(!xmlStrcmp(script_action_text[i], str)) {
-            return i;
+            return (script_action_t)i;
         }
     }
 
     return ScriptActionInvalid;
+}
+
+int script_add(script_action_t action, const char *filename) {
+    /* Can't do anything if we don't have any scripts loaded. */
+    if(!scripts_ref)
+        return 0;
+
+    pthread_mutex_lock(&script_mutex);
+
+    /* Pull the scripts table out to the top of the stack. */
+    lua_rawgeti(lstate, LUA_REGISTRYINDEX, scripts_ref);
+
+    /* Attempt to read in the script. */
+    if(luaL_loadfile(lstate, filename) != LUA_OK) {
+        debug(DBG_WARN, "Couldn't load script \"%s\"\n", filename);
+        lua_pop(lstate, 1);
+        pthread_mutex_unlock(&script_mutex);
+        return -1;
+    }
+
+    /* Issue a warning if we're redefining something before doing it. */
+    if(script_ids[action]) {
+        debug(DBG_WARN, "Redefining script event %d\n", (int)action);
+        luaL_unref(lstate, -2, script_ids[action]);
+    }
+
+    /* Add the script to the Lua table. */
+    script_ids[action] = luaL_ref(lstate, -2);
+    debug(DBG_LOG, "Script for type %d added as ID %d\n", (int)action,
+          script_ids[action]);
+
+    /* Pop off the scripts table and unlock the mutex to clean up. */
+    lua_pop(lstate, 1);
+    pthread_mutex_unlock(&script_mutex);
+
+    return 0;
+}
+
+int script_remove(script_action_t action) {
+    /* Can't do anything if we don't have any scripts loaded. */
+    if(!scripts_ref)
+        return 0;
+
+    pthread_mutex_lock(&script_mutex);
+
+    /* Make sure there's actually something registered. */
+    if(!script_ids[action]) {
+        debug(DBG_WARN, "Attempt to unregister script for event %d that does "
+              "not exist.\n", (int)action);
+        pthread_mutex_unlock(&script_mutex);
+        return -1;
+    }
+
+    /* Pull the scripts table out to the top of the stack and remove the
+       script reference from it. */
+    lua_rawgeti(lstate, LUA_REGISTRYINDEX, scripts_ref);
+    luaL_unref(lstate, -2, script_ids[action]);
+
+    /* Pop off the scripts table and unlock the mutex to clean up. */
+    lua_pop(lstate, 1);
+    pthread_mutex_unlock(&script_mutex);
+
+    return 0;
 }
 
 /* Parse the XML for the script definitions */
@@ -88,7 +151,8 @@ int script_eventlist_read(const char *fn) {
     xmlDoc *doc;
     xmlNode *n;
     xmlChar *file, *event;
-    int rv = 0, idx;
+    int rv = 0;
+    script_action_t idx;
 
     /* If we're reloading, kill the old list. */
     if(scripts_ref) {
@@ -440,6 +504,14 @@ int script_execute_pkt(script_action_t event, ship_client_t *c, const void *pkt,
 }
 
 int script_execute(script_action_t event, ...) {
+    return 0;
+}
+
+int script_add(script_action_t event, const char *filename) {
+    return 0;
+}
+
+int script_remove(script_action_t event) {
     return 0;
 }
 
