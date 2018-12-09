@@ -868,6 +868,10 @@ restart:
             exit(EXIT_FAILURE);
     }
 
+#ifdef ENABLE_LUA
+    cfg->shipgate_flags |= LOGIN_FLAG_LUA;
+#endif
+
     /* Initialize all the iconv contexts we'll need */
     if(init_iconv())
         exit(EXIT_FAILURE);

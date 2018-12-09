@@ -483,6 +483,7 @@ static const char shipgate_login_msg[] =
 /* 0x00000800 - 0x00008000 reserved. */
 #define LOGIN_FLAG_PYTHON   0x00010000  /* Ship supports Python 2.x scripting */
 #define LOGIN_FLAG_LUA      0x00020000  /* Ship supports Lua scripting */
+/* All other flags are reserved. */
 
 /* General error codes */
 #define ERR_NO_ERROR            0x00000000
