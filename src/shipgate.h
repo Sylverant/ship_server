@@ -451,7 +451,12 @@ typedef struct shipgate_sdata {
     shipgate_hdr_t hdr;
     uint32_t event_id;
     uint32_t data_len;
-    uint32_t reserved[2];
+    uint32_t guildcard;
+    uint32_t block;
+    uint8_t episode;
+    uint8_t difficulty;
+    uint8_t version;
+    uint8_t reserved;
     uint8_t data[];
 } PACKED shipgate_sdata_pkt;
 

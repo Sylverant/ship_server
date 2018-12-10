@@ -1779,7 +1779,7 @@ static int handle_schunk(shipgate_conn_t *c, shipgate_schunk_pkt *pkt) {
                         htons(sizeof(shipgate_schunk_err_pkt));
                     err->base.hdr.pkt_type = htons(SHDR_TYPE_SCHUNK);
                     err->base.hdr.flags = htons(SHDR_RESPONSE);
-                    err->type = pkt->chunk_type;
+                    err->type = pkt->chunk_type & 0x7F;
                     memcpy(err->filename, pkt->filename, 32);
                     return send_crypt(c, sizeof(shipgate_schunk_err_pkt),
                                       sendbuf);
@@ -1797,7 +1797,7 @@ static int handle_schunk(shipgate_conn_t *c, shipgate_schunk_pkt *pkt) {
         err->base.hdr.pkt_type = htons(SHDR_TYPE_SCHUNK);
         err->base.hdr.flags = htons(SHDR_RESPONSE | SHDR_FAILURE);
         err->base.error_code = htonl(ERR_SCHUNK_NEED_SCRIPT);
-        err->type = pkt->chunk_type;
+        err->type = pkt->chunk_type & 0x7F;
         memcpy(err->filename, pkt->filename, 32);
         return send_crypt(c, sizeof(shipgate_schunk_err_pkt), sendbuf);
     }
@@ -1839,6 +1839,7 @@ static int handle_schunk(shipgate_conn_t *c, shipgate_schunk_pkt *pkt) {
         err->base.hdr.pkt_type = htons(SHDR_TYPE_SCHUNK);
         err->base.hdr.flags = htons(SHDR_RESPONSE);
         memcpy(err->filename, pkt->filename, 32);
+        err->type = pkt->chunk_type & 0x7F;
         return send_crypt(c, sizeof(shipgate_schunk_err_pkt), sendbuf);
     }
 }
