@@ -152,6 +152,14 @@ typedef struct shipgate_friend_err {
     uint32_t friend_gc;
 } PACKED shipgate_friend_err_pkt;
 
+/* Error packet in reply to a schunk */
+typedef struct shipgate_schunk_err {
+    shipgate_error_pkt base;
+    uint8_t type;
+    uint8_t reserved[3];
+    char filename[32];
+} PACKED shipgate_schunk_err_pkt;
+
 /* The request sent from the shipgate for a ship to identify itself. */
 typedef struct shipgate_login {
     shipgate_hdr_t hdr;
@@ -558,6 +566,9 @@ static const char shipgate_login_msg[] =
 #define SCHUNK_TYPE_SCRIPT      0x01
 #define SCHUNK_TYPE_MODULE      0x02
 #define SCHUNK_CHECK            0x80
+
+/* Error codes for schunk */
+#define ERR_SCHUNK_NEED_SCRIPT  0x00000001
 
 /* Attempt to connect to the shipgate. Returns < 0 on error, returns 0 on
    success. */

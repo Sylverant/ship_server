@@ -29,6 +29,7 @@
 #include <sylverant/config.h>
 #include <sylverant/debug.h>
 #include <sylverant/sha4.h>
+#include <sylverant/checksum.h>
 
 #include "ship.h"
 #include "utils.h"
@@ -1704,6 +1705,144 @@ static int handle_bbopts(shipgate_conn_t *c, shipgate_bb_opts_pkt *pkt) {
     return 0;
 }
 
+static int handle_schunk(shipgate_conn_t *c, shipgate_schunk_pkt *pkt) {
+    ship_t *s = c->ship;
+    FILE *fp;
+    char filename[64];
+    uint32_t len, crc;
+    long len2;
+    uint8_t *buf;
+    uint8_t *sendbuf = get_sendbuf();
+    shipgate_schunk_err_pkt *err = (shipgate_schunk_err_pkt *)sendbuf;
+
+    /* Make sure we have scripting enabled first, otherwise, just ignore this */
+    if(!(s->cfg->shipgate_flags & LOGIN_FLAG_LUA)) {
+        debug(DBG_WARN, "Shipgate sent schunk while scripting is disabled!\n");
+        return 0;
+    }
+
+    len = ntohl(pkt->chunk_length);
+    crc = ntohl(pkt->chunk_crc);
+
+    /* Basic sanity check... */
+    if(len > 32768) {
+        /* XXXX */
+        debug(DBG_WARN, "Shipgate sent huge script\n");
+        return 0;
+    }
+
+    if(pkt->chunk_type == SCHUNK_TYPE_SCRIPT)
+        snprintf(filename, 64, "scripts/%s", pkt->filename);
+    else
+        snprintf(filename, 64, "scripts/modules/%s", pkt->filename);
+
+    /* Is this an actual chunk or a check packet? */
+    if((pkt->chunk_type & SCHUNK_CHECK)) {
+        /* Check packet */
+        /* Attempt to check the file, if it exists. */
+        if((fp = fopen(filename, "rb"))) {
+            /* File exists, check the length */
+            fseek(fp, 0, SEEK_END);
+            len2 = ftell(fp);
+            fseek(fp, 0, SEEK_SET);
+
+            if(len2 == (long)len) {
+                /* File exists and is the right length, check the crc */
+                if(!(buf = (uint8_t *)malloc(len))) {
+                    debug(DBG_ERROR, "Out of memory!\n");
+                    fclose(fp);
+                    return -1;
+                }
+
+                if(fread(buf, 1, len, fp) != len) {
+                    debug(DBG_ERROR, "Couldn't read script file '%s'\n",
+                          filename);
+                    free(buf);
+                    fclose(fp);
+                    return -1;
+                }
+
+                fclose(fp);
+
+                /* Check the CRC */
+                if(sylverant_crc32(buf, len) == crc) {
+                    /* The CRCs match, so we already have this script. */
+                    debug(DBG_LOG, "Already have script '%s'\n", filename);
+                    free(buf);
+
+                    /* Notify the shipgate */
+                    if(!sendbuf)
+                        return -1;
+
+                    memset(err, 0, sizeof(shipgate_schunk_err_pkt));
+                    err->base.hdr.pkt_len =
+                        htons(sizeof(shipgate_schunk_err_pkt));
+                    err->base.hdr.pkt_type = htons(SHDR_TYPE_SCHUNK);
+                    err->base.hdr.flags = htons(SHDR_RESPONSE);
+                    err->type = pkt->chunk_type;
+                    memcpy(err->filename, pkt->filename, 32);
+                    return send_crypt(c, sizeof(shipgate_schunk_err_pkt),
+                                      sendbuf);
+                }
+            }
+        }
+
+        /* If we get here, we don't have a matching script, let the shipgate
+           know by sending an error packet. */
+        if(!sendbuf)
+            return -1;
+
+        memset(err, 0, sizeof(shipgate_schunk_err_pkt));
+        err->base.hdr.pkt_len = htons(sizeof(shipgate_schunk_err_pkt));
+        err->base.hdr.pkt_type = htons(SHDR_TYPE_SCHUNK);
+        err->base.hdr.flags = htons(SHDR_RESPONSE | SHDR_FAILURE);
+        err->base.error_code = htonl(ERR_SCHUNK_NEED_SCRIPT);
+        err->type = pkt->chunk_type;
+        memcpy(err->filename, pkt->filename, 32);
+        return send_crypt(c, sizeof(shipgate_schunk_err_pkt), sendbuf);
+    }
+    else {
+        /* Chunk packet */
+        /* Sanity check the packet. */
+        if(sylverant_crc32(pkt->chunk, len) != crc) {
+            /* XXXX */
+            debug(DBG_WARN, "Shipgate sent script with bad crc\n");
+            return 0;
+        }
+
+        if(!(fp = fopen(filename, "wb"))) {
+            /* XXXX */
+            debug(DBG_WARN, "Cannot open script file '%s' for writing\n",
+                  filename);
+            return 0;
+        }
+
+        if(fwrite(pkt->chunk, 1, len, fp) != len) {
+            /* XXXX */
+            debug(DBG_WARN, "Couldn't write chunk to file '%s': %s\n",
+                  filename, strerror(errno));
+            fclose(fp);
+            return 0;
+        }
+
+        fclose(fp);
+
+        debug(DBG_LOG, "Shipgate sent script '%s' (CRC: %08" PRIx32 ")\n",
+              filename, crc);
+
+        /* Notify the shipgate that we got it. */
+        if(!sendbuf)
+            return -1;
+
+        memset(err, 0, sizeof(shipgate_schunk_err_pkt));
+        err->base.hdr.pkt_len = htons(sizeof(shipgate_schunk_err_pkt));
+        err->base.hdr.pkt_type = htons(SHDR_TYPE_SCHUNK);
+        err->base.hdr.flags = htons(SHDR_RESPONSE);
+        memcpy(err->filename, pkt->filename, 32);
+        return send_crypt(c, sizeof(shipgate_schunk_err_pkt), sendbuf);
+    }
+}
+
 static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
     uint16_t type = ntohs(pkt->pkt_type);
     uint16_t flags = ntohs(pkt->flags);
@@ -1840,6 +1979,9 @@ static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
 
                 /* No need really to notify the user. */
                 return 0;
+
+            case SHDR_TYPE_SCHUNK:
+                return handle_schunk(conn, (shipgate_schunk_pkt *)pkt);
         }
     }
 
