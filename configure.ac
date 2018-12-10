@@ -59,7 +59,7 @@ AC_CHECK_LIB([psoarchive], [pso_gsl_read_open], , AC_MSG_ERROR([libpsoarchive is
 AC_SEARCH_LIBS([pidfile_fileno], [util bsd], [NEED_PIDFILE=0], [NEED_PIDFILE=1])
 
 AC_ARG_ENABLE([scripting], [AS_HELP_STRING([--enable-scripting],
-              [enable scripting support in the binary (requires Lua 5.2.x)])],
+              [enable scripting support in the binary (requires Lua 5.3.x)])],
               [enable_scripting=$enableval],
               [enable_scripting=no])
 
