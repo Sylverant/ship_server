@@ -680,4 +680,8 @@ int shipgate_send_cbkup_req(shipgate_conn_t *c, uint32_t gc, uint32_t block,
 int shipgate_send_mkill(shipgate_conn_t *c, uint32_t gc, uint32_t block,
                         ship_client_t *cl, lobby_t *l);
 
+/* Send a script data packet */
+int shipgate_send_sdata(shipgate_conn_t *c, ship_client_t *sc, uint32_t event,
+                        const uint8_t *data, uint32_t len);
+
 #endif /* !SHIPGATE_H */

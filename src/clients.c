@@ -1173,6 +1173,25 @@ static int client_block_lua(lua_State *l) {
     return 1;
 }
 
+static int client_sendsdata_lua(lua_State *l) {
+    ship_client_t *c;
+    uint32_t event;
+    const uint8_t *s;
+    size_t len;
+    lua_Integer rv = -1;
+
+    if(lua_islightuserdata(l, 1) && lua_isinteger(l, 2) && lua_isstring(l, 3)) {
+        c = (ship_client_t *)lua_touserdata(l, 1);
+        event = (uint32_t)lua_tointeger(l, 2);
+        s = (const uint8_t *)lua_tolstring(l, 3, &len);
+
+        rv = shipgate_send_sdata(&ship->sg, c, event, s, (uint32_t)len);
+    }
+
+    lua_pushinteger(l, rv);
+    return 1;
+}
+
 static const luaL_Reg clientlib[] = {
     { "guildcard", client_guildcard_lua },
     { "isOnBlock", client_isOnBlock_lua },
@@ -1184,6 +1203,7 @@ static const luaL_Reg clientlib[] = {
     { "send", client_sendpkt_lua },
     { "lobby", client_lobby_lua },
     { "block", client_block_lua },
+    { "sendScriptData", client_sendsdata_lua },
     { NULL, NULL }
 };
 
