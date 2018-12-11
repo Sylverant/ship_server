@@ -1792,6 +1792,8 @@ static int handle_schunk(shipgate_conn_t *c, shipgate_schunk_pkt *pkt) {
             }
         }
 
+        debug(DBG_LOG, "Requesting script '%s' from shipgate\n", pkt->filename);
+
         /* If we get here, we don't have a matching script, let the shipgate
            know by sending an error packet. */
         if(!sendbuf)

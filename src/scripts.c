@@ -454,6 +454,14 @@ int script_execute(script_action_t event, ...) {
                 break;
             }
 
+            case SCRIPT_ARG_STRING:
+            {
+                size_t len = va_arg(ap, size_t);
+                char *str = va_arg(ap, char *);
+                lua_pushlstring(lstate, str, len);
+                break;
+            }
+
             default:
                 /* Fix the stack and stop trying to parse now... */
                 debug(DBG_WARN, "Invalid script argument type: %d\n", argtype);
