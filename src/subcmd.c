@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2015, 2016 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2015, 2016, 2018 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -30,6 +30,7 @@
 #include "utils.h"
 #include "items.h"
 #include "word_select.h"
+#include "scripts.h"
 
 /* Forward declarations */
 static int subcmd_send_shop_inv(ship_client_t *c, subcmd_bb_shop_req_t *req);
@@ -2176,18 +2177,41 @@ static int handle_mhit(ship_client_t *c, subcmd_mhit_pkt_t *pkt) {
         return -1;
     }
 
-    /* Bail out now if we don't have any enemy data on the lobby. */
-    if(!l->map_enemies)
+    /* Grab relevant information from the packet */
+    mid = LE16(pkt->enemy_id);
+    flags = LE32(pkt->flags);
+
+    /* Swap the flags on the packet if the user is on GC... Looks like Sega
+       decided that it should be the opposite order as it is on DC/PC/BB. */
+    if(c->version == CLIENT_VERSION_GC)
+        flags = SWAP32(flags);
+
+    /* Bail out now if we don't have any enemy data on the team. */
+    if(!l->map_enemies) {
+        script_execute(ScriptActionEnemyHit, SCRIPT_ARG_PTR, c,
+                       SCRIPT_ARG_UINT16, mid, SCRIPT_ARG_END);
+
+        if(flags & 0x00000800)
+            script_execute(ScriptActionEnemyKill, SCRIPT_ARG_PTR, c,
+                           SCRIPT_ARG_UINT16, mid, SCRIPT_ARG_END);
+
         return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
+    }
 
     /* Make sure the enemy is in range. */
-    mid = LE16(pkt->enemy_id);
     if(mid > l->map_enemies->count) {
         debug(DBG_WARN, "Guild card %" PRIu32 " hit invalid enemy (%d -- max: "
               "%d)!\n"
               "Episode: %d, Floor: %d, Map: (%d, %d)\n", c->guildcard, mid,
               l->map_enemies->count, l->episode, c->cur_area,
               l->maps[c->cur_area << 1], l->maps[(c->cur_area << 1) + 1]);
+
+        script_execute(ScriptActionEnemyHit, SCRIPT_ARG_PTR, c,
+                       SCRIPT_ARG_UINT16, mid, SCRIPT_ARG_END);
+
+        if(flags & 0x00000800)
+            script_execute(ScriptActionEnemyKill, SCRIPT_ARG_PTR, c,
+                           SCRIPT_ARG_UINT16, mid, SCRIPT_ARG_END);
 
         /* If server-side drops aren't on, then just send it on and hope for the
            best. We've probably got a bug somewhere on our end anyway... */
@@ -2229,17 +2253,20 @@ static int handle_mhit(ship_client_t *c, subcmd_mhit_pkt_t *pkt) {
         en->clients_hit |= (1 << c->client_id);
         en->last_client = c->client_id;
 
+        script_execute(ScriptActionEnemyHit, SCRIPT_ARG_PTR, c,
+                       SCRIPT_ARG_UINT16, mid, SCRIPT_ARG_UINT32, en->bp_entry,
+                       SCRIPT_ARG_UINT8, en->rt_index, SCRIPT_ARG_UINT8,
+                       en->clients_hit, SCRIPT_ARG_END);
+
         /* If the kill flag is set, mark it as dead and update the client's
            counter. */
-        flags = LE32(pkt->flags);
-
-        /* Swap the flags on the packet if the user is on GC... Looks like Sega
-           decided that it should be the opposite order as it is on DC/PC/BB. */
-        if(c->version == CLIENT_VERSION_GC)
-            flags = SWAP32(flags);
-
         if(flags & 0x00000800) {
             en->clients_hit |= 0x80;
+
+            script_execute(ScriptActionEnemyKill, SCRIPT_ARG_PTR, c,
+                           SCRIPT_ARG_UINT16, mid, SCRIPT_ARG_UINT32,
+                           en->bp_entry, SCRIPT_ARG_UINT8, en->rt_index,
+                           SCRIPT_ARG_UINT8, en->clients_hit, SCRIPT_ARG_END);
 
             if(en->bp_entry < 0x60 && !(l->flags & LOBBY_FLAG_HAS_NPC))
                 ++c->enemy_kills[en->bp_entry];
@@ -2284,6 +2311,39 @@ static int handle_bb_mhit(ship_client_t *c, subcmd_bb_mhit_pkt_t *pkt) {
     }
 
     return subcmd_send_lobby_bb(l, c, (bb_subcmd_pkt_t *)pkt, 0);
+}
+
+static int handle_bhit(ship_client_t *c, subcmd_bhit_pkt_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+    uint16_t bid;
+
+    /* We can't get these in lobbies without someone messing with something that
+       they shouldn't be... Disconnect anyone that tries. */
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        debug(DBG_WARN, "Guild card %" PRIu32 " hit box in lobby!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* Sanity check... Make sure the size of the subcommand matches with what we
+       expect. Disconnect the client if not. */
+    if(pkt->hdr.pkt_len != LE16(0x0010) || pkt->size != 0x03) {
+        debug(DBG_WARN, "Guild card %" PRIu32 " sent bad bhit message!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* Grab relevant information from the packet */
+    bid = LE16(pkt->box_id);
+
+    /* We'll probably want to do a bit more with this at some point, but for now
+       this will do. */
+    script_execute(ScriptActionBoxBreak, SCRIPT_ARG_PTR, c, SCRIPT_ARG_UINT16,
+                   bid, SCRIPT_ARG_END);
+
+    /* We're not doing any more interesting parsing with this one for now, so
+       just send it along. */
+    return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
 }
 
 static int handle_bb_req_exp(ship_client_t *c, subcmd_bb_req_exp_pkt_t *pkt) {
@@ -2699,6 +2759,10 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
             }
 
             rv = handle_mhit(c, (subcmd_mhit_pkt_t *)pkt);
+            break;
+
+        case SUBCMD_HIT_BOX:
+            rv = handle_bhit(c, (subcmd_bhit_pkt_t *)pkt);
             break;
 
         case SUBCMD_SPAWN_NPC:

@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2015 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2015, 2018 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -749,6 +749,27 @@ typedef struct subcmd_bb_mhit {
     uint16_t damage;
     uint32_t flags;
 } PACKED subcmd_bb_mhit_pkt_t;
+
+/* Packet sent by clients to say that a box has been hit. */
+typedef struct subcmd_bhit {
+    dc_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint16_t box_id2;
+    uint32_t unk;
+    uint16_t box_id;
+    uint16_t unk2;
+} PACKED subcmd_bhit_pkt_t;
+
+typedef struct subcmd_bb_bhit {
+    bb_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint16_t box_id2;
+    uint32_t unk;
+    uint16_t box_id;
+    uint16_t unk2;
+} PACKED subcmd_bb_bhit_pkt_t;
 
 /* Packet sent by clients to say that they killed a monster. Unfortunately, this
    doesn't always get sent (for instance for the Darvants during a Falz fight),
