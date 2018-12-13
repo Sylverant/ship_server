@@ -1810,6 +1810,26 @@ static int lobby_clients_lua(lua_State *l) {
     return 1;
 }
 
+static int lobby_sendmsg_lua(lua_State *l) {
+    lobby_t *lb;
+    const char *s;
+    size_t len;
+    int i;
+
+    if(lua_islightuserdata(l, 1) && lua_isstring(l, 2)) {
+        lb = (lobby_t *)lua_touserdata(l, 1);
+        s = (const char *)lua_tolstring(l, 2, &len);
+
+        for(i = 0; i < lb->max_clients; ++i) {
+            if(lb->clients[i])
+                send_txt(lb->clients[i], "\tE\tC7%s", s);
+        }
+    }
+
+    lua_pushinteger(l, 0);
+    return 1;
+}
+
 static const luaL_Reg lobbylib[] = {
     { "id", lobby_id_lua },
     { "type", lobby_type_lua },
@@ -1828,6 +1848,7 @@ static const luaL_Reg lobbylib[] = {
     { "questID", lobby_questID_lua },
     { "client", lobby_client_lua },
     { "clients", lobby_clients_lua },
+    { "sendMsg", lobby_sendmsg_lua },
     { NULL, NULL }
 };
 

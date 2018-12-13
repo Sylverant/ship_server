@@ -1192,6 +1192,22 @@ static int client_sendsdata_lua(lua_State *l) {
     return 1;
 }
 
+static int client_sendmsg_lua(lua_State *l) {
+    ship_client_t *c;
+    const char *s;
+    size_t len;
+
+    if(lua_islightuserdata(l, 1) && lua_isstring(l, 2)) {
+        c = (ship_client_t *)lua_touserdata(l, 1);
+        s = (const char *)lua_tolstring(l, 2, &len);
+
+        send_txt(c, "\tE\tC7%s", s);
+    }
+
+    lua_pushinteger(l, 0);
+    return 1;
+}
+
 static const luaL_Reg clientlib[] = {
     { "guildcard", client_guildcard_lua },
     { "isOnBlock", client_isOnBlock_lua },
@@ -1204,6 +1220,7 @@ static const luaL_Reg clientlib[] = {
     { "lobby", client_lobby_lua },
     { "block", client_block_lua },
     { "sendScriptData", client_sendsdata_lua },
+    { "sendMsg", client_sendmsg_lua },
     { NULL, NULL }
 };
 
