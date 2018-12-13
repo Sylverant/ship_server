@@ -506,6 +506,11 @@ static void *ship_thd(void *d) {
     /* Before we shut down, run the shutdown script, if one is configured. */
     script_execute(ScriptActionShutdown, SCRIPT_ARG_PTR, s, 0);
 
+#ifdef ENABLE_LUA
+    /* Remove the table from the registry */
+    luaL_unref(s->lstate, LUA_REGISTRYINDEX, s->script_ref);
+#endif
+
     /* Disconnect any clients. */
     it = TAILQ_FIRST(s->clients);
     while(it) {
@@ -746,6 +751,12 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     /* Initialize scripting support */
     init_scripts(rv);
 
+#ifdef ENABLE_LUA
+    /* Initialize the script table */
+    lua_newtable(rv->lstate);
+    rv->script_ref = luaL_ref(rv->lstate, LUA_REGISTRYINDEX);
+#endif
+
     /* Attempt to read the ban list */
     if(s->bans_file) {
         if(ban_list_read(s->bans_file, rv)) {
@@ -775,6 +786,7 @@ err_shipgate:
 err_bans_locks:
     pthread_rwlock_destroy(&rv->banlock);
     ban_list_clear(rv);
+    cleanup_scripts(rv);
 err_limits:
     ship_free_limits(rv);
     pthread_rwlock_destroy(&rv->llock);
@@ -1543,8 +1555,23 @@ static int ship_name_lua(lua_State *l) {
     return 1;
 }
 
+static int ship_gettable_lua(lua_State *l) {
+    ship_t *sl;
+
+    if(lua_islightuserdata(l, 1)) {
+        sl = (ship_t *)lua_touserdata(l, 1);
+        lua_rawgeti(l, LUA_REGISTRYINDEX, sl->script_ref);
+    }
+    else {
+        lua_pushnil(l);
+    }
+
+    return 1;
+}
+
 static const luaL_Reg shiplib[] = {
     { "name", ship_name_lua },
+    { "getTable", ship_gettable_lua },
     { NULL, NULL }
 };
 

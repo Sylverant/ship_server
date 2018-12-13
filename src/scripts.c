@@ -318,6 +318,8 @@ void init_scripts(ship_t *s) {
     else {
         debug(DBG_LOG, "Read script configuration\n");
     }
+
+    s->lstate = lstate;
 }
 
 void cleanup_scripts(ship_t *s) {
@@ -337,6 +339,8 @@ void cleanup_scripts(ship_t *s) {
         for(i = 0; i < ScriptActionCount; ++i) {
             script_ids[i] = 0;
         }
+
+        s->lstate = NULL;
     }
 }
 

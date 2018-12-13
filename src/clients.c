@@ -183,6 +183,12 @@ ship_client_t *client_create_connection(int sock, int version, int type,
         rng = &block->rng;
     }
 
+#ifdef ENABLE_LUA
+    /* Initialize the script table */
+    lua_newtable(ship->lstate);
+    rv->script_ref = luaL_ref(ship->lstate, LUA_REGISTRYINDEX);
+#endif
+
     script_execute(action, SCRIPT_ARG_PTR, rv, 0);
 
     switch(version) {
@@ -263,6 +269,11 @@ ship_client_t *client_create_connection(int sock, int version, int type,
     return rv;
 
 err:
+#ifdef ENABLE_LUA
+    /* Remove the table from the registry */
+    luaL_unref(ship->lstate, LUA_REGISTRYINDEX, rv->script_ref);
+#endif
+
     close(sock);
 
     if(type == CLIENT_TYPE_BLOCK) {
@@ -300,6 +311,11 @@ void client_destroy_connection(ship_client_t *c,
     }
 
     script_execute(action, SCRIPT_ARG_PTR, c, 0);
+
+#ifdef ENABLE_LUA
+    /* Remove the table from the registry */
+    luaL_unref(ship->lstate, LUA_REGISTRYINDEX, c->script_ref);
+#endif
 
     /* If the user was on a block, notify the shipgate */
     if(c->version != CLIENT_VERSION_BB && c->pl && c->pl->v1.name[0]) {
@@ -1208,6 +1224,20 @@ static int client_sendmsg_lua(lua_State *l) {
     return 1;
 }
 
+static int client_gettable_lua(lua_State *l) {
+    ship_client_t *c;
+
+    if(lua_islightuserdata(l, 1)) {
+        c = (ship_client_t *)lua_touserdata(l, 1);
+        lua_rawgeti(l, LUA_REGISTRYINDEX, c->script_ref);
+    }
+    else {
+        lua_pushnil(l);
+    }
+
+    return 1;
+}
+
 static const luaL_Reg clientlib[] = {
     { "guildcard", client_guildcard_lua },
     { "isOnBlock", client_isOnBlock_lua },
@@ -1221,6 +1251,7 @@ static const luaL_Reg clientlib[] = {
     { "block", client_block_lua },
     { "sendScriptData", client_sendsdata_lua },
     { "sendMsg", client_sendmsg_lua },
+    { "getTable", client_gettable_lua },
     { NULL, NULL }
 };
 

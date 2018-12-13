@@ -139,6 +139,8 @@ struct lobby {
     uint8_t sdrops_diff;
     uint8_t sdrops_section;
 #endif
+
+    int script_ref;
 };
 
 #ifndef LOBBY_DEFINED

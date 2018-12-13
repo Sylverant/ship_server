@@ -81,6 +81,12 @@ lobby_t *lobby_create_default(block_t *block, uint32_t lobby_id, uint8_t ev) {
     /* Initialize the (unused) packet queue */
     STAILQ_INIT(&l->pkt_queue);
 
+#ifdef ENABLE_LUA
+    /* Initialize the script table */
+    lua_newtable(block->ship->lstate);
+    l->script_ref = luaL_ref(block->ship->lstate, LUA_REGISTRYINDEX);
+#endif
+
     /* Initialize the lobby mutex. */
     pthread_mutex_init(&l->mutex, NULL);
 
@@ -369,6 +375,12 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
 
     lobby_setup_drops(c, l, sylverant_crc32((uint8_t *)l->name, 16));
 
+#ifdef ENABLE_LUA
+    /* Initialize the script table */
+    lua_newtable(block->ship->lstate);
+    l->script_ref = luaL_ref(block->ship->lstate, LUA_REGISTRYINDEX);
+#endif
+
     /* Run the team creation script, if one exists. */
     script_execute(ScriptActionTeamCreate, SCRIPT_ARG_PTR, c, SCRIPT_ARG_PTR, l,
                    SCRIPT_ARG_END);
@@ -433,6 +445,12 @@ lobby_t *lobby_create_ep3_game(block_t *block, char *name, char *passwd,
     pthread_rwlock_unlock(&block->lobby_lock);
     ship_inc_games(block->ship);
 
+#ifdef ENABLE_LUA
+    /* Initialize the script table */
+    lua_newtable(block->ship->lstate);
+    l->script_ref = luaL_ref(block->ship->lstate, LUA_REGISTRYINDEX);
+#endif
+
     /* Run the team creation script, if one exists. */
     script_execute(ScriptActionTeamCreate, SCRIPT_ARG_PTR, c, SCRIPT_ARG_PTR, l,
                    SCRIPT_ARG_END);
@@ -456,6 +474,11 @@ static void lobby_destroy_locked(lobby_t *l, int remove) {
 
     /* Run the team deletion script, if one exists. */
     script_execute(ScriptActionTeamDestroy, SCRIPT_ARG_PTR, l,  SCRIPT_ARG_END);
+
+#ifdef ENABLE_LUA
+    /* Remove the table from the registry */
+    luaL_unref(l->block->ship->lstate, LUA_REGISTRYINDEX, l->script_ref);
+#endif
 
     /* TAILQ_REMOVE may or may not be safe to use if the item was never actually
        inserted in a list, so don't remove it if it wasn't. */
@@ -1830,6 +1853,20 @@ static int lobby_sendmsg_lua(lua_State *l) {
     return 1;
 }
 
+static int lobby_gettable_lua(lua_State *l) {
+    lobby_t *lb;
+
+    if(lua_islightuserdata(l, 1)) {
+        lb = (lobby_t *)lua_touserdata(l, 1);
+        lua_rawgeti(l, LUA_REGISTRYINDEX, lb->script_ref);
+    }
+    else {
+        lua_pushnil(l);
+    }
+
+    return 1;
+}
+
 static const luaL_Reg lobbylib[] = {
     { "id", lobby_id_lua },
     { "type", lobby_type_lua },
@@ -1849,6 +1886,7 @@ static const luaL_Reg lobbylib[] = {
     { "client", lobby_client_lua },
     { "clients", lobby_clients_lua },
     { "sendMsg", lobby_sendmsg_lua },
+    { "getTable", lobby_gettable_lua },
     { NULL, NULL }
 };
 

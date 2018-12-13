@@ -158,6 +158,8 @@ struct ship_client {
     sylverant_bb_db_char_t *bb_pl;
     sylverant_bb_db_opts_t *bb_opts;
 
+    int script_ref;
+
 #ifdef DEBUG
     uint8_t sdrops_ver;
     uint8_t sdrops_ep;

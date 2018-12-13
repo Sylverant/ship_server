@@ -27,6 +27,12 @@
 #include <sylverant/items.h>
 #include <sylverant/mtwist.h>
 
+#ifdef ENABLE_LUA
+#include <lua.h>
+#include <lualib.h>
+#include <lauxlib.h>
+#endif
+
 #include "gm.h"
 #include "block.h"
 #include "shipgate.h"
@@ -122,6 +128,12 @@ struct ship {
 
     struct limits_queue all_limits;
     sylverant_limits_t *def_limits;
+
+#ifdef ENABLE_LUA
+    lua_State *lstate;
+#endif
+
+    int script_ref;
 };
 
 #ifndef SHIP_DEFINED
@@ -153,8 +165,6 @@ void ship_free_limits_ex(struct limits_queue *l);
 sylverant_limits_t *ship_lookup_limits(const char *name);
 
 #ifdef ENABLE_LUA
-#include <lua.h>
-
 int ship_register_lua(lua_State *l);
 #endif
 
