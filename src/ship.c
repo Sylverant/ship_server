@@ -1432,7 +1432,8 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return 0;
 
         default:
-            if(script_execute_pkt(ScriptActionUnknownShipPacket, c, pkt, len)) {
+            if(!script_execute_pkt(ScriptActionUnknownShipPacket, c, pkt,
+                                   len)) {
                 debug(DBG_LOG, "Unknown packet!\n");
                 print_packet((unsigned char *)pkt, len);
                 return -3;
@@ -1461,7 +1462,8 @@ static int bb_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return bb_process_info_req(c, (bb_select_pkt *)pkt);
 
         default:
-            if(script_execute_pkt(ScriptActionUnknownShipPacket, c, pkt, len)) {
+            if(!script_execute_pkt(ScriptActionUnknownShipPacket, c, pkt,
+                                   len)) {
                 debug(DBG_LOG, "Unknown packet!\n");
                 print_packet((unsigned char *)pkt, len);
                 return -3;
