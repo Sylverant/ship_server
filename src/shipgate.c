@@ -36,6 +36,7 @@
 #include "clients.h"
 #include "shipgate.h"
 #include "ship_packets.h"
+#include "scripts.h"
 
 /* TLS stuff -- from ship_server.c */
 extern gnutls_certificate_credentials_t tls_cred;
@@ -1851,6 +1852,35 @@ static int handle_schunk(shipgate_conn_t *c, shipgate_schunk_pkt *pkt) {
     }
 }
 
+static int handle_sset(shipgate_conn_t *c, shipgate_sset_pkt *pkt) {
+    script_action_t action;
+
+    /* Sanity check the packet. */
+    if(pkt->action >= ScriptActionCount) {
+        debug(DBG_WARN, "Shipgate set script for unknown event %" PRIu32
+              "\n", pkt->action);
+        return -1;
+    }
+
+    if(pkt->filename[31]) {
+        debug(DBG_WARN, "Shipgate set script with too long filename\n");
+        return -1;
+    }
+
+    action = (script_action_t)pkt->action;
+
+    /* Are we setting or unsetting the script? */
+    if(pkt->filename[0]) {
+        return script_add(action, pkt->filename);
+    }
+    else {
+        /* The only reason script_remove() could return -1 is if the script
+           wasn't set. Don't error out on that case. */
+        script_remove(action);
+        return 0;
+    }
+}
+
 static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
     uint16_t type = ntohs(pkt->pkt_type);
     uint16_t flags = ntohs(pkt->flags);
@@ -1990,6 +2020,9 @@ static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
 
             case SHDR_TYPE_SCHUNK:
                 return handle_schunk(conn, (shipgate_schunk_pkt *)pkt);
+
+            case SHDR_TYPE_SSET:
+                return handle_sset(conn, (shipgate_sset_pkt *)pkt);
         }
     }
 

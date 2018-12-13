@@ -460,6 +460,14 @@ typedef struct shipgate_sdata {
     uint8_t data[];
 } PACKED shipgate_sdata_pkt;
 
+/* Packet used to set a script to respond to an event. */
+typedef struct shipgate_sset {
+    shipgate_hdr_t hdr;
+    uint32_t action;
+    uint32_t reserved;
+    char filename[32];
+} PACKED shipgate_sset_pkt;
+
 #undef PACKED
 
 /* Size of the shipgate login packet. */
@@ -507,6 +515,7 @@ static const char shipgate_login_msg[] =
 #define SHDR_TYPE_TLOGIN    0x002A      /* Token-based login request */
 #define SHDR_TYPE_SCHUNK    0x002B      /* Script chunk */
 #define SHDR_TYPE_SDATA     0x002C      /* Script data */
+#define SHDR_TYPE_SSET      0x002D      /* Script set */
 
 /* Flags that can be set in the login packet */
 #define LOGIN_FLAG_GMONLY   0x00000001  /* Only Global GMs are allowed */
