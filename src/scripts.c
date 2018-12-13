@@ -61,12 +61,13 @@ static const xmlChar *script_action_text[] = {
     XC"UNK_SHIP_PKT",
     XC"UNK_BLOCK_PKT",
     XC"UNK_EP3_PKT",
-    XC"ENEMY_KILL",
-    XC"ENEMY_HIT",
     XC"TEAM_CREATE",
     XC"TEAM_DESTROY",
     XC"TEAM_JOIN",
     XC"TEAM_LEAVE",
+    XC"ENEMY_KILL",
+    XC"ENEMY_HIT",
+    XC"BOX_BREAK",
 };
 
 /* Figure out what index a given script action sits at */
@@ -83,9 +84,18 @@ static inline script_action_t script_action_to_index(xmlChar *str) {
 }
 
 int script_add(script_action_t action, const char *filename) {
+    char realfn[64];
+
     /* Can't do anything if we don't have any scripts loaded. */
     if(!scripts_ref)
         return 0;
+
+    /* Make the real filename we'll try to load from... */
+    snprintf(realfn, 64, "scripts/%s", filename);
+    if(realfn[63]) {
+        debug(DBG_WARN, "Attempt to add script with long filename\n");
+        return -1;
+    }
 
     pthread_mutex_lock(&script_mutex);
 

@@ -37,12 +37,13 @@ typedef enum script_action {
     ScriptActionUnknownShipPacket,
     ScriptActionUnknownBlockPacket,
     ScriptActionUnknownEp3Packet,
-    ScriptActionEnemyKill,
-    ScriptActionEnemyHit,
     ScriptActionTeamCreate,
     ScriptActionTeamDestroy,
     ScriptActionTeamJoin,
     ScriptActionTeamLeave,
+    ScriptActionEnemyKill,
+    ScriptActionEnemyHit,
+    ScriptActionBoxBreak,
     ScriptActionCount
 } script_action_t;
 
