@@ -1238,6 +1238,20 @@ static int client_gettable_lua(lua_State *l) {
     return 1;
 }
 
+static int client_area_lua(lua_State *l) {
+    ship_client_t *c;
+
+    if(lua_islightuserdata(l, 1)) {
+        c = (ship_client_t *)lua_touserdata(l, 1);
+        lua_pushinteger(l, c->cur_area);
+    }
+    else {
+        lua_pushinteger(l, -1);
+    }
+
+    return 1;
+}
+
 static const luaL_Reg clientlib[] = {
     { "guildcard", client_guildcard_lua },
     { "isOnBlock", client_isOnBlock_lua },
@@ -1252,6 +1266,7 @@ static const luaL_Reg clientlib[] = {
     { "sendScriptData", client_sendsdata_lua },
     { "sendMsg", client_sendmsg_lua },
     { "getTable", client_gettable_lua },
+    { "area", client_area_lua },
     { NULL, NULL }
 };
 
