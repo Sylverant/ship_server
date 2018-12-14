@@ -440,7 +440,7 @@ typedef struct shipgate_schunk {
     uint8_t reserved[3];
     uint32_t chunk_length;
     uint32_t chunk_crc;
-    uint32_t reserved2;
+    uint32_t action;
     char filename[32];
     uint8_t chunk[];
 } PACKED shipgate_schunk_pkt;

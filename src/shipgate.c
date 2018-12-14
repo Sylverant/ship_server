@@ -1776,6 +1776,11 @@ static int handle_schunk(shipgate_conn_t *c, shipgate_schunk_pkt *pkt) {
                     debug(DBG_LOG, "Already have script '%s'\n", filename);
                     free(buf);
 
+                    /* If the action field is non-zero, go ahead and add the
+                       script now, since we have it already. */
+                    if(pkt->action && chtype == SCHUNK_TYPE_SCRIPT)
+                        script_add(pkt->filename, ntohl(pkt->action));
+
                     /* Notify the shipgate */
                     if(!sendbuf)
                         return -1;
@@ -1837,6 +1842,10 @@ static int handle_schunk(shipgate_conn_t *c, shipgate_schunk_pkt *pkt) {
 
         debug(DBG_LOG, "Shipgate sent script '%s' (CRC: %08" PRIx32 ")\n",
               filename, crc);
+
+        /* If the action field is non-zero, go ahead and add the script now. */
+        if(pkt->action && chtype == SCHUNK_TYPE_SCRIPT)
+            script_add(pkt->filename, ntohl(pkt->action));
 
         /* Notify the shipgate that we got it. */
         if(!sendbuf)
