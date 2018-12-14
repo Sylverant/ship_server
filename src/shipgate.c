@@ -1716,6 +1716,7 @@ static int handle_schunk(shipgate_conn_t *c, shipgate_schunk_pkt *pkt) {
     uint8_t *sendbuf = get_sendbuf();
     shipgate_schunk_err_pkt *err = (shipgate_schunk_err_pkt *)sendbuf;
     uint8_t chtype = pkt->chunk_type & 0x7F;
+    script_action_t action = ScriptActionInvalid;
 
     /* Make sure we have scripting enabled first, otherwise, just ignore this */
     if(!(s->cfg->shipgate_flags & LOGIN_FLAG_LUA)) {
@@ -1725,8 +1726,9 @@ static int handle_schunk(shipgate_conn_t *c, shipgate_schunk_pkt *pkt) {
 
     len = ntohl(pkt->chunk_length);
     crc = ntohl(pkt->chunk_crc);
+    action = (script_action_t)ntohl(pkt->action);
 
-    /* Basic sanity check... */
+    /* Basic sanity checks... */
     if(len > 32768) {
         debug(DBG_WARN, "Shipgate sent huge script\n");
         return -1;
@@ -1734,6 +1736,11 @@ static int handle_schunk(shipgate_conn_t *c, shipgate_schunk_pkt *pkt) {
 
     if(pkt->filename[31] || chtype > SCHUNK_TYPE_MODULE) {
         debug(DBG_WARN, "Shipgate sent invalid schunk!\n");
+        return -1;
+    }
+
+    if(action >= ScriptActionCount) {
+        debug(DBG_WARN, "Shipgate sent script for unknown action!\n");
         return -1;
     }
 
@@ -1779,7 +1786,7 @@ static int handle_schunk(shipgate_conn_t *c, shipgate_schunk_pkt *pkt) {
                     /* If the action field is non-zero, go ahead and add the
                        script now, since we have it already. */
                     if(pkt->action && chtype == SCHUNK_TYPE_SCRIPT)
-                        script_add(pkt->filename, ntohl(pkt->action));
+                        script_add(action, pkt->filename);
 
                     /* Notify the shipgate */
                     if(!sendbuf)
@@ -1845,7 +1852,7 @@ static int handle_schunk(shipgate_conn_t *c, shipgate_schunk_pkt *pkt) {
 
         /* If the action field is non-zero, go ahead and add the script now. */
         if(pkt->action && chtype == SCHUNK_TYPE_SCRIPT)
-            script_add(pkt->filename, ntohl(pkt->action));
+            script_add(action, pkt->filename);
 
         /* Notify the shipgate that we got it. */
         if(!sendbuf)
@@ -1888,6 +1895,35 @@ static int handle_sset(shipgate_conn_t *c, shipgate_sset_pkt *pkt) {
         script_remove(action);
         return 0;
     }
+}
+
+static int handle_sdata(shipgate_conn_t *c, shipgate_sdata_pkt *pkt) {
+    ship_t *s = c->ship;
+    block_t *b;
+    ship_client_t *i;
+    uint32_t gc = ntohl(pkt->guildcard), block = ntohl(pkt->block);
+
+    /* Check the block number first. */
+    if(block > s->cfg->blocks)
+        return 0;
+
+    b = s->blocks[block - 1];
+    pthread_rwlock_rdlock(&b->lock);
+
+    /* Find the requested client. */
+    TAILQ_FOREACH(i, b->clients, qentry) {
+        if(i->guildcard == gc) {
+            pthread_mutex_lock(&i->mutex);
+            script_execute(ScriptActionSData, SCRIPT_ARG_PTR, i,
+                           SCRIPT_ARG_UINT32, ntohl(pkt->event_id),
+                           SCRIPT_ARG_STRING, ntohl(pkt->data_len), pkt->data,
+                           SCRIPT_ARG_END);
+            pthread_mutex_unlock(&i->mutex);
+        }
+    }
+
+    pthread_rwlock_unlock(&b->lock);
+    return 0;
 }
 
 static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
@@ -2032,6 +2068,9 @@ static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
 
             case SHDR_TYPE_SSET:
                 return handle_sset(conn, (shipgate_sset_pkt *)pkt);
+
+            case SHDR_TYPE_SDATA:
+                return handle_sdata(conn, (shipgate_sdata_pkt *)pkt);
         }
     }
 
@@ -2952,7 +2991,6 @@ int shipgate_send_mkill(shipgate_conn_t *c, uint32_t gc, uint32_t block,
 /* Send a script data packet */
 int shipgate_send_sdata(shipgate_conn_t *c, ship_client_t *sc, uint32_t event,
                         const uint8_t *data, uint32_t len) {
-    ;
     uint8_t *sendbuf = get_sendbuf();
     shipgate_sdata_pkt *pkt = (shipgate_sdata_pkt *)sendbuf;
 
