@@ -44,6 +44,7 @@ typedef enum script_action {
     ScriptActionEnemyKill,
     ScriptActionEnemyHit,
     ScriptActionBoxBreak,
+    ScriptActionUnknownCommand,
     ScriptActionCount
 } script_action_t;
 
@@ -56,7 +57,8 @@ typedef enum script_action {
 #define SCRIPT_ARG_UINT8    4
 #define SCRIPT_ARG_UINT16   5
 #define SCRIPT_ARG_UINT32   6
-#define SCRIPT_ARG_STRING   7
+#define SCRIPT_ARG_STRING   7               /* Length-prepended string */
+#define SCRIPT_ARG_CSTRING  8               /* NUL-terminated string */
 
 /* Call the script function for the given event with the args listed */
 int script_execute(script_action_t event, ...);

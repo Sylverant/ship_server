@@ -68,6 +68,7 @@ static const xmlChar *script_action_text[] = {
     XC"ENEMY_KILL",
     XC"ENEMY_HIT",
     XC"BOX_BREAK",
+    XC"UNK_COMMAND",
 };
 
 /* Figure out what index a given script action sits at */
@@ -473,6 +474,13 @@ int script_execute(script_action_t event, ...) {
                 size_t len = va_arg(ap, size_t);
                 char *str = va_arg(ap, char *);
                 lua_pushlstring(lstate, str, len);
+                break;
+            }
+
+            case SCRIPT_ARG_CSTRING:
+            {
+                char *str = va_arg(ap, char *);
+                lua_pushstring(lstate, str);
                 break;
             }
 

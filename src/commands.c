@@ -42,6 +42,7 @@
 #include "pmtdata.h"
 #include "mapdata.h"
 #include "rtdata.h"
+#include "scripts.h"
 
 extern int handle_dc_gcsend(ship_client_t *d, subcmd_dc_gcsend_t *pkt);
 
@@ -3377,8 +3378,15 @@ static int command_call(ship_client_t *c, const char *txt, size_t len) {
         i++;
     }
 
-    /* Send the user a message saying invalid command. */
-    return send_txt(c, "%s", __(c, "\tE\tC7Invalid Command."));
+    /* Make sure a script isn't set up to respond to the user's command... */
+    if(!script_execute(ScriptActionUnknownCommand, SCRIPT_ARG_PTR, c,
+                       SCRIPT_ARG_CSTRING, cmd, SCRIPT_ARG_CSTRING, params,
+                       SCRIPT_ARG_END)) {
+        /* Send the user a message saying invalid command. */
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid Command."));
+    }
+
+    return 0;
 }
 
 int command_parse(ship_client_t *c, dc_chat_pkt *pkt) {
