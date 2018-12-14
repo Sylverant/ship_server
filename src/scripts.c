@@ -384,7 +384,7 @@ int script_execute_pkt(script_action_t event, ship_client_t *c, const void *pkt,
     /* Grab the return value from the lua function (it should be of type
        integer). */
     rv = lua_tointegerx(lstate, -1, &err);
-    if(err) {
+    if(!err) {
         debug(DBG_ERROR, "Script for event %d didn't return int\n",(int)event);
     }
 
@@ -507,7 +507,7 @@ int script_execute(script_action_t event, ...) {
     /* Grab the return value from the lua function (it should be of type
        integer). */
     rv = lua_tointegerx(lstate, -1, &err);
-    if(err) {
+    if(!err) {
         debug(DBG_ERROR, "Script for event %d didn't return int\n",(int)event);
     }
 
@@ -546,4 +546,4 @@ int script_remove(script_action_t event) {
     return 0;
 }
 
-#endif /* 0 */
+#endif /* ENABLE_LUA */
