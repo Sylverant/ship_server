@@ -1980,9 +1980,9 @@ static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
                 return handle_delfriend(conn, (shipgate_friend_err_pkt *)pkt);
 
             default:
-                debug(DBG_WARN, "%s: Shipgate sent unknown error!",
+                debug(DBG_WARN, "%s: Shipgate sent unknown error!\n",
                       conn->ship->cfg->name);
-                return 0;
+                return -1;
         }
     }
     else {
