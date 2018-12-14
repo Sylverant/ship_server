@@ -2993,6 +2993,7 @@ int shipgate_send_sdata(shipgate_conn_t *c, ship_client_t *sc, uint32_t event,
                         const uint8_t *data, uint32_t len) {
     uint8_t *sendbuf = get_sendbuf();
     shipgate_sdata_pkt *pkt = (shipgate_sdata_pkt *)sendbuf;
+    uint16_t pkt_len;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf)
@@ -3004,9 +3005,13 @@ int shipgate_send_sdata(shipgate_conn_t *c, ship_client_t *sc, uint32_t event,
         return -1;
     }
 
+    pkt_len = sizeof(shipgate_sdata_pkt) + len;
+    if(pkt_len & 0x07)
+        pkt_len = (pkt_len + 8) & 0xFFF8;
+
     /* Fill in the packet... */
-    memset(pkt, 0, sizeof(shipgate_sdata_pkt));
-    pkt->hdr.pkt_len = htons(sizeof(shipgate_sdata_pkt) + len);
+    memset(pkt, 0, pkt_len);
+    pkt->hdr.pkt_len = htons(pkt_len);
     pkt->hdr.pkt_type = htons(SHDR_TYPE_SDATA);
     pkt->event_id = htonl(event);
     pkt->data_len = htonl(len);
@@ -3018,5 +3023,5 @@ int shipgate_send_sdata(shipgate_conn_t *c, ship_client_t *sc, uint32_t event,
     memcpy(pkt->data, data, len);
 
     /* Send it away. */
-    return send_crypt(c, sizeof(shipgate_sdata_pkt) + len, sendbuf);
+    return send_crypt(c, pkt_len, sendbuf);
 }
