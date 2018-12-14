@@ -45,6 +45,7 @@ typedef enum script_action {
     ScriptActionEnemyHit,
     ScriptActionBoxBreak,
     ScriptActionUnknownCommand,
+    ScriptActionSData,
     ScriptActionCount
 } script_action_t;
 
