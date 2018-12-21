@@ -18,6 +18,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <unistd.h>
 #include <sys/queue.h>
 
 #include <sylverant/debug.h>
@@ -285,6 +286,17 @@ err:
 }
 
 void init_scripts(ship_t *s) {
+    long size = pathconf(".", _PC_PATH_MAX);
+    char *path_str, *script;
+
+    if(!(path_str = (char *)malloc(size))) {
+        debug(DBG_WARN, "Out of memory, bailing out!\n");
+        return;
+    }
+    else if(!getcwd(path_str, size)) {
+        debug(DBG_WARN, "Cannot save path, local packages will not work!\n");
+    }
+
     /* Not that this should happen, but just in case... */
     if(lstate) {
         debug(DBG_WARN, "Attempt to initialize scripting twice!\n");
@@ -309,9 +321,24 @@ void init_scripts(ship_t *s) {
     luaL_requiref(lstate, "lobby", lobby_register_lua, 1);
     lua_pop(lstate, 1);
 
-    /* Set the module search path to include the scripts/modules dir. */
-    (void)luaL_dostring(lstate, "package.path = package.path .. "
-                        "';scripts/modules/?.lua'");
+    if(path_str) {
+        size = strlen(path_str) + 100;
+
+        if(!(script = (char *)malloc(size)))
+            debug(DBG_WARN, "Cannot save path in scripts!\n");
+
+        if(script) {
+            snprintf(script, size, "package.path = package.path .. "
+                     "\";%s/scripts/modules/?.lua\"", path_str);
+            debug(DBG_LOG, "%s\n", script);
+
+            /* Set the module search path to include the scripts/modules dir. */
+            (void)luaL_dostring(lstate, script);
+            free(script);
+        }
+
+        free(path_str);
+    }
 
     /* Read in the configuration into our script table */
     if(script_eventlist_read(s->cfg->scripts_file)) {
