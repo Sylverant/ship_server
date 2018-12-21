@@ -106,7 +106,7 @@ int script_add(script_action_t action, const char *filename) {
     lua_rawgeti(lstate, LUA_REGISTRYINDEX, scripts_ref);
 
     /* Attempt to read in the script. */
-    if(luaL_loadfile(lstate, filename) != LUA_OK) {
+    if(luaL_loadfile(lstate, realfn) != LUA_OK) {
         debug(DBG_WARN, "Couldn't load script \"%s\"\n", filename);
         lua_pop(lstate, 1);
         pthread_mutex_unlock(&script_mutex);
