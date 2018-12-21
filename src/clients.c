@@ -92,7 +92,6 @@ ship_client_t *client_create_connection(int sock, int version, int type,
     int i;
     pthread_mutexattr_t attr;
     struct mt19937_state *rng;
-    script_action_t action = ScriptActionClientShipLogin;
 
     if(!rv) {
         perror("malloc");
@@ -102,7 +101,6 @@ ship_client_t *client_create_connection(int sock, int version, int type,
     memset(rv, 0, sizeof(ship_client_t));
 
     if(type == CLIENT_TYPE_BLOCK) {
-        action = ScriptActionClientBlockLogin;
         rv->pl = (player_t *)malloc(sizeof(player_t));
 
         if(!rv->pl) {
@@ -188,8 +186,6 @@ ship_client_t *client_create_connection(int sock, int version, int type,
     lua_newtable(ship->lstate);
     rv->script_ref = luaL_ref(ship->lstate, LUA_REGISTRYINDEX);
 #endif
-
-    script_execute(action, SCRIPT_ARG_PTR, rv, 0);
 
     switch(version) {
         case CLIENT_VERSION_DCV1:

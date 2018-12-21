@@ -1162,6 +1162,9 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
 
         /* Do a few things that should only be done once per session... */
         if(!(c->flags & CLIENT_FLAG_SENT_MOTD)) {
+            script_execute(ScriptActionClientBlockLogin, SCRIPT_ARG_PTR,
+                           c, SCRIPT_ARG_END);
+
             /* Notify the shipgate */
             shipgate_send_block_login(&ship->sg, 1, c->guildcard,
                                       c->cur_block->b, c->pl->v1.name);
