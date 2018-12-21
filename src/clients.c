@@ -1266,6 +1266,20 @@ static int client_name_lua(lua_State *l) {
     return 1;
 }
 
+static int client_flags_lua(lua_State *l) {
+    ship_client_t *c;
+
+    if(lua_islightuserdata(l, 1)) {
+        c = (ship_client_t *)lua_touserdata(l, 1);
+        lua_pushinteger(l, c->flags);
+    }
+    else {
+        lua_pushinteger(l, -1);
+    }
+
+    return 1;
+}
+
 static const luaL_Reg clientlib[] = {
     { "guildcard", client_guildcard_lua },
     { "isOnBlock", client_isOnBlock_lua },
@@ -1282,6 +1296,7 @@ static const luaL_Reg clientlib[] = {
     { "getTable", client_gettable_lua },
     { "area", client_area_lua },
     { "name", client_name_lua },
+    { "flags", client_flags_lua },
     { NULL, NULL }
 };
 
