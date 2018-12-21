@@ -342,6 +342,10 @@ void init_scripts(ship_t *s) {
     /* Read in the configuration into our script table */
     if(script_eventlist_read(s->cfg->scripts_file)) {
         debug(DBG_WARN, "Couldn't load scripts configuration!\n");
+
+        /* Make a scripts table, in case the gate sends us some later. */
+        lua_newtable(lstate);
+        scripts_ref = luaL_ref(lstate, LUA_REGISTRYINDEX);
     }
     else {
         debug(DBG_LOG, "Read script configuration\n");
