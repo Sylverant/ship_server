@@ -3017,8 +3017,12 @@ int shipgate_send_sdata(shipgate_conn_t *c, ship_client_t *sc, uint32_t event,
     pkt->data_len = htonl(len);
     pkt->guildcard = htonl(sc->guildcard);
     pkt->block = htonl(sc->cur_block->b);
-    pkt->episode = sc->cur_lobby->episode;
-    pkt->difficulty = sc->cur_lobby->difficulty;
+
+    if(sc->cur_lobby) {
+        pkt->episode = sc->cur_lobby->episode;
+        pkt->difficulty = sc->cur_lobby->difficulty;
+    }
+
     pkt->version = sc->version;
     memcpy(pkt->data, data, len);
 

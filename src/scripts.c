@@ -330,7 +330,6 @@ void init_scripts(ship_t *s) {
         if(script) {
             snprintf(script, size, "package.path = package.path .. "
                      "\";%s/scripts/modules/?.lua\"", path_str);
-            debug(DBG_LOG, "%s\n", script);
 
             /* Set the module search path to include the scripts/modules dir. */
             (void)luaL_dostring(lstate, script);
