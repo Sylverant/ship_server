@@ -803,7 +803,10 @@ int client_give_level_v2(ship_client_t *c, uint32_t level_req) {
     level_entry_t *ent;
     int cl, i;
 
-    if(c->version != CLIENT_VERSION_DCV2 || !c->pl || level_req > 199)
+    if(c->version != CLIENT_VERSION_DCV2 && c->version != CLIENT_VERSION_PC)
+        return -1;
+
+    if(!c->pl || level_req > 199)
         return -1;
 
     /* No need if they've already at that level. */

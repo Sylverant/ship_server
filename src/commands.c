@@ -2694,7 +2694,8 @@ static int handle_level(ship_client_t *c, const char *params) {
 
         return client_give_level(c, amt);
     }
-    else if(c->version == CLIENT_VERSION_DCV2) {
+    else if(c->version == CLIENT_VERSION_DCV2 ||
+            c->version == CLIENT_VERSION_PC) {
         /* Make sure that the requester is in a lobby, not a team */
         if(l->type == LOBBY_TYPE_GAME) {
             return send_txt(c, "%s", __(c, "\tE\tC7Not valid in a team."));
