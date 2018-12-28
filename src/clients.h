@@ -259,6 +259,27 @@ extern pthread_key_t sendbuf_key;
 #define CLIENT_FLAG_CDATA_CHECK     0x00800000
 #define CLIENT_FLAG_ALWAYS_LEGIT    0x01000000
 
+/* Technique numbers */
+#define TECHNIQUE_FOIE              0
+#define TECHNIQUE_GIFOIE            1
+#define TECHNIQUE_RAFOIE            2
+#define TECHNIQUE_BARTA             3
+#define TECHNIQUE_GIBARTA           4
+#define TECHNIQUE_RABARTA           5
+#define TECHNIQUE_ZONDE             6
+#define TECHNIQUE_GIZONDE           7
+#define TECHNIQUE_RAZONDE           8
+#define TECHNIQUE_GRANTS            9
+#define TECHNIQUE_DEBAND            10
+#define TECHNIQUE_JELLEN            11
+#define TECHNIQUE_ZALURE            12
+#define TECHNIQUE_SHIFTA            13
+#define TECHNIQUE_RYUKER            14
+#define TECHNIQUE_RESTA             15
+#define TECHNIQUE_ANTI              16
+#define TECHNIQUE_REVERSER          17
+#define TECHNIQUE_MEGID             18
+
 /* The list of language codes for the quest directories. */
 static const char language_codes[][3] __attribute__((unused)) = {
     "jp", "en", "de", "fr", "es", "cs", "ct", "kr"
