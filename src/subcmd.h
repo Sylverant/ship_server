@@ -798,6 +798,38 @@ typedef struct subcmd_pipe {
     uint32_t unk[5];                    /* Location is in here. */
 } PACKED subcmd_pipe_pkt_t;
 
+/* Packet sent when an object is hit by a technique. */
+typedef struct subcmd_objhit_tech {
+    dc_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint8_t client_id;
+    uint8_t unused;
+    uint8_t tech;
+    uint8_t unused2;
+    uint8_t level;
+    uint8_t hit_count;
+    struct {
+        uint16_t obj_id;    /* 0xtiii -> i: id, t: type (4 object, 1 monster) */
+        uint16_t unused;
+    } objects[];
+} PACKED subcmd_objhit_tech_t;
+
+/* Packet sent when an object is hit by a physical attack. */
+typedef struct subcmd_objhit_phys {
+    dc_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint8_t client_id;
+    uint8_t unused;
+    uint8_t hit_count;
+    uint8_t unused2[3];
+    struct {
+        uint16_t obj_id;    /* 0xtiii -> i: id, t: type (4 object, 1 monster) */
+        uint16_t unused;
+    } objects[];
+} PACKED subcmd_objhit_phys_t;
+
 #undef PACKED
 
 /* Subcommand types we care about (0x62/0x6D). */
@@ -813,7 +845,7 @@ typedef struct subcmd_pipe {
 /* Subcommand types we might care about (0x60/0x6C). */
 #define SUBCMD_SYMBOL_CHAT  0x07
 #define SUBCMD_HIT_MONSTER  0x0A
-#define SUBCMD_HIT_BOX      0x0B
+#define SUBCMD_HIT_OBJ      0x0B
 #define SUBCMD_TELEPORT     0x17
 #define SUBCMD_SET_AREA     0x1F
 #define SUBCMD_SET_AREA_21  0x21    /* Seems to match 0x1F */
@@ -833,6 +865,8 @@ typedef struct subcmd_pipe {
 #define SUBCMD_SET_POS_3F   0x3F
 #define SUBCMD_MOVE_SLOW    0x40
 #define SUBCMD_MOVE_FAST    0x42
+#define SUBCMD_OBJHIT_PHYS  0x46
+#define SUBCMD_OBJHIT_TECH  0x47
 #define SUBCMD_USED_TECH    0x48
 #define SUBCMD_TAKE_DAMAGE1 0x4B
 #define SUBCMD_TAKE_DAMAGE2 0x4C

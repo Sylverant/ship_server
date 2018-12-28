@@ -2317,33 +2317,89 @@ static int handle_bb_mhit(ship_client_t *c, subcmd_bb_mhit_pkt_t *pkt) {
     return subcmd_send_lobby_bb(l, c, (bb_subcmd_pkt_t *)pkt, 0);
 }
 
-static int handle_bhit(ship_client_t *c, subcmd_bhit_pkt_t *pkt) {
+static int handle_objhit(ship_client_t *c, subcmd_objhit_tech_t *pkt) {
     lobby_t *l = c->cur_lobby;
     uint16_t bid;
+    uint32_t obj_type;
+    uint8_t i;
 
     /* We can't get these in lobbies without someone messing with something that
        they shouldn't be... Disconnect anyone that tries. */
     if(l->type == LOBBY_TYPE_DEFAULT) {
-        debug(DBG_WARN, "Guild card %" PRIu32 " hit box in lobby!\n",
+        debug(DBG_WARN, "Guild card %" PRIu32 " hit object in lobby!\n",
               c->guildcard);
         return -1;
     }
 
     /* Sanity check... Make sure the size of the subcommand matches with what we
        expect. Disconnect the client if not. */
-    if(pkt->hdr.pkt_len != LE16(0x0010) || pkt->size != 0x03) {
-        debug(DBG_WARN, "Guild card %" PRIu32 " sent bad bhit message!\n",
+    if(LE16(pkt->hdr.pkt_len) != (4 + (pkt->size << 2)) || pkt->size < 0x02) {
+        debug(DBG_WARN, "Guild card %" PRIu32 " sent bad objhit message!\n",
               c->guildcard);
+        print_packet((unsigned char *)pkt, LE16(pkt->hdr.pkt_len));
         return -1;
     }
 
-    /* Grab relevant information from the packet */
-    bid = LE16(pkt->box_id);
+    /* Check the type of the object that was hit. If there's no object data
+       loaded here, we pretty much have to bail now. */
+    if(!l->map_objs || !l->map_enemies)
+        return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
 
-    /* We'll probably want to do a bit more with this at some point, but for now
-       this will do. */
-    script_execute(ScriptActionBoxBreak, SCRIPT_ARG_PTR, c, SCRIPT_ARG_UINT16,
-                   bid, SCRIPT_ARG_END);
+    /* Grab relevant information from the packet */
+    for(i = 0; i < pkt->size - 2; ++i) {
+        bid = LE16(pkt->objects[i].obj_id);
+
+        /* What type of object was hit? */
+        if((bid & 0xF000) == 0x4000) {
+            /* An object was hit */
+            bid &= 0x0FFF;
+
+            /* Make sure the object is in range. */
+            if(bid > l->map_objs->count) {
+                debug(DBG_WARN, "Guild card %" PRIu32 " hit invalid object "
+                      "(%d -- max: %d)!\n"
+                      "Episode: %d, Floor: %d, Map: (%d, %d)\n", c->guildcard,
+                      bid, l->map_objs->count, l->episode, c->cur_area,
+                      l->maps[c->cur_area << 1],
+                      l->maps[(c->cur_area << 1) + 1]);
+
+                if((l->flags & LOBBY_FLAG_QUESTING))
+                    debug(DBG_WARN, "Quest ID: %d, Version: %d\n", l->qid,
+                          l->version);
+
+                /* Just continue on and hope for the best. We've probably got a
+                   bug somewhere on our end anyway... */
+                continue;
+            }
+
+            /* Now, see if we care about the type of the object that was hit. */
+            obj_type = l->map_objs->objs[bid].data.skin & 0xFFFF;
+
+            /* We'll probably want to do a bit more with this at some point, but
+               for now this will do. */
+            switch(obj_type) {
+                case OBJ_SKIN_REG_BOX:
+                case OBJ_SKIN_FIXED_BOX:
+                case OBJ_SKIN_RUINS_REG_BOX:
+                case OBJ_SKIN_RUINS_FIXED_BOX:
+                case OBJ_SKIN_CCA_REG_BOX:
+                case OBJ_SKIN_CCA_FIXED_BOX:
+                    /* Run the box broken script. */
+                    script_execute(ScriptActionBoxBreak, SCRIPT_ARG_PTR, c,
+                                   SCRIPT_ARG_UINT16, bid, SCRIPT_ARG_UINT16,
+                                   obj_type, SCRIPT_ARG_END);
+                    break;
+            }
+        }
+        else if((bid & 0xF000) == 0x1000) {
+            /* An enemy was hit. We don't really do anything with these here,
+               as there is a better packet for handling them. */
+            continue;
+        }
+        else {
+            debug(DBG_LOG, "Unknown object type hit: %04" PRIx16 "\n", bid);
+        }
+    }
 
     /* We're not doing any more interesting parsing with this one for now, so
        just send it along. */
@@ -2766,8 +2822,11 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
             rv = handle_mhit(c, (subcmd_mhit_pkt_t *)pkt);
             break;
 
-        case SUBCMD_HIT_BOX:
-            rv = handle_bhit(c, (subcmd_bhit_pkt_t *)pkt);
+        case SUBCMD_OBJHIT_PHYS:
+        case SUBCMD_OBJHIT_TECH:
+            /* XXXX: I probably should separate these out, but considering all
+               we care about here is the object IDs, this works. */
+            rv = handle_objhit(c, (subcmd_objhit_tech_t *)pkt);
             break;
 
         case SUBCMD_SPAWN_NPC:

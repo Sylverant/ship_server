@@ -155,6 +155,14 @@ typedef struct parsed_objects {
 
 #undef PACKED
 
+/* Object types */
+#define OBJ_SKIN_REG_BOX            0x0088
+#define OBJ_SKIN_FIXED_BOX          0x0092
+#define OBJ_SKIN_RUINS_REG_BOX      0x0161
+#define OBJ_SKIN_RUINS_FIXED_BOX    0x0162
+#define OBJ_SKIN_CCA_REG_BOX        0x0200
+#define OBJ_SKIN_CCA_FIXED_BOX      0x0203
+
 #ifndef LOBBY_DEFINED
 #define LOBBY_DEFINED
 struct lobby;
