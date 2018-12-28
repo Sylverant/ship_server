@@ -88,14 +88,15 @@ static inline script_action_t script_action_to_index(xmlChar *str) {
 
 int script_add(script_action_t action, const char *filename) {
     char realfn[64];
+    int len;
 
     /* Can't do anything if we don't have any scripts loaded. */
     if(!scripts_ref)
         return 0;
 
     /* Make the real filename we'll try to load from... */
-    snprintf(realfn, 64, "scripts/%s", filename);
-    if(realfn[63]) {
+    len = snprintf(realfn, 64, "scripts/%s", filename);
+    if(len >= 64) {
         debug(DBG_WARN, "Attempt to add script with long filename\n");
         return -1;
     }
