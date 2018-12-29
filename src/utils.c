@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2018 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -150,7 +150,7 @@ int dc_bug_report(ship_client_t *c, dc_simple_mail_pkt *pkt) {
 
     /* Get the timestamp */
     gettimeofday(&rawtime, NULL);
-    
+
     /* Get UTC */
     gmtime_r(&rawtime.tv_sec, &cooked);
 
@@ -722,6 +722,13 @@ void update_lobby_event(void) {
     }
 }
 
+uint64_t get_ms_time(void) {
+    struct timeval tv;
+
+    gettimeofday(&tv, NULL);
+    return (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
+}
+
 int init_iconv(void) {
     ic_utf8_to_utf16 = iconv_open("UTF-16LE", "UTF-8");
 
@@ -734,13 +741,13 @@ int init_iconv(void) {
     if(ic_utf16_to_utf8 == (iconv_t)-1) {
         goto out1;
     }
-        
+
     ic_8859_to_utf8 = iconv_open("UTF-8", "ISO-8859-1");
-    
+
     if(ic_8859_to_utf8 == (iconv_t)-1) {
         goto out2;
     }
-    
+
     ic_utf8_to_8859 = iconv_open("ISO-8859-1", "UTF-8");
 
     if(ic_utf8_to_8859 == (iconv_t)-1) {

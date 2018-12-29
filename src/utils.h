@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2018 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -53,6 +53,8 @@ void update_lobby_event(void);
 
 /* Actually implemented in list.c, not utils.c. */
 int send_player_list(ship_client_t *c, const char *params);
+
+uint64_t get_ms_time(void);
 
 /* Various iconv contexts that we'll use... */
 extern iconv_t ic_utf8_to_utf16;
