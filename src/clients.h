@@ -159,6 +159,7 @@ struct ship_client {
     sylverant_bb_db_opts_t *bb_opts;
 
     int script_ref;
+    uint64_t aoe_timer;
 
 #ifdef DEBUG
     uint8_t sdrops_ver;

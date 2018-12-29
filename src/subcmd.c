@@ -2317,10 +2317,74 @@ static int handle_bb_mhit(ship_client_t *c, subcmd_bb_mhit_pkt_t *pkt) {
     return subcmd_send_lobby_bb(l, c, (bb_subcmd_pkt_t *)pkt, 0);
 }
 
-static int handle_objhit(ship_client_t *c, subcmd_objhit_tech_t *pkt) {
-    lobby_t *l = c->cur_lobby;
-    uint16_t bid;
+static void handle_objhit_common(ship_client_t *c, lobby_t *l, uint16_t bid) {
     uint32_t obj_type;
+
+    /* What type of object was hit? */
+    if((bid & 0xF000) == 0x4000) {
+        /* An object was hit */
+        bid &= 0x0FFF;
+
+        /* Make sure the object is in range. */
+        if(bid > l->map_objs->count) {
+            debug(DBG_WARN, "Guild card %" PRIu32 " hit invalid object "
+                  "(%d -- max: %d)!\n"
+                  "Episode: %d, Floor: %d, Map: (%d, %d)\n", c->guildcard,
+                  bid, l->map_objs->count, l->episode, c->cur_area,
+                  l->maps[c->cur_area << 1],
+                  l->maps[(c->cur_area << 1) + 1]);
+
+            if((l->flags & LOBBY_FLAG_QUESTING))
+                debug(DBG_WARN, "Quest ID: %d, Version: %d\n", l->qid,
+                      l->version);
+
+            /* Just continue on and hope for the best. We've probably got a
+               bug somewhere on our end anyway... */
+            return;
+        }
+
+        /* Make sure it isn't marked as hit already. */
+        if((l->map_objs->objs[bid].flags & 0x80000000))
+            return;
+
+        /* Now, see if we care about the type of the object that was hit. */
+        obj_type = l->map_objs->objs[bid].data.skin & 0xFFFF;
+
+        /* We'll probably want to do a bit more with this at some point, but
+           for now this will do. */
+        switch(obj_type) {
+            case OBJ_SKIN_REG_BOX:
+            case OBJ_SKIN_FIXED_BOX:
+            case OBJ_SKIN_RUINS_REG_BOX:
+            case OBJ_SKIN_RUINS_FIXED_BOX:
+            case OBJ_SKIN_CCA_REG_BOX:
+            case OBJ_SKIN_CCA_FIXED_BOX:
+                /* Run the box broken script. */
+                script_execute(ScriptActionBoxBreak, SCRIPT_ARG_PTR, c,
+                               SCRIPT_ARG_UINT16, bid, SCRIPT_ARG_UINT16,
+                               obj_type, SCRIPT_ARG_END);
+                break;
+        }
+
+        /* Mark it as hit. */
+        l->map_objs->objs[bid].flags |= 0x80000000;
+    }
+    else if((bid & 0xF000) == 0x1000) {
+        /* An enemy was hit. We don't really do anything with these here,
+           as there is a better packet for handling them. */
+        return;
+    }
+    else if((bid & 0xF000) == 0x0000) {
+        /* An ally was hit. We don't really care to do anything here. */
+        return;
+    }
+    else {
+        debug(DBG_LOG, "Unknown object type hit: %04" PRIx16 "\n", bid);
+    }
+}
+
+static int handle_objhit_phys(ship_client_t *c, subcmd_objhit_phys_t *pkt) {
+    lobby_t *l = c->cur_lobby;
     uint8_t i;
 
     /* We can't get these in lobbies without someone messing with something that
@@ -2345,64 +2409,170 @@ static int handle_objhit(ship_client_t *c, subcmd_objhit_tech_t *pkt) {
     if(!l->map_objs || !l->map_enemies)
         return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
 
-    /* Grab relevant information from the packet */
+    /* Handle each thing that was hit */
     for(i = 0; i < pkt->size - 2; ++i) {
-        bid = LE16(pkt->objects[i].obj_id);
-
-        /* What type of object was hit? */
-        if((bid & 0xF000) == 0x4000) {
-            /* An object was hit */
-            bid &= 0x0FFF;
-
-            /* Make sure the object is in range. */
-            if(bid > l->map_objs->count) {
-                debug(DBG_WARN, "Guild card %" PRIu32 " hit invalid object "
-                      "(%d -- max: %d)!\n"
-                      "Episode: %d, Floor: %d, Map: (%d, %d)\n", c->guildcard,
-                      bid, l->map_objs->count, l->episode, c->cur_area,
-                      l->maps[c->cur_area << 1],
-                      l->maps[(c->cur_area << 1) + 1]);
-
-                if((l->flags & LOBBY_FLAG_QUESTING))
-                    debug(DBG_WARN, "Quest ID: %d, Version: %d\n", l->qid,
-                          l->version);
-
-                /* Just continue on and hope for the best. We've probably got a
-                   bug somewhere on our end anyway... */
-                continue;
-            }
-
-            /* Now, see if we care about the type of the object that was hit. */
-            obj_type = l->map_objs->objs[bid].data.skin & 0xFFFF;
-
-            /* We'll probably want to do a bit more with this at some point, but
-               for now this will do. */
-            switch(obj_type) {
-                case OBJ_SKIN_REG_BOX:
-                case OBJ_SKIN_FIXED_BOX:
-                case OBJ_SKIN_RUINS_REG_BOX:
-                case OBJ_SKIN_RUINS_FIXED_BOX:
-                case OBJ_SKIN_CCA_REG_BOX:
-                case OBJ_SKIN_CCA_FIXED_BOX:
-                    /* Run the box broken script. */
-                    script_execute(ScriptActionBoxBreak, SCRIPT_ARG_PTR, c,
-                                   SCRIPT_ARG_UINT16, bid, SCRIPT_ARG_UINT16,
-                                   obj_type, SCRIPT_ARG_END);
-                    break;
-            }
-        }
-        else if((bid & 0xF000) == 0x1000) {
-            /* An enemy was hit. We don't really do anything with these here,
-               as there is a better packet for handling them. */
-            continue;
-        }
-        else {
-            debug(DBG_LOG, "Unknown object type hit: %04" PRIx16 "\n", bid);
-        }
+        handle_objhit_common(c, l, LE16(pkt->objects[i].obj_id));
     }
 
     /* We're not doing any more interesting parsing with this one for now, so
        just send it along. */
+    return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
+}
+
+static inline int tlindex(uint8_t l) {
+    switch(l) {
+        case 0: case 1: case 2: case 3: case 4: return 0;
+        case 5: case 6: case 7: case 8: case 9: return 1;
+        case 10: case 11: case 12: case 13: case 14: return 2;
+        case 15: case 16: case 17: case 18: case 19: return 3;
+        case 20: case 21: case 22: case 23: case 25: return 4;
+        default: return 5;
+    }
+}
+
+#define BARTA_TIMING 1500
+#define GIBARTA_TIMING 2200
+
+static const uint16_t gifoie_timing[6] = { 5000, 6000, 7000, 8000, 9000, 10000 };
+static const uint16_t gizonde_timing[6] = { 1000, 900, 700, 700, 700, 700 };
+static const uint16_t rafoie_timing[6] = { 1500, 1400, 1300, 1200, 1100, 1100 };
+static const uint16_t razonde_timing[6] = { 1200, 1100, 950, 800, 750, 750 };
+static const uint16_t rabarta_timing[6] = { 1200, 1100, 950, 800, 750, 750 };
+
+static int handle_objhit_tech(ship_client_t *c, subcmd_objhit_tech_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+    uint8_t tech_level;
+
+    /* We can't get these in lobbies without someone messing with something that
+       they shouldn't be... Disconnect anyone that tries. */
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        debug(DBG_WARN, "Guild card %" PRIu32 " hit object in lobby!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* Sanity check... Make sure the size of the subcommand matches with what we
+       expect. Disconnect the client if not. */
+    if(LE16(pkt->hdr.pkt_len) != (4 + (pkt->size << 2)) || pkt->size < 0x02) {
+        debug(DBG_WARN, "Guild card %" PRIu32 " sent bad objhit message!\n",
+              c->guildcard);
+        print_packet((unsigned char *)pkt, LE16(pkt->hdr.pkt_len));
+        return -1;
+    }
+
+    /* Sanity check... Does the character have that level of technique? */
+    tech_level = c->pl->v1.techniques[pkt->tech];
+    if(tech_level == 0xFF) {
+        debug(DBG_WARN, "Guild card %" PRIu32 " attempted to cast tech that is not "
+              "learned by character!\n", c->guildcard);
+        return -1;
+    }
+
+    if(c->version >= CLIENT_VERSION_DCV2)
+        tech_level += c->pl->v1.inv.items[pkt->tech].tech;
+
+    if(tech_level < pkt->level) {
+        /* This might happen if the user learns a new tech in a team. Until we have
+           real inventory tracking, we'll have to fudge this. Once we have real, full
+           inventory tracking, this condition should probably disconnect the client */
+        tech_level = pkt->level;
+    }
+
+    /* Check the type of the object that was hit. If there's no object data
+       loaded here, we pretty much have to bail now. */
+    if(!l->map_objs || !l->map_enemies)
+        return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
+
+    /* See what technique was used... */
+    switch(pkt->tech) {
+        /* These work just like physical hits and can only hit one target, so
+           handle them the simple way... */
+        case TECHNIQUE_FOIE:
+        case TECHNIQUE_ZONDE:
+        case TECHNIQUE_GRANTS:
+            if(pkt->size == 3)
+                handle_objhit_common(c, l, LE16(pkt->objects[0].obj_id));
+            break;
+
+        /* None of these can hit boxes (which is all we care about right now), so
+           don't do anything special with them. */
+        case TECHNIQUE_DEBAND:
+        case TECHNIQUE_JELLEN:
+        case TECHNIQUE_ZALURE:
+        case TECHNIQUE_SHIFTA:
+        case TECHNIQUE_RYUKER:
+        case TECHNIQUE_RESTA:
+        case TECHNIQUE_ANTI:
+        case TECHNIQUE_REVERSER:
+        case TECHNIQUE_MEGID:
+            break;
+
+        /* AoE spells are... special (why, Sega?). They never have more than one
+           item hit in the packet, and just act in a broken manner in general. We
+           have to do some annoying stuff to handle them here. */
+        case TECHNIQUE_BARTA:
+            c->aoe_timer = get_ms_time() + BARTA_TIMING;
+            break;
+
+        case TECHNIQUE_GIBARTA:
+            c->aoe_timer = get_ms_time() + GIBARTA_TIMING;
+            break;
+
+        case TECHNIQUE_GIFOIE:
+            c->aoe_timer = get_ms_time() + gifoie_timing[tlindex(tech_level)];
+            break;
+
+        case TECHNIQUE_RAFOIE:
+            c->aoe_timer = get_ms_time() + rafoie_timing[tlindex(tech_level)];
+            break;
+
+        case TECHNIQUE_GIZONDE:
+            c->aoe_timer = get_ms_time() + gizonde_timing[tlindex(tech_level)];
+            break;
+
+        case TECHNIQUE_RAZONDE:
+            c->aoe_timer = get_ms_time() + razonde_timing[tlindex(tech_level)];
+            break;
+
+        case TECHNIQUE_RABARTA:
+            c->aoe_timer = get_ms_time() + rabarta_timing[tlindex(tech_level)];
+            break;
+
+        default:
+            debug(DBG_WARN, "Guildcard %" PRIu32 " used bad technique: %d\n",
+                  c->guildcard, (int)pkt->tech);
+            return -1;
+    }
+
+    /* We're not doing any more interesting parsing with this one for now, so
+       just send it along. */
+    return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
+}
+
+static int handle_objhit(ship_client_t *c, subcmd_bhit_pkt_t *pkt) {
+    uint64_t now = get_ms_time();
+    lobby_t *l = c->cur_lobby;
+
+    /* We can't get these in lobbies without someone messing with something that
+       they shouldn't be... Disconnect anyone that tries. */
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        debug(DBG_WARN, "Guild card %" PRIu32 " hit object in lobby!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* We only care about these if the AoE timer is set on the sender. */
+    if(c->aoe_timer < now)
+        return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
+
+    /* Check the type of the object that was hit. As the AoE timer can't be set
+       if the objects aren't loaded, this shouldn't ever trip up... */
+    if(!l->map_objs || !l->map_enemies)
+        return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
+
+    /* Handle the object marked as hit, if appropriate. */
+    handle_objhit_common(c, l, LE16(pkt->box_id2));
+
     return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
 }
 
@@ -2548,9 +2718,8 @@ int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
     int rv = -1;
 
     /* Ignore these if the client isn't in a lobby. */
-    if(!l) {
+    if(!l)
         return 0;
-    }
 
     pthread_mutex_lock(&l->mutex);
 
@@ -2823,10 +2992,15 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
             break;
 
         case SUBCMD_OBJHIT_PHYS:
+            rv = handle_objhit_phys(c, (subcmd_objhit_phys_t *)pkt);
+            break;
+
         case SUBCMD_OBJHIT_TECH:
-            /* XXXX: I probably should separate these out, but considering all
-               we care about here is the object IDs, this works. */
-            rv = handle_objhit(c, (subcmd_objhit_tech_t *)pkt);
+            rv = handle_objhit_tech(c, (subcmd_objhit_tech_t *)pkt);
+            break;
+
+        case SUBCMD_HIT_OBJ:
+            rv = handle_objhit(c, (subcmd_bhit_pkt_t *)pkt);
             break;
 
         case SUBCMD_SPAWN_NPC:
