@@ -1963,6 +1963,10 @@ int load_quest_enemies(lobby_t *l, uint32_t qid, int ver) {
     quest_map_elem_t *el;
     uint32_t flags = l->flags;
 
+    /* Cowardly refuse to do this on challenge or battle mode. */
+    if(l->challenge || l->battle)
+        return 0;
+
     /* Unset this, in case something screws up. */
     l->flags &= ~LOBBY_FLAG_SERVER_DROPS;
 
@@ -2033,6 +2037,9 @@ int load_quest_enemies(lobby_t *l, uint32_t qid, int ver) {
         return -7;
     }
 
+    /* We're done with the file now, so close it. */
+    fclose(fp);
+
     /* Fixup Dark Falz' data for difficulties other than normal and the special
        Rappy data too... */
     for(i = 0; i < cnt; ++i) {
@@ -2060,15 +2067,14 @@ int load_quest_enemies(lobby_t *l, uint32_t qid, int ver) {
     /* Find the quest since we need to check the enemies later for drops... */
     if(!(el = quest_lookup(&ship->qmap, qid))) {
         debug(DBG_WARN, "Cannot look up quest?!\n");
-        fclose(fp);
-        return -8;
+        goto done;
     }
 
     /* Try to find a monster list associated with the quest. Basically, we look
        through each language of the quest we're loading for one that has the
        monster list set. Thus, you don't have to provide one for each and every
        language -- only one per version (other than PC) will do. */
-    for(i = 0; i < CLIENT_LANG_COUNT; ++i, q = el->qptr[ver][i]) {
+    for(i = 0; i < CLIENT_LANG_COUNT; ++i) {
         if(!(q = el->qptr[ver][i]))
             continue;
 
@@ -2084,20 +2090,18 @@ int load_quest_enemies(lobby_t *l, uint32_t qid, int ver) {
     l->num_mtypes = q->num_monster_types;
     if(!(l->mtypes = (qenemy_t *)malloc(sizeof(qenemy_t) * l->num_mtypes))) {
         debug(DBG_WARN, "Cannot allocate monster types: %s\n", strerror(errno));
-        fclose(fp);
         l->num_mtypes = 0;
-        return -9;
+        goto done;
     }
 
     l->num_mids = q->num_monster_ids;
     if(!(l->mids = (qenemy_t *)malloc(sizeof(qenemy_t) * l->num_mids))) {
         debug(DBG_WARN, "Cannot allocate monster ids: %s\n", strerror(errno));
-        fclose(fp);
         free(l->mtypes);
         l->mtypes = NULL;
         l->num_mtypes = 0;
         l->num_mids = 0;
-        return -10;
+        goto done;
     }
 
     memcpy(l->mtypes, q->monster_types, sizeof(qenemy_t) * l->num_mtypes);
@@ -2106,7 +2110,6 @@ int load_quest_enemies(lobby_t *l, uint32_t qid, int ver) {
 done:
     /* Re-set the server drops flag if it was set and clean up. */
     l->flags = flags;
-    fclose(fp);
 
     return 0;
 }
