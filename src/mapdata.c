@@ -1961,10 +1961,7 @@ int load_quest_enemies(lobby_t *l, uint32_t qid, int ver) {
     uint32_t cnt, i;
     sylverant_quest_t *q;
     quest_map_elem_t *el;
-
-    /* If we aren't doing server-side drops on this game, don't bother. */
-    if(!(l->flags & LOBBY_FLAG_SERVER_DROPS))
-        return 0;
+    uint32_t flags = l->flags;
 
     /* Unset this, in case something screws up. */
     l->flags &= ~LOBBY_FLAG_SERVER_DROPS;
@@ -2107,8 +2104,8 @@ int load_quest_enemies(lobby_t *l, uint32_t qid, int ver) {
     memcpy(l->mids, q->monster_ids, sizeof(qenemy_t) * l->num_mids);
 
 done:
-    /* Re-set the server drops flag and clean up. */
-    l->flags |= LOBBY_FLAG_SERVER_DROPS;
+    /* Re-set the server drops flag if it was set and clean up. */
+    l->flags = flags;
     fclose(fp);
 
     return 0;
