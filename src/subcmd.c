@@ -2992,14 +2992,32 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
             break;
 
         case SUBCMD_OBJHIT_PHYS:
+            /* Don't even try to deal with these in battle or challenge mode. */
+            if(l->challenge || l->battle) {
+                sent = 0;
+                break;
+            }
+
             rv = handle_objhit_phys(c, (subcmd_objhit_phys_t *)pkt);
             break;
 
         case SUBCMD_OBJHIT_TECH:
+            /* Don't even try to deal with these in battle or challenge mode. */
+            if(l->challenge || l->battle) {
+                sent = 0;
+                break;
+            }
+
             rv = handle_objhit_tech(c, (subcmd_objhit_tech_t *)pkt);
             break;
 
         case SUBCMD_HIT_OBJ:
+            /* Don't even try to deal with these in battle or challenge mode. */
+            if(l->challenge || l->battle) {
+                sent = 0;
+                break;
+            }
+
             rv = handle_objhit(c, (subcmd_bhit_pkt_t *)pkt);
             break;
 
