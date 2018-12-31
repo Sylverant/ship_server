@@ -2463,18 +2463,21 @@ static int handle_objhit_tech(ship_client_t *c, subcmd_objhit_tech_t *pkt) {
     /* Sanity check... Does the character have that level of technique? */
     tech_level = c->pl->v1.techniques[pkt->tech];
     if(tech_level == 0xFF) {
-        debug(DBG_WARN, "Guild card %" PRIu32 " attempted to cast tech that is not "
-              "learned by character!\n", c->guildcard);
-        return -1;
+        /* This might happen if the user learns a new tech in a team. Until we
+           have real inventory tracking, we'll have to fudge this. Once we have
+           real, full inventory tracking, this condition should probably
+           disconnect the client */
+        tech_level = pkt->level;
     }
 
     if(c->version >= CLIENT_VERSION_DCV2)
         tech_level += c->pl->v1.inv.items[pkt->tech].tech;
 
     if(tech_level < pkt->level) {
-        /* This might happen if the user learns a new tech in a team. Until we have
-           real inventory tracking, we'll have to fudge this. Once we have real, full
-           inventory tracking, this condition should probably disconnect the client */
+        /* This might happen if the user learns a new tech in a team. Until we
+           have real inventory tracking, we'll have to fudge this. Once we have
+           real, full inventory tracking, this condition should probably
+           disconnect the client */
         tech_level = pkt->level;
     }
 
