@@ -913,8 +913,12 @@ static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
 
     /* Log the connection. */
     my_ntop(&c->ip_addr, ipstr);
-    debug(DBG_LOG, "%s(%d): DCv2 Guild Card %d connected with IP %s\n",
-          ship->cfg->name, c->cur_block->b, c->guildcard, ipstr);
+    if(c->version == CLIENT_VERSION_DCV2)
+        debug(DBG_LOG, "%s(%d): DCv2 Guild Card %d connected with IP %s\n",
+              ship->cfg->name, c->cur_block->b, c->guildcard, ipstr);
+    else
+        debug(DBG_LOG, "%s(%d): PC Guild Card %d connected with IP %s\n",
+              ship->cfg->name, c->cur_block->b, c->guildcard, ipstr);
 
     return 0;
 }
