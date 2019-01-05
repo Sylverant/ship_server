@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
     Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016,
-                  2017, 2018 Lawrence Sebald
+                  2017, 2018, 2019 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -9683,4 +9683,178 @@ int send_lobby_end_burst(lobby_t *l) {
     }
 
     return 0;
+}
+
+/* Send a generic menu to a client. */
+static int send_dc_gen_menu(ship_client_t *c, uint32_t menu_id, size_t count,
+                            gen_menu_entry_t *ents) {
+    uint8_t *sendbuf = get_sendbuf();
+    dc_block_list_pkt *pkt = (dc_block_list_pkt *)sendbuf;
+    int i, len = 0x20, entries = 1;
+    const char *opt;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf)
+        return -1;
+
+    /* Clear the base packet */
+    memset(pkt, 0, 0x20);
+
+    /* Fill in some basic stuff */
+    pkt->hdr.pkt_type = LOBBY_INFO_TYPE;
+
+    /* Fill in the ship name entry */
+    pkt->entries[0].menu_id = LE32(0x00040000);
+    pkt->entries[0].item_id = 0;
+    pkt->entries[0].flags = 0;
+    strncpy(pkt->entries[0].name, ship->cfg->name, 0x10);
+
+    /* Add each info item to the list. */
+    for(i = 0; i < count; ++i) {
+        /* Clear out the entry */
+        memset(&pkt->entries[entries], 0, 0x1C);
+
+        /* Fill in what we have */
+        pkt->entries[entries].menu_id = LE32(menu_id);
+        pkt->entries[entries].item_id = LE32(ents[i].item_id);
+        pkt->entries[entries].flags = LE16(0x0000);
+
+        /* Fill in the text... */
+        opt = __(c, ents[i].text);
+
+        if(opt[0] == '\t' && opt[1] == 'J') {
+            istrncpy(ic_utf8_to_sjis, pkt->entries[entries].name, opt, 0x10);
+        }
+        else {
+            istrncpy(ic_utf8_to_8859, pkt->entries[entries].name, opt, 0x10);
+        }
+
+        len += 0x1C;
+        ++entries;
+    }
+
+    /* Fill in the rest of the header */
+    pkt->hdr.pkt_len = LE16(len);
+    pkt->hdr.flags = (uint8_t)(entries - 1);
+
+    /* Send the packet away */
+    return crypt_send(c, len, sendbuf);
+}
+
+static int send_pc_gen_menu(ship_client_t *c, uint32_t menu_id, size_t count,
+                            gen_menu_entry_t *ents) {
+    uint8_t *sendbuf = get_sendbuf();
+    pc_block_list_pkt *pkt = (pc_block_list_pkt *)sendbuf;
+    int i, len = 0x30, entries = 1;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf)
+        return -1;
+
+    /* Clear the base packet */
+    memset(pkt, 0, 0x30);
+
+    /* Fill in some basic stuff */
+    pkt->hdr.pkt_type = LOBBY_INFO_TYPE;
+
+    /* Fill in the ship name entry */
+    pkt->entries[0].menu_id = LE32(0x00040000);
+    pkt->entries[0].item_id = 0;
+    pkt->entries[0].flags = 0;
+
+    istrncpy(ic_8859_to_utf16, (char *)pkt->entries[0].name, ship->cfg->name,
+             0x20);
+
+    /* Add each info item to the list. */
+    for(i = 0; i < count; ++i) {
+        /* Clear out the entry */
+        memset(&pkt->entries[entries], 0, 0x2C);
+
+        /* Fill in what we have */
+        pkt->entries[entries].menu_id = LE32(menu_id);
+        pkt->entries[entries].item_id = LE32(ents[i].item_id);
+        pkt->entries[entries].flags = LE16(0x0000);
+
+        istrncpy(ic_utf8_to_utf16, (char *)pkt->entries[entries].name,
+                 __(c, ents[i].text), 0x20);
+
+        len += 0x2C;
+        ++entries;
+    }
+
+    /* Fill in the rest of the header */
+    pkt->hdr.pkt_len = LE16(len);
+    pkt->hdr.flags = (uint8_t)(entries - 1);
+
+    /* Send the packet away */
+    return crypt_send(c, len, sendbuf);
+}
+
+static int send_bb_gen_menu(ship_client_t *c, uint32_t menu_id, size_t count,
+                            gen_menu_entry_t *ents) {
+    uint8_t *sendbuf = get_sendbuf();
+    bb_block_list_pkt *pkt = (bb_block_list_pkt *)sendbuf;
+    int i, len = 0x34, entries = 1;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf)
+        return -1;
+
+    /* Clear the base packet */
+    memset(pkt, 0, 0x30);
+
+    /* Fill in some basic stuff */
+    pkt->hdr.pkt_type = LOBBY_INFO_TYPE;
+
+    /* Fill in the ship name entry */
+    pkt->entries[0].menu_id = LE32(0x00040000);
+    pkt->entries[0].item_id = 0;
+    pkt->entries[0].flags = 0;
+
+    istrncpy(ic_8859_to_utf16, (char *)pkt->entries[0].name, ship->cfg->name,
+             0x20);
+
+    /* Add each info item to the list. */
+    for(i = 0; i < count; ++i) {
+        /* Clear out the ship information */
+        memset(&pkt->entries[entries], 0, 0x2C);
+
+        /* Fill in what we have */
+        pkt->entries[entries].menu_id = LE32(menu_id);
+        pkt->entries[entries].item_id = LE32(ents[i].item_id);
+        pkt->entries[entries].flags = LE16(0x0000);
+
+        istrncpy(ic_utf8_to_utf16, (char *)pkt->entries[entries].name,
+                 __(c, ents[i].text), 0x20);
+
+        len += 0x2C;
+        ++entries;
+    }
+
+    /* Fill in the rest of the header */
+    pkt->hdr.pkt_len = LE16(len);
+    pkt->hdr.flags = LE32(entries - 1);
+
+    /* Send the packet away */
+    return crypt_send(c, len, sendbuf);
+}
+
+int send_generic_menu(ship_client_t *c, uint32_t menu_id, size_t count,
+                      gen_menu_entry_t *ents) {
+    /* Call the appropriate function */
+    switch(c->version) {
+        case CLIENT_VERSION_DCV1:
+        case CLIENT_VERSION_DCV2:
+        case CLIENT_VERSION_GC:
+        case CLIENT_VERSION_EP3:
+            return send_dc_gen_menu(c, menu_id, count, ents);
+
+        case CLIENT_VERSION_PC:
+            return send_pc_gen_menu(c, menu_id, count, ents);
+
+        case CLIENT_VERSION_BB:
+            return send_bb_gen_menu(c, menu_id, count, ents);
+    }
+
+    return -1;
 }

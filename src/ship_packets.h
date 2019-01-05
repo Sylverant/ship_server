@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2015, 2018 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2015, 2018, 2019 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -52,6 +52,11 @@
 #define __likely(x) x
 #endif
 #endif
+
+typedef struct generic_menu_entry {
+    uint32_t item_id;
+    char text[0x10];
+} gen_menu_entry_t;
 
 #define MENU_ID_INFODESK    0x00000000
 #define MENU_ID_BLOCK       0x00000001
@@ -270,5 +275,9 @@ int send_gm_menu(ship_client_t *c, uint32_t menu_id);
 
 /* Send a done bursting message to Blue Burst clients in a game. */
 int send_lobby_end_burst(lobby_t *l);
+
+/* Send a generic menu to a client. */
+int send_generic_menu(ship_client_t *c, uint32_t menu_id, size_t count,
+                      gen_menu_entry_t *ents);
 
 #endif /* !SHIP_PACKETS_H */
