@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2011, 2016, 2018 Lawrence Sebald
+    Copyright (C) 2011, 2016, 2018, 2019 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -70,6 +70,7 @@ static const xmlChar *script_action_text[] = {
     XC"ENEMY_HIT",
     XC"BOX_BREAK",
     XC"UNK_COMMAND",
+    XC"UNK_MENU",
     XC"SDATA",
 };
 

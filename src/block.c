@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
     Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2017,
-                  2018 Lawrence Sebald
+                  2018, 2019 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -2551,6 +2551,12 @@ static int process_menu(ship_client_t *c, uint32_t menu_id, uint32_t item_id,
         /* GM Menu */
         case MENU_ID_GM:
             return process_gm_menu(c, menu_id, item_id);
+
+        default:
+            if(script_execute(ScriptActionUnknownMenu, SCRIPT_ARG_PTR, c,
+                              SCRIPT_ARG_UINT32, menu_id, SCRIPT_ARG_UINT32,
+                              item_id, SCRIPT_ARG_END) > 0)
+                return 0;
     }
 
     return -1;
