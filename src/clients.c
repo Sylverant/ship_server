@@ -1433,6 +1433,25 @@ static int client_dropItem_lua(lua_State *l) {
     return 1;
 }
 
+static int client_sendmsgbox_lua(lua_State *l) {
+    ship_client_t *c;
+    const char *s;
+    size_t len;
+
+    if(lua_islightuserdata(l, 1) && lua_isstring(l, 2)) {
+        c = (ship_client_t *)lua_touserdata(l, 1);
+        s = (const char *)lua_tolstring(l, 2, &len);
+
+        send_message1(c, "\tE%s", s);
+        lua_pushinteger(l, 0);
+    }
+    else {
+        lua_pushinteger(l, -1);
+    }
+
+    return 1;
+}
+
 static const luaL_Reg clientlib[] = {
     { "guildcard", client_guildcard_lua },
     { "isOnBlock", client_isOnBlock_lua },
@@ -1453,6 +1472,7 @@ static const luaL_Reg clientlib[] = {
     { "level", client_level_lua },
     { "sendMenu", client_sendmenu_lua },
     { "dropItem", client_dropItem_lua },
+    { "sendMsgBox", client_sendmsgbox_lua },
     { NULL, NULL }
 };
 
