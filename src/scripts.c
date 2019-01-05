@@ -70,8 +70,8 @@ static const xmlChar *script_action_text[] = {
     XC"ENEMY_HIT",
     XC"BOX_BREAK",
     XC"UNK_COMMAND",
-    XC"UNK_MENU",
     XC"SDATA",
+    XC"UNK_MENU",
 };
 
 /* Figure out what index a given script action sits at */
