@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2016, 2017, 2018 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2016, 2017, 2018, 2019 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -36,6 +36,7 @@
 #include "scripts.h"
 #include "subcmd.h"
 #include "mapdata.h"
+#include "items.h"
 
 #ifdef ENABLE_LUA
 #include <lua.h>
@@ -1301,6 +1302,137 @@ static int client_level_lua(lua_State *l) {
     return 1;
 }
 
+static int client_sendmenu_lua(lua_State *l) {
+    ship_client_t *c;
+    gen_menu_entry_t *ents;
+    lua_Integer count, i;
+    int tp;
+    const char *str;
+    uint32_t menu_id;
+
+    if(lua_islightuserdata(l, 1) && lua_isinteger(l, 2) &&
+       lua_isinteger(l, 3) && lua_istable(l, 4) && lua_istable(l, 5)) {
+        c = (ship_client_t *)lua_touserdata(l, 1);
+        menu_id = (uint32_t)lua_tointeger(l, 2);
+        count = lua_tointeger(l, 3);
+
+        /* Make sure we've got a sane count for the menu. */
+        if(count <= 0) {
+            lua_pushinteger(l, -1);
+            return 1;
+        }
+
+        ents = (gen_menu_entry_t *)malloc(sizeof(gen_menu_entry_t) * count);
+        if(!ents) {
+            lua_pushinteger(l, -1);
+            return 1;
+        }
+
+        /* Read each element from the tables passed in */
+        for(i = 1; i <= count; ++i) {
+            tp = lua_rawgeti(l, 4, i);
+            if(tp != LUA_TNUMBER) {
+                lua_pop(l, 1);
+                free(ents);
+                lua_pushinteger(l, -1);
+                return 1;
+            }
+
+            ents[i - 1].item_id = (uint32_t)lua_tointeger(l, -1);
+            lua_pop(l, 1);
+
+            tp = lua_rawgeti(l, 5, i);
+            if(tp != LUA_TSTRING) {
+                lua_pop(l, 1);
+                free(ents);
+                lua_pushinteger(l, -1);
+                return 1;
+            }
+
+            str = lua_tostring(l, -1);
+            strncpy(ents[i - 1].text, str, 15);
+            ents[i - 1].text[15] = 0;
+            lua_pop(l, 1);
+        }
+
+        send_generic_menu(c, menu_id, (size_t)count, ents);
+        lua_pushinteger(l, 0);
+    }
+    else {
+        lua_pushinteger(l, -1);
+    }
+
+    return 1;
+}
+
+static int client_dropItem_lua(lua_State *l) {
+    ship_client_t *c;
+    lobby_t *lb;
+    uint32_t item[4] = { 0, 0, 0, 0 };
+    subcmd_drop_stack_t p2;
+
+    /* We need at least the client itself and the first dword of the item */
+    if(lua_islightuserdata(l, 1) && lua_isinteger(l, 2)) {
+        c = (ship_client_t *)lua_touserdata(l, 1);
+        lb = c->cur_lobby;
+        item[0] = (uint32_t)lua_tointeger(l, 2);
+
+        /* Make sure we're in a team, not a regular lobby... */
+        if(lb->type != LOBBY_TYPE_GAME) {
+            lua_pushinteger(l, -1);
+            return 1;
+        }
+
+        /* Check all the optional arguments */
+        if(lua_isinteger(l, 3)) {
+            item[1] = (uint32_t)lua_tointeger(l, 3);
+
+            if(lua_isinteger(l, 4)) {
+                item[2] = (uint32_t)lua_tointeger(l, 4);
+
+                if(lua_isinteger(l, 5)) {
+                    item[3] = (uint32_t)lua_tointeger(l, 5);
+                }
+            }
+        }
+
+        /* Do some basic checks of the item... */
+        if(item_is_stackable(item[0]) && !(item[1] & 0x0000FF00)) {
+            /* If the item is stackable and doesn't have a quantity, give one
+               of it. */
+            item[1] |= (1 << 8);
+        }
+
+        /* Generate the packet to drop the item */
+        p2.hdr.pkt_type = GAME_COMMAND0_TYPE;
+        p2.hdr.pkt_len = sizeof(subcmd_drop_stack_t);
+        p2.hdr.flags = 0;
+        p2.type = SUBCMD_DROP_STACK;
+        p2.size = 0x0A;
+        p2.client_id = c->client_id;
+        p2.unused = 0;
+        p2.area = LE16(c->cur_area);
+        p2.unk = LE16(0);
+        p2.x = c->x;
+        p2.z = c->z;
+        p2.item[0] = LE32(item[0]);
+        p2.item[1] = LE32(item[1]);
+        p2.item[2] = LE32(item[2]);
+        p2.item_id = LE32(lb->item_id);
+        p2.item2 = LE32(item[3]);
+        p2.two = LE32(0x00000002);
+        ++lb->item_id;
+
+        lobby_send_pkt_dc(lb, NULL, (dc_pkt_hdr_t *)&p2, 0);
+        lua_pushinteger(l, 0);
+    }
+    else {
+        lua_pushinteger(l, -1);
+    }
+
+    return 1;
+}
+
 static const luaL_Reg clientlib[] = {
     { "guildcard", client_guildcard_lua },
     { "isOnBlock", client_isOnBlock_lua },
@@ -1319,6 +1451,8 @@ static const luaL_Reg clientlib[] = {
     { "name", client_name_lua },
     { "flags", client_flags_lua },
     { "level", client_level_lua },
+    { "sendMenu", client_sendmenu_lua },
+    { "dropItem", client_dropItem_lua },
     { NULL, NULL }
 };
 
