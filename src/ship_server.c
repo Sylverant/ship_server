@@ -36,17 +36,19 @@
 
 #include <libxml/parser.h>
 
-#if HAVE_LIBUTIL_H == 1
-#include <libutil.h>
-#elif HAVE_BSD_LIBUTIL_H == 1
-#include <bsd/libutil.h>
-#else
+#if NEED_PIDFILE == 1
 /* From pidfile.c */
 struct pidfh;
 struct pidfh *pidfile_open(const char *path, mode_t mode, pid_t *pidptr);
 int pidfile_write(struct pidfh *pfh);
 int pidfile_remove(struct pidfh *pfh);
 int pidfile_fileno(struct pidfh *pfh);
+#elif HAVE_LIBUTIL_H == 1
+#include <libutil.h>
+#elif HAVE_BSD_LIBUTIL_H == 1
+#include <bsd/libutil.h>
+#else
+#error No pidfile functionality found!
 #endif
 
 #include "ship.h"
