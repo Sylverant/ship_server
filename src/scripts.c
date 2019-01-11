@@ -72,6 +72,7 @@ static const xmlChar *script_action_text[] = {
     XC"UNK_COMMAND",
     XC"SDATA",
     XC"UNK_MENU",
+    XC"BANK_ACTION",
 };
 
 /* Figure out what index a given script action sits at */
