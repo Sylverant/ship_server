@@ -1084,7 +1084,7 @@ static int client_version_lua(lua_State *l) {
     return 1;
 }
 
-static int client_clientid_lua(lua_State *l) {
+static int client_clientID_lua(lua_State *l) {
     ship_client_t *c;
 
     if(lua_islightuserdata(l, 1)) {
@@ -1112,7 +1112,7 @@ static int client_privilege_lua(lua_State *l) {
     return 1;
 }
 
-static int client_sendpkt_lua(lua_State *l) {
+static int client_send_lua(lua_State *l) {
     ship_client_t *c;
     const uint8_t *s;
     size_t len;
@@ -1189,7 +1189,7 @@ static int client_block_lua(lua_State *l) {
     return 1;
 }
 
-static int client_sendsdata_lua(lua_State *l) {
+static int client_sendSData_lua(lua_State *l) {
     ship_client_t *c;
     uint32_t event;
     const uint8_t *s;
@@ -1208,7 +1208,7 @@ static int client_sendsdata_lua(lua_State *l) {
     return 1;
 }
 
-static int client_sendmsg_lua(lua_State *l) {
+static int client_sendMsg_lua(lua_State *l) {
     ship_client_t *c;
     const char *s;
     size_t len;
@@ -1224,7 +1224,7 @@ static int client_sendmsg_lua(lua_State *l) {
     return 1;
 }
 
-static int client_gettable_lua(lua_State *l) {
+static int client_getTable_lua(lua_State *l) {
     ship_client_t *c;
 
     if(lua_islightuserdata(l, 1)) {
@@ -1302,7 +1302,7 @@ static int client_level_lua(lua_State *l) {
     return 1;
 }
 
-static int client_sendmenu_lua(lua_State *l) {
+static int client_sendMenu_lua(lua_State *l) {
     ship_client_t *c;
     gen_menu_entry_t *ents;
     lua_Integer count, i;
@@ -1433,7 +1433,7 @@ static int client_dropItem_lua(lua_State *l) {
     return 1;
 }
 
-static int client_sendmsgbox_lua(lua_State *l) {
+static int client_sendMsgBox_lua(lua_State *l) {
     ship_client_t *c;
     const char *s;
     size_t len;
@@ -1452,27 +1452,92 @@ static int client_sendmsgbox_lua(lua_State *l) {
     return 1;
 }
 
+static int client_numItems_lua(lua_State *l) {
+    ship_client_t *c;
+
+    if(lua_islightuserdata(l, 1)) {
+        c = (ship_client_t *)lua_touserdata(l, 1);
+
+        /* Make sure we have character data first. */
+        if(!c->pl) {
+            lua_pushinteger(l, -1);
+            return 1;
+        }
+
+        lua_pushinteger(l, c->pl->v1.inv.item_count);
+    }
+    else {
+        lua_pushinteger(l, -1);
+    }
+
+    return 1;
+}
+
+static int client_item_lua(lua_State *l) {
+    ship_client_t *c;
+    int index;
+
+    if(lua_islightuserdata(l, 1) && lua_isinteger(l, 2)) {
+        c = (ship_client_t *)lua_touserdata(l, 1);
+        index = lua_tointeger(l, 2);
+
+        /* Make sure we have character data first. */
+        if(!c->pl) {
+            lua_pushnil(l);
+            return 1;
+        }
+
+        /* Make sure the index is sane */
+        if(index < 0 || index >= c->pl->v1.inv.item_count) {
+            lua_pushnil(l);
+            return 1;
+        }
+
+        /* Create a table and put all 4 dwords of item data in it. */
+        lua_newtable(l);
+        lua_pushinteger(l, 1);
+        lua_pushinteger(l, c->pl->v1.inv.items[index].data_l[0]);
+        lua_settable(l, -3);
+        lua_pushinteger(l, 2);
+        lua_pushinteger(l, c->pl->v1.inv.items[index].data_l[1]);
+        lua_settable(l, -3);
+        lua_pushinteger(l, 2);
+        lua_pushinteger(l, c->pl->v1.inv.items[index].data_l[2]);
+        lua_settable(l, -3);
+        lua_pushinteger(l, 2);
+        lua_pushinteger(l, c->pl->v1.inv.items[index].data2_l);
+        lua_settable(l, -3);
+    }
+    else {
+        lua_pushnil(l);
+    }
+
+    return 1;
+}
+
 static const luaL_Reg clientlib[] = {
     { "guildcard", client_guildcard_lua },
     { "isOnBlock", client_isOnBlock_lua },
     { "disconnect", client_disconnect_lua },
     { "addr", client_addr_lua },
     { "version", client_version_lua },
-    { "clientID", client_clientid_lua },
+    { "clientID", client_clientID_lua },
     { "privilege", client_privilege_lua },
-    { "send", client_sendpkt_lua },
+    { "send", client_send_lua },
     { "lobby", client_lobby_lua },
     { "block", client_block_lua },
-    { "sendScriptData", client_sendsdata_lua },
-    { "sendMsg", client_sendmsg_lua },
-    { "getTable", client_gettable_lua },
+    { "sendScriptData", client_sendSData_lua },
+    { "sendMsg", client_sendMsg_lua },
+    { "getTable", client_getTable_lua },
     { "area", client_area_lua },
     { "name", client_name_lua },
     { "flags", client_flags_lua },
     { "level", client_level_lua },
-    { "sendMenu", client_sendmenu_lua },
+    { "sendMenu", client_sendMenu_lua },
     { "dropItem", client_dropItem_lua },
-    { "sendMsgBox", client_sendmsgbox_lua },
+    { "sendMsgBox", client_sendMsgBox_lua },
+    { "numItems", client_numItems_lua },
+    { "item", client_item_lua },
     { NULL, NULL }
 };
 
