@@ -699,6 +699,15 @@ static int handle_take_item(ship_client_t *c, subcmd_take_item_t *pkt) {
     if(l->num_clients != 1 && pkt->client_id != c->client_id)
         return -1;
 
+    /* Run the bank action script, if any. */
+    if(script_execute(ScriptActionBankAction, SCRIPT_ARG_PTR, c, SCRIPT_ARG_INT,
+                      1, SCRIPT_ARG_UINT32, pkt->data_l[0], SCRIPT_ARG_UINT32,
+                      pkt->data_l[1], SCRIPT_ARG_UINT32, pkt->data_l[2],
+                      SCRIPT_ARG_UINT32, pkt->data2_l, SCRIPT_ARG_UINT32,
+                      pkt->item_id, SCRIPT_ARG_END) < 0) {
+        return -1;
+    }
+
     /* If we're in legit mode, we need to check the newly taken item. */
     if((l->flags & LOBBY_FLAG_LEGIT_MODE) && l->limits_list) {
         switch(c->version) {
