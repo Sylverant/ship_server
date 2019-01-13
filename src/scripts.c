@@ -161,6 +161,40 @@ int script_remove(script_action_t action) {
     return 0;
 }
 
+int script_update_module(const char *filename) {
+    char *script;
+    size_t size;
+    char *modname, *tmp;
+
+    /* Can't do anything if we don't have any scripts loaded. */
+    if(!scripts_ref)
+        return 0;
+
+    /* Chop off the extension of the filename. */
+    if(!(modname = strdup(filename)))
+        return -1;
+
+    tmp = strrchr(modname, '.');
+    if(tmp)
+        *tmp = '\0';
+
+    size = strlen(modname);
+
+    if(!(script = (char *)malloc(size + 100)))
+        return -1;
+
+    snprintf(script, size + 100, "package.loaded['%s'] = nil", modname);
+
+    /* Set the module search path to include the scripts/modules dir. */
+    pthread_mutex_lock(&script_mutex);
+    (void)luaL_dostring(lstate, script);
+    pthread_mutex_unlock(&script_mutex);
+    free(script);
+    free(modname);
+
+    return 0;
+}
+
 /* Parse the XML for the script definitions */
 int script_eventlist_read(const char *fn) {
     xmlParserCtxtPtr cxt;
@@ -576,6 +610,10 @@ int script_add(script_action_t event, const char *filename) {
 }
 
 int script_remove(script_action_t event) {
+    return 0;
+}
+
+int script_update_module(const char *modname) {
     return 0;
 }
 

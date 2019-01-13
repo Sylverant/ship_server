@@ -75,5 +75,6 @@ void cleanup_scripts(ship_t *s);
 
 int script_add(script_action_t action, const char *filename);
 int script_remove(script_action_t action);
+int script_update_module(const char *modname);
 
 #endif /* !SCRIPTS_H */

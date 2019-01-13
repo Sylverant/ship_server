@@ -1798,6 +1798,7 @@ void free_game_enemies(lobby_t *l) {
     }
 
     l->map_enemies = NULL;
+    l->map_objs = NULL;
     l->bb_params = NULL;
 }
 
