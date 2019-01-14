@@ -1515,6 +1515,30 @@ static int client_item_lua(lua_State *l) {
     return 1;
 }
 
+static int client_find_lua(lua_State *l) {
+    ship_client_t *c;
+    uint32_t gc;
+    int i;
+
+    if(lua_isinteger(l, 1)) {
+        gc = (uint32_t)lua_tointeger(l, 1);
+
+        for(i = 0; i < ship->cfg->blocks; ++i) {
+            if((c = block_find_client(ship->blocks[i], gc))) {
+                lua_pushlightuserdata(l, c);
+                return 1;
+            }
+        }
+
+        lua_pushnil(l);
+    }
+    else {
+        lua_pushnil(l);
+    }
+
+    return 1;
+}
+
 static const luaL_Reg clientlib[] = {
     { "guildcard", client_guildcard_lua },
     { "isOnBlock", client_isOnBlock_lua },
@@ -1538,6 +1562,7 @@ static const luaL_Reg clientlib[] = {
     { "sendMsgBox", client_sendMsgBox_lua },
     { "numItems", client_numItems_lua },
     { "item", client_item_lua },
+    { "find", client_find_lua },
     { NULL, NULL }
 };
 
