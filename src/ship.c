@@ -1557,7 +1557,7 @@ static int ship_name_lua(lua_State *l) {
     return 1;
 }
 
-static int ship_gettable_lua(lua_State *l) {
+static int ship_getTable_lua(lua_State *l) {
     ship_t *sl;
 
     if(lua_islightuserdata(l, 1)) {
@@ -1571,9 +1571,21 @@ static int ship_gettable_lua(lua_State *l) {
     return 1;
 }
 
+static int ship_writeLog_lua(lua_State *l) {
+    const char *s;
+
+    if(lua_isstring(l, 1)) {
+        s = (const char *)lua_tostring(l, 1);
+        debug(DBG_LOG, "%s\n", s);
+    }
+
+    return 0;
+}
+
 static const luaL_Reg shiplib[] = {
     { "name", ship_name_lua },
-    { "getTable", ship_gettable_lua },
+    { "getTable", ship_getTable_lua },
+    { "writeLog", ship_writeLog_lua },
     { NULL, NULL }
 };
 
