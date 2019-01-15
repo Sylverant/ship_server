@@ -965,6 +965,9 @@ static int handle_set_area(ship_client_t *c, subcmd_set_area_t *pkt) {
 
     /* Save the new area and move along */
     if(c->client_id == pkt->client_id) {
+        script_execute(ScriptActionChangeArea, SCRIPT_ARG_PTR, c,
+                       SCRIPT_ARG_INT, (int)pkt->area, SCRIPT_ARG_INT,
+                       c->cur_area, SCRIPT_ARG_END);
         c->cur_area = pkt->area;
     }
 
