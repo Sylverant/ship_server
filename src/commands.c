@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
     Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016,
-                  2017, 2018 Lawrence Sebald
+                  2017, 2018, 2019 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -3154,6 +3154,13 @@ static int handle_quest(ship_client_t *c, const char *params) {
            stupid... */
            quest_map_elem_t *e = quest_lookup(&ship->qmap, quest_id);
            sylverant_quest_t *q = NULL;
+
+           /* If the quest isn't found, bail out now. */
+           if(!e) {
+               rv = send_txt(c, __(c, "\tE\tC7Invalid quest id."));
+               pthread_rwlock_unlock(&ship->qlock);
+               return rv;
+           }
 
            /* Find the quest... */
            for(quest_ln = 0; quest_ln < CLIENT_LANG_COUNT; ++quest_ln) {

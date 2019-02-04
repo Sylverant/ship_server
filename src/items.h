@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2010, 2012, 2018 Lawrence Sebald
+    Copyright (C) 2010, 2012, 2018, 2019 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -602,6 +602,8 @@ typedef enum item_code_e {
     Item_Mr_Nakas_Business_Card       = 0x240E03,
     Item_AddSlot                      = 0x000F03,
     Item_Photon_Drop                  = 0x001003,
+    Item_Photon_Sphere                = 0x011003,
+    Item_Photon_Crystal               = 0x021003,
     Item_Meseta                       = 0x000004,
     Item_NoSuchItem                   = 0xFFFFFF,
     /* Some odd special cases... */
