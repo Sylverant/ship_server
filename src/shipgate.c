@@ -1,6 +1,7 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2014, 2015, 2016, 2018 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2014, 2015, 2016, 2018,
+                  2019 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -1090,7 +1091,7 @@ static int handle_creq_err(shipgate_conn_t *conn, shipgate_cdata_err_pkt *pkt) {
     uint32_t err = ntohl(pkt->base.error_code);
 
     /* Make sure the packet looks sane */
-    if(!(flags & SHDR_FAILURE) || !(flags & SHDR_RESPONSE)) {
+    if(!(flags & SHDR_FAILURE)) {
         return 0;
     }
 
@@ -1145,7 +1146,7 @@ static int handle_gmlogin_err(shipgate_conn_t *conn, shipgate_gm_err_pkt *pkt) {
     int rv = 0;
 
     /* Make sure the packet looks sane */
-    if(!(flags & SHDR_RESPONSE)) {
+    if(!(flags & SHDR_FAILURE)) {
         return 0;
     }
 
@@ -1160,7 +1161,7 @@ static int handle_gmlogin_err(shipgate_conn_t *conn, shipgate_gm_err_pkt *pkt) {
     /* Find the requested client. */
     TAILQ_FOREACH(i, b->clients, qentry) {
         if(i->guildcard == gc) {
-            /* XXXX: Maybe send specific error messages sometime later */
+            /* XXXX: Maybe send specific error messages sometime later? */
             send_txt(i, "%s", __(i, "\tE\tC7Login failed."));
             break;
         }

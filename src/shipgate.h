@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016,
-                  2018 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2018,
+                  2019 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -547,9 +547,10 @@ static const char shipgate_login_msg[] =
 /* Error codes in response to a character request */
 #define ERR_CREQ_NO_DATA        0x00000001
 
-/* Error codes in response to a gm login */
+/* Error codes in response to a client login */
 #define ERR_GMLOGIN_NO_ACC      0x00000001
-#define ERR_GMLOGIN_NOT_GM      0x00000002
+#define ERR_GMLOGIN_BAD_CRED    0x00000002
+#define ERR_GMLOGIN_BAD_PRIVS   0x00000003
 
 /* Error codes in response to a ban request */
 #define ERR_BAN_NOT_GM          0x00000001
