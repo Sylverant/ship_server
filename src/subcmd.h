@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2015, 2018 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2015, 2018, 2019 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -830,6 +830,18 @@ typedef struct subcmd_objhit_phys {
     } objects[];
 } PACKED subcmd_objhit_phys_t;
 
+/* Packet sent in response to a quest register sync (sync_register, sync_let,
+   or sync_leti in qedit terminology). */
+typedef struct subcmd_sync_reg {
+    dc_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint16_t unk1;          /* Probably unused junk. */
+    uint16_t reg_num;
+    uint16_t unk2;          /* Probably unused junk again. */
+    uint32_t value;
+} PACKED subcmd_sync_reg_t;
+
 #undef PACKED
 
 /* Subcommand types we care about (0x62/0x6D). */
@@ -883,6 +895,7 @@ typedef struct subcmd_objhit_phys {
 #define SUBCMD_BURST_DONE   0x72
 #define SUBCMD_WORD_SELECT  0x74
 #define SUBCMD_KILL_MONSTER 0x76    /* A monster was killed. */
+#define SUBCMD_SYNC_REG     0x77
 #define SUBCMD_GOGO_BALL    0x79
 #define SUBCMD_CMODE_GRAVE  0x7C
 #define SUBCMD_WARP         0x94
