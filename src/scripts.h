@@ -49,6 +49,7 @@ typedef enum script_action {
     ScriptActionUnknownMenu,
     ScriptActionBankAction,
     ScriptActionChangeArea,
+    ScriptActionQuestSyncRegister,
     ScriptActionCount
 } script_action_t;
 

@@ -837,7 +837,8 @@ typedef struct subcmd_sync_reg {
     uint8_t type;
     uint8_t size;
     uint16_t unk1;          /* Probably unused junk. */
-    uint16_t reg_num;
+    uint8_t reg_num;
+    uint8_t unused;
     uint16_t unk2;          /* Probably unused junk again. */
     uint32_t value;
 } PACKED subcmd_sync_reg_t;
@@ -895,7 +896,7 @@ typedef struct subcmd_sync_reg {
 #define SUBCMD_BURST_DONE   0x72
 #define SUBCMD_WORD_SELECT  0x74
 #define SUBCMD_KILL_MONSTER 0x76    /* A monster was killed. */
-#define SUBCMD_SYNC_REG     0x77
+#define SUBCMD_SYNC_REG     0x77    /* Sent when register is synced in quest */
 #define SUBCMD_GOGO_BALL    0x79
 #define SUBCMD_CMODE_GRAVE  0x7C
 #define SUBCMD_WARP         0x94

@@ -1,6 +1,7 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2015, 2016, 2018 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2015, 2016, 2018,
+                  2019 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -2725,6 +2726,19 @@ static int handle_create_pipe(ship_client_t *c, subcmd_pipe_pkt_t *pkt) {
     return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
 }
 
+static int handle_sync_reg(ship_client_t *c, subcmd_sync_reg_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+    uint32_t val = LE32(pkt->value);
+
+    /* XXXX: Probably should do some checking here... */
+    /* Run the register sync script, if one is set. */
+    script_execute(ScriptActionQuestSyncRegister, SCRIPT_ARG_PTR, c,
+                   SCRIPT_ARG_PTR, l, SCRIPT_ARG_UINT8, pkt->reg_num,
+                   SCRIPT_ARG_UINT32, val, SCRIPT_ARG_END);
+
+    return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
+}
+
 /* Handle a 0x62/0x6D packet. */
 int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
     lobby_t *l = c->cur_lobby;
@@ -3042,6 +3056,10 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
 
         case SUBCMD_CREATE_PIPE:
             rv = handle_create_pipe(c, (subcmd_pipe_pkt_t *)pkt);
+            break;
+
+        case SUBCMD_SYNC_REG:
+            rv = handle_sync_reg(c, (subcmd_sync_reg_t *)pkt);
             break;
 
         default:
