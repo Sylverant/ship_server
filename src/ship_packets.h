@@ -203,6 +203,9 @@ int send_quest_info(lobby_t *l, uint32_t qid, int lang);
 /* Send a quest to everyone in a lobby. */
 int send_quest(lobby_t *l, uint32_t qid, int lc);
 
+/* Send a quest to one player. */
+int send_quest_one(lobby_t *l, ship_client_t *c, uint32_t qid, int lc);
+
 /* Send the lobby name to the client. */
 int send_lobby_name(ship_client_t *c, lobby_t *l);
 

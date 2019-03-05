@@ -259,6 +259,7 @@ extern pthread_key_t sendbuf_key;
 #define CLIENT_FLAG_GC_MSG_BOXES    0x00400000
 #define CLIENT_FLAG_CDATA_CHECK     0x00800000
 #define CLIENT_FLAG_ALWAYS_LEGIT    0x01000000
+#define CLIENT_FLAG_WAIT_QPING      0x02000000
 
 /* Technique numbers */
 #define TECHNIQUE_FOIE              0

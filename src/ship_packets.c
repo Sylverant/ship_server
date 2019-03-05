@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016,
-                  2017, 2018, 2019 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018,
+                  2019 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -166,11 +166,6 @@ static gm_opt_t gm_opts[] = {
     /* End of list marker -- Do not remove */
     {   0                       , 0                     , 0x00,
         0                       , ""                }
-};
-
-/* The list of type codes for the quest directories. */
-static const char type_codes[][3] = {
-    "v1", "v2", "pc", "gc", "bb"
 };
 
 /* Forward declaration. */
@@ -6734,6 +6729,107 @@ int send_quest(lobby_t *l, uint32_t qid, int lc) {
 
     return 0;
 }
+
+int send_quest_one(lobby_t *l, ship_client_t *c, uint32_t qid, int lc) {
+    int v1 = 0, rv;
+    quest_map_elem_t *elem = quest_lookup(&ship->qmap, qid);
+    sylverant_quest_t *q;
+    int lang, ver;
+
+    /* Make sure we get the quest */
+    if(!elem)
+        return -1;
+
+    /* See if we're looking for a v1-compat quest */
+    if(!l->v2 && l->version < CLIENT_VERSION_GC)
+        v1 = 1;
+
+    c->flags &= ~CLIENT_FLAG_QLOAD_DONE;
+
+    /* What type of quest file are we sending? */
+    if(v1 && c->version == CLIENT_VERSION_DCV2)
+        ver = CLIENT_VERSION_DCV1;
+    else
+        ver = c->version;
+
+    q = elem->qptr[ver][c->q_lang];
+    lang = c->q_lang;
+
+    /* If we didn't find it on the quest language code, try the language
+       code set in the character data. */
+    if(!q) {
+        q = elem->qptr[ver][c->language_code];
+        lang = c->language_code;
+    }
+
+    /* Next try English, so as to have a reasonably sane fallback. */
+    if(!q) {
+        q = elem->qptr[ver][CLIENT_LANG_ENGLISH];
+        lang = CLIENT_LANG_ENGLISH;
+    }
+
+    /* If all else fails, go with the language the quest was selected by
+       the leader in, since that has to be there! */
+    if(!q) {
+        q = elem->qptr[ver][lc];
+        lang = lc;
+
+        /* If we still didn't find it, we've got trouble elsewhere... */
+        if(!q) {
+            debug(DBG_WARN, "Couldn't find quest to send!\n"
+                  "ID: %d, Ver: %d, Language: %d, Fallback: %d, "
+                  "Fallback 2: %d\n", qid, ver, c->q_lang,
+                  c->language_code, lc);
+
+            /* Unfortunately, we're going to have to disconnect the user
+               if this happens, since we really have no recourse. */
+            c->flags |= CLIENT_FLAG_DISCONNECTED;
+            return -1;
+        }
+    }
+
+    if(q->format == SYLVERANT_QUEST_BINDAT) {
+        /* Call the appropriate function. */
+        switch(ver) {
+            case CLIENT_VERSION_DCV1:
+                rv = send_dcv1_quest(c, elem, v1, lang);
+                break;
+
+            case CLIENT_VERSION_DCV2:
+                rv = send_dcv2_quest(c, elem, v1, lang);
+                break;
+
+            case CLIENT_VERSION_PC:
+                rv = send_pc_quest(c, elem, v1, lang);
+                break;
+
+            case CLIENT_VERSION_GC:
+                rv = send_gc_quest(c, elem, v1, lang);
+                break;
+
+            case CLIENT_VERSION_EP3:    /* XXXX */
+            default:
+                return -1;
+        }
+    }
+    else if(q->format == SYLVERANT_QUEST_QST) {
+        rv = send_qst_quest(c, elem, v1, lang, ver);
+    }
+    else {
+        return -1;
+    }
+
+    if(rv) {
+        send_message_box(c, "Error reading quest file!\nPlease report "
+                         "this problem!\nInclude your guildcard\n"
+                         "number and the approximate\ntime in your "
+                         "error report.");
+        c->flags |= CLIENT_FLAG_DISCONNECTED;
+    }
+
+    return 0;
+}
+
 
 /* Send the lobby name to the client. */
 static int send_dcv2_lobby_name(ship_client_t *c, lobby_t *l) {

@@ -2763,15 +2763,21 @@ int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
 
     /* If there's a burst going on in the lobby, delay most packets */
     if(l->flags & LOBBY_FLAG_BURSTING) {
+        rv = 0;
+
         switch(type) {
             case SUBCMD_BURST1:
             case SUBCMD_BURST2:
             case SUBCMD_BURST3:
             case SUBCMD_BURST4:
+                if(l->flags & LOBBY_FLAG_QUESTING)
+                    rv = lobby_enqueue_burst(l, c, (dc_pkt_hdr_t *)pkt);
+                /* Fall through... */
+
             case SUBCMD_BURST5:
             case SUBCMD_BURST6:
             case SUBCMD_BURST7:
-                rv = send_pkt_dc(dest, (dc_pkt_hdr_t *)pkt);
+                rv |= send_pkt_dc(dest, (dc_pkt_hdr_t *)pkt);
                 break;
 
             default:

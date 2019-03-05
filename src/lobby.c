@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016,
-                  2017, 2018 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018,
+                  2019 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -250,6 +250,7 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
     /* Initialize the packet queue */
     STAILQ_INIT(&l->pkt_queue);
     TAILQ_INIT(&l->item_queue);
+    STAILQ_INIT(&l->burst_queue);
 
     /* Initialize the lobby mutex. */
     pthread_mutex_init(&l->mutex, NULL);
@@ -434,6 +435,7 @@ lobby_t *lobby_create_ep3_game(block_t *block, char *name, char *passwd,
 
     /* Initialize the packet queue */
     STAILQ_INIT(&l->pkt_queue);
+    STAILQ_INIT(&l->burst_queue);
 
     /* Initialize the lobby mutex. */
     pthread_mutex_init(&l->mutex, NULL);
@@ -463,6 +465,12 @@ static void lobby_empty_pkt_queue(lobby_t *l) {
 
     while((i = STAILQ_FIRST(&l->pkt_queue))) {
         STAILQ_REMOVE_HEAD(&l->pkt_queue, qentry);
+        free(i->pkt);
+        free(i);
+    }
+
+    while((i = STAILQ_FIRST(&l->burst_queue))) {
+        STAILQ_REMOVE_HEAD(&l->burst_queue, qentry);
         free(i->pkt);
         free(i);
     }
@@ -1438,8 +1446,38 @@ int lobby_handle_done_burst(lobby_t *l) {
     return rv;
 }
 
+int lobby_resend_burst(lobby_t *l, ship_client_t *c) {
+    lobby_pkt_t *i;
+    int rv = 0;
+
+    /* Go through each packet and handle it */
+    while((i = STAILQ_FIRST(&l->burst_queue))) {
+        STAILQ_REMOVE_HEAD(&l->burst_queue, qentry);
+
+        /* As long as none of the earlier packets have errored out, continue on
+           by re-handling the old packet. */
+        if(rv == 0) {
+            switch(i->pkt->pkt_type) {
+                case GAME_COMMAND2_TYPE:
+                case GAME_COMMANDD_TYPE:
+                    rv = send_pkt_dc(c, i->pkt);
+                    break;
+
+                default:
+                    rv = -1;
+            }
+        }
+
+        free(i->pkt);
+        free(i);
+    }
+
+    return rv;
+}
+
 /* Enqueue a packet for later sending (due to a player bursting) */
-int lobby_enqueue_pkt(lobby_t *l, ship_client_t *c, dc_pkt_hdr_t *p) {
+static int lobby_enqueue_pkt_ex(lobby_t *l, ship_client_t *c, dc_pkt_hdr_t *p,
+                                int q) {
     lobby_pkt_t *pkt;
     int rv = 0;
     uint16_t len = LE16(p->pkt_len);
@@ -1477,11 +1515,22 @@ int lobby_enqueue_pkt(lobby_t *l, ship_client_t *c, dc_pkt_hdr_t *p) {
     memcpy(pkt->pkt, p, len);
 
     /* Insert into the packet queue */
-    STAILQ_INSERT_TAIL(&l->pkt_queue, pkt, qentry);
+    if(!q)
+        STAILQ_INSERT_TAIL(&l->pkt_queue, pkt, qentry);
+    else
+        STAILQ_INSERT_TAIL(&l->burst_queue, pkt, qentry);
 
 out:
     pthread_mutex_unlock(&l->mutex);
     return rv;
+}
+
+int lobby_enqueue_pkt(lobby_t *l, ship_client_t *c, dc_pkt_hdr_t *p) {
+    return lobby_enqueue_pkt_ex(l, c, p, 0);
+}
+
+int lobby_enqueue_burst(lobby_t *l, ship_client_t *c, dc_pkt_hdr_t *p) {
+    return lobby_enqueue_pkt_ex(l, c, p, 1);
 }
 
 /* Add an item to the lobby's inventory. The caller must hold the lobby's mutex

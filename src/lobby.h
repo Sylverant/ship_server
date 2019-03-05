@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016,
-                  2017, 2018 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018,
+                  2019 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -119,6 +119,7 @@ struct lobby {
 
     struct lobby_pkt_queue pkt_queue;
     struct lobby_item_queue item_queue;
+    struct lobby_pkt_queue burst_queue;
     time_t create_time;
 
     game_enemies_t *map_enemies;
@@ -245,9 +246,11 @@ int lobby_check_client_legit(lobby_t *l, ship_t *s, ship_client_t *c);
 
 /* Send out any queued packets when we get a done burst signal. */
 int lobby_handle_done_burst(lobby_t *l);
+int lobby_resend_burst(lobby_t *l, ship_client_t *c);
 
 /* Enqueue a packet for later sending (due to a player bursting) */
 int lobby_enqueue_pkt(lobby_t *l, ship_client_t *c, dc_pkt_hdr_t *p);
+int lobby_enqueue_burst(lobby_t *l, ship_client_t *c, dc_pkt_hdr_t *p);
 
 /* Add an item to the lobby's inventory. The caller must hold the lobby's mutex
    before calling this. Returns NULL on any problems... */

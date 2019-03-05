@@ -2131,15 +2131,22 @@ static int dc_process_done_burst(ship_client_t *c) {
        the rest of the lobby, and continue on. */
     pthread_mutex_lock(&l->mutex);
 
-    l->flags &= ~LOBBY_FLAG_BURSTING;
-    c->flags &= ~CLIENT_FLAG_BURSTING;
-
-    if(l->version == CLIENT_VERSION_BB) {
-        send_lobby_end_burst(l);
-    }
-
     /* Handle the end of burst stuff with the lobby */
-    rv = send_simple(c, PING_TYPE, 0) | lobby_handle_done_burst(l);
+    if(!(l->flags & LOBBY_FLAG_QUESTING)) {
+        l->flags &= ~LOBBY_FLAG_BURSTING;
+        c->flags &= ~CLIENT_FLAG_BURSTING;
+
+        if(l->version == CLIENT_VERSION_BB) {
+            send_lobby_end_burst(l);
+        }
+
+        rv = send_simple(c, PING_TYPE, 0) | lobby_handle_done_burst(l);
+    }
+    else {
+        rv = send_quest_one(l, c, l->qid, l->qlang);
+        c->flags |= CLIENT_FLAG_WAIT_QPING;
+        rv |= send_simple(c, PING_TYPE, 0);
+    }
 
     pthread_mutex_unlock(&l->mutex);
 
@@ -3043,6 +3050,19 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
                 }
 
                 pthread_rwlock_unlock(&ship->llock);
+            }
+
+            if(c->flags & CLIENT_FLAG_WAIT_QPING) {
+                lobby_t *l = c->cur_lobby;
+
+                pthread_mutex_lock(&l->mutex);
+                l->flags &= ~LOBBY_FLAG_BURSTING;
+                c->flags &= ~(CLIENT_FLAG_BURSTING | CLIENT_FLAG_WAIT_QPING);
+
+                rv = lobby_resend_burst(l, c);
+                rv = send_simple(c, PING_TYPE, 0) | lobby_handle_done_burst(l);
+                pthread_mutex_unlock(&l->mutex);
+                return rv;
             }
 
             return 0;
