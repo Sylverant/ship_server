@@ -6686,6 +6686,11 @@ int send_quest(lobby_t *l, uint32_t qid, int lc) {
                 }
             }
 
+            /* Set the counter we'll use to prevent v1 from sending silly
+               packets to change other players' positions. */
+            if(c->version == CLIENT_VERSION_DCV1)
+                c->autoreply_len = l->num_clients - 1;
+
             if(q->format == SYLVERANT_QUEST_BINDAT) {
                 /* Call the appropriate function. */
                 switch(ver) {
@@ -6787,6 +6792,11 @@ int send_quest_one(lobby_t *l, ship_client_t *c, uint32_t qid, int lc) {
             return -1;
         }
     }
+
+    /* Set the counter we'll use to prevent v1 from sending silly
+       packets to change other players' positions. */
+    if(c->version == CLIENT_VERSION_DCV1)
+        c->autoreply_len = l->num_clients - 1;
 
     if(q->format == SYLVERANT_QUEST_BINDAT) {
         /* Call the appropriate function. */

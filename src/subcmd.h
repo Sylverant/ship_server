@@ -864,6 +864,7 @@ typedef struct subcmd_sync_reg {
 #define SUBCMD_SET_AREA_21  0x21    /* Seems to match 0x1F */
 #define SUBCMD_LOAD_22      0x22    /* Related to 0x21 and 0x23... */
 #define SUBCMD_FINISH_LOAD  0x23    /* Finished loading to a map, maybe? */
+#define SUBCMD_SET_POS_24   0x24    /* Used when starting a quest. */
 #define SUBCMD_EQUIP        0x25
 #define SUBCMD_REMOVE_EQUIP 0x26
 #define SUBCMD_USE_ITEM     0x27

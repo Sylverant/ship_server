@@ -2739,6 +2739,37 @@ static int handle_sync_reg(ship_client_t *c, subcmd_sync_reg_t *pkt) {
     return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
 }
 
+static int handle_set_pos24(ship_client_t *c, subcmd_pkt_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+
+    /* Ugh... For some reason, v1 really likes to send these at the start of
+       quests. And by "really likes to send these", I mean that everybody sends
+       one of these for themselves and everybody else in the team... That can
+       cause some interesting problems if clients are out of sync at the
+       beginning of a quest for any reason (like a PSOPC player playing with
+       a v1 player might be, for instance). Thus, we have to ignore these sent
+       by v1 players with other players' client IDs at the beginning of a
+       quest. */
+    if(c->version == CLIENT_VERSION_DCV1) {
+        /* Sanity check... */
+        if(pkt->hdr.dc.pkt_len != LE16(0x0018) || pkt->size != 0x05) {
+            debug(DBG_WARN, "Client %" PRIu32 " sent invalid setpos24!\n",
+                  c->guildcard);
+            return -1;
+        }
+
+        /* Oh look, misusing other portions of the client structure so that I
+           don't have to make a new field... */
+        if(c->autoreply_len && pkt->data[0] != c->client_id) {
+            /* Silently drop the packet. */
+            --c->autoreply_len;
+            return 0;
+        }
+    }
+
+    return subcmd_send_lobby_dc(l, c, pkt, 0);
+}
+
 /* Handle a 0x62/0x6D packet. */
 int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
     lobby_t *l = c->cur_lobby;
@@ -3066,6 +3097,10 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
 
         case SUBCMD_SYNC_REG:
             rv = handle_sync_reg(c, (subcmd_sync_reg_t *)pkt);
+            break;
+
+        case SUBCMD_SET_POS_24:
+            rv = handle_set_pos24(c, pkt);
             break;
 
         default:
