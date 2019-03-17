@@ -135,6 +135,9 @@ struct lobby {
 
     int (*dropfunc)(ship_client_t *c, struct lobby *l, void *req);
 
+    uint8_t q_flags;
+    uint8_t q_shortflag_reg;
+
 #ifdef DEBUG
     uint8_t sdrops_ep;
     uint8_t sdrops_diff;
@@ -200,6 +203,7 @@ TAILQ_HEAD(lobby_queue, lobby);
 #define LOBBY_EVENT_SPRINGFLAG  13
 #define LOBBY_EVENT_ALT_NORMAL  14
 
+#define LOBBY_QFLAG_SHORT       (1 << 0)
 
 /* The required level for various difficulties. */
 const static int game_required_level[4] = { 1, 20, 40, 80 };

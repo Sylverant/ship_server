@@ -58,7 +58,7 @@ typedef struct lobby lobby_t;
 
 #define PACKED __attribute__((packed))
 
-#define SHIPGATE_PROTO_VER  16
+#define SHIPGATE_PROTO_VER  17
 
 /* New header in protocol version 10 and newer. */
 typedef struct shipgate_hdr {
@@ -159,6 +159,15 @@ typedef struct shipgate_schunk_err {
     uint8_t reserved[3];
     char filename[32];
 } PACKED shipgate_schunk_err_pkt;
+
+/* Error packet in reply to a quest flag packet (either get or set) */
+typedef struct shipgate_qflag_err {
+    shipgate_error_pkt base;
+    uint32_t guildcard;
+    uint32_t block;
+    uint32_t flag_id;
+    uint32_t quest_id;
+} PACKED shipgate_qflag_err_pkt;
 
 /* The request sent from the shipgate for a ship to identify itself. */
 typedef struct shipgate_login {

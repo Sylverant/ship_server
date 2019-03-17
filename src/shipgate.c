@@ -1564,7 +1564,7 @@ static int handle_globalmsg(shipgate_conn_t *c, shipgate_global_msg_pkt *pkt) {
     return 0;
 }
 
-static int  handle_useropt(shipgate_conn_t *c, shipgate_user_opt_pkt *pkt) {
+static int handle_useropt(shipgate_conn_t *c, shipgate_user_opt_pkt *pkt) {
     ship_t *s = c->ship;
     block_t *b;
     ship_client_t *i;
@@ -1929,6 +1929,122 @@ static int handle_sdata(shipgate_conn_t *c, shipgate_sdata_pkt *pkt) {
     return 0;
 }
 
+static int handle_qflag(shipgate_conn_t *c, shipgate_qflag_pkt *pkt) {
+    ship_t *s = c->ship;
+    block_t *b;
+    ship_client_t *i;
+    lobby_t *l;
+    uint32_t gc = ntohl(pkt->guildcard), block = ntohl(pkt->block);
+    uint32_t flag_id = ntohl(pkt->flag_id), value = ntohl(pkt->value);
+    uint16_t flags = ntohs(pkt->hdr.flags), type = ntohs(pkt->hdr.pkt_type);
+    uint8_t flag_reg;
+
+    /* Make sure the packet looks sane... */
+    if(!(flags & SHDR_RESPONSE) || (flags & SHDR_FAILURE)) {
+        debug(DBG_WARN, "Shipgate sent bad qflag packet!\n");
+        return -1;
+    }
+
+    /* Catch attempts to sync invalid flag ids (just in case we support
+       extra stuff here later ;-) ). */
+    if((flag_id & 0xFFFFFF00)) {
+        debug(DBG_WARN, "Shipgate attempted to sync bad flag id: %" PRIu32 "\n",
+              flag_id);
+        return -1;
+    }
+
+    /* Check the block number for sanity... */
+    if(block > s->cfg->blocks)
+        return -1;
+
+    b = s->blocks[block - 1];
+    pthread_rwlock_rdlock(&b->lock);
+
+    /* Find the requested client. */
+    TAILQ_FOREACH(i, b->clients, qentry) {
+        if(i->guildcard == gc) {
+            pthread_mutex_lock(&i->mutex);
+            l = i->cur_lobby;
+
+            /* Sanity check... Make sure the user hasn't been booted from the
+               lobby somehow. */
+            if(!l) {
+                pthread_mutex_unlock(&i->mutex);
+                break;
+            }
+
+            /* Grab the register from the lobby... */
+            pthread_mutex_lock(&l->mutex);
+            flag_reg = l->q_shortflag_reg;
+            pthread_mutex_unlock(&l->mutex);
+
+            /* Make the value that the quest is expecting... */
+            if(type == SHDR_TYPE_QFLAG_GET)
+                value = (value & 0xFFFF) | 0x40000000 | (flag_id << 16);
+            else
+                value = (value & 0xFFFF) | 0x60000000 | (flag_id << 16);
+
+            send_sync_register(i, flag_reg, value);
+            pthread_mutex_unlock(&i->mutex);
+            break;
+        }
+    }
+
+    pthread_rwlock_unlock(&b->lock);
+    return 0;
+}
+
+static int handle_qflag_err(shipgate_conn_t *c, shipgate_qflag_err_pkt *pkt) {
+    uint32_t gc = ntohl(pkt->guildcard);
+    uint32_t block = ntohl(pkt->block);
+    uint32_t value;
+    ship_t *s = c->ship;
+    block_t *b;
+    ship_client_t *i;
+    lobby_t *l;
+    uint8_t flag_reg;
+
+    /* Grab the block first */
+    if(block > s->cfg->blocks || !(b = s->blocks[block - 1])) {
+        return 0;
+    }
+
+    pthread_rwlock_rdlock(&b->lock);
+
+    /* Find the requested client and boot them off (regardless of the error type
+       for now) */
+    TAILQ_FOREACH(i, b->clients, qentry) {
+        if(i->guildcard == gc) {
+            pthread_mutex_lock(&i->mutex);
+            l = i->cur_lobby;
+
+            /* Sanity check... Make sure the user hasn't been booted from the
+               lobby somehow. */
+            if(!l) {
+                pthread_mutex_unlock(&i->mutex);
+                break;
+            }
+
+            /* Grab the register from the lobby... */
+            pthread_mutex_lock(&l->mutex);
+            flag_reg = l->q_shortflag_reg;
+            pthread_mutex_unlock(&l->mutex);
+
+            /* Make the value that the quest is expecting... Maybe we expand
+               this later with more information about the error? */
+            value = 0x80000000;
+
+            send_sync_register(i, flag_reg, value);
+            pthread_mutex_unlock(&i->mutex);
+            break;
+        }
+    }
+
+    pthread_rwlock_unlock(&b->lock);
+
+    return 0;
+}
+
 static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
     uint16_t type = ntohs(pkt->pkt_type);
     uint16_t flags = ntohs(pkt->flags);
@@ -1981,6 +2097,10 @@ static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
 
             case SHDR_TYPE_DELFRIEND:
                 return handle_delfriend(conn, (shipgate_friend_err_pkt *)pkt);
+
+            case SHDR_TYPE_QFLAG_SET:
+            case SHDR_TYPE_QFLAG_GET:
+                return handle_qflag_err(conn, (shipgate_qflag_err_pkt *)pkt);
 
             default:
                 debug(DBG_WARN, "%s: Shipgate sent unknown error!\n",
@@ -2074,6 +2194,10 @@ static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
 
             case SHDR_TYPE_SDATA:
                 return handle_sdata(conn, (shipgate_sdata_pkt *)pkt);
+
+            case SHDR_TYPE_QFLAG_SET:
+            case SHDR_TYPE_QFLAG_GET:
+                return handle_qflag(conn, (shipgate_qflag_pkt *)pkt);
         }
     }
 
