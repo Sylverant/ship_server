@@ -2011,8 +2011,7 @@ static int handle_qflag_err(shipgate_conn_t *c, shipgate_qflag_err_pkt *pkt) {
 
     pthread_rwlock_rdlock(&b->lock);
 
-    /* Find the requested client and boot them off (regardless of the error type
-       for now) */
+    /* Find the requested client and inform the quest of the error. */
     TAILQ_FOREACH(i, b->clients, qentry) {
         if(i->guildcard == gc) {
             pthread_mutex_lock(&i->mutex);
