@@ -9964,3 +9964,84 @@ int send_generic_menu(ship_client_t *c, uint32_t menu_id, size_t count,
 
     return -1;
 }
+
+static int send_dc_sync_register(ship_client_t *c, uint8_t n, uint32_t v) {
+    uint8_t *sendbuf = get_sendbuf();
+    subcmd_sync_reg_t *pkt = (subcmd_sync_reg_t *)sendbuf;
+    subcmd_pkt_t *pkt2 = (subcmd_pkt_t *)sendbuf;
+
+    if(!sendbuf)
+        return -1;
+
+    /* Clear the packet */
+    memset(pkt, 0, sizeof(subcmd_sync_reg_t));
+
+    /* Fill it in */
+    if(c->version == CLIENT_VERSION_PC) {
+        pkt2->hdr.pc.pkt_type = GAME_COMMAND0_TYPE;
+        pkt2->hdr.pc.pkt_len = LE16(sizeof(subcmd_sync_reg_t));
+    }
+    else {
+        pkt2->hdr.dc.pkt_type = GAME_COMMAND0_TYPE;
+        pkt2->hdr.dc.pkt_len = LE16(sizeof(subcmd_sync_reg_t));
+    }
+
+    pkt->type = SUBCMD_SYNC_REG;
+    pkt->size = 3;
+    pkt->reg_num = n;
+    pkt->value = LE32(v);
+
+    /* Send it away */
+    return crypt_send(c, sizeof(subcmd_sync_reg_t), sendbuf);
+}
+
+int send_sync_register(ship_client_t *c, uint8_t reg_num, uint32_t value) {
+    /* Call the appropriate function for the client's version */
+    switch(c->version) {
+        case CLIENT_VERSION_DCV1:
+        case CLIENT_VERSION_DCV2:
+        case CLIENT_VERSION_PC:
+        case CLIENT_VERSION_GC:
+            return send_dc_sync_register(c, reg_num, value);
+
+        case CLIENT_VERSION_BB:     /* XXXX */
+        case CLIENT_VERSION_EP3:    /* ???? */
+            return -1;
+
+    }
+
+    return -1;
+}
+
+int send_lobby_sync_register(lobby_t *l, uint8_t n, uint32_t v) {
+    int i;
+
+    pthread_mutex_lock(&l->mutex);
+
+    for(i = 0; i < l->max_clients; ++i) {
+        if(l->clients[i]) {
+            pthread_mutex_lock(&l->clients[i]->mutex);
+
+            /* Call the appropriate function. */
+            switch(l->clients[i]->version) {
+                case CLIENT_VERSION_DCV1:
+                case CLIENT_VERSION_DCV2:
+                case CLIENT_VERSION_PC:
+                case CLIENT_VERSION_GC:
+                    send_dc_sync_register(l->clients[i], n, v);
+                    break;
+
+                case CLIENT_VERSION_BB:
+                case CLIENT_VERSION_EP3:
+                    /* XXXX */
+                    break;
+            }
+
+            pthread_mutex_unlock(&l->clients[i]->mutex);
+        }
+    }
+
+    pthread_mutex_unlock(&l->mutex);
+
+    return 0;
+}

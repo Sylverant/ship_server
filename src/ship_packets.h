@@ -283,4 +283,10 @@ int send_lobby_end_burst(lobby_t *l);
 int send_generic_menu(ship_client_t *c, uint32_t menu_id, size_t count,
                       gen_menu_entry_t *ents);
 
+/* Send a quest register sync to a given client. */
+int send_sync_register(ship_client_t *c, uint8_t reg_num, uint32_t value);
+
+/* Send a quest register sync to all clients in a lobby. */
+int send_lobby_sync_register(lobby_t *l, uint8_t n, uint32_t v);
+
 #endif /* !SHIP_PACKETS_H */
