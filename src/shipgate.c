@@ -1997,7 +1997,7 @@ static int handle_qflag(shipgate_conn_t *c, shipgate_qflag_pkt *pkt) {
 static int handle_qflag_err(shipgate_conn_t *c, shipgate_qflag_err_pkt *pkt) {
     uint32_t gc = ntohl(pkt->guildcard);
     uint32_t block = ntohl(pkt->block);
-    uint32_t value;
+    uint32_t value = ntohl(pkt->base.error_code);
     ship_t *s = c->ship;
     block_t *b;
     ship_client_t *i;
@@ -2029,9 +2029,11 @@ static int handle_qflag_err(shipgate_conn_t *c, shipgate_qflag_err_pkt *pkt) {
             flag_reg = l->q_shortflag_reg;
             pthread_mutex_unlock(&l->mutex);
 
-            /* Make the value that the quest is expecting... Maybe we expand
-               this later with more information about the error? */
-            value = 0x80000000;
+            /* Make the value that the quest is expecting... */
+            if(value == ERR_BAD_ERROR)
+                value = 0x8000FFFF;
+            else
+                value = (value & 0xFFFF) | 0x80000000;
 
             send_sync_register(i, flag_reg, value);
             pthread_mutex_unlock(&i->mutex);
