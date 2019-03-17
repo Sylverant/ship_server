@@ -3157,3 +3157,30 @@ int shipgate_send_sdata(shipgate_conn_t *c, ship_client_t *sc, uint32_t event,
     /* Send it away. */
     return send_crypt(c, pkt_len, sendbuf);
 }
+
+/* Send a quest flag request or update */
+int shipgate_send_qflag(shipgate_conn_t *c, ship_client_t *sc, int set,
+                        uint32_t fid, uint32_t qid, uint32_t value) {
+    uint8_t *sendbuf = get_sendbuf();
+    shipgate_qflag_pkt *pkt = (shipgate_qflag_pkt *)sendbuf;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf)
+        return -1;
+
+    /* Fill in the packet... */
+    memset(pkt, 0, sizeof(shipgate_qflag_pkt));
+    pkt->hdr.pkt_len = htons(sizeof(shipgate_qflag_pkt));
+    if(set)
+        pkt->hdr.pkt_type = htons(SHDR_TYPE_QFLAG_SET);
+    else
+        pkt->hdr.pkt_type = htons(SHDR_TYPE_QFLAG_GET);
+    pkt->guildcard = htonl(sc->guildcard);
+    pkt->block = htonl(sc->cur_block->b);
+    pkt->flag_id = htonl(fid);
+    pkt->quest_id = htonl(qid);
+    pkt->value = htonl(value);
+
+    /* Send it away. */
+    return send_crypt(c, sizeof(shipgate_qflag_pkt), sendbuf);
+}

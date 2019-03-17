@@ -720,4 +720,8 @@ int shipgate_send_mkill(shipgate_conn_t *c, uint32_t gc, uint32_t block,
 int shipgate_send_sdata(shipgate_conn_t *c, ship_client_t *sc, uint32_t event,
                         const uint8_t *data, uint32_t len);
 
+/* Send a quest flag request or update */
+int shipgate_send_qflag(shipgate_conn_t *c, ship_client_t *sc, int set,
+                        uint32_t fid, uint32_t qid, uint32_t value);
+
 #endif /* !SHIPGATE_H */
