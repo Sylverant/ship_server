@@ -468,6 +468,17 @@ typedef struct shipgate_sset {
     char filename[32];
 } PACKED shipgate_sset_pkt;
 
+/* Packet used to set a quest flag or to read one back. */
+typedef struct shipgate_qflag {
+    shipgate_hdr_t hdr;
+    uint32_t guildcard;
+    uint32_t block;
+    uint32_t flag_id;
+    uint32_t quest_id;
+    uint32_t reserved;
+    uint32_t value;
+} PACKED shipgate_qflag_pkt;
+
 #undef PACKED
 
 /* Size of the shipgate login packet. */
@@ -516,6 +527,8 @@ static const char shipgate_login_msg[] =
 #define SHDR_TYPE_SCHUNK    0x002B      /* Script chunk */
 #define SHDR_TYPE_SDATA     0x002C      /* Script data */
 #define SHDR_TYPE_SSET      0x002D      /* Script set */
+#define SHDR_TYPE_QFLAG_SET 0x002E      /* Set quest flag */
+#define SHDR_TYPE_QFLAG_GET 0x002F      /* Read quest flag */
 
 /* Flags that can be set in the login packet */
 #define LOGIN_FLAG_GMONLY   0x00000001  /* Only Global GMs are allowed */
@@ -584,6 +597,10 @@ static const char shipgate_login_msg[] =
 
 /* Error codes for schunk */
 #define ERR_SCHUNK_NEED_SCRIPT  0x00000001
+
+/* Error codes for quest flags */
+#define ERR_QFLAG_NO_DATA       0x00000001
+#define ERR_QFLAG_INVALID_FLAG  0x00000002
 
 /* Attempt to connect to the shipgate. Returns < 0 on error, returns 0 on
    success. */
