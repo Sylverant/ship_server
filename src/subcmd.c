@@ -32,6 +32,7 @@
 #include "items.h"
 #include "word_select.h"
 #include "scripts.h"
+#include "shipgate.h"
 
 /* Forward declarations */
 static int subcmd_send_shop_inv(ship_client_t *c, subcmd_bb_shop_req_t *req);
@@ -2729,14 +2730,40 @@ static int handle_create_pipe(ship_client_t *c, subcmd_pipe_pkt_t *pkt) {
 static int handle_sync_reg(ship_client_t *c, subcmd_sync_reg_t *pkt) {
     lobby_t *l = c->cur_lobby;
     uint32_t val = LE32(pkt->value);
+    int done = 0;
+    uint32_t ctl;
 
     /* XXXX: Probably should do some checking here... */
-    /* Run the register sync script, if one is set. */
-    script_execute(ScriptActionQuestSyncRegister, SCRIPT_ARG_PTR, c,
-                   SCRIPT_ARG_PTR, l, SCRIPT_ARG_UINT8, pkt->reg_num,
-                   SCRIPT_ARG_UINT32, val, SCRIPT_ARG_END);
+    /* Run the register sync script, if one is set. If the script returns
+       non-zero, then assume that it has adequately handled the sync. */
+    if((script_execute(ScriptActionQuestSyncRegister, SCRIPT_ARG_PTR, c,
+                        SCRIPT_ARG_PTR, l, SCRIPT_ARG_UINT8, pkt->reg_num,
+                        SCRIPT_ARG_UINT32, val, SCRIPT_ARG_END))) {
+        done = 1;
+    }
 
-    return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
+    /* Does this quest use global flags? If so, then deal with them... */
+    if((l->q_flags & LOBBY_QFLAG_SHORT) && pkt->reg_num == l->q_shortflag_reg) {
+        /* Check the control bits for sensibility... */
+        ctl = (val >> 29) & 0x07;
+
+        /* Make sure the error or response bits aren't set. */
+        if((ctl & 0x06)) {
+            debug(DBG_LOG, "Quest set flag register with illegal ctl!\n");
+            send_sync_register(c, pkt->reg_num, 0x8000FFFE);
+        }
+        else {
+            /* Send the request to the shipgate... */
+            shipgate_send_qflag(&ship->sg, c, ctl & 0x01, (val >> 16) & 0xFF,
+                                c->cur_lobby->qid, val & 0xFFFF);
+        }
+        done = 1;
+    }
+
+    if(!done)
+        return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
+
+    return 0;
 }
 
 static int handle_set_pos24(ship_client_t *c, subcmd_pkt_t *pkt) {
