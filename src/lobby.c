@@ -1623,6 +1623,80 @@ void lobby_send_kill_counts(lobby_t *l) {
     }
 }
 
+int lobby_setup_quest(lobby_t *l, ship_client_t *c, uint32_t qid, int lang) {
+    int rv = 0;
+    quest_map_elem_t *e;
+    sylverant_quest_t *q;
+
+    pthread_rwlock_rdlock(&ship->qlock);
+    pthread_mutex_lock(&l->mutex);
+
+    /* Do we have quests configured? */
+    if(!TAILQ_EMPTY(&ship->qmap)) {
+        e = quest_lookup(&ship->qmap, qid);
+
+        /* We have a bit of extra work on GC/BB quests... */
+        if(l->version >= CLIENT_VERSION_GC) {
+            /* Find the quest... */
+            for(rv = 0; rv < CLIENT_LANG_COUNT; ++rv) {
+                if((q = e->qptr[l->version][rv]))
+                    break;
+            }
+
+            /* This shouldn't happen... */
+            if(!q) {
+                rv = send_message1(c, "%s", __(c, "\tE\tC4Quest info\n"
+                                               "missing.\n\n"
+                                               "Report this to\n"
+                                               "the ship admin."));
+                pthread_mutex_unlock(&l->mutex);
+                pthread_rwlock_unlock(&ship->qlock);
+                return rv;
+            }
+
+            /* Update the lobby's episode, just in case it doesn't
+               match up with what's already there. */
+            l->episode = q->episode;
+        }
+
+        l->flags |= LOBBY_FLAG_QUESTING;
+
+        /* Send the clients' kill counts if any of them have kill
+           tracking enabled. That way, in case there's an event running
+           that doesn't allow quest kills to count, the user will still
+           get an updated count if anything was already killed. */
+        lobby_send_kill_counts(l);
+
+        l->qid = qid;
+        l->qlang = (uint8_t)lang;
+        load_quest_enemies(l, qid, l->version);
+
+        /* Figure out any information we need about the quest for dealing with
+           register shenanigans. */
+        for(rv = 0; rv < CLIENT_LANG_COUNT; ++rv) {
+            if(!(q = e->qptr[l->version][rv]))
+                continue;
+
+            if((q->flags & SYLVERANT_QUEST_FLAG16)) {
+                l->q_shortflag_reg = q->server_flag16_reg;
+                break;
+            }
+        }
+
+        rv = send_quest(l, qid, lang);
+    }
+    else {
+        /* This really shouldn't happen... */
+        rv = send_message1(c, "%s", __(c, "\tE\tC4Quests not\n"
+                                       "configured."));
+    }
+
+    pthread_mutex_unlock(&l->mutex);
+    pthread_rwlock_unlock(&ship->qlock);
+
+    return rv;
+}
+
 #ifdef ENABLE_LUA
 
 static int lobby_id_lua(lua_State *l) {

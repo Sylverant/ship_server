@@ -2398,7 +2398,6 @@ static int process_menu(ship_client_t *c, uint32_t menu_id, uint32_t item_id,
         case MENU_ID_QUEST:
         {
             int lang = (menu_id >> 24) & 0xFF;
-            int rv;
             lobby_t *l = c->cur_lobby;
 
             if(l->flags & LOBBY_FLAG_BURSTING) {
@@ -2406,57 +2405,7 @@ static int process_menu(ship_client_t *c, uint32_t menu_id, uint32_t item_id,
                                      __(c, "\tE\tC4Please wait a moment."));
             }
 
-            pthread_rwlock_rdlock(&ship->qlock);
-
-            /* Do we have quests configured? */
-            if(!TAILQ_EMPTY(&ship->qmap)) {
-                /* We have a bit of extra work on GC/BB quests... */
-                if(l->version >= CLIENT_VERSION_GC) {
-                    quest_map_elem_t *e = quest_lookup(&ship->qmap, item_id);
-                    sylverant_quest_t *q = NULL;
-
-                    /* Find the quest... */
-                    for(rv = 0; rv < CLIENT_LANG_COUNT; ++rv) {
-                        if((q = e->qptr[l->version][rv]))
-                            break;
-                    }
-
-                    /* This shouldn't happen... */
-                    if(!q) {
-                        rv = send_message1(c, "%s", __(c, "\tE\tC4Quest info\n"
-                                                       "missing.\n\n"
-                                                       "Report this to\n"
-                                                       "the ship admin."));
-                        pthread_rwlock_unlock(&ship->qlock);
-                        return rv;
-                    }
-
-                    /* Update the lobby's episode, just in case it doesn't
-                       match up with what's already there. */
-                    l->episode = q->episode;
-                }
-
-                l->flags |= LOBBY_FLAG_QUESTING;
-
-                /* Send the clients' kill counts if any of them have kill
-                   tracking enabled. That way, in case there's an event running
-                   that doesn't allow quest kills to count, the user will still
-                   get an updated count if anything was already killed. */
-                lobby_send_kill_counts(l);
-
-                l->qid = item_id;
-                l->qlang = (uint8_t)lang;
-                load_quest_enemies(l, item_id, l->version);
-                rv = send_quest(l, item_id, lang);
-            }
-            else {
-                /* This really shouldn't happen... */
-                rv = send_message1(c, "%s", __(c, "\tE\tC4Quests not\n"
-                                               "configured."));
-            }
-
-            pthread_rwlock_unlock(&ship->qlock);
-            return rv;
+            return lobby_setup_quest(l, c, item_id, lang);
         }
 
         /* Ship */

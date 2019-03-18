@@ -267,6 +267,9 @@ int lobby_remove_item_locked(lobby_t *l, uint32_t item_id, item_t *rv);
    enabled. */
 void lobby_send_kill_counts(lobby_t *l);
 
+/* Set up lobby information for a quest being loaded. */
+int lobby_setup_quest(lobby_t *l, ship_client_t *c, uint32_t qid, int lang);
+
 #ifdef ENABLE_LUA
 #include <lua.h>
 int lobby_register_lua(lua_State *l);
