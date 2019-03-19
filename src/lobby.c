@@ -1679,6 +1679,7 @@ int lobby_setup_quest(lobby_t *l, ship_client_t *c, uint32_t qid, int lang) {
 
             if((q->flags & SYLVERANT_QUEST_FLAG16)) {
                 l->q_shortflag_reg = q->server_flag16_reg;
+                l->q_flags |= LOBBY_QFLAG_SHORT;
                 break;
             }
         }

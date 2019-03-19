@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016,
-                  2017, 2018, 2019 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018,
+                  2019 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -3115,7 +3115,6 @@ static int handle_quest(ship_client_t *c, const char *params) {
     char *str, *tok, *qid;
     lobby_t *l = c->cur_lobby;
     uint32_t quest_id;
-    uint8_t quest_ln;
     int rv;
 
     if(!LOCAL_GM(c))
@@ -3153,7 +3152,6 @@ static int handle_quest(ship_client_t *c, const char *params) {
         /* Find the quest first, since someone might be doing something
            stupid... */
            quest_map_elem_t *e = quest_lookup(&ship->qmap, quest_id);
-           sylverant_quest_t *q = NULL;
 
            /* If the quest isn't found, bail out now. */
            if(!e) {
@@ -3162,38 +3160,7 @@ static int handle_quest(ship_client_t *c, const char *params) {
                return rv;
            }
 
-           /* Find the quest... */
-           for(quest_ln = 0; quest_ln < CLIENT_LANG_COUNT; ++quest_ln) {
-               if((q = e->qptr[l->version][quest_ln]))
-                   break;
-           }
-
-           /* This shouldn't happen if the quest is valid... */
-           if(!q) {
-               rv = send_txt(c, __(c, "\tE\tC7Invalid quest id."));
-               pthread_rwlock_unlock(&ship->qlock);
-               return rv;
-           }
-
-        /* We have a bit of extra work on GC/BB quests... */
-        if(l->version >= CLIENT_VERSION_GC) {
-            /* Update the lobby's episode, just in case it doesn't
-               match up with what's already there. */
-            l->episode = q->episode;
-        }
-
-        l->flags |= LOBBY_FLAG_QUESTING;
-
-        /* Send the clients' kill counts if any of them have kill
-           tracking enabled. That way, in case there's an event running
-           that doesn't allow quest kills to count, the user will still
-           get an updated count if anything was already killed. */
-        lobby_send_kill_counts(l);
-
-        l->qid = quest_id;
-        l->qlang = quest_ln;
-        load_quest_enemies(l, quest_id, l->version);
-        rv = send_quest(l, quest_id, quest_ln);
+           rv = lobby_setup_quest(l, c, quest_id, CLIENT_LANG_ENGLISH);
     }
     else {
         rv = send_txt(c, "%s", __(c, "\tE\tC4Quests not\nconfigured."));
