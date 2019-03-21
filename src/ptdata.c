@@ -1937,12 +1937,12 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
 
     /* See if the object is fixed-type box */
     t1 = LE32(obj->dword[0]);
-    f1 = *((float *)&t1);
+    memcpy(&f1, &t1, sizeof(float));
     if((obj->skin == LE32(0x00000092) || obj->skin == LE32(0x00000161)) &&
        f1 < 1.0f + EPSILON && f1 > 1.0f - EPSILON) {
         /* See if it is a fully-fixed item */
         t2 = LE32(obj->dword[1]);
-        f2 = *((float *)&t2);
+        memcpy(&f2, &t2, sizeof(float));
 
         if(f2 < 1.0f + EPSILON && f2 > 1.0f - EPSILON) {
             /* Drop the requested item */
@@ -2558,7 +2558,7 @@ int pt_generate_gc_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
 
     /* See if the object is fixed-type box */
     t1 = LE32(obj->dword[0]);
-    f1 = *((float *)&t1);
+    memcpy(&f1, &t1, sizeof(float));
     if((obj->skin == LE32(0x00000092) || obj->skin == LE32(0x00000161)) &&
        f1 < 1.0f + EPSILON && f1 > 1.0f - EPSILON) {
 #ifdef DEBUG
@@ -2568,7 +2568,7 @@ int pt_generate_gc_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
 
         /* See if it is a fully-fixed item */
         t2 = LE32(obj->dword[1]);
-        f2 = *((float *)&t2);
+        memcpy(&f2, &t2, sizeof(float));
 
         if(f2 < 1.0f + EPSILON && f2 > 1.0f - EPSILON) {
             /* Drop the requested item */
@@ -3116,12 +3116,12 @@ int pt_generate_bb_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
 
     /* See if the object is fixed-type box */
     t1 = LE32(obj->dword[0]);
-    f1 = *((float *)&t1);
+    memcpy(&f1, &t1, sizeof(float));
     if((obj->skin == LE32(0x00000092) || obj->skin == LE32(0x00000161)) &&
        f1 < 1.0f + EPSILON && f1 > 1.0f - EPSILON) {
         /* See if it is a fully-fixed item */
         t2 = LE32(obj->dword[1]);
-        f2 = *((float *)&t2);
+        memcpy(&f2, &t2, sizeof(float));
 
         if(f2 < 1.0f + EPSILON && f2 > 1.0f - EPSILON) {
             /* Drop the requested item */

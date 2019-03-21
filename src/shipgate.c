@@ -1250,7 +1250,7 @@ static int handle_login_reply(shipgate_conn_t *conn, shipgate_error_pkt *pkt) {
 
 static int handle_friend(shipgate_conn_t *c, shipgate_friend_login_pkt *pkt) {
     uint16_t type = ntohs(pkt->hdr.pkt_type);
-    uint32_t ugc, ubl, fgc, fsh, fbl;
+    uint32_t ugc, ubl, fsh, fbl;
     miniship_t *ms;
     ship_t *s = c->ship;
     block_t *b;
@@ -1259,7 +1259,6 @@ static int handle_friend(shipgate_conn_t *c, shipgate_friend_login_pkt *pkt) {
 
     ugc = ntohl(pkt->dest_guildcard);
     ubl = ntohl(pkt->dest_block);
-    fgc = ntohl(pkt->friend_guildcard);
     fsh = ntohl(pkt->friend_ship);
     fbl = ntohl(pkt->friend_block);
 
@@ -1592,7 +1591,7 @@ static int handle_useropt(shipgate_conn_t *c, shipgate_user_opt_pkt *pkt) {
                 option = ntohl(opt->option);
                 length = ntohl(opt->length);
 
-                switch(ntohl(opt->option)) {
+                switch(option) {
                     case USER_OPT_QUEST_LANG:
                         /* Make sure the length is right */
                         if(length != 16)

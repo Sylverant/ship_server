@@ -50,6 +50,7 @@ struct pidfh {
 };
 
 static int _pidfile_remove(struct pidfh *pfh, int freeit);
+int flopen(const char *path, int flags, ...);
 
 static int
 pidfile_verify(const struct pidfh *pfh)
