@@ -2752,6 +2752,12 @@ static int handle_sync_reg(ship_client_t *c, subcmd_sync_reg_t *pkt) {
             debug(DBG_LOG, "Quest set flag register with illegal ctl!\n");
             send_sync_register(c, pkt->reg_num, 0x8000FFFE);
         }
+        /* Make sure we don't have anything with any reserved ctl bits set
+           (unless a quest has already handled the sync). */
+        else if((val & 0x1F000000) && !done) {
+            debug(DBG_LOG, "Quest set flag register with reserved ctl!\n");
+            send_sync_register(c, pkt->reg_num, 0x8000FFFE);
+        }
         else {
             /* Send the request to the shipgate... */
             shipgate_send_qflag(&ship->sg, c, ctl & 0x01, (val >> 16) & 0xFF,
