@@ -2317,33 +2317,31 @@ static int process_menu(ship_client_t *c, uint32_t menu_id, uint32_t item_id,
         /* Game Selection */
         case MENU_ID_GAME:
         {
-            char tmp[32];
             char passwd_cmp[17];
             lobby_t *l;
             int override = c->flags & CLIENT_FLAG_OVERRIDE_GAME;
 
-            /* Make sure the packets aren't too long */
+            memset(passwd_cmp, 0, 17);
+
+            /* Read the password, if the client provided one. */
             if(c->version == CLIENT_VERSION_PC ||
                c->version == CLIENT_VERSION_BB) {
+                char tmp[32];
+
                 if(passwd_len > 0x20) {
                     return -1;
                 }
-            }
-            else if(passwd_len > 0x10) {
-                return -1;
-            }
 
-            /* Read the password if the client provided one. */
-            memset(tmp, 0, 32);
-            memset(passwd_cmp, 0, 17);
-            memcpy(tmp, passwd, passwd_len);
-
-            if(c->version == CLIENT_VERSION_PC ||
-               c->version == CLIENT_VERSION_BB) {
+                memset(tmp, 0, 32);
+                memcpy(tmp, passwd, passwd_len);
                 istrncpy16(ic_utf16_to_ascii, passwd_cmp, (uint16_t *)tmp, 16);
             }
             else {
-                strncpy(passwd_cmp, tmp, 16);
+                if(passwd_len > 0x10) {
+                    return -1;
+                }
+
+                memcpy(passwd_cmp, passwd, passwd_len);
             }
 
             /* The client is selecting a game to join. */
