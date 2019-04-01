@@ -2140,7 +2140,7 @@ static int dc_process_done_burst(ship_client_t *c) {
             send_lobby_end_burst(l);
         }
 
-        rv = send_simple(c, PING_TYPE, 0) | lobby_handle_done_burst(l);
+        rv = send_simple(c, PING_TYPE, 0) | lobby_handle_done_burst(l, c);
     }
     else {
         rv = send_quest_one(l, c, l->qid, l->qlang);
@@ -3007,7 +3007,8 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
                 c->flags &= ~(CLIENT_FLAG_BURSTING | CLIENT_FLAG_WAIT_QPING);
 
                 rv = lobby_resend_burst(l, c);
-                rv = send_simple(c, PING_TYPE, 0) | lobby_handle_done_burst(l);
+                rv = send_simple(c, PING_TYPE, 0) |
+                    lobby_handle_done_burst(l, c);
                 pthread_mutex_unlock(&l->mutex);
                 return rv;
             }

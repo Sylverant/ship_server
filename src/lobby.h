@@ -137,6 +137,11 @@ struct lobby {
 
     uint8_t q_flags;
     uint8_t q_shortflag_reg;
+    uint8_t q_data_reg;
+
+    int num_syncregs;
+    uint8_t *syncregs;
+    uint32_t *regvals;
 
 #ifdef DEBUG
     uint8_t sdrops_ep;
@@ -204,6 +209,9 @@ TAILQ_HEAD(lobby_queue, lobby);
 #define LOBBY_EVENT_ALT_NORMAL  14
 
 #define LOBBY_QFLAG_SHORT       (1 << 0)
+#define LOBBY_QFLAG_DATA        (1 << 1)
+#define LOBBY_QFLAG_JOIN        (1 << 2)
+#define LOBBY_QFLAG_SYNC_REGS   (1 << 3)
 
 /* The required level for various difficulties. */
 const static int game_required_level[4] = { 1, 20, 40, 80 };
@@ -249,7 +257,7 @@ int lobby_check_player_legit(lobby_t *l, ship_t *s, player_t *pl, uint32_t v);
 int lobby_check_client_legit(lobby_t *l, ship_t *s, ship_client_t *c);
 
 /* Send out any queued packets when we get a done burst signal. */
-int lobby_handle_done_burst(lobby_t *l);
+int lobby_handle_done_burst(lobby_t *l, ship_client_t *c);
 int lobby_resend_burst(lobby_t *l, ship_client_t *c);
 
 /* Enqueue a packet for later sending (due to a player bursting) */

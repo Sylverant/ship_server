@@ -2727,10 +2727,24 @@ static int handle_create_pipe(ship_client_t *c, subcmd_pipe_pkt_t *pkt) {
     return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
 }
 
+static inline int reg_sync_index(lobby_t *l, uint8_t regnum) {
+    int i;
+
+    if(!(l->q_flags & LOBBY_QFLAG_SYNC_REGS))
+        return -1;
+
+    for(i = 0; i < l->num_syncregs; ++i) {
+        if(regnum == l->syncregs[i])
+            return i;
+    }
+
+    return -1;
+}
+
 static int handle_sync_reg(ship_client_t *c, subcmd_sync_reg_t *pkt) {
     lobby_t *l = c->cur_lobby;
     uint32_t val = LE32(pkt->value);
-    int done = 0;
+    int done = 0, idx;
     uint32_t ctl;
 
     /* XXXX: Probably should do some checking here... */
@@ -2764,6 +2778,11 @@ static int handle_sync_reg(ship_client_t *c, subcmd_sync_reg_t *pkt) {
                                 c->cur_lobby->qid, val & 0xFFFF);
         }
         done = 1;
+    }
+
+    /* Does this register have to be synced? */
+    if((idx = reg_sync_index(l, pkt->reg_num)) != -1) {
+        l->regvals[idx] = val;
     }
 
     if(!done)

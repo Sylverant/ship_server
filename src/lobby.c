@@ -962,7 +962,8 @@ int lobby_change_lobby(ship_client_t *c, lobby_t *req) {
     }
 
     /* Make sure a quest isn't in progress. */
-    if((req->flags & LOBBY_FLAG_QUESTING)) {
+    if((req->flags & LOBBY_FLAG_QUESTING) &&
+       !(req->q_flags & LOBBY_QFLAG_JOIN)) {
         rv = -7;
         goto out;
     }
@@ -1076,7 +1077,7 @@ int lobby_remove_player(ship_client_t *c) {
     /* If they were bursting, unlock the lobby... */
     if((c->flags & CLIENT_FLAG_BURSTING)) {
         l->flags &= ~LOBBY_FLAG_BURSTING;
-        lobby_handle_done_burst(l);
+        lobby_handle_done_burst(l, NULL);
     }
 
     /* If the client is leaving a game lobby, then send their monster stats
@@ -1409,9 +1410,10 @@ int lobby_check_client_legit(lobby_t *l, ship_t *s, ship_client_t *c) {
 
 /* Send out any queued packets when we get a done burst signal. You must hold
    the lobby's lock when calling this. */
-int lobby_handle_done_burst(lobby_t *l) {
+int lobby_handle_done_burst(lobby_t *l, ship_client_t *c) {
     lobby_pkt_t *i;
     int rv = 0;
+    int j;
 
     /* Go through each packet and handle it */
     while((i = STAILQ_FIRST(&l->pkt_queue))) {
@@ -1441,6 +1443,18 @@ int lobby_handle_done_burst(lobby_t *l) {
 
         free(i->pkt);
         free(i);
+    }
+
+    /* Handle any synced regs. */
+    if(c && (l->q_flags & LOBBY_QFLAG_SYNC_REGS)) {
+        for(j = 0; j < l->num_syncregs; ++j) {
+            if(l->regvals[j]) {
+                if(send_sync_register(c, l->syncregs[j], l->regvals[j])) {
+                    rv = -1;
+                    break;
+                }
+            }
+        }
     }
 
     return rv;
@@ -1624,7 +1638,7 @@ void lobby_send_kill_counts(lobby_t *l) {
 }
 
 int lobby_setup_quest(lobby_t *l, ship_client_t *c, uint32_t qid, int lang) {
-    int rv = 0;
+    int rv = 0, flagsset = 0;
     quest_map_elem_t *e;
     sylverant_quest_t *q;
 
@@ -1680,8 +1694,48 @@ int lobby_setup_quest(lobby_t *l, ship_client_t *c, uint32_t qid, int lang) {
             if((q->flags & SYLVERANT_QUEST_FLAG16)) {
                 l->q_shortflag_reg = q->server_flag16_reg;
                 l->q_flags |= LOBBY_QFLAG_SHORT;
-                break;
+                flagsset = 1;
             }
+
+            if((q->flags & SYLVERANT_QUEST_DATAFL)) {
+                l->q_data_reg = q->server_data_reg;
+                l->q_flags |= LOBBY_QFLAG_DATA;
+                flagsset = 1;
+            }
+
+            if((q->flags & SYLVERANT_QUEST_JOINABLE)) {
+                l->q_flags |= LOBBY_QFLAG_JOIN;
+
+                if((q->flags & SYLVERANT_QUEST_SYNC_REGS)) {
+                    l->q_flags |= LOBBY_QFLAG_SYNC_REGS;
+
+                    l->num_syncregs = q->num_sync;
+                    if(!(l->syncregs = (uint8_t *)malloc(q->num_sync))) {
+                        debug(DBG_ERROR, "Error allocating syncregs!\n");
+                        l->q_flags &= ~(LOBBY_QFLAG_JOIN |
+                            LOBBY_QFLAG_SYNC_REGS);
+                        l->num_syncregs = 0;
+                    }
+                    else if(!(l->regvals =
+                                (uint32_t *)malloc(q->num_sync << 2))) {
+                        debug(DBG_ERROR, "Error allocating regvals!\n");
+                        l->q_flags &= ~(LOBBY_QFLAG_JOIN |
+                            LOBBY_QFLAG_SYNC_REGS);
+                        free(l->syncregs);
+                        l->syncregs = NULL;
+                        l->num_syncregs = 0;
+                    }
+                    else {
+                        memcpy(l->syncregs, q->synced_regs, q->num_sync);
+                        memset(l->regvals, 0, q->num_sync << 2);
+                    }
+                }
+
+                flagsset = 1;
+            }
+
+            if(flagsset)
+                break;
         }
 
         rv = send_quest(l, qid, lang);
