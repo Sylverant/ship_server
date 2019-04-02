@@ -1674,6 +1674,7 @@ int lobby_setup_quest(lobby_t *l, ship_client_t *c, uint32_t qid, int lang) {
         }
 
         l->flags |= LOBBY_FLAG_QUESTING;
+        l->flags &= ~LOBBY_FLAG_QUESTSEL;
 
         /* Send the clients' kill counts if any of them have kill
            tracking enabled. That way, in case there's an event running
