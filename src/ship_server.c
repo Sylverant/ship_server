@@ -1,6 +1,7 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2016, 2018 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2016, 2018,
+                  2019 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -331,7 +332,7 @@ static void print_config(sylverant_ship_t *cfg) {
         debug(DBG_LOG, "Default /legit file number: %d\n", cfg->limits_default);
     }
 
-    debug(DBG_LOG, "Flags: 0x%08X\n", cfg->shipgate_flags);
+    debug(DBG_LOG, "Shipgate Flags: 0x%08X\n", cfg->shipgate_flags);
 }
 
 static void open_log(sylverant_ship_t *cfg) {
@@ -870,8 +871,17 @@ restart:
             exit(EXIT_FAILURE);
     }
 
+    /* Set a few other shipgate flags, if appropriate. */
 #ifdef ENABLE_LUA
     cfg->shipgate_flags |= LOGIN_FLAG_LUA;
+#endif
+
+#if defined(WORDS_BIGENDIAN) || defined(__BIG_ENDIAN__)
+    cfg->shipgate_flags |= LOGIN_FLAG_BE;
+#endif
+
+#if (SIZEOF_VOID_P == 4)
+    cfg->shipgate_flags |= LOGIN_FLAG_32BIT;
 #endif
 
     /* Initialize all the iconv contexts we'll need */
