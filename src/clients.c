@@ -1539,6 +1539,26 @@ static int client_find_lua(lua_State *l) {
     return 1;
 }
 
+static int client_syncRegister_lua(lua_State *l) {
+    ship_client_t *c;
+    lua_Integer reg, value;
+
+    if(lua_islightuserdata(l, 1) && lua_isinteger(l, 2) &&
+       lua_isinteger(l, 3)) {
+        c = (ship_client_t *)lua_touserdata(l, 1);
+        reg = lua_tointeger(l, 2);
+        value = lua_tointeger(l, 3);
+
+        send_sync_register(c, (uint8_t)reg, (uint32_t)value);
+        lua_pushinteger(l, 0);
+    }
+    else {
+        lua_pushinteger(l, -1);
+    }
+
+    return 1;
+}
+
 static const luaL_Reg clientlib[] = {
     { "guildcard", client_guildcard_lua },
     { "isOnBlock", client_isOnBlock_lua },
@@ -1563,6 +1583,7 @@ static const luaL_Reg clientlib[] = {
     { "numItems", client_numItems_lua },
     { "item", client_item_lua },
     { "find", client_find_lua },
+    { "syncRegister", client_syncRegister_lua },
     { NULL, NULL }
 };
 
