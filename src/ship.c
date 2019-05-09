@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2016, 2018 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2016, 2018, 2019 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -177,7 +177,9 @@ static void *ship_thd(void *d) {
         /* If the shipgate isn't there, attempt to reconnect */
         if(s->sg.sock == -1 && s->sg.login_attempt < now) {
             if(shipgate_reconnect(&s->sg)) {
-                s->sg.login_attempt = now + 60;
+                /* Set the next login attempt to ~15 seconds from now... */
+                s->sg.login_attempt = now + 14;
+                timeout.tv_sec = 15;
             }
             else {
                 s->sg.login_attempt = 0;
