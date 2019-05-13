@@ -50,6 +50,11 @@
 static pthread_key_t id_key;
 static pthread_once_t key_once = PTHREAD_ONCE_INIT;
 
+#ifdef DEBUG
+static FILE *logfp = NULL;
+static pthread_mutex_t log_mutex = PTHREAD_MUTEX_INITIALIZER;
+#endif
+
 static int td(ship_client_t *c, lobby_t *l, void *req);
 
 lobby_t *lobby_create_default(block_t *block, uint32_t lobby_id, uint8_t ev) {
@@ -420,6 +425,29 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
     script_execute(ScriptActionTeamCreate, SCRIPT_ARG_PTR, c, SCRIPT_ARG_PTR, l,
                    SCRIPT_ARG_END);
 
+#ifdef DEBUG
+    pthread_mutex_lock(&log_mutex);
+
+    /* Open the log file if we haven't done so yet. */
+    if(!logfp) {
+        char fn[strlen(ship->cfg->name) + 32];
+
+        sprintf(fn, "logs/%s_team.log", ship->cfg->name);
+        logfp = fopen(fn, "a");
+
+        if(!logfp) {
+            /* Uhh... Welp, guess we'll try to continue writing to the old one,
+               then... */
+            debug(DBG_ERROR, "Cannot open team log!\n");
+            perror("fopen");
+        }
+    }
+
+    fdebug(logfp, DBG_LOG, "BLOCK%02d: Created team with id %" PRIu32
+           " at %p\n", block->b, id, l);
+    pthread_mutex_unlock(&log_mutex);
+#endif
+
     return l;
 }
 
@@ -513,6 +541,13 @@ static void lobby_empty_pkt_queue(lobby_t *l) {
 static void lobby_destroy_locked(lobby_t *l, int remove) {
     pthread_mutex_t m = l->mutex;
     lobby_item_t *i, *tmp;
+
+#ifdef DEBUG
+    pthread_mutex_lock(&log_mutex);
+    fdebug(logfp, DBG_LOG, "BLOCK%02d: Destroying team with id %" PRIu32
+           " at %p\n", l->block->b, l->lobby_id, l);
+    pthread_mutex_unlock(&log_mutex);
+#endif
 
     /* Run the team deletion script, if one exists. */
     script_execute(ScriptActionTeamDestroy, SCRIPT_ARG_PTR, l,  SCRIPT_ARG_END);
@@ -645,7 +680,7 @@ static int td(ship_client_t *c, lobby_t *l, void *req) {
         return 0;
     }
 
-    r =mt19937_genrand_int32(&c->cur_block->rng);
+    r = mt19937_genrand_int32(&c->cur_block->rng);
 
     switch(l->difficulty) {
         case 0:
