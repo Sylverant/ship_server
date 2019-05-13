@@ -20,6 +20,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 
 #include <sylverant/mtwist.h>
 #include <sylverant/debug.h>
@@ -45,6 +46,9 @@
 #include <lualib.h>
 #include <lauxlib.h>
 #endif
+
+static pthread_key_t id_key;
+static pthread_once_t key_once = PTHREAD_ONCE_INIT;
 
 static int td(ship_client_t *c, lobby_t *l, void *req);
 
@@ -171,29 +175,59 @@ static const uint32_t sp_maps[3][0x20] = {
 static const uint32_t dcnte_maps[0x20] =
     {1,1,1,2,1,2,2,2,2,2,2,2,1,2,1,2,2,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1};
 
+static void create_key(void) {
+    pthread_key_create(&id_key, NULL);
+}
+
 lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
                            uint8_t difficulty, uint8_t battle, uint8_t chal,
                            uint8_t v2, int version, uint8_t section,
                            uint8_t event, uint8_t episode, ship_client_t *c,
                            uint8_t single_player) {
     lobby_t *l = (lobby_t *)malloc(sizeof(lobby_t));
-    uint32_t id = 0x20;
+    uint32_t *pid, id;
     int i;
 
     /* If we don't have a lobby, bail. */
     if(!l) {
-        debug(DBG_WARN, "Couldn't allocate space for game lobby!\n");
+        debug(DBG_WARN, "Couldn't allocate space for team!\n");
         debug(DBG_WARN, "%s", strerror(errno));
         return NULL;
     }
 
+    /* Grab the ID. */
+    pthread_once(&key_once, create_key);
+    if(!(pid = (uint32_t *)pthread_getspecific(id_key))) {
+        if(!(pid = (uint32_t *)malloc(sizeof(uint32_t)))) {
+            debug(DBG_WARN, "Couldn't allocate key: %s\n", strerror(errno));
+            free(l);
+            return NULL;
+        }
+
+        *pid = 0x20;
+        pthread_setspecific(id_key, pid);
+    }
+
+    id = *pid;
+
+    /* Make sure our ID is unused... */
+    while(block_get_lobby(block, id)) {
+        ++id;
+
+        /* If the next id has gotten huge somehow, reset it back to the starting
+           value. */
+        if(id > 0xFFFF) {
+            id = 0x20;
+        }
+    }
+
+    if(id != 0xFFFF)
+        *pid = id + 1;
+    else
+        *pid = 0x20;
+
     /* Clear it. */
     memset(l, 0, sizeof(lobby_t));
-
-    /* Select an unused ID. */
-    do {
-        ++id;
-    } while(block_get_lobby(block, id));
 
     /* Set up the specified parameters. */
     l->lobby_id = id;
