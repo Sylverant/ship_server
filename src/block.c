@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2017,
-                  2018, 2019 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2017, 2018,
+                  2019 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -79,7 +79,7 @@ static void *block_thd(void *d) {
         nfds = 0;
         FD_ZERO(&readfds);
         FD_ZERO(&writefds);
-        timeout.tv_sec = 30;
+        timeout.tv_sec = 15;
         timeout.tv_usec = 0;
         now = time(NULL);
 
@@ -87,9 +87,9 @@ static void *block_thd(void *d) {
         pthread_rwlock_rdlock(&b->lock);
 
         TAILQ_FOREACH(it, b->clients, qentry) {
-            /* If we haven't heard from a client in 2 minutes, its dead.
-               Disconnect it. */
-            if(now > it->last_message + 120) {
+            /* If we haven't heard from a client in a minute and a half, it is
+               probably dead. Disconnect it. */
+            if(now > it->last_message + 90) {
                 if(it->bb_pl) {
                     istrncpy16(ic_utf16_to_utf8, nm,
                                &it->pl->bb.character.name[2], 64);
@@ -107,8 +107,9 @@ static void *block_thd(void *d) {
 
                 continue;
             }
-            /* Otherwise, if we haven't heard from them in a minute, ping it. */
-            else if(now > it->last_message + 60 && now > it->last_sent + 10) {
+            /* Otherwise, if we haven't heard from them in half of a minute,
+               ping them. */
+            else if(now > it->last_message + 30 && now > it->last_sent + 10) {
                 if(send_simple(it, PING_TYPE, 0)) {
                     it->flags |= CLIENT_FLAG_DISCONNECTED;
                     timeout.tv_sec = 0;
