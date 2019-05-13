@@ -184,6 +184,22 @@ static void create_key(void) {
     pthread_key_create(&id_key, NULL);
 }
 
+static void print_info(lobby_t *l) {
+    fdebug(logfp, DBG_LOG, "         Name: %s\n", l->name);
+    fdebug(logfp, DBG_LOG, "         Flags: %08" PRIx32 "\n", l->flags);
+    fdebug(logfp, DBG_LOG, "         Version: %d (v2: %d)\n", l->version,
+           (int)l->v2);
+    fdebug(logfp, DBG_LOG, "         Battle/Challenge: %d/%d\n",
+           (int)l->battle, (int)l->challenge);
+    fdebug(logfp, DBG_LOG, "         Difficulty: %d\n", (int)l->difficulty);
+    fdebug(logfp, DBG_LOG, "         Enemies Array: %p\n", l->map_enemies);
+    fdebug(logfp, DBG_LOG, "         Object Array: %p\n", l->map_objs);
+
+#ifdef ENABLE_LUA
+    fdebug(logfp, DBG_LOG, "         Lua table: %d\n", l->script_ref);
+#endif
+}
+
 lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
                            uint8_t difficulty, uint8_t battle, uint8_t chal,
                            uint8_t v2, int version, uint8_t section,
@@ -445,6 +461,7 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
 
     fdebug(logfp, DBG_LOG, "BLOCK%02d: Created team with id %" PRIu32
            " at %p\n", block->b, id, l);
+    print_info(l);
     pthread_mutex_unlock(&log_mutex);
 #endif
 
@@ -546,6 +563,7 @@ static void lobby_destroy_locked(lobby_t *l, int remove) {
     pthread_mutex_lock(&log_mutex);
     fdebug(logfp, DBG_LOG, "BLOCK%02d: Destroying team with id %" PRIu32
            " at %p\n", l->block->b, l->lobby_id, l);
+    print_info(l);
     pthread_mutex_unlock(&log_mutex);
 #endif
 
