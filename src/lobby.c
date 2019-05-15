@@ -195,6 +195,9 @@ static void print_info(lobby_t *l) {
     fdebug(logfp, DBG_LOG, "         Enemies Array: %p\n", l->map_enemies);
     fdebug(logfp, DBG_LOG, "         Object Array: %p\n", l->map_objs);
 
+    if(l->qid)
+        fdebug(logfp, DBG_LOG, "         Quest ID: %" PRIu32 "\n", l->qid);
+
 #ifdef ENABLE_LUA
     fdebug(logfp, DBG_LOG, "         Lua table: %d\n", l->script_ref);
 #endif
@@ -1772,6 +1775,15 @@ int lobby_setup_quest(lobby_t *l, ship_client_t *c, uint32_t qid, int lang) {
         l->qid = qid;
         l->qlang = (uint8_t)lang;
         load_quest_enemies(l, qid, l->version);
+
+#ifdef DEBUG
+        pthread_mutex_lock(&log_mutex);
+        fdebug(logfp, DBG_LOG, "BLOCK%02d: Team with id %" PRIu32 " loading "
+               "quest ID %" PRIu32 "\n", l->block->b, l->lobby_id, qid);
+        fdebug(logfp, DBG_LOG, "         Enemies Array: %p\n", l->map_enemies);
+        fdebug(logfp, DBG_LOG, "         Object Array: %p\n", l->map_objs);
+        pthread_mutex_unlock(&log_mutex);
+#endif
 
         /* Figure out any information we need about the quest for dealing with
            register shenanigans. */
