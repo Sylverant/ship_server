@@ -460,6 +460,10 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
             debug(DBG_ERROR, "Cannot open team log!\n");
             perror("fopen");
         }
+
+        fdebug(logfp, DBG_LOG, "***************************************\n");
+        fdebug(logfp, DBG_LOG, "Starting log for new session...\n");
+        fdebug(logfp, DBG_LOG, "***************************************\n");
     }
 
     fdebug(logfp, DBG_LOG, "BLOCK%02d: Created team with id %" PRIu32
