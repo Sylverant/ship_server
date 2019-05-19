@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2012, 2013, 2014, 2015, 2017, 2018 Lawrence Sebald
+    Copyright (C) 2012, 2013, 2014, 2015, 2017, 2018, 2019 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -1661,9 +1661,11 @@ int v2_load_game_enemies(lobby_t *l) {
     }
 
     /* Fixup Dark Falz' data for difficulties other than normal... */
-    for(i = 0; i < en->count; ++i) {
-        if(en->enemies[i].bp_entry == 0x37 && l->difficulty) {
-            en->enemies[i].bp_entry = 0x38;
+    if(l->difficulty) {
+        for(i = 0; i < en->count; ++i) {
+            if(en->enemies[i].bp_entry == 0x37) {
+                en->enemies[i].bp_entry = 0x38;
+            }
         }
     }
 
@@ -1963,6 +1965,8 @@ int load_quest_enemies(lobby_t *l, uint32_t qid, int ver) {
     sylverant_quest_t *q;
     quest_map_elem_t *el;
     uint32_t flags = l->flags;
+    game_enemies_t *newen;
+    game_objs_t *newob;
 
     /* Cowardly refuse to do this on challenge or battle mode. */
     if(l->challenge || l->battle)
@@ -1991,55 +1995,98 @@ int load_quest_enemies(lobby_t *l, uint32_t qid, int ver) {
         return -2;
     }
 
-    /* Reallocate the objects array. */
-    l->map_objs->count = cnt = LE32(cnt);
-    if(!(tmp = realloc(l->map_objs->objs, cnt * sizeof(game_object_t)))) {
-        debug(DBG_WARN, "Cannot reallocate objects array: %s\n",
+    /* Allocate the storage for the new enemy/object arrays. */
+    if(!(newen = (game_enemies_t *)malloc(sizeof(game_enemies_t)))) {
+        debug(DBG_WARN, "Cannot allocate enemies for quest: %s\n",
               strerror(errno));
+        fclose(fp);
+        return -10;
+    }
+
+    if(!(newob = (game_objs_t *)malloc(sizeof(game_objs_t)))) {
+        debug(DBG_WARN, "Cannot allocate objects for quest: %s\n",
+              strerror(errno));
+        free(newen);
+        fclose(fp);
+        return -11;
+    }
+
+    memset(newen, 0, sizeof(game_enemies_t));
+    memset(newob, 0, sizeof(game_objs_t));
+
+    /* Allocate the objects array. */
+    newob->count = cnt = LE32(cnt);
+    if(!(tmp = malloc(cnt * sizeof(game_object_t)))) {
+        debug(DBG_WARN, "Cannot allocate object array for quest: %s\n",
+              strerror(errno));
+        free(newob);
+        free(newen);
         fclose(fp);
         return -3;
     }
 
-    l->map_objs->objs = (game_object_t *)tmp;
+    newob->objs = (game_object_t *)tmp;
 
     /* Read the objects in from the cache file. */
     for(i = 0; i < cnt; ++i) {
-        if(fread(&l->map_objs->objs[i].data, 1, sizeof(map_object_t),
+        if(fread(&newob->objs[i].data, 1, sizeof(map_object_t),
                  fp) != sizeof(map_object_t)) {
             debug(DBG_WARN, "Cannot read map cache: %s\n", strerror(errno));
+            free(newob->objs);
+            free(newob);
+            free(newen);
             fclose(fp);
             return -4;
         }
 
-        l->map_objs->objs[i].flags = 0;
+        newob->objs[i].flags = 0;
     }
 
     if(fread(&cnt, 1, 4, fp) != 4) {
         debug(DBG_WARN, "Cannot read file \"%s\": %s\n", fn, strerror(errno));
+        free(newob->objs);
+        free(newob);
+        free(newen);
         fclose(fp);
         return -5;
     }
 
-    /* Reallocate the enemies array. */
-    l->map_enemies->count = cnt = LE32(cnt);
-    if(!(tmp = realloc(l->map_enemies->enemies, cnt * sizeof(game_enemy_t)))) {
-        debug(DBG_WARN, "Cannot reallocate enemies array: %s\n",
+    /* Allocate the enemies array. */
+    newen->count = cnt = LE32(cnt);
+    if(!(tmp = malloc(cnt * sizeof(game_enemy_t)))) {
+        debug(DBG_WARN, "Cannot allocate enemies array for quest: %s\n",
               strerror(errno));
+        free(newob->objs);
+        free(newob);
+        free(newen);
         fclose(fp);
         return -6;
     }
 
-    l->map_enemies->enemies = (game_enemy_t *)tmp;
+    newen->enemies = (game_enemy_t *)tmp;
 
     /* Read the enemies in from the cache file. */
-    if(fread(l->map_enemies->enemies, sizeof(game_enemy_t), cnt, fp) != cnt) {
+    if(fread(newen->enemies, sizeof(game_enemy_t), cnt, fp) != cnt) {
         debug(DBG_WARN, "Cannot read map cache: %s\n", strerror(errno));
+        free(newen->enemies);
+        free(newob->objs);
+        free(newob);
+        free(newen);
         fclose(fp);
         return -7;
     }
 
     /* We're done with the file now, so close it. */
     fclose(fp);
+
+    /* It should be safe to swap things out now, so do it. */
+    free(l->map_enemies->enemies);
+    free(l->map_objs->objs);
+    free(l->map_enemies);
+    free(l->map_objs);
+
+    l->map_enemies = newen;
+    l->map_objs = newob;
 
     /* Fixup Dark Falz' data for difficulties other than normal and the special
        Rappy data too... */
