@@ -959,6 +959,7 @@ static int gc_process_login(ship_client_t *c, gc_login_9e_pkt *pkt) {
         case 0x32: /* Episode 1 & 2 (Europe, 50hz) */
         case 0x33: /* Episode 1 & 2 (Europe, 60hz) */
         case 0x34: /* Episode 1 & 2 (Japan, v1.03) */
+        case 0x35: /* Episode 1 & 2 (Japan, v1.04) */
         case 0x36: /* Episode 1 & 2 Plus (US) */
         case 0x39: /* Episode 1 & 2 Plus (Japan) */
             c->flags |= CLIENT_FLAG_GC_MSG_BOXES;
