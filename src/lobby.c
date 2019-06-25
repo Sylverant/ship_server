@@ -184,6 +184,7 @@ static void create_key(void) {
     pthread_key_create(&id_key, NULL);
 }
 
+#ifdef DEBUG
 static void print_info(lobby_t *l) {
     fdebug(logfp, DBG_LOG, "         Name: %s\n", l->name);
     fdebug(logfp, DBG_LOG, "         Flags: %08" PRIx32 "\n", l->flags);
@@ -200,8 +201,9 @@ static void print_info(lobby_t *l) {
 
 #ifdef ENABLE_LUA
     fdebug(logfp, DBG_LOG, "         Lua table: %d\n", l->script_ref);
-#endif
+#endif /* ENABLE_LUA */
 }
+#endif /* DEBUG */
 
 lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
                            uint8_t difficulty, uint8_t battle, uint8_t chal,
