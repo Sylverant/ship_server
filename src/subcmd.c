@@ -33,6 +33,7 @@
 #include "word_select.h"
 #include "scripts.h"
 #include "shipgate.h"
+#include "quest_functions.h"
 
 /* Forward declarations */
 static int subcmd_send_shop_inv(ship_client_t *c, subcmd_bb_shop_req_t *req);
@@ -2778,6 +2779,37 @@ static int handle_sync_reg(ship_client_t *c, subcmd_sync_reg_t *pkt) {
                                 c->cur_lobby->qid, val & 0xFFFF);
         }
         done = 1;
+    }
+
+    /* Does this quest use server data calls? If so, deal with it... */
+    if((l->q_flags & LOBBY_QFLAG_DATA)) {
+        if(pkt->reg_num == l->q_data_reg) {
+            if(l->q_stack_top < LOBBY_MAX_QSTACK) {
+                l->q_stack[l->q_stack_top++] = val;
+
+                /* Check if we've got everything we expected... */
+                if(l->q_stack_top >= 3 &&
+                   l->q_stack_top == 3 + l->q_stack[1] + l->q_stack[2]) {
+                    /* Call the function requested and reset the stack top. */
+                    ctl = quest_function_dispatch(c, l);
+                    send_sync_register(c, pkt->reg_num, ctl);
+                    l->q_stack_top = 0;
+                }
+            }
+            else if(l->q_stack_top == LOBBY_MAX_QSTACK) {
+                /* Eat the stack push and report an error. */
+                send_sync_register(c, pkt->reg_num, 0x8000FFFF);
+            }
+
+            done = 1;
+        }
+        else if(pkt->reg_num == l->q_ctl_reg) {
+            /* For now, the only reason we'll have one of these is to reset the
+               stack. There might be other reasons later, but this will do, for
+               the time being... */
+            l->q_stack_top = 0;
+            done = 1;
+        }
     }
 
     /* Does this register have to be synced? */
