@@ -1803,8 +1803,19 @@ int lobby_setup_quest(lobby_t *l, ship_client_t *c, uint32_t qid, int lang) {
 
             if((q->flags & SYLVERANT_QUEST_DATAFL)) {
                 l->q_data_reg = q->server_data_reg;
+                l->q_ctl_reg = q->server_ctl_reg;
                 l->q_flags |= LOBBY_QFLAG_DATA;
                 flagsset = 1;
+
+                if(!(l->q_stack = (uint32_t *)malloc(sizeof(uint32_t) * 32))) {
+                    debug(DBG_ERROR, "Error allocating q_stack!\n");
+                    l->q_flags &= ~ LOBBY_QFLAG_DATA;
+                    l->q_stack_top = 0;
+                }
+                else {
+                    memset(l->q_stack, 0, sizeof(uint32_t) * 32);
+                    l->q_stack_top = 0;
+                }
             }
 
             if((q->flags & SYLVERANT_QUEST_JOINABLE)) {

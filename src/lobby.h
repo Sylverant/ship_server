@@ -35,6 +35,7 @@
 #include "mapdata.h"
 
 #define LOBBY_MAX_CLIENTS   12
+#define LOBBY_MAX_QSTACK    32
 
 /* Forward declaration. */
 struct ship_client;
@@ -138,10 +139,13 @@ struct lobby {
     uint8_t q_flags;
     uint8_t q_shortflag_reg;
     uint8_t q_data_reg;
+    uint8_t q_ctl_reg;
 
     int num_syncregs;
     uint8_t *syncregs;
     uint32_t *regvals;
+    uint32_t *q_stack;
+    int q_stack_top;
 
 #ifdef DEBUG
     uint8_t sdrops_ep;
