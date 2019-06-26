@@ -31,6 +31,7 @@
 #define QUEST_FUNC_RET_BAD_RET_COUNT    0x8000FFFC
 #define QUEST_FUNC_RET_INVALID_ARG      0x8000FFFB
 #define QUEST_FUNC_RET_INVALID_REGISTER 0x8000FFFA
+#define QUEST_FUNC_RET_STACK_LOCKED     0x8000FFF9
 
 /*  Function 0:   get_section_id
     Arguments:    1: int id -- Set to a client id from 0-3 for one player.
@@ -94,6 +95,16 @@
                  2: int max -- The maximum value for the random number.
    Returns:      1 value: The randomly generated 32-bit integer. */
 #define QUEST_FUNC_GET_RANDOM           9
+
+/* Function 10:  get_ship_client_count
+   Arguments:    None
+   Returns:      1 value: The number of clients currently on the ship. */
+#define QUEST_FUNC_SHIP_CLIENTS         10
+
+/* Function 10:  get_block_client_count
+   Arguments:    None
+   Returns:      1 value: The number of clients currently on the block. */
+#define QUEST_FUNC_BLOCK_CLIENTS        11
 
 extern uint32_t quest_function_dispatch(ship_client_t *c, lobby_t *l);
 

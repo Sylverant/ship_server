@@ -2785,20 +2785,29 @@ static int handle_sync_reg(ship_client_t *c, subcmd_sync_reg_t *pkt) {
     if((l->q_flags & LOBBY_QFLAG_DATA)) {
         if(pkt->reg_num == l->q_data_reg) {
             if(c->q_stack_top < CLIENT_MAX_QSTACK) {
-                c->q_stack[c->q_stack_top++] = val;
+                if(!(c->flags & CLIENT_FLAG_QSTACK_LOCK)) {
+                    c->q_stack[c->q_stack_top++] = val;
 
-                /* Check if we've got everything we expected... */
-                if(c->q_stack_top >= 3 &&
-                   c->q_stack_top == 3 + c->q_stack[1] + c->q_stack[2]) {
-                    /* Call the function requested and reset the stack top. */
-                    ctl = quest_function_dispatch(c, l);
-                    send_sync_register(c, pkt->reg_num, ctl);
-                    c->q_stack_top = 0;
+                    /* Check if we've got everything we expected... */
+                    if(c->q_stack_top >= 3 &&
+                       c->q_stack_top == 3 + c->q_stack[1] + c->q_stack[2]) {
+                        /* Call the function requested and reset the stack. */
+                        ctl = quest_function_dispatch(c, l);
+                        send_sync_register(c, pkt->reg_num, ctl);
+                        c->q_stack_top = 0;
+                    }
+                }
+                else {
+                    /* The stack is locked, ignore the write and report the
+                       error. */
+                    send_sync_register(c, pkt->reg_num,
+                                       QUEST_FUNC_RET_STACK_LOCKED);
                 }
             }
             else if(c->q_stack_top == CLIENT_MAX_QSTACK) {
                 /* Eat the stack push and report an error. */
-                send_sync_register(c, pkt->reg_num, 0x8000FFFF);
+                send_sync_register(c, pkt->reg_num,
+                                   QUEST_FUNC_RET_STACK_OVERFLOW);
             }
 
             done = 1;
