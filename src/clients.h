@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016,
-                  2017, 2018 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018,
+                  2019 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -57,6 +57,7 @@ typedef struct lobby lobby_t;
 #endif
 
 #define CLIENT_IGNORE_LIST_SIZE     10
+#define CLIENT_MAX_QSTACK           32
 
 #ifdef PACKED
 #undef PACKED
@@ -160,6 +161,9 @@ struct ship_client {
 
     int script_ref;
     uint64_t aoe_timer;
+
+    uint32_t q_stack[CLIENT_MAX_QSTACK];
+    int q_stack_top;
 
 #ifdef DEBUG
     uint8_t sdrops_ver;

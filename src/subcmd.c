@@ -2784,19 +2784,19 @@ static int handle_sync_reg(ship_client_t *c, subcmd_sync_reg_t *pkt) {
     /* Does this quest use server data calls? If so, deal with it... */
     if((l->q_flags & LOBBY_QFLAG_DATA)) {
         if(pkt->reg_num == l->q_data_reg) {
-            if(l->q_stack_top < LOBBY_MAX_QSTACK) {
-                l->q_stack[l->q_stack_top++] = val;
+            if(c->q_stack_top < CLIENT_MAX_QSTACK) {
+                c->q_stack[c->q_stack_top++] = val;
 
                 /* Check if we've got everything we expected... */
-                if(l->q_stack_top >= 3 &&
-                   l->q_stack_top == 3 + l->q_stack[1] + l->q_stack[2]) {
+                if(c->q_stack_top >= 3 &&
+                   c->q_stack_top == 3 + c->q_stack[1] + c->q_stack[2]) {
                     /* Call the function requested and reset the stack top. */
                     ctl = quest_function_dispatch(c, l);
                     send_sync_register(c, pkt->reg_num, ctl);
-                    l->q_stack_top = 0;
+                    c->q_stack_top = 0;
                 }
             }
-            else if(l->q_stack_top == LOBBY_MAX_QSTACK) {
+            else if(c->q_stack_top == CLIENT_MAX_QSTACK) {
                 /* Eat the stack push and report an error. */
                 send_sync_register(c, pkt->reg_num, 0x8000FFFF);
             }
@@ -2807,7 +2807,7 @@ static int handle_sync_reg(ship_client_t *c, subcmd_sync_reg_t *pkt) {
             /* For now, the only reason we'll have one of these is to reset the
                stack. There might be other reasons later, but this will do, for
                the time being... */
-            l->q_stack_top = 0;
+            c->q_stack_top = 0;
             done = 1;
         }
     }

@@ -24,57 +24,57 @@
 #include "ship_packets.h"
 
 static uint32_t get_section_id(ship_client_t *c, lobby_t *l) {
-    if(l->q_stack[1] != 1)
+    if(c->q_stack[1] != 1)
         return QUEST_FUNC_RET_BAD_ARG_COUNT;
 
     /* Are we requesting everyone or just one person? */
-    if(l->q_stack[3] == 0xFFFFFFFF) {
-        if(l->q_stack[2] != 4)
+    if(c->q_stack[3] == 0xFFFFFFFF) {
+        if(c->q_stack[2] != 4)
             return QUEST_FUNC_RET_BAD_RET_COUNT;
 
-        if(l->q_stack[4] > 255 || l->q_stack[5] > 255 ||
-           l->q_stack[6] > 255 || l->q_stack[7] > 255)
+        if(c->q_stack[4] > 255 || c->q_stack[5] > 255 ||
+           c->q_stack[6] > 255 || c->q_stack[7] > 255)
             return QUEST_FUNC_RET_INVALID_REGISTER;
 
         if(l->clients[0])
-            send_sync_register(c, l->q_stack[4],
+            send_sync_register(c, c->q_stack[4],
                                l->clients[0]->pl->v1.section);
         else
-            send_sync_register(c, l->q_stack[4], 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[4], 0xFFFFFFFF);
 
         if(l->clients[1])
-            send_sync_register(c, l->q_stack[5],
+            send_sync_register(c, c->q_stack[5],
                                l->clients[1]->pl->v1.section);
         else
-            send_sync_register(c, l->q_stack[5], 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[5], 0xFFFFFFFF);
 
         if(l->clients[2])
-            send_sync_register(c, l->q_stack[6],
+            send_sync_register(c, c->q_stack[6],
                                l->clients[2]->pl->v1.section);
         else
-            send_sync_register(c, l->q_stack[6], 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[6], 0xFFFFFFFF);
 
         if(l->clients[3])
-            send_sync_register(c, l->q_stack[7],
+            send_sync_register(c, c->q_stack[7],
                                l->clients[3]->pl->v1.section);
         else
-            send_sync_register(c, l->q_stack[7], 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[7], 0xFFFFFFFF);
 
         /* Done. */
         return QUEST_FUNC_RET_NO_ERROR;
     }
-    else if(l->q_stack[3] < 4) {
-        if(l->q_stack[2] != 1)
+    else if(c->q_stack[3] < 4) {
+        if(c->q_stack[2] != 1)
             return QUEST_FUNC_RET_BAD_RET_COUNT;
 
-        if(l->q_stack[4] > 255)
+        if(c->q_stack[4] > 255)
             return QUEST_FUNC_RET_INVALID_REGISTER;
 
-        if(l->clients[l->q_stack[3]])
-            send_sync_register(c, l->q_stack[4],
-                               l->clients[l->q_stack[3]]->pl->v1.section);
+        if(l->clients[c->q_stack[3]])
+            send_sync_register(c, c->q_stack[4],
+                               l->clients[c->q_stack[3]]->pl->v1.section);
         else
-            send_sync_register(c, l->q_stack[4], 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[4], 0xFFFFFFFF);
 
         /* Done. */
         return QUEST_FUNC_RET_NO_ERROR;
@@ -85,85 +85,85 @@ static uint32_t get_section_id(ship_client_t *c, lobby_t *l) {
 }
 
 uint32_t get_time(ship_client_t *c, lobby_t *l) {
-    if(l->q_stack[1] != 0)
+    if(c->q_stack[1] != 0)
         return QUEST_FUNC_RET_BAD_ARG_COUNT;
 
-    if(l->q_stack[2] != 1)
+    if(c->q_stack[2] != 1)
         return QUEST_FUNC_RET_BAD_RET_COUNT;
 
-    if(l->q_stack[3] > 255)
+    if(c->q_stack[3] > 255)
         return QUEST_FUNC_RET_INVALID_REGISTER;
 
-    send_sync_register(c, l->q_stack[3], (uint32_t)time(NULL));
+    send_sync_register(c, c->q_stack[3], (uint32_t)time(NULL));
     return QUEST_FUNC_RET_NO_ERROR;
 }
 
 uint32_t get_client_count(ship_client_t *c, lobby_t *l) {
-    if(l->q_stack[1] != 0)
+    if(c->q_stack[1] != 0)
         return QUEST_FUNC_RET_BAD_ARG_COUNT;
 
-    if(l->q_stack[2] != 1)
+    if(c->q_stack[2] != 1)
         return QUEST_FUNC_RET_BAD_RET_COUNT;
 
-    if(l->q_stack[3] > 255)
+    if(c->q_stack[3] > 255)
         return QUEST_FUNC_RET_INVALID_REGISTER;
 
-    send_sync_register(c, l->q_stack[3], l->num_clients);
+    send_sync_register(c, c->q_stack[3], l->num_clients);
     return QUEST_FUNC_RET_NO_ERROR;
 }
 
 static uint32_t get_char_class(ship_client_t *c, lobby_t *l) {
-    if(l->q_stack[1] != 1)
+    if(c->q_stack[1] != 1)
         return QUEST_FUNC_RET_BAD_ARG_COUNT;
 
     /* Are we requesting everyone or just one person? */
-    if(l->q_stack[3] == 0xFFFFFFFF) {
-        if(l->q_stack[2] != 4)
+    if(c->q_stack[3] == 0xFFFFFFFF) {
+        if(c->q_stack[2] != 4)
             return QUEST_FUNC_RET_BAD_RET_COUNT;
 
-        if(l->q_stack[4] > 255 || l->q_stack[5] > 255 ||
-           l->q_stack[6] > 255 || l->q_stack[7] > 255)
+        if(c->q_stack[4] > 255 || c->q_stack[5] > 255 ||
+           c->q_stack[6] > 255 || c->q_stack[7] > 255)
             return QUEST_FUNC_RET_INVALID_REGISTER;
 
         if(l->clients[0])
-            send_sync_register(c, l->q_stack[4],
+            send_sync_register(c, c->q_stack[4],
                                l->clients[0]->pl->v1.ch_class);
         else
-            send_sync_register(c, l->q_stack[4], 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[4], 0xFFFFFFFF);
 
         if(l->clients[1])
-            send_sync_register(c, l->q_stack[5],
+            send_sync_register(c, c->q_stack[5],
                                l->clients[1]->pl->v1.ch_class);
         else
-            send_sync_register(c, l->q_stack[5], 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[5], 0xFFFFFFFF);
 
         if(l->clients[2])
-            send_sync_register(c, l->q_stack[6],
+            send_sync_register(c, c->q_stack[6],
                                l->clients[2]->pl->v1.ch_class);
         else
-            send_sync_register(c, l->q_stack[6], 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[6], 0xFFFFFFFF);
 
         if(l->clients[3])
-            send_sync_register(c, l->q_stack[7],
+            send_sync_register(c, c->q_stack[7],
                                l->clients[3]->pl->v1.ch_class);
         else
-            send_sync_register(c, l->q_stack[7], 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[7], 0xFFFFFFFF);
 
         /* Done. */
         return QUEST_FUNC_RET_NO_ERROR;
     }
-    else if(l->q_stack[3] < 4) {
-        if(l->q_stack[2] != 1)
+    else if(c->q_stack[3] < 4) {
+        if(c->q_stack[2] != 1)
             return QUEST_FUNC_RET_BAD_RET_COUNT;
 
-        if(l->q_stack[4] > 255)
+        if(c->q_stack[4] > 255)
             return QUEST_FUNC_RET_INVALID_REGISTER;
 
-        if(l->clients[l->q_stack[3]])
-            send_sync_register(c, l->q_stack[4],
-                               l->clients[l->q_stack[3]]->pl->v1.ch_class);
+        if(l->clients[c->q_stack[3]])
+            send_sync_register(c, c->q_stack[4],
+                               l->clients[c->q_stack[3]]->pl->v1.ch_class);
         else
-            send_sync_register(c, l->q_stack[4], 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[4], 0xFFFFFFFF);
 
         /* Done. */
         return QUEST_FUNC_RET_NO_ERROR;
@@ -183,59 +183,59 @@ static int jobs[12] = { 0, 0, 0, 1, 1, 1, 2, 2, 2, 0, 2, 1 };
 #define JOB(x) ATTR((x), jobs)
 
 static uint32_t get_char_gender(ship_client_t *c, lobby_t *l) {
-    if(l->q_stack[1] != 1)
+    if(c->q_stack[1] != 1)
         return QUEST_FUNC_RET_BAD_ARG_COUNT;
 
     /* Are we requesting everyone or just one person? */
-    if(l->q_stack[3] == 0xFFFFFFFF) {
-        if(l->q_stack[2] != 4)
+    if(c->q_stack[3] == 0xFFFFFFFF) {
+        if(c->q_stack[2] != 4)
             return QUEST_FUNC_RET_BAD_RET_COUNT;
 
-        if(l->q_stack[4] > 255 || l->q_stack[5] > 255 ||
-           l->q_stack[6] > 255 || l->q_stack[7] > 255)
+        if(c->q_stack[4] > 255 || c->q_stack[5] > 255 ||
+           c->q_stack[6] > 255 || c->q_stack[7] > 255)
             return QUEST_FUNC_RET_INVALID_REGISTER;
 
         if(l->clients[0])
-            send_sync_register(c, l->q_stack[4],
+            send_sync_register(c, c->q_stack[4],
                                GENDER(l->clients[0]->pl->v1.ch_class));
         else
-            send_sync_register(c, l->q_stack[4], 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[4], 0xFFFFFFFF);
 
         if(l->clients[1])
-            send_sync_register(c, l->q_stack[5],
+            send_sync_register(c, c->q_stack[5],
                                GENDER(l->clients[1]->pl->v1.ch_class));
         else
-            send_sync_register(c, l->q_stack[5], 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[5], 0xFFFFFFFF);
 
         if(l->clients[2])
-            send_sync_register(c, l->q_stack[6],
+            send_sync_register(c, c->q_stack[6],
                                GENDER(l->clients[2]->pl->v1.ch_class));
         else
-            send_sync_register(c, l->q_stack[6], 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[6], 0xFFFFFFFF);
 
         if(l->clients[3])
-            send_sync_register(c, l->q_stack[7],
+            send_sync_register(c, c->q_stack[7],
                                GENDER(l->clients[3]->pl->v1.ch_class));
         else
-            send_sync_register(c, l->q_stack[7], 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[7], 0xFFFFFFFF);
 
         /* Done. */
         return QUEST_FUNC_RET_NO_ERROR;
     }
-    else if(l->q_stack[3] < 4) {
-        int cl = l->q_stack[3];
+    else if(c->q_stack[3] < 4) {
+        int cl = c->q_stack[3];
 
-        if(l->q_stack[2] != 1)
+        if(c->q_stack[2] != 1)
             return QUEST_FUNC_RET_BAD_RET_COUNT;
 
-        if(l->q_stack[4] > 255)
+        if(c->q_stack[4] > 255)
             return QUEST_FUNC_RET_INVALID_REGISTER;
 
         if(l->clients[cl])
-            send_sync_register(c, l->q_stack[4],
+            send_sync_register(c, c->q_stack[4],
                                GENDER(l->clients[cl]->pl->v1.ch_class));
         else
-            send_sync_register(c, l->q_stack[4], 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[4], 0xFFFFFFFF);
 
         /* Done. */
         return QUEST_FUNC_RET_NO_ERROR;
@@ -246,59 +246,59 @@ static uint32_t get_char_gender(ship_client_t *c, lobby_t *l) {
 }
 
 static uint32_t get_char_race(ship_client_t *c, lobby_t *l) {
-    if(l->q_stack[1] != 1)
+    if(c->q_stack[1] != 1)
         return QUEST_FUNC_RET_BAD_ARG_COUNT;
 
     /* Are we requesting everyone or just one person? */
-    if(l->q_stack[3] == 0xFFFFFFFF) {
-        if(l->q_stack[2] != 4)
+    if(c->q_stack[3] == 0xFFFFFFFF) {
+        if(c->q_stack[2] != 4)
             return QUEST_FUNC_RET_BAD_RET_COUNT;
 
-        if(l->q_stack[4] > 255 || l->q_stack[5] > 255 ||
-           l->q_stack[6] > 255 || l->q_stack[7] > 255)
+        if(c->q_stack[4] > 255 || c->q_stack[5] > 255 ||
+           c->q_stack[6] > 255 || c->q_stack[7] > 255)
             return QUEST_FUNC_RET_INVALID_REGISTER;
 
         if(l->clients[0])
-            send_sync_register(c, l->q_stack[4],
+            send_sync_register(c, c->q_stack[4],
                                RACE(l->clients[0]->pl->v1.ch_class));
         else
-            send_sync_register(c, l->q_stack[4], 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[4], 0xFFFFFFFF);
 
         if(l->clients[1])
-            send_sync_register(c, l->q_stack[5],
+            send_sync_register(c, c->q_stack[5],
                                RACE(l->clients[1]->pl->v1.ch_class));
         else
-            send_sync_register(c, l->q_stack[5], 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[5], 0xFFFFFFFF);
 
         if(l->clients[2])
-            send_sync_register(c, l->q_stack[6],
+            send_sync_register(c, c->q_stack[6],
                                RACE(l->clients[2]->pl->v1.ch_class));
         else
-            send_sync_register(c, l->q_stack[6], 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[6], 0xFFFFFFFF);
 
         if(l->clients[3])
-            send_sync_register(c, l->q_stack[7],
+            send_sync_register(c, c->q_stack[7],
                                RACE(l->clients[3]->pl->v1.ch_class));
         else
-            send_sync_register(c, l->q_stack[7], 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[7], 0xFFFFFFFF);
 
         /* Done. */
         return QUEST_FUNC_RET_NO_ERROR;
     }
-    else if(l->q_stack[3] < 4) {
-        int cl = l->q_stack[3];
+    else if(c->q_stack[3] < 4) {
+        int cl = c->q_stack[3];
 
-        if(l->q_stack[2] != 1)
+        if(c->q_stack[2] != 1)
             return QUEST_FUNC_RET_BAD_RET_COUNT;
 
-        if(l->q_stack[4] > 255)
+        if(c->q_stack[4] > 255)
             return QUEST_FUNC_RET_INVALID_REGISTER;
 
         if(l->clients[cl])
-            send_sync_register(c, l->q_stack[4],
+            send_sync_register(c, c->q_stack[4],
                                RACE(l->clients[cl]->pl->v1.ch_class));
         else
-            send_sync_register(c, l->q_stack[4], 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[4], 0xFFFFFFFF);
 
         /* Done. */
         return QUEST_FUNC_RET_NO_ERROR;
@@ -309,59 +309,59 @@ static uint32_t get_char_race(ship_client_t *c, lobby_t *l) {
 }
 
 static uint32_t get_char_job(ship_client_t *c, lobby_t *l) {
-    if(l->q_stack[1] != 1)
+    if(c->q_stack[1] != 1)
         return QUEST_FUNC_RET_BAD_ARG_COUNT;
 
     /* Are we requesting everyone or just one person? */
-    if(l->q_stack[3] == 0xFFFFFFFF) {
-        if(l->q_stack[2] != 4)
+    if(c->q_stack[3] == 0xFFFFFFFF) {
+        if(c->q_stack[2] != 4)
             return QUEST_FUNC_RET_BAD_RET_COUNT;
 
-        if(l->q_stack[4] > 255 || l->q_stack[5] > 255 ||
-           l->q_stack[6] > 255 || l->q_stack[7] > 255)
+        if(c->q_stack[4] > 255 || c->q_stack[5] > 255 ||
+           c->q_stack[6] > 255 || c->q_stack[7] > 255)
             return QUEST_FUNC_RET_INVALID_REGISTER;
 
         if(l->clients[0])
-            send_sync_register(c, l->q_stack[4],
+            send_sync_register(c, c->q_stack[4],
                                JOB(l->clients[0]->pl->v1.ch_class));
         else
-            send_sync_register(c, l->q_stack[4], 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[4], 0xFFFFFFFF);
 
         if(l->clients[1])
-            send_sync_register(c, l->q_stack[5],
+            send_sync_register(c, c->q_stack[5],
                                JOB(l->clients[1]->pl->v1.ch_class));
         else
-            send_sync_register(c, l->q_stack[5], 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[5], 0xFFFFFFFF);
 
         if(l->clients[2])
-            send_sync_register(c, l->q_stack[6],
+            send_sync_register(c, c->q_stack[6],
                                JOB(l->clients[2]->pl->v1.ch_class));
         else
-            send_sync_register(c, l->q_stack[6], 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[6], 0xFFFFFFFF);
 
         if(l->clients[3])
-            send_sync_register(c, l->q_stack[7],
+            send_sync_register(c, c->q_stack[7],
                                JOB(l->clients[3]->pl->v1.ch_class));
         else
-            send_sync_register(c, l->q_stack[7], 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[7], 0xFFFFFFFF);
 
         /* Done. */
         return QUEST_FUNC_RET_NO_ERROR;
     }
-    else if(l->q_stack[3] < 4) {
-        int cl = l->q_stack[3];
+    else if(c->q_stack[3] < 4) {
+        int cl = c->q_stack[3];
 
-        if(l->q_stack[2] != 1)
+        if(c->q_stack[2] != 1)
             return QUEST_FUNC_RET_BAD_RET_COUNT;
 
-        if(l->q_stack[4] > 255)
+        if(c->q_stack[4] > 255)
             return QUEST_FUNC_RET_INVALID_REGISTER;
 
         if(l->clients[cl])
-            send_sync_register(c, l->q_stack[4],
+            send_sync_register(c, c->q_stack[4],
                                JOB(l->clients[cl]->pl->v1.ch_class));
         else
-            send_sync_register(c, l->q_stack[4], 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[4], 0xFFFFFFFF);
 
         /* Done. */
         return QUEST_FUNC_RET_NO_ERROR;
@@ -372,54 +372,54 @@ static uint32_t get_char_job(ship_client_t *c, lobby_t *l) {
 }
 
 static uint32_t get_client_floor(ship_client_t *c, lobby_t *l) {
-    if(l->q_stack[1] != 1)
+    if(c->q_stack[1] != 1)
         return QUEST_FUNC_RET_BAD_ARG_COUNT;
 
     /* Are we requesting everyone or just one person? */
-    if(l->q_stack[3] == 0xFFFFFFFF) {
-        if(l->q_stack[2] != 4)
+    if(c->q_stack[3] == 0xFFFFFFFF) {
+        if(c->q_stack[2] != 4)
             return QUEST_FUNC_RET_BAD_RET_COUNT;
 
-        if(l->q_stack[4] > 255 || l->q_stack[5] > 255 ||
-           l->q_stack[6] > 255 || l->q_stack[7] > 255)
+        if(c->q_stack[4] > 255 || c->q_stack[5] > 255 ||
+           c->q_stack[6] > 255 || c->q_stack[7] > 255)
             return QUEST_FUNC_RET_INVALID_REGISTER;
 
         if(l->clients[0])
-            send_sync_register(c, l->q_stack[4], l->clients[0]->cur_area);
+            send_sync_register(c, c->q_stack[4], l->clients[0]->cur_area);
         else
-            send_sync_register(c, l->q_stack[4], 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[4], 0xFFFFFFFF);
 
         if(l->clients[1])
-            send_sync_register(c, l->q_stack[5], l->clients[1]->cur_area);
+            send_sync_register(c, c->q_stack[5], l->clients[1]->cur_area);
         else
-            send_sync_register(c, l->q_stack[5], 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[5], 0xFFFFFFFF);
 
         if(l->clients[2])
-            send_sync_register(c, l->q_stack[6], l->clients[2]->cur_area);
+            send_sync_register(c, c->q_stack[6], l->clients[2]->cur_area);
         else
-            send_sync_register(c, l->q_stack[6], 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[6], 0xFFFFFFFF);
 
         if(l->clients[3])
-            send_sync_register(c, l->q_stack[7], l->clients[3]->cur_area);
+            send_sync_register(c, c->q_stack[7], l->clients[3]->cur_area);
         else
-            send_sync_register(c, l->q_stack[7], 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[7], 0xFFFFFFFF);
 
         /* Done. */
         return QUEST_FUNC_RET_NO_ERROR;
     }
-    else if(l->q_stack[3] < 4) {
-        int cl = l->q_stack[3];
+    else if(c->q_stack[3] < 4) {
+        int cl = c->q_stack[3];
 
-        if(l->q_stack[2] != 1)
+        if(c->q_stack[2] != 1)
             return QUEST_FUNC_RET_BAD_RET_COUNT;
 
-        if(l->q_stack[4] > 255)
+        if(c->q_stack[4] > 255)
             return QUEST_FUNC_RET_INVALID_REGISTER;
 
         if(l->clients[cl])
-            send_sync_register(c, l->q_stack[4], l->clients[cl]->cur_area);
+            send_sync_register(c, c->q_stack[4], l->clients[cl]->cur_area);
         else
-            send_sync_register(c, l->q_stack[4], 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[4], 0xFFFFFFFF);
 
         /* Done. */
         return QUEST_FUNC_RET_NO_ERROR;
@@ -430,93 +430,93 @@ static uint32_t get_client_floor(ship_client_t *c, lobby_t *l) {
 }
 
 static uint32_t get_client_position(ship_client_t *c, lobby_t *l) {
-    if(l->q_stack[1] != 1)
+    if(c->q_stack[1] != 1)
         return QUEST_FUNC_RET_BAD_ARG_COUNT;
 
     /* Are we requesting everyone or just one person? */
-    if(l->q_stack[3] == 0xFFFFFFFF) {
-        if(l->q_stack[2] != 4)
+    if(c->q_stack[3] == 0xFFFFFFFF) {
+        if(c->q_stack[2] != 4)
             return QUEST_FUNC_RET_BAD_RET_COUNT;
 
-        if(l->q_stack[4] > 255 || l->q_stack[5] > 255 ||
-           l->q_stack[6] > 255 || l->q_stack[7] > 255)
+        if(c->q_stack[4] > 255 || c->q_stack[5] > 255 ||
+           c->q_stack[6] > 255 || c->q_stack[7] > 255)
             return QUEST_FUNC_RET_INVALID_REGISTER;
 
         if(l->clients[0]) {
-            send_sync_register(c, l->q_stack[4], (uint32_t)l->clients[0]->x);
-            send_sync_register(c, l->q_stack[4] + 1,
+            send_sync_register(c, c->q_stack[4], (uint32_t)l->clients[0]->x);
+            send_sync_register(c, c->q_stack[4] + 1,
                                (uint32_t)l->clients[0]->y);
-            send_sync_register(c, l->q_stack[4] + 2,
+            send_sync_register(c, c->q_stack[4] + 2,
                                (uint32_t)l->clients[0]->z);
         }
         else {
-            send_sync_register(c, l->q_stack[4], 0xFFFFFFFF);
-            send_sync_register(c, l->q_stack[4] + 1, 0xFFFFFFFF);
-            send_sync_register(c, l->q_stack[4] + 2, 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[4], 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[4] + 1, 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[4] + 2, 0xFFFFFFFF);
         }
 
         if(l->clients[1]) {
-            send_sync_register(c, l->q_stack[5], (uint32_t)l->clients[1]->x);
-            send_sync_register(c, l->q_stack[5] + 1,
+            send_sync_register(c, c->q_stack[5], (uint32_t)l->clients[1]->x);
+            send_sync_register(c, c->q_stack[5] + 1,
                                (uint32_t)l->clients[1]->y);
-            send_sync_register(c, l->q_stack[5] + 2,
+            send_sync_register(c, c->q_stack[5] + 2,
                                (uint32_t)l->clients[1]->z);
         }
         else {
-            send_sync_register(c, l->q_stack[5], 0xFFFFFFFF);
-            send_sync_register(c, l->q_stack[5] + 1, 0xFFFFFFFF);
-            send_sync_register(c, l->q_stack[5] + 2, 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[5], 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[5] + 1, 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[5] + 2, 0xFFFFFFFF);
         }
 
         if(l->clients[2]) {
-            send_sync_register(c, l->q_stack[6], (uint32_t)l->clients[2]->x);
-            send_sync_register(c, l->q_stack[6] + 1,
+            send_sync_register(c, c->q_stack[6], (uint32_t)l->clients[2]->x);
+            send_sync_register(c, c->q_stack[6] + 1,
                                (uint32_t)l->clients[2]->y);
-            send_sync_register(c, l->q_stack[6] + 2,
+            send_sync_register(c, c->q_stack[6] + 2,
                                (uint32_t)l->clients[2]->z);
         }
         else {
-            send_sync_register(c, l->q_stack[6], 0xFFFFFFFF);
-            send_sync_register(c, l->q_stack[6] + 1, 0xFFFFFFFF);
-            send_sync_register(c, l->q_stack[6] + 2, 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[6], 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[6] + 1, 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[6] + 2, 0xFFFFFFFF);
         }
 
         if(l->clients[3]) {
-            send_sync_register(c, l->q_stack[7], (uint32_t)l->clients[3]->x);
-            send_sync_register(c, l->q_stack[7] + 1,
+            send_sync_register(c, c->q_stack[7], (uint32_t)l->clients[3]->x);
+            send_sync_register(c, c->q_stack[7] + 1,
                                (uint32_t)l->clients[3]->y);
-            send_sync_register(c, l->q_stack[7] + 2,
+            send_sync_register(c, c->q_stack[7] + 2,
                                (uint32_t)l->clients[3]->z);
         }
         else {
-            send_sync_register(c, l->q_stack[7], 0xFFFFFFFF);
-            send_sync_register(c, l->q_stack[7] + 1, 0xFFFFFFFF);
-            send_sync_register(c, l->q_stack[7] + 2, 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[7], 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[7] + 1, 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[7] + 2, 0xFFFFFFFF);
         }
 
         /* Done. */
         return QUEST_FUNC_RET_NO_ERROR;
     }
-    else if(l->q_stack[3] < 4) {
-        int cl = l->q_stack[3];
+    else if(c->q_stack[3] < 4) {
+        int cl = c->q_stack[3];
 
-        if(l->q_stack[2] != 1)
+        if(c->q_stack[2] != 1)
             return QUEST_FUNC_RET_BAD_RET_COUNT;
 
-        if(l->q_stack[4] > 255)
+        if(c->q_stack[4] > 255)
             return QUEST_FUNC_RET_INVALID_REGISTER;
 
         if(l->clients[cl]) {
-            send_sync_register(c, l->q_stack[4], (uint32_t)l->clients[cl]->x);
-            send_sync_register(c, l->q_stack[4] + 1,
+            send_sync_register(c, c->q_stack[4], (uint32_t)l->clients[cl]->x);
+            send_sync_register(c, c->q_stack[4] + 1,
                                (uint32_t)l->clients[cl]->y);
-            send_sync_register(c, l->q_stack[4] + 2,
+            send_sync_register(c, c->q_stack[4] + 2,
                                (uint32_t)l->clients[cl]->z);
         }
         else {
-            send_sync_register(c, l->q_stack[4], 0xFFFFFFFF);
-            send_sync_register(c, l->q_stack[4] + 1, 0xFFFFFFFF);
-            send_sync_register(c, l->q_stack[4] + 2, 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[4], 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[4] + 1, 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[4] + 2, 0xFFFFFFFF);
         }
 
         /* Done. */
@@ -530,17 +530,17 @@ static uint32_t get_client_position(ship_client_t *c, lobby_t *l) {
 static uint32_t get_random_integer(ship_client_t *c, lobby_t *l) {
     uint32_t min, max, rnd;
 
-    if(l->q_stack[1] != 2)
+    if(c->q_stack[1] != 2)
         return QUEST_FUNC_RET_BAD_ARG_COUNT;
 
-    if(l->q_stack[2] != 1)
+    if(c->q_stack[2] != 1)
         return QUEST_FUNC_RET_BAD_RET_COUNT;
 
-    if(l->q_stack[5] > 255)
+    if(c->q_stack[5] > 255)
         return QUEST_FUNC_RET_INVALID_REGISTER;
 
-    min = l->q_stack[3];
-    max = l->q_stack[4];
+    min = c->q_stack[3];
+    max = c->q_stack[4];
 
     if(min >= max)
         return QUEST_FUNC_RET_INVALID_ARG;
@@ -550,13 +550,13 @@ static uint32_t get_random_integer(ship_client_t *c, lobby_t *l) {
     rnd = (uint32_t)(mt19937_genrand_int32(&l->block->rng) %
                      ((uint64_t)max + 1) + min);
 
-    send_sync_register(c, l->q_stack[5], rnd);
+    send_sync_register(c, c->q_stack[5], rnd);
     return QUEST_FUNC_RET_NO_ERROR;
 }
 
 uint32_t quest_function_dispatch(ship_client_t *c, lobby_t *l) {
     /* Call the requested function... */
-    switch(l->q_stack[0]) {
+    switch(c->q_stack[0]) {
         case QUEST_FUNC_GET_SECTION:
             return get_section_id(c, l);
 
