@@ -34,7 +34,7 @@
 
 /*  Function 0:   get_section_id
     Arguments:    1: int id -- Set to a client id from 0-3 for one player.
-                               Set to 0xFFFFFFFF for all players in the team.
+                               Set to -1 for all players in the team.
     Returns:      1 or 4 values of the requested section IDs. */
 #define QUEST_FUNC_GET_SECTION          0
 
@@ -45,6 +45,55 @@
    Note: This may be a signed number if the underlying OS of the system uses
          32-bit signed values for the time() function. */
 #define QUEST_FUNC_TIME                 1
+
+/* Function 2:   get_client_count
+   Arguments:    None
+   Returns:      1 value: The number of clients currently in the team. */
+#define QUEST_FUNC_CLIENT_COUNT         2
+
+/* Function 3:   get_character_class
+   Arguments:    1: int id -- Set to a client id from 0-3 for one player.
+                              Set to -1 for all players in the team.
+   Returns:      1 or 4 values of the requested character classes. */
+#define QUEST_FUNC_GET_CLASS            3
+
+/* Function 4:   get_character_gender
+   Arguments:    1: int id -- Set to a client id from 0-3 for one player.
+                             Set to -1 for all players in the team.
+   Returns:      1 or 4 values of the requested genders. */
+#define QUEST_FUNC_GET_GENDER           4
+
+/* Function 5:   get_character_race
+   Arguments:    1: int id -- Set to a client id from 0-3 for one player.
+                              Set to -1 for all players in the team.
+   Returns:      1 or 4 values of the requested character races. */
+#define QUEST_FUNC_GET_RACE             5
+
+/* Function 6:   get_character_job
+   Arguments:    1: int id -- Set to a client id from 0-3 for one player.
+                              Set to -1 for all players in the team.
+   Returns:      1 or 4 values of the requested character jobs. */
+#define QUEST_FUNC_GET_JOB              6
+
+/* Function 7:   get_client_floor
+   Arguments:    1: int id -- Set to a client id from 0-3 for one player.
+                              Set to -1 for all players in the team.
+   Returns:      1 or 4 values of the requested client(s)'s floor. */
+#define QUEST_FUNC_GET_FLOOR            7
+
+/* Function 8:   get_position
+   Arguments:    1: int id -- Set to a client id from 0-3 for one player.
+                              Set to -1 for all playes in the team.
+   Returns:      1 or 4 values of the requested client(s)'s positions.
+   Note: Each return value takes up three registers. Only the first of the
+         three are specified. */
+#define QUEST_FUNC_GET_POSITION         8
+
+/* Function 9:   get_random_integer
+   Arguments:    1: int min -- The minimum value for the random number.
+                 2: int max -- The maximum value for the random number.
+   Returns:      1 value: The randomly generated 32-bit integer. */
+#define QUEST_FUNC_GET_RANDOM           9
 
 extern uint32_t quest_function_dispatch(ship_client_t *c, lobby_t *l);
 
