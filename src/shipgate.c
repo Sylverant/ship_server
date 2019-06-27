@@ -1947,7 +1947,7 @@ static int handle_qflag(shipgate_conn_t *c, shipgate_qflag_pkt *pkt) {
 
     /* Catch attempts to sync invalid flag ids (just in case we support
        extra stuff here later ;-) ). */
-    if((flag_id & 0xFFFFFF00)) {
+    if((flag_id & 0x7FFFFF00)) {
         debug(DBG_WARN, "Shipgate attempted to sync bad flag id: %" PRIu32 "\n",
               flag_id);
         return -1;
@@ -1976,6 +1976,16 @@ static int handle_qflag(shipgate_conn_t *c, shipgate_qflag_pkt *pkt) {
             /* Is this in response to a direct flag set or from a quest
                function call? */
             if(!(i->flags & CLIENT_FLAG_QSTACK_LOCK)) {
+                /* Sanity check... If we got this far, we should not have a long
+                   flag. */
+                if((flag_id & 0x80000000)) {
+                    /* Drop the sync, because it either wasn't requested or
+                       something else like that... */
+                    debug(DBG_WARN, "Shipgate attempted to sync long flag when "
+                          "not requested by quest function!\n");
+                    return 0;
+                }
+
                 /* Grab the register from the lobby... */
                 pthread_mutex_lock(&l->mutex);
                 flag_reg = l->q_shortflag_reg;
@@ -2010,11 +2020,20 @@ static int handle_qflag_err(shipgate_conn_t *c, shipgate_qflag_err_pkt *pkt) {
     uint32_t block = ntohl(pkt->block);
     uint32_t value = ntohl(pkt->base.error_code);
     uint32_t type = ntohs(pkt->base.hdr.pkt_type);
+    uint32_t flag_id = ntohl(pkt->flag_id);
     ship_t *s = c->ship;
     block_t *b;
     ship_client_t *i;
     lobby_t *l;
     uint8_t flag_reg;
+
+    /* Catch attempts to sync invalid flag ids (just in case we support
+       extra stuff here later ;-) ). */
+    if((flag_id & 0x7FFFFF00)) {
+        debug(DBG_WARN, "Shipgate attempted to sync bad flag id: %" PRIu32 "\n",
+              flag_id);
+        return -1;
+    }
 
     /* Grab the block first */
     if(block > s->cfg->blocks || !(b = s->blocks[block - 1])) {
@@ -2039,6 +2058,16 @@ static int handle_qflag_err(shipgate_conn_t *c, shipgate_qflag_err_pkt *pkt) {
             /* Is this in response to a direct flag set or from a quest
                function call? */
             if(!(i->flags & CLIENT_FLAG_QSTACK_LOCK)) {
+                /* Sanity check... If we got this far, we should not have a long
+                   flag. */
+                if((flag_id & 0x80000000)) {
+                    /* Drop the sync, because it either wasn't requested or
+                       something else like that... */
+                    debug(DBG_WARN, "Shipgate attempted to sync long flag when "
+                          "not requested by quest function!\n");
+                    return 0;
+                }
+
                 /* Grab the register from the lobby... */
                 pthread_mutex_lock(&l->mutex);
                 flag_reg = l->q_shortflag_reg;

@@ -127,6 +127,24 @@
                  -2: Shipgate has disappeared. */
 #define QUEST_FUNC_SET_SHORTFLAG        13
 
+/* Function 14:  get_long_qflag
+   Arguments:    1: int flag -- The flag number to request from the server.
+   Returns:      1 value: The value of the specified flag on the shipgate.
+                 On error, this will be negative.
+   Error Values: -1: Invalid flag number.
+                 -2: Shipgate has disappeared.
+                 -3: Flag is currently unset. */
+#define QUEST_FUNC_GET_LONGFLAG        14
+
+/* Function 15:  set_long_qflag
+   Arguments:    1: int flag -- The flag number to request from the server.
+                 2: uint32_t val -- The value to set in the flag.
+   Returns:      1 value: 0 on success.
+                 On error, this will be negative.
+   Error Values: -1: Invalid flag number.
+                 -2: Shipgate has disappeared. */
+#define QUEST_FUNC_SET_LONGFLAG        15
+
 extern uint32_t quest_function_dispatch(ship_client_t *c, lobby_t *l);
 
 #define QFLAG_REPLY_GET     0x00000001
