@@ -32,6 +32,9 @@
 #define QUEST_FUNC_RET_INVALID_ARG      0x8000FFFB
 #define QUEST_FUNC_RET_INVALID_REGISTER 0x8000FFFA
 #define QUEST_FUNC_RET_STACK_LOCKED     0x8000FFF9
+#define QUEST_FUNC_RET_SHIPGATE_ERR     0x8000FFF8
+
+#define QUEST_FUNC_RET_NOT_YET          0xDEADBEEF
 
 /*  Function 0:   get_section_id
     Arguments:    1: int id -- Set to a client id from 0-3 for one player.
@@ -101,11 +104,35 @@
    Returns:      1 value: The number of clients currently on the ship. */
 #define QUEST_FUNC_SHIP_CLIENTS         10
 
-/* Function 10:  get_block_client_count
+/* Function 11:  get_block_client_count
    Arguments:    None
    Returns:      1 value: The number of clients currently on the block. */
 #define QUEST_FUNC_BLOCK_CLIENTS        11
 
+/* Function 12:  get_short_qflag
+   Arguments:    1: int flag -- The flag number to request from the server.
+   Returns:      1 value: The value of the specified flag on the shipgate.
+                 On error, this will be negative.
+   Error Values: -1: Invalid flag number.
+                 -2: Shipgate has disappeared.
+                 -3: Flag is currently unset. */
+#define QUEST_FUNC_GET_SHORTFLAG        12
+
+/* Function 13:  set_short_qflag
+   Arguments:    1: int flag -- The flag number to request from the server.
+                 2: uint16_t val -- The value to set in the flag.
+   Returns:      1 value: 0 on success.
+                 On error, this will be negative.
+   Error Values: -1: Invalid flag number.
+                 -2: Shipgate has disappeared. */
+#define QUEST_FUNC_SET_SHORTFLAG        13
+
 extern uint32_t quest_function_dispatch(ship_client_t *c, lobby_t *l);
+
+#define QFLAG_REPLY_GET     0x00000001
+#define QFLAG_REPLY_SET     0x00000002
+#define QFLAG_REPLY_ERROR   0x80000000
+
+extern int quest_flag_reply(ship_client_t *c, uint32_t reason, uint32_t value);
 
 #endif /* !QUEST_FUNCTIONS_H */

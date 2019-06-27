@@ -560,6 +560,50 @@ static uint32_t get_random_integer(ship_client_t *c, lobby_t *l) {
     return QUEST_FUNC_RET_NO_ERROR;
 }
 
+static uint32_t get_quest_sflag(ship_client_t *c, lobby_t *l) {
+    if(c->q_stack[1] != 1)
+        return QUEST_FUNC_RET_BAD_ARG_COUNT;
+
+    if(c->q_stack[2] != 1)
+        return QUEST_FUNC_RET_BAD_RET_COUNT;
+
+    if(c->q_stack[3] > 255)
+        return QUEST_FUNC_RET_INVALID_ARG;
+
+    if(c->q_stack[4] > 255)
+        return QUEST_FUNC_RET_INVALID_REGISTER;
+
+    /* Send the request to the shipgate... */
+    if(shipgate_send_qflag(&ship->sg, c, 0, c->q_stack[3], l->qid, 0))
+        return QUEST_FUNC_RET_SHIPGATE_ERR;
+
+    return QUEST_FUNC_RET_NOT_YET;
+}
+
+static uint32_t set_quest_sflag(ship_client_t *c, lobby_t *l) {
+    if(c->q_stack[1] != 1)
+        return QUEST_FUNC_RET_BAD_ARG_COUNT;
+
+    if(c->q_stack[2] != 1)
+        return QUEST_FUNC_RET_BAD_RET_COUNT;
+
+    if(c->q_stack[3] > 255)
+        return QUEST_FUNC_RET_INVALID_ARG;
+
+    if(c->q_stack[4] & 0xFFFF0000)
+        return QUEST_FUNC_RET_INVALID_ARG;
+
+    if(c->q_stack[5] > 255)
+        return QUEST_FUNC_RET_INVALID_REGISTER;
+
+    /* Send the request to the shipgate... */
+    if(shipgate_send_qflag(&ship->sg, c, 1, c->q_stack[3], l->qid,
+                           c->q_stack[4]))
+        return QUEST_FUNC_RET_SHIPGATE_ERR;
+
+    return QUEST_FUNC_RET_NOT_YET;
+}
+
 uint32_t quest_function_dispatch(ship_client_t *c, lobby_t *l) {
     /* Call the requested function... */
     switch(c->q_stack[0]) {
@@ -599,7 +643,47 @@ uint32_t quest_function_dispatch(ship_client_t *c, lobby_t *l) {
         case QUEST_FUNC_BLOCK_CLIENTS:
             return get_client_count(c, l, 2);
 
+        case QUEST_FUNC_GET_SHORTFLAG:
+            return get_quest_sflag(c, l);
+
+        case QUEST_FUNC_SET_SHORTFLAG:
+            return set_quest_sflag(c, l);
+
         default:
             return QUEST_FUNC_RET_INVALID_FUNC;
     }
+}
+
+int quest_flag_reply(ship_client_t *c, uint32_t reason, uint32_t value) {
+    lobby_t *l;
+    uint8_t regnum;
+
+    /* Sanity check... */
+    if(!(c->flags & CLIENT_FLAG_QSTACK_LOCK))
+        return -1;
+
+    l = c->cur_lobby;
+
+    if((reason & QFLAG_REPLY_SET)) {
+        regnum = c->q_stack[5];
+
+        if(!(reason & QFLAG_REPLY_ERROR))
+            value = 0;
+    }
+    else {
+        regnum = c->q_stack[4];
+    }
+
+    /* Send the response... */
+    send_sync_register(c, regnum, value);
+
+    pthread_mutex_lock(&l->mutex);
+    send_sync_register(c, l->q_data_reg, QUEST_FUNC_RET_NO_ERROR);
+    pthread_mutex_unlock(&l->mutex);
+
+    /* Reset the stack and release the lock. */
+    c->q_stack_top = 0;
+    c->flags &= ~CLIENT_FLAG_QSTACK_LOCK;
+
+    return 0;
 }

@@ -2793,8 +2793,11 @@ static int handle_sync_reg(ship_client_t *c, subcmd_sync_reg_t *pkt) {
                        c->q_stack_top == 3 + c->q_stack[1] + c->q_stack[2]) {
                         /* Call the function requested and reset the stack. */
                         ctl = quest_function_dispatch(c, l);
-                        send_sync_register(c, pkt->reg_num, ctl);
-                        c->q_stack_top = 0;
+
+                        if(ctl != QUEST_FUNC_RET_NOT_YET) {
+                            send_sync_register(c, pkt->reg_num, ctl);
+                            c->q_stack_top = 0;
+                        }
                     }
                 }
                 else {

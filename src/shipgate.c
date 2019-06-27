@@ -38,6 +38,7 @@
 #include "shipgate.h"
 #include "ship_packets.h"
 #include "scripts.h"
+#include "quest_functions.h"
 
 /* TLS stuff -- from ship_server.c */
 extern gnutls_certificate_credentials_t tls_cred;
@@ -1972,20 +1973,31 @@ static int handle_qflag(shipgate_conn_t *c, shipgate_qflag_pkt *pkt) {
                 break;
             }
 
-            /* Grab the register from the lobby... */
-            pthread_mutex_lock(&l->mutex);
-            flag_reg = l->q_shortflag_reg;
-            pthread_mutex_unlock(&l->mutex);
+            /* Is this in response to a direct flag set or from a quest
+               function call? */
+            if(!(i->flags & CLIENT_FLAG_QSTACK_LOCK)) {
+                /* Grab the register from the lobby... */
+                pthread_mutex_lock(&l->mutex);
+                flag_reg = l->q_shortflag_reg;
+                pthread_mutex_unlock(&l->mutex);
 
-            /* Make the value that the quest is expecting... */
-            if(type == SHDR_TYPE_QFLAG_GET)
-                value = (value & 0xFFFF) | 0x40000000 | (flag_id << 16);
-            else
-                value = (value & 0xFFFF) | 0x60000000 | (flag_id << 16);
+                /* Make the value that the quest is expecting... */
+                if(type == SHDR_TYPE_QFLAG_GET)
+                    value = (value & 0xFFFF) | 0x40000000 | (flag_id << 16);
+                else
+                    value = (value & 0xFFFF) | 0x60000000 | (flag_id << 16);
 
-            send_sync_register(i, flag_reg, value);
+                send_sync_register(i, flag_reg, value);
+            }
+            else {
+                block = ((type == SHDR_TYPE_QFLAG_SET) ?
+                         QFLAG_REPLY_SET : QFLAG_REPLY_GET);
+                quest_flag_reply(i, block, value);
+            }
+
             pthread_mutex_unlock(&i->mutex);
             break;
+
         }
     }
 
@@ -1997,6 +2009,7 @@ static int handle_qflag_err(shipgate_conn_t *c, shipgate_qflag_err_pkt *pkt) {
     uint32_t gc = ntohl(pkt->guildcard);
     uint32_t block = ntohl(pkt->block);
     uint32_t value = ntohl(pkt->base.error_code);
+    uint32_t type = ntohs(pkt->base.hdr.pkt_type);
     ship_t *s = c->ship;
     block_t *b;
     ship_client_t *i;
@@ -2023,18 +2036,37 @@ static int handle_qflag_err(shipgate_conn_t *c, shipgate_qflag_err_pkt *pkt) {
                 break;
             }
 
-            /* Grab the register from the lobby... */
-            pthread_mutex_lock(&l->mutex);
-            flag_reg = l->q_shortflag_reg;
-            pthread_mutex_unlock(&l->mutex);
+            /* Is this in response to a direct flag set or from a quest
+               function call? */
+            if(!(i->flags & CLIENT_FLAG_QSTACK_LOCK)) {
+                /* Grab the register from the lobby... */
+                pthread_mutex_lock(&l->mutex);
+                flag_reg = l->q_shortflag_reg;
+                pthread_mutex_unlock(&l->mutex);
 
-            /* Make the value that the quest is expecting... */
-            if(value == ERR_BAD_ERROR)
-                value = 0x8000FFFF;
-            else
-                value = (value & 0xFFFF) | 0x80000000;
+                /* Make the value that the quest is expecting... */
+                if(value == ERR_BAD_ERROR)
+                    value = 0x8000FFFF;
+                else
+                    value = (value & 0xFFFF) | 0x80000000;
 
-            send_sync_register(i, flag_reg, value);
+                send_sync_register(i, flag_reg, value);
+            }
+            else {
+                /* What's the error code? */
+                if(value == ERR_QFLAG_INVALID_FLAG)
+                    value = (uint32_t)-1;
+                else if(value == ERR_QFLAG_NO_DATA)
+                    value = (uint32_t)-3;
+                else
+                    value = (uint32_t)-2;
+
+                block = ((type == SHDR_TYPE_QFLAG_SET) ?
+                         QFLAG_REPLY_SET : QFLAG_REPLY_GET) |
+                         QFLAG_REPLY_ERROR;
+
+                quest_flag_reply(i, block, value);
+            }
             pthread_mutex_unlock(&i->mutex);
             break;
         }
