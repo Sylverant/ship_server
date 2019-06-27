@@ -577,6 +577,8 @@ static uint32_t get_quest_sflag(ship_client_t *c, lobby_t *l) {
     if(shipgate_send_qflag(&ship->sg, c, 0, c->q_stack[3], l->qid, 0))
         return QUEST_FUNC_RET_SHIPGATE_ERR;
 
+    /* Set the lock and make sure that we don't return to the client yet. */
+    c->flags |= CLIENT_FLAG_QSTACK_LOCK;
     return QUEST_FUNC_RET_NOT_YET;
 }
 
@@ -601,6 +603,8 @@ static uint32_t set_quest_sflag(ship_client_t *c, lobby_t *l) {
                            c->q_stack[4]))
         return QUEST_FUNC_RET_SHIPGATE_ERR;
 
+    /* Set the lock and make sure that we don't return to the client yet. */
+    c->flags |= CLIENT_FLAG_QSTACK_LOCK;
     return QUEST_FUNC_RET_NOT_YET;
 }
 
