@@ -613,6 +613,10 @@ static const char shipgate_login_msg[] =
 #define ERR_QFLAG_NO_DATA       0x00000001
 #define ERR_QFLAG_INVALID_FLAG  0x00000002
 
+/* OR these into the flag_id for qflags to modify how the packets work... */
+#define QFLAG_LONG_FLAG         0x80000000
+#define QFLAG_DELETE_FLAG       0x40000000  /* Only valid on a set */
+
 /* Attempt to connect to the shipgate. Returns < 0 on error, returns 0 on
    success. */
 int shipgate_connect(ship_t *s, shipgate_conn_t *rv);

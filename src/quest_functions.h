@@ -145,6 +145,22 @@
                  -2: Shipgate has disappeared. */
 #define QUEST_FUNC_SET_LONGFLAG        15
 
+/* Function 16:  del_short_qflag
+   Arguments:    1: int flag -- The flag number to delete
+   Returns:      1 value: 0 on success.
+                 On error, this will be negative.
+   Error Values: -1: Invalid flag number.
+                 -2: Shipgate has disappeared. */
+#define QUEST_FUNC_DEL_SHORTFLAG       16
+
+/* Function 17:  del_long_qflag
+   Arguments:    1: int flag -- The flag number to delete
+   Returns:      1 value: 0 on success.
+                 On error, this will be negative.
+   Error Values: -1: Invalid flag number.
+                 -2: Shipgate has disappeared. */
+#define QUEST_FUNC_DEL_LONGFLAG        17
+
 extern uint32_t quest_function_dispatch(ship_client_t *c, lobby_t *l);
 
 #define QFLAG_REPLY_GET     0x00000001
