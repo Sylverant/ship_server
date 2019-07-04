@@ -1947,7 +1947,7 @@ static int handle_qflag(shipgate_conn_t *c, shipgate_qflag_pkt *pkt) {
 
     /* Catch attempts to sync invalid flag ids (just in case we support
        extra stuff here later ;-) ). */
-    if((flag_id & 0x7FFFFF00)) {
+    if((flag_id & 0x3FFFFF00)) {
         debug(DBG_WARN, "Shipgate attempted to sync bad flag id: %" PRIu32 "\n",
               flag_id);
         return -1;
@@ -1992,6 +1992,8 @@ static int handle_qflag(shipgate_conn_t *c, shipgate_qflag_pkt *pkt) {
                 pthread_mutex_unlock(&l->mutex);
 
                 /* Make the value that the quest is expecting... */
+                flag_id &= 0xFF;
+
                 if(type == SHDR_TYPE_QFLAG_GET)
                     value = (value & 0xFFFF) | 0x40000000 | (flag_id << 16);
                 else
@@ -2029,7 +2031,7 @@ static int handle_qflag_err(shipgate_conn_t *c, shipgate_qflag_err_pkt *pkt) {
 
     /* Catch attempts to sync invalid flag ids (just in case we support
        extra stuff here later ;-) ). */
-    if((flag_id & 0x7FFFFF00)) {
+    if((flag_id & 0x3FFFFF00)) {
         debug(DBG_WARN, "Shipgate attempted to sync bad flag id: %" PRIu32 "\n",
               flag_id);
         return -1;
