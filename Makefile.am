@@ -35,7 +35,7 @@ ship_server_SOURCES = src/block.c src/block.h src/clients.c src/clients.h \
                       src/mapdata.h src/mapdata.c src/ptdata.h src/ptdata.c \
                       src/pmtdata.h src/pmtdata.c src/rtdata.h src/rtdata.c \
                       src/subcmd-dcnte.c src/quest_functions.h \
-					  src/quest_functions.c
+					  src/quest_functions.c src/smutdata.h src/smutdata.c
 
 if NEED_PIDFILE
 AM_CFLAGS += -DNEED_PIDFILE=1
