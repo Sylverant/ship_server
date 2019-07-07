@@ -249,6 +249,7 @@ int smutdata_check_string(const char *str, int which) {
     wchar_t *real_wstr, *cmp, *wstr;
     mbstate_t state;
     const char *tmp;
+    wchar_t tc;
 
     /* If we don't have the censor loaded, then there's nothing to do. */
     if(!smutdata_west)
@@ -294,10 +295,14 @@ int smutdata_check_string(const char *str, int which) {
 
                 for(k = 0; k < len - j && k < len2; ++k) {
                     /* Check if we have a match. Note that a tab character
-                       matches any single character. */
-                    if(cmp[k] != '\t' && cmp[k] != towlower(wstr[j + k])) {
-                        matched = 0;
-                        break;
+                       matches 'l', '1', and '|'. */
+                    tc = towlower(wstr[j + k]);
+                    if(cmp[k] != tc) {
+                        if(cmp[k] != L'\t' ||
+                           (tc != L'l' && tc != L'1' && tc != L'|')) {
+                            matched = 0;
+                            break;
+                        }
                     }
                 }
 
@@ -342,9 +347,8 @@ int smutdata_check_string(const char *str, int which) {
                 }
 
                 for(k = 0; k < len - j && k < len2; ++k) {
-                    /* Check if we have a match. Note that a tab character
-                       matches any single character. */
-                    if(cmp[k] != '\t' && cmp[k] != wstr[j + k]) {
+                    /* Check if we have a match. */
+                    if(cmp[k] != wstr[j + k]) {
                         matched = 0;
                         break;
                     }
@@ -391,6 +395,7 @@ char *smutdata_censor_string(const char *str, int which) {
     mbstate_t state;
     const char *tmp;
     char *rv;
+    wchar_t tc;
 
     /* Convert the input string to a string of wchar_t. */
     if(!(real_wstr = (wchar_t *)malloc((len + 1) * sizeof(wchar_t))))
@@ -436,10 +441,14 @@ char *smutdata_censor_string(const char *str, int which) {
 
                 for(k = 0; k < len - j && k < len2; ++k) {
                     /* Check if we have a match. Note that a tab character
-                       matches any single character. */
-                    if(cmp[k] != '\t' && cmp[k] != towlower(wstr[j + k])) {
-                        matched = 0;
-                        break;
+                       matches 'l', '1', and '|'. */
+                    tc = towlower(wstr[j + k]);
+                    if(cmp[k] != tc) {
+                        if(cmp[k] != L'\t' ||
+                           (tc != L'l' && tc != L'1' && tc != L'|')) {
+                            matched = 0;
+                            break;
+                        }
                     }
                 }
 
@@ -501,9 +510,8 @@ char *smutdata_censor_string(const char *str, int which) {
                 }
 
                 for(k = 0; k < len - j && k < len2; ++k) {
-                    /* Check if we have a match. Note that a tab character
-                       matches any single character. */
-                    if(cmp[k] != '\t' && cmp[k] != towlower(wstr[j + k])) {
+                    /* Check if we have a match. */
+                    if(cmp[k] != wstr[j + k]) {
                         matched = 0;
                         break;
                     }
