@@ -295,11 +295,10 @@ int smutdata_check_string(const char *str, int which) {
 
                 for(k = 0; k < len - j && k < len2; ++k) {
                     /* Check if we have a match. Note that a tab character
-                       matches 'l', '1', and '|'. */
+                       matches 'l' and '|'. */
                     tc = towlower(wstr[j + k]);
                     if(cmp[k] != tc) {
-                        if(cmp[k] != L'\t' ||
-                           (tc != L'l' && tc != L'1' && tc != L'|')) {
+                        if(cmp[k] != L'\t' (tc != L'l' && tc != L'|')) {
                             matched = 0;
                             break;
                         }
@@ -441,11 +440,10 @@ char *smutdata_censor_string(const char *str, int which) {
 
                 for(k = 0; k < len - j && k < len2; ++k) {
                     /* Check if we have a match. Note that a tab character
-                       matches 'l', '1', and '|'. */
+                       matches 'l' and '|'. */
                     tc = towlower(wstr[j + k]);
                     if(cmp[k] != tc) {
-                        if(cmp[k] != L'\t' ||
-                           (tc != L'l' && tc != L'1' && tc != L'|')) {
+                        if(cmp[k] != L'\t' || (tc != L'l' && tc != L'|')) {
                             matched = 0;
                             break;
                         }
