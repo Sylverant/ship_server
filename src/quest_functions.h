@@ -161,6 +161,15 @@
                  -2: Shipgate has disappeared. */
 #define QUEST_FUNC_DEL_LONGFLAG        17
 
+/* Function 18:  word_censor_check
+   Arguments:    1...n: char str[] -- The string to check against the censor.
+                        This string may be NUL terminated, but is not required
+                        to be. Only ASCII values are accepted. The maximum
+                        length accepted is 24 characters.
+   Returns:      1 value: 0 on nothing matched by the censor, 1 if matched.
+*/
+#define QUEST_FUNC_WORD_CENSOR_CHK      18
+
 extern uint32_t quest_function_dispatch(ship_client_t *c, lobby_t *l);
 
 #define QFLAG_REPLY_GET     0x00000001

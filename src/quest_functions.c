@@ -22,6 +22,7 @@
 #include "lobby.h"
 #include "quest_functions.h"
 #include "ship_packets.h"
+#include "smutdata.h"
 
 static uint32_t get_section_id(ship_client_t *c, lobby_t *l) {
     if(c->q_stack[1] != 1)
@@ -701,6 +702,37 @@ static uint32_t del_quest_lflag(ship_client_t *c, lobby_t *l) {
     return QUEST_FUNC_RET_NOT_YET;
 }
 
+static uint32_t word_censor_check(ship_client_t *c, lobby_t *l) {
+    char str[25];
+    uint32_t i;
+    int rv;
+
+    if(c->q_stack[1] < 1 || c->q_stack[1] > 24)
+        return QUEST_FUNC_RET_BAD_ARG_COUNT;
+
+    if(c->q_stack[2] != 1)
+        return QUEST_FUNC_RET_BAD_RET_COUNT;
+
+    if(c->q_stack[c->q_stack[1] + 3] > 255)
+        return QUEST_FUNC_RET_INVALID_REGISTER;
+
+    /* Read in the string... */
+    for(i = 0; i < c->q_stack[1]; ++i) {
+        if(c->q_stack[i + 3] > 127)
+            return QUEST_FUNC_RET_INVALID_ARG;
+
+        str[i] = (char)c->q_stack[i + 3];
+    }
+
+    str[i] = 0;
+
+    /* Check it against the censor. */
+    rv = smutdata_check_string(str, SMUTDATA_WEST);
+    send_sync_register(c, c->q_stack[c->q_stack[1] + 3], (uint32_t)rv);
+
+    return QUEST_FUNC_RET_NO_ERROR;
+}
+
 uint32_t quest_function_dispatch(ship_client_t *c, lobby_t *l) {
     /* Call the requested function... */
     switch(c->q_stack[0]) {
@@ -757,6 +789,9 @@ uint32_t quest_function_dispatch(ship_client_t *c, lobby_t *l) {
 
         case QUEST_FUNC_DEL_LONGFLAG:
             return del_quest_lflag(c, l);
+
+        case QUEST_FUNC_WORD_CENSOR_CHK:
+            return word_censor_check(c, l);
 
         default:
             return QUEST_FUNC_RET_INVALID_FUNC;
