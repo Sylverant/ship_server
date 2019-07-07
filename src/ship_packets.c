@@ -2082,10 +2082,14 @@ int send_lobby_leave(lobby_t *l, ship_client_t *c, int client_id) {
 }
 
 static int send_dc_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
-                              const char *msg) {
+                              const char *msg, const char *cmsg) {
     uint8_t *sendbuf = get_sendbuf();
     dc_chat_pkt *pkt = (dc_chat_pkt *)sendbuf;
-    size_t len;
+    iconv_t ic;
+    char tm[strlen(msg) + 32];
+    size_t in, out, len;
+    ICONV_CONST char *inptr;
+    char *outptr;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -2099,6 +2103,49 @@ static int send_dc_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
     pkt->guildcard = LE32(s->guildcard);
     pkt->padding = LE32(0x00010000);
 
+    if(msg[0] == '\t' && msg[1] == 'E')
+        ic = ic_utf8_to_8859;
+    else
+        ic = ic_utf8_to_sjis;
+
+    if(!(c->flags & CLIENT_FLAG_WORD_CENSOR)) {
+        if(!(s->flags & CLIENT_FLAG_IS_DCNTE)) {
+            if(!(c->flags & CLIENT_FLAG_IS_DCNTE))
+                len = sprintf(tm, "%s\t%s", s->pl->v1.name, msg) + 1;
+            else {
+                len = sprintf(tm, "%s>%X%s", s->pl->v1.name, s->client_id,
+                              msg + 2) + 1;
+            }
+        }
+        else {
+            if(!(c->flags & CLIENT_FLAG_IS_DCNTE))
+                len = sprintf(tm, "%s\t\tJ%s", s->pl->v1.name, msg + 2) + 1;
+            else {
+                len = sprintf(tm, "%s>%X%s", s->pl->v1.name, s->client_id,
+                              msg) + 1;
+            }
+        }
+    }
+    else {
+        if(!(s->flags & CLIENT_FLAG_IS_DCNTE)) {
+            if(!(c->flags & CLIENT_FLAG_IS_DCNTE))
+                len = sprintf(tm, "%s\t%s", s->pl->v1.name, cmsg) + 1;
+            else {
+                len = sprintf(tm, "%s>%X%s", s->pl->v1.name, s->client_id,
+                              cmsg + 2) + 1;
+            }
+        }
+        else {
+            if(!(c->flags & CLIENT_FLAG_IS_DCNTE))
+                len = sprintf(tm, "%s\t\tJ%s", s->pl->v1.name, cmsg + 2) + 1;
+            else {
+                len = sprintf(tm, "%s>%X%s", s->pl->v1.name, s->client_id,
+                              cmsg) + 1;
+            }
+        }
+    }
+
+#if 0
     if(!(s->flags & CLIENT_FLAG_IS_DCNTE)) {
         if(!(c->flags & CLIENT_FLAG_IS_DCNTE))
             len = sprintf(pkt->msg, "%s\t%s", s->pl->v1.name, msg) + 1;
@@ -2115,6 +2162,16 @@ static int send_dc_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
                           msg) + 1;
         }
     }
+#endif
+
+    /* Convert the message to the appropriate encoding. */
+    out = 65520;
+    inptr = tm;
+    outptr = pkt->msg;
+    iconv(ic, &inptr, &in, &outptr, &out);
+
+    /* Figure out how long the new string is. */
+    len = 65520 - out;
 
     /* Add any padding needed */
     while(len & 0x03) {
@@ -2133,7 +2190,7 @@ static int send_dc_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
 }
 
 static int send_pc_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
-                              const char *msg) {
+                              const char *msg, const char *cmsg) {
     uint8_t *sendbuf = get_sendbuf();
     dc_chat_pkt *pkt = (dc_chat_pkt *)sendbuf;
     char tm[strlen(msg) + 32];
@@ -2154,20 +2211,24 @@ static int send_pc_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
     pkt->padding = LE32(0x00010000);
 
     /* Fill in the message */
-    if(!(s->flags & CLIENT_FLAG_IS_DCNTE))
-        in = sprintf(tm, "%s\t%s", s->pl->v1.name, msg) + 1;
-    else
-        in = sprintf(tm, "%s\t\tJ%s", s->pl->v1.name, msg) + 1;
+    if(!(c->flags & CLIENT_FLAG_WORD_CENSOR)) {
+        if(!(s->flags & CLIENT_FLAG_IS_DCNTE))
+            in = sprintf(tm, "%s\t%s", s->pl->v1.name, msg) + 1;
+        else
+            in = sprintf(tm, "%s\t\tJ%s", s->pl->v1.name, msg) + 1;
+    }
+    else {
+        if(!(s->flags & CLIENT_FLAG_IS_DCNTE))
+            in = sprintf(tm, "%s\t%s", s->pl->v1.name, cmsg) + 1;
+        else
+            in = sprintf(tm, "%s\t\tJ%s", s->pl->v1.name, cmsg) + 1;
+    }
 
     /* Convert the message to the appropriate encoding. */
     out = 65520;
     inptr = tm;
     outptr = pkt->msg;
-
-    if((s->flags & CLIENT_FLAG_IS_DCNTE) || msg[1] == 'J')
-        iconv(ic_sjis_to_utf16, &inptr, &in, &outptr, &out);
-    else
-        iconv(ic_8859_to_utf16, &inptr, &in, &outptr, &out);
+    iconv(ic_utf8_to_utf16, &inptr, &in, &outptr, &out);
 
     /* Figure out how long the new string is. */
     len = 65520 - out;
@@ -2189,7 +2250,7 @@ static int send_pc_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
 }
 
 static int send_bb_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
-                              const char *msg) {
+                              const char *msg, const char *cmsg) {
     uint8_t *sendbuf = get_sendbuf();
     bb_chat_pkt *pkt = (bb_chat_pkt *)sendbuf;
     char tm[strlen(msg) + 32];
@@ -2210,20 +2271,24 @@ static int send_bb_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
     pkt->padding = LE32(0x00010000);
 
     /* Fill in the message */
-    if(!(s->flags & CLIENT_FLAG_IS_DCNTE))
-        in = sprintf(tm, "\tE%s\t%s", s->pl->v1.name, msg) + 1;
-    else
-        in = sprintf(tm, "\tE%s\t\tJ%s", s->pl->v1.name, msg) + 1;
+    if(!(c->flags & CLIENT_FLAG_WORD_CENSOR)) {
+        if(!(s->flags & CLIENT_FLAG_IS_DCNTE))
+            in = sprintf(tm, "%s\t%s", s->pl->v1.name, msg) + 1;
+        else
+            in = sprintf(tm, "%s\t\tJ%s", s->pl->v1.name, msg) + 1;
+    }
+    else {
+        if(!(s->flags & CLIENT_FLAG_IS_DCNTE))
+            in = sprintf(tm, "%s\t%s", s->pl->v1.name, cmsg) + 1;
+        else
+            in = sprintf(tm, "%s\t\tJ%s", s->pl->v1.name, cmsg) + 1;
+    }
 
     /* Convert the message to the appropriate encoding. */
     out = 65520;
     inptr = tm;
     outptr = (char *)pkt->msg;
-
-    if((s->flags & CLIENT_FLAG_IS_DCNTE) || msg[1] == 'J')
-        iconv(ic_sjis_to_utf16, &inptr, &in, &outptr, &out);
-    else
-        iconv(ic_8859_to_utf16, &inptr, &in, &outptr, &out);
+    iconv(ic_utf8_to_utf16, &inptr, &in, &outptr, &out);
 
     /* Figure out how long the new string is. */
     len = (strlen16(pkt->msg) << 1) + 0x10;
@@ -2243,211 +2308,26 @@ static int send_bb_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
 }
 
 /* Send a talk packet to the specified lobby. */
-int send_lobby_chat(lobby_t *l, ship_client_t *sender, const char *msg) {
+int send_lobby_chat(lobby_t *l, ship_client_t *sender, const char *msg,
+                    const char *cmsg) {
     int i;
 
     if((sender->flags & CLIENT_FLAG_STFU)) {
-        return send_dc_lobby_chat(l, sender, sender, msg);
-    }
+        switch(sender->version) {
+            case CLIENT_VERSION_DCV1:
+            case CLIENT_VERSION_DCV2:
+            case CLIENT_VERSION_GC:
+            case CLIENT_VERSION_EP3:
+                return send_dc_lobby_chat(l, sender, sender, msg, cmsg);
 
-    for(i = 0; i < l->max_clients; ++i) {
-        if(l->clients[i] != NULL) {
-            pthread_mutex_lock(&l->clients[i]->mutex);
+            case CLIENT_VERSION_PC:
+                return send_pc_lobby_chat(l, sender, sender, msg, cmsg);
 
-            /* Call the appropriate function. */
-            switch(l->clients[i]->version) {
-                case CLIENT_VERSION_DCV1:
-                case CLIENT_VERSION_DCV2:
-                case CLIENT_VERSION_GC:
-                case CLIENT_VERSION_EP3:
-                    /* Only send if they're not being /ignore'd */
-                    if(!client_has_ignored(l->clients[i], sender->guildcard)) {
-                        send_dc_lobby_chat(l, l->clients[i], sender, msg);
-                    }
-                    break;
-
-                case CLIENT_VERSION_PC:
-                    /* Only send if they're not being /ignore'd */
-                    if(!client_has_ignored(l->clients[i], sender->guildcard)) {
-                        send_pc_lobby_chat(l, l->clients[i], sender, msg);
-                    }
-                    break;
-
-                case CLIENT_VERSION_BB:
-                    /* Only send if they're not being /ignore'd */
-                    if(!client_has_ignored(l->clients[i], sender->guildcard)) {
-                        send_bb_lobby_chat(l, l->clients[i], sender, msg);
-                    }
-                    break;
-            }
-
-            pthread_mutex_unlock(&l->clients[i]->mutex);
+            case CLIENT_VERSION_BB:
+                return send_bb_lobby_chat(l, sender, sender, msg, msg);
         }
-    }
 
-    return 0;
-}
-
-static int send_dc_lobby_wchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
-                               const uint16_t *msg, size_t len) {
-    uint8_t *sendbuf = get_sendbuf();
-    dc_chat_pkt *pkt = (dc_chat_pkt *)sendbuf;
-    size_t in, out;
-    ICONV_CONST char *inptr;
-    char *outptr;
-
-    /* Verify we got the sendbuf. */
-    if(!sendbuf) {
-        return -1;
-    }
-
-    /* Clear the packet header */
-    memset(pkt, 0, sizeof(dc_chat_pkt));
-
-    /* Fill in the basics */
-    pkt->guildcard = LE32(s->guildcard);
-    pkt->padding = LE32(0x00010000);
-
-    /* Create the name string first. */
-    if(!(c->flags & CLIENT_FLAG_IS_DCNTE))
-        sprintf(pkt->msg, "%s\t", s->pl->v1.name);
-    else
-        sprintf(pkt->msg, "%s>%X", s->pl->v1.name, s->client_id);
-
-    /* Fill in the message */
-    in = len;
-
-    if(!(c->flags & CLIENT_FLAG_IS_DCNTE))
-        inptr = (char *)msg;
-    else
-        inptr = ((char *)msg) + 4;
-
-    out = 65520 - strlen(pkt->msg);
-    outptr = pkt->msg + strlen(pkt->msg);
-
-    /* Convert the message to the appropriate encoding. */
-    if((c->flags & CLIENT_FLAG_IS_DCNTE) || msg[1] == LE16('J'))
-        iconv(ic_utf16_to_sjis, &inptr, &in, &outptr, &out);
-    else
-        iconv(ic_utf16_to_8859, &inptr, &in, &outptr, &out);
-
-    /* Figure out how long the new string is. */
-    len = 65520 - out;
-
-    /* Add any padding needed */
-    while(len & 0x03) {
-        pkt->msg[len++] = 0;
-    }
-
-    /* Fill in the length */
-    len += 0x0C;
-
-    pkt->hdr.dc.pkt_type = CHAT_TYPE;
-    pkt->hdr.dc.flags = 0;
-    pkt->hdr.dc.pkt_len = LE16(len);
-
-    /* Send it away */
-    return crypt_send(c, len, sendbuf);
-}
-
-static int send_pc_lobby_wchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
-                               const uint16_t *msg, size_t len) {
-    uint8_t *sendbuf = get_sendbuf();
-    dc_chat_pkt *pkt = (dc_chat_pkt *)sendbuf;
-    char tmp[32];
-    size_t in, out;
-    ICONV_CONST char *inptr;
-    char *outptr;
-
-    /* Verify we got the sendbuf. */
-    if(!sendbuf) {
-        return -1;
-    }
-
-    /* Clear the packet header */
-    memset(pkt, 0, sizeof(dc_chat_pkt));
-
-    /* Fill in the basics */
-    pkt->guildcard = LE32(s->guildcard);
-    pkt->padding = LE32(0x00010000);
-
-    /* Convert the name string first. */
-    in = sprintf(tmp, "%s\t", s->pl->v1.name) + 1;
-    out = 65520;
-    inptr = tmp;
-    outptr = pkt->msg;
-    iconv(ic_8859_to_utf16, &inptr, &in, &outptr, &out);
-
-    /* Fill in the message */
-    strcat16((uint16_t *)pkt->msg, msg);
-    len = (strlen16((uint16_t *)pkt->msg) << 1) + 0x0E;
-
-    /* Add any padding needed */
-    while(len & 0x03) {
-        sendbuf[len++] = 0;
-    }
-
-    /* Fill in the header */
-    pkt->hdr.pc.pkt_type = CHAT_TYPE;
-    pkt->hdr.pc.flags = 0;
-    pkt->hdr.pc.pkt_len = LE16(len);
-
-    /* Send it away */
-    return crypt_send(c, len, sendbuf);
-}
-
-static int send_bb_lobby_wchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
-                               const uint16_t *msg, size_t len) {
-    uint8_t *sendbuf = get_sendbuf();
-    bb_chat_pkt *pkt = (bb_chat_pkt *)sendbuf;
-    char tmp[64];
-    size_t in, out;
-    ICONV_CONST char *inptr;
-    char *outptr;
-
-    /* Verify we got the sendbuf. */
-    if(!sendbuf) {
-        return -1;
-    }
-
-    /* Clear the packet header */
-    memset(pkt, 0, sizeof(bb_chat_pkt));
-
-    /* Fill in the basics */
-    pkt->guildcard = LE32(s->guildcard);
-    pkt->padding = LE32(0x00010000);
-
-    /* Convert the name string first. */
-    in = sprintf(tmp, "\tE%s\t", s->pl->v1.name) + 1;
-    out = 65520;
-    inptr = tmp;
-    outptr = (char *)pkt->msg;
-    iconv(ic_8859_to_utf16, &inptr, &in, &outptr, &out);
-
-    /* Fill in the message */
-    strcat16(pkt->msg, msg);
-    len = (strlen16(pkt->msg) << 1) + 0x12;
-
-    /* Add any padding needed */
-    while(len & 0x07) {
-        sendbuf[len++] = 0;
-    }
-
-    pkt->hdr.pkt_len = LE16(len);
-    pkt->hdr.pkt_type = LE16(CHAT_TYPE);
-    pkt->hdr.flags = 0;
-
-    /* Send it away */
-    return crypt_send(c, len, sendbuf);
-}
-
-/* Send a talk packet to the specified lobby (UTF-16). */
-int send_lobby_wchat(lobby_t *l, ship_client_t *sender, const uint16_t *msg,
-                     size_t len) {
-    int i;
-
-    if((sender->flags & CLIENT_FLAG_STFU)) {
-        return send_pc_lobby_wchat(l, sender, sender, msg, len);
+        return 0;
     }
 
     for(i = 0; i < l->max_clients; ++i) {
@@ -2462,24 +2342,21 @@ int send_lobby_wchat(lobby_t *l, ship_client_t *sender, const uint16_t *msg,
                 case CLIENT_VERSION_EP3:
                     /* Only send if they're not being /ignore'd */
                     if(!client_has_ignored(l->clients[i], sender->guildcard)) {
-                        send_dc_lobby_wchat(l, l->clients[i], sender, msg,
-                                            len);
+                        send_dc_lobby_chat(l, l->clients[i], sender, msg, cmsg);
                     }
                     break;
 
                 case CLIENT_VERSION_PC:
                     /* Only send if they're not being /ignore'd */
                     if(!client_has_ignored(l->clients[i], sender->guildcard)) {
-                        send_pc_lobby_wchat(l, l->clients[i], sender, msg,
-                                            len);
+                        send_pc_lobby_chat(l, l->clients[i], sender, msg, cmsg);
                     }
                     break;
 
                 case CLIENT_VERSION_BB:
                     /* Only send if they're not being /ignore'd */
                     if(!client_has_ignored(l->clients[i], sender->guildcard)) {
-                        send_bb_lobby_wchat(l, l->clients[i], sender, msg,
-                                            len);
+                        send_bb_lobby_chat(l, l->clients[i], sender, msg, cmsg);
                     }
                     break;
             }

@@ -35,4 +35,6 @@ int smutdata_check_string(const char *str, int which);
    point to the censored string. */
 char *smutdata_censor_string(const char *str, int which);
 
+int smutdata_enabled(void);
+
 #endif /* !SMUTDATA_H */

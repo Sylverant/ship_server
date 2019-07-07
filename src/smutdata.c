@@ -567,3 +567,7 @@ out:
 
     return rv;
 }
+
+int smutdata_enabled(void) {
+    return !!smutdata_west;
+}

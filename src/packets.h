@@ -549,7 +549,7 @@ typedef struct dc_chat {
     } hdr;
     uint32_t padding;
     uint32_t guildcard;
-    char msg[0];
+    char msg[];
 } PACKED dc_chat_pkt;
 
 typedef struct bb_chat {

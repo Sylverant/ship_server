@@ -62,6 +62,7 @@ int pidfile_fileno(struct pidfh *pfh);
 #include "pmtdata.h"
 #include "rtdata.h"
 #include "admin.h"
+#include "smutdata.h"
 
 #ifndef PID_DIR
 #define PID_DIR "/var/run"
@@ -320,6 +321,9 @@ static void print_config(sylverant_ship_t *cfg) {
               (cfg->local_flags & SYLVERANT_SHIP_QUEST_SRARES) ? "true" :
               "false");
     }
+
+    if(cfg->smutdata_file)
+        debug(DBG_LOG, "Smutdata file: %s\n", cfg->smutdata_file);
 
     if(cfg->limits_count) {
         debug(DBG_LOG, "%d /legit files configured:\n", cfg->limits_count);
@@ -890,6 +894,14 @@ restart:
 
     /* Init mini18n if we have it */
     init_i18n();
+
+    /* Init the word censor. */
+    if(cfg->smutdata_file) {
+        debug(DBG_LOG, "Reading smutdata file: %s\n", cfg->smutdata_file);
+        if(smutdata_read(cfg->smutdata_file)) {
+            debug(DBG_WARN, "Couldn't read smutdata file!\n");
+        }
+    }
 
     if(!check_only) {
         /* Install signal handlers */

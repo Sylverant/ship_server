@@ -43,6 +43,7 @@
 #include "subcmd.h"
 #include "scripts.h"
 #include "admin.h"
+#include "smutdata.h"
 
 extern int enable_ipv6;
 extern uint32_t ship_ip4;
@@ -1341,15 +1342,19 @@ static int bb_process_change_lobby(ship_client_t *c, bb_select_pkt *pkt) {
 static int dc_process_chat(ship_client_t *c, dc_chat_pkt *pkt) {
     lobby_t *l = c->cur_lobby;
     int i;
+    char *u8msg, *cmsg;
+    size_t len;
 
     /* Sanity check... this shouldn't happen. */
     if(!l) {
         return -1;
     }
 
+    len = strlen(pkt->msg);
+
     /* Fill in escapes for the color chat stuff */
     if(c->cc_char) {
-        for(i = 0; i < strlen(pkt->msg); ++i) {
+        for(i = 0; i < len; ++i) {
             /* Only accept it if it has a C right after, since that means we
                should have a color code... Also, make sure there's at least one
                character after the C, or we get junk... */
@@ -1360,12 +1365,22 @@ static int dc_process_chat(ship_client_t *c, dc_chat_pkt *pkt) {
         }
     }
 
-#ifndef DISABLE_CHAT_COMMANDS
+    /* Convert it to UTF-8. */
+    if(!(u8msg = (char *)malloc((len + 1) << 2)))
+        return -1;
+
+    if((pkt->msg[0] == '\t' && pkt->msg[1] == 'J') ||
+       (c->flags & CLIENT_FLAG_IS_DCNTE)) {
+        istrncpy(ic_sjis_to_utf8, u8msg, pkt->msg, (len + 1) << 2);
+    }
+    else {
+        istrncpy(ic_8859_to_utf8, u8msg, pkt->msg, (len + 1) << 2);
+    }
+
     /* Check for commands. */
     if(pkt->msg[2] == '/') {
         return command_parse(c, pkt);
     }
-#endif
 
     /* Don't send the message if they have the protection flag on. */
     if(c->flags & CLIENT_FLAG_GC_PROTECT) {
@@ -1373,8 +1388,16 @@ static int dc_process_chat(ship_client_t *c, dc_chat_pkt *pkt) {
                               "you can chat."));
     }
 
+    /* Create a censored version. */
+    cmsg = smutdata_censor_string(u8msg, SMUTDATA_BOTH);
+
     /* Send the message to the lobby. */
-    return send_lobby_chat(l, c, pkt->msg);
+    i = send_lobby_chat(l, c, u8msg, cmsg);
+
+    /* Clean up. */
+    free(cmsg);
+    free(u8msg);
+    return i;
 }
 
 /* Process a chat packet from a PC client. */
@@ -1382,6 +1405,7 @@ static int pc_process_chat(ship_client_t *c, dc_chat_pkt *pkt) {
     lobby_t *l = c->cur_lobby;
     size_t len = LE16(pkt->hdr.dc.pkt_len) - 12;
     int i;
+    char *u8msg, *cmsg;
 
     /* Sanity check... this shouldn't happen. */
     if(!l) {
@@ -1402,12 +1426,16 @@ static int pc_process_chat(ship_client_t *c, dc_chat_pkt *pkt) {
         }
     }
 
-#ifndef DISABLE_CHAT_COMMANDS
+    /* Convert it to UTF-8. */
+    if(!(u8msg = (char *)malloc((len + 1) << 1)))
+        return -1;
+
+    istrncpy16(ic_utf16_to_utf8, u8msg, (uint16_t *)pkt->msg, (len + 1) << 1);
+
     /* Check for commands. */
     if(pkt->msg[4] == '/') {
         return wcommand_parse(c, pkt);
     }
-#endif
 
     /* Don't send the message if they have the protection flag on. */
     if(c->flags & CLIENT_FLAG_GC_PROTECT) {
@@ -1415,8 +1443,15 @@ static int pc_process_chat(ship_client_t *c, dc_chat_pkt *pkt) {
                               "you can chat."));
     }
 
+    cmsg = smutdata_censor_string(u8msg, SMUTDATA_BOTH);
+
     /* Send the message to the lobby. */
-    return send_lobby_wchat(l, c, (uint16_t *)pkt->msg, len);
+    i = send_lobby_chat(l, c, u8msg, cmsg);
+
+    /* Clean up. */
+    free(cmsg);
+    free(u8msg);
+    return i;
 }
 
 /* Process a chat packet from a Blue Burst client. */

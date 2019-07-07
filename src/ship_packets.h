@@ -151,12 +151,9 @@ int send_lobby_add_player(lobby_t *l, ship_client_t *c);
 /* Send a packet to all clients in the lobby when a player leaves. */
 int send_lobby_leave(lobby_t *l, ship_client_t *c, int client_id);
 
-/* Send a chat packet to the specified lobby. */
-int send_lobby_chat(lobby_t *l, ship_client_t *sender, const char *msg);
-
-/* Send a chat packet to the specified lobby (UTF-16). */
-int send_lobby_wchat(lobby_t *l, ship_client_t *sender, const uint16_t *msg,
-                     size_t len);
+/* Send a chat packet to the specified lobby (UTF-8). */
+int send_lobby_chat(lobby_t *l, ship_client_t *sender, const char *msg,
+                    const char *cmsg);
 
 /* Send a talk packet to the specified lobby (UTF-16 - Blue Burst). */
 int send_lobby_bbchat(lobby_t *l, ship_client_t *sender, const uint16_t *msg,

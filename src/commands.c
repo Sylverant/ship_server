@@ -3228,6 +3228,25 @@ static int handle_autolegit(ship_client_t *c, const char *params) {
     return 0;
 }
 
+/* Usage: /censor [off] */
+static int handle_censor(ship_client_t *c, const char *params) {
+    pthread_mutex_lock(&c->mutex);
+
+    /* See if we're turning the flag off. */
+    if(!strcmp(params, "off")) {
+        c->flags &= ~CLIENT_FLAG_WORD_CENSOR;
+        pthread_mutex_unlock(&c->mutex);
+
+        return send_txt(c, "%s", __(c, "\tE\tC7Word censor off."));
+    }
+
+    /* Set the flag since we're turning it on. */
+    c->flags |= CLIENT_FLAG_WORD_CENSOR;
+
+    pthread_mutex_unlock(&c->mutex);
+    return send_txt(c, "%s", __(c, "\tE\tC7Word censor on."));
+}
+
 static command_t cmds[] = {
     { "warp"     , handle_warp      },
     { "kill"     , handle_kill      },
@@ -3319,6 +3338,7 @@ static command_t cmds[] = {
     { "info"     , handle_info      },
     { "quest"    , handle_quest     },
     { "autolegit", handle_autolegit },
+    { "censor"   , handle_censor    },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 
