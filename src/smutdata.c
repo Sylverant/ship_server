@@ -298,7 +298,7 @@ int smutdata_check_string(const char *str, int which) {
                        matches 'l' and '|'. */
                     tc = towlower(wstr[j + k]);
                     if(cmp[k] != tc) {
-                        if(cmp[k] != L'\t' (tc != L'l' && tc != L'|')) {
+                        if(cmp[k] != L'\t' || (tc != L'l' && tc != L'|')) {
                             matched = 0;
                             break;
                         }
