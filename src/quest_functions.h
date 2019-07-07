@@ -169,7 +169,7 @@
    Returns:      1 value: 0 on nothing matched by the censor, 1 if matched. */
 #define QUEST_FUNC_WORD_CENSOR_CHK      18
 
-/* Function 18:  word_censor_check2
+/* Function 19:  word_censor_check2
    Arguments:    1...n: char str[] -- The string to check against the censor.
                         This string may be NUL terminated, but is not required
                         to be. Only values 0-26 are accepted (mapping to NUL,

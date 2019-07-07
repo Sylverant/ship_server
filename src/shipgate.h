@@ -591,6 +591,7 @@ static const char shipgate_login_msg[] =
 #define USER_OPT_GC_PROTECT     0x00000003
 #define USER_OPT_TRACK_KILLS    0x00000004
 #define USER_OPT_LEGIT_ALWAYS   0x00000005
+#define USER_OPT_WORD_CENSOR    0x00000006
 
 /* Possible values for the fw_flags on a forwarded packet */
 #define FW_FLAG_PREFER_IPV6     0x00000001  /* Prefer IPv6 on reply */

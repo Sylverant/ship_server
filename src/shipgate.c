@@ -1655,6 +1655,18 @@ static int handle_useropt(shipgate_conn_t *c, shipgate_user_opt_pkt *pkt) {
                         if(opt->data[0])
                             i->flags |= CLIENT_FLAG_ALWAYS_LEGIT;
                         break;
+
+                    case USER_OPT_WORD_CENSOR:
+                        /* Make sure the length is right */
+                        if(length != 16)
+                            break;
+
+                        /* The only byte of the data that's used is the first
+                           one. It is a boolean saying whether or not to enable
+                           the word censor. */
+                        if(opt->data[0])
+                            i->flags |= CLIENT_FLAG_WORD_CENSOR;
+                        break;
                 }
 
                 /* Adjust the pointers to the next option */

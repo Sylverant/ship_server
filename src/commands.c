@@ -3230,11 +3230,16 @@ static int handle_autolegit(ship_client_t *c, const char *params) {
 
 /* Usage: /censor [off] */
 static int handle_censor(ship_client_t *c, const char *params) {
+    uint8_t enable = 1;
     pthread_mutex_lock(&c->mutex);
 
     /* See if we're turning the flag off. */
     if(!strcmp(params, "off")) {
         c->flags &= ~CLIENT_FLAG_WORD_CENSOR;
+        enable = 0;
+        shipgate_send_user_opt(&ship->sg, c->guildcard, c->cur_block->b,
+                               USER_OPT_WORD_CENSOR, 1, &enable);
+
         pthread_mutex_unlock(&c->mutex);
 
         return send_txt(c, "%s", __(c, "\tE\tC7Word censor off."));
@@ -3242,6 +3247,10 @@ static int handle_censor(ship_client_t *c, const char *params) {
 
     /* Set the flag since we're turning it on. */
     c->flags |= CLIENT_FLAG_WORD_CENSOR;
+
+    /* Send the message to the shipgate */
+    shipgate_send_user_opt(&ship->sg, c->guildcard, c->cur_block->b,
+                           USER_OPT_WORD_CENSOR, 1, &enable);
 
     pthread_mutex_unlock(&c->mutex);
     return send_txt(c, "%s", __(c, "\tE\tC7Word censor on."));
