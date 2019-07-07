@@ -2111,58 +2111,39 @@ static int send_dc_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
     if(!(c->flags & CLIENT_FLAG_WORD_CENSOR)) {
         if(!(s->flags & CLIENT_FLAG_IS_DCNTE)) {
             if(!(c->flags & CLIENT_FLAG_IS_DCNTE))
-                len = sprintf(tm, "%s\t%s", s->pl->v1.name, msg) + 1;
+                in = sprintf(tm, "%s\t%s", s->pl->v1.name, msg) + 1;
             else {
-                len = sprintf(tm, "%s>%X%s", s->pl->v1.name, s->client_id,
-                              msg + 2) + 1;
+                in = sprintf(tm, "%s>%X%s", s->pl->v1.name, s->client_id,
+                             msg + 2) + 1;
             }
         }
         else {
             if(!(c->flags & CLIENT_FLAG_IS_DCNTE))
-                len = sprintf(tm, "%s\t\tJ%s", s->pl->v1.name, msg + 2) + 1;
+                in = sprintf(tm, "%s\t\tJ%s", s->pl->v1.name, msg) + 1;
             else {
-                len = sprintf(tm, "%s>%X%s", s->pl->v1.name, s->client_id,
-                              msg) + 1;
+                in = sprintf(tm, "%s>%X%s", s->pl->v1.name, s->client_id,
+                             msg) + 1;
             }
         }
     }
     else {
         if(!(s->flags & CLIENT_FLAG_IS_DCNTE)) {
             if(!(c->flags & CLIENT_FLAG_IS_DCNTE))
-                len = sprintf(tm, "%s\t%s", s->pl->v1.name, cmsg) + 1;
+                in = sprintf(tm, "%s\t%s", s->pl->v1.name, cmsg) + 1;
             else {
-                len = sprintf(tm, "%s>%X%s", s->pl->v1.name, s->client_id,
-                              cmsg + 2) + 1;
+                in = sprintf(tm, "%s>%X%s", s->pl->v1.name, s->client_id,
+                             cmsg + 2) + 1;
             }
         }
         else {
             if(!(c->flags & CLIENT_FLAG_IS_DCNTE))
-                len = sprintf(tm, "%s\t\tJ%s", s->pl->v1.name, cmsg + 2) + 1;
+                in = sprintf(tm, "%s\t\tJ%s", s->pl->v1.name, cmsg) + 1;
             else {
-                len = sprintf(tm, "%s>%X%s", s->pl->v1.name, s->client_id,
-                              cmsg) + 1;
+                in = sprintf(tm, "%s>%X%s", s->pl->v1.name, s->client_id,
+                             cmsg) + 1;
             }
         }
     }
-
-#if 0
-    if(!(s->flags & CLIENT_FLAG_IS_DCNTE)) {
-        if(!(c->flags & CLIENT_FLAG_IS_DCNTE))
-            len = sprintf(pkt->msg, "%s\t%s", s->pl->v1.name, msg) + 1;
-        else {
-            len = sprintf(pkt->msg, "%s>%X%s", s->pl->v1.name, s->client_id,
-                          msg + 2) + 1;
-        }
-    }
-    else {
-        if(!(c->flags & CLIENT_FLAG_IS_DCNTE))
-            len = sprintf(pkt->msg, "%s\t\tJ%s", s->pl->v1.name, msg + 2) + 1;
-        else {
-            len = sprintf(pkt->msg, "%s>%X%s", s->pl->v1.name, s->client_id,
-                          msg) + 1;
-        }
-    }
-#endif
 
     /* Convert the message to the appropriate encoding. */
     out = 65520;
