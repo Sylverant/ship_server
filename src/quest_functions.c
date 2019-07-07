@@ -702,7 +702,7 @@ static uint32_t del_quest_lflag(ship_client_t *c, lobby_t *l) {
     return QUEST_FUNC_RET_NOT_YET;
 }
 
-static uint32_t word_censor_check(ship_client_t *c, lobby_t *l) {
+static uint32_t word_censor_check(ship_client_t *c, lobby_t *l, int sr) {
     char str[25];
     uint32_t i;
     int rv;
@@ -717,11 +717,26 @@ static uint32_t word_censor_check(ship_client_t *c, lobby_t *l) {
         return QUEST_FUNC_RET_INVALID_REGISTER;
 
     /* Read in the string... */
-    for(i = 0; i < c->q_stack[1]; ++i) {
-        if(c->q_stack[i + 3] > 127)
-            return QUEST_FUNC_RET_INVALID_ARG;
+    if(!sr) {
+        for(i = 0; i < c->q_stack[1]; ++i) {
+            if(c->q_stack[i + 3] > 127)
+                return QUEST_FUNC_RET_INVALID_ARG;
 
-        str[i] = (char)c->q_stack[i + 3];
+            str[i] = (char)c->q_stack[i + 3];
+        }
+    }
+    else {
+        for(i = 0; i < c->q_stack[1]; ++i) {
+            if(c->q_stack[i + 3] > 26)
+                return QUEST_FUNC_RET_INVALID_ARG;
+
+            if(c->q_stack[i + 3] == 0) {
+                str[i] = 0;
+                break;
+            }
+
+            str[i] = (char)(c->q_stack[i + 3] + 64);
+        }
     }
 
     str[i] = 0;
@@ -791,7 +806,10 @@ uint32_t quest_function_dispatch(ship_client_t *c, lobby_t *l) {
             return del_quest_lflag(c, l);
 
         case QUEST_FUNC_WORD_CENSOR_CHK:
-            return word_censor_check(c, l);
+            return word_censor_check(c, l, 0);
+
+        case QUEST_FUNC_WORD_CENSOR_CHK2:
+            return word_censor_check(c, l, 1);
 
         default:
             return QUEST_FUNC_RET_INVALID_FUNC;
