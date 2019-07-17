@@ -748,6 +748,20 @@ static uint32_t word_censor_check(ship_client_t *c, lobby_t *l, int sr) {
     return QUEST_FUNC_RET_NO_ERROR;
 }
 
+uint32_t get_team_seed(ship_client_t *c, lobby_t *l) {
+    if(c->q_stack[1] != 0)
+        return QUEST_FUNC_RET_BAD_ARG_COUNT;
+
+    if(c->q_stack[2] != 1)
+        return QUEST_FUNC_RET_BAD_RET_COUNT;
+
+    if(c->q_stack[3] > 255)
+        return QUEST_FUNC_RET_INVALID_REGISTER;
+
+    send_sync_register(c, c->q_stack[3], l->rand_seed);
+    return QUEST_FUNC_RET_NO_ERROR;
+}
+
 uint32_t quest_function_dispatch(ship_client_t *c, lobby_t *l) {
     /* Call the requested function... */
     switch(c->q_stack[0]) {
@@ -810,6 +824,9 @@ uint32_t quest_function_dispatch(ship_client_t *c, lobby_t *l) {
 
         case QUEST_FUNC_WORD_CENSOR_CHK2:
             return word_censor_check(c, l, 1);
+
+        case QUEST_FUNC_GET_TEAM_SEED:
+            return get_team_seed(c, l);
 
         default:
             return QUEST_FUNC_RET_INVALID_FUNC;

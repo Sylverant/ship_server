@@ -36,10 +36,10 @@
 
 #define QUEST_FUNC_RET_NOT_YET          0xDEADBEEF
 
-/*  Function 0:   get_section_id
-    Arguments:    1: int id -- Set to a client id from 0-3 for one player.
-                               Set to -1 for all players in the team.
-    Returns:      1 or 4 values of the requested section IDs. */
+/* Function 0:   get_section_id
+   Arguments:    1: int id -- Set to a client id from 0-3 for one player.
+                              Set to -1 for all players in the team.
+   Returns:      1 or 4 values of the requested section IDs. */
 #define QUEST_FUNC_GET_SECTION          0
 
 /* Function 1:   get_server_time
@@ -176,6 +176,11 @@
                         then A-Z). The maximum length accepted is 24 characters.
    Returns:      1 value: 0 on nothing matched by the censor, 1 if matched. */
 #define QUEST_FUNC_WORD_CENSOR_CHK2     19
+
+/* Function 20:  get_team_seed
+   Arguments:    None
+   Returns:      1 value: The random seed chosen when the team was created. */
+#define QUEST_FUNC_GET_TEAM_SEED        20
 
 extern uint32_t quest_function_dispatch(ship_client_t *c, lobby_t *l);
 
