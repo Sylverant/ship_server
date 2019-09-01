@@ -90,7 +90,8 @@
                               Set to -1 for all playes in the team.
    Returns:      1 or 4 values of the requested client(s)'s positions.
    Note: Each return value takes up three registers. Only the first of the
-         three are specified. */
+         three are specified. Also, note that all values are truncated to
+         integers. */
 #define QUEST_FUNC_GET_POSITION         8
 
 /* Function 9:   get_random_integer
@@ -181,6 +182,16 @@
    Arguments:    None
    Returns:      1 value: The random seed chosen when the team was created. */
 #define QUEST_FUNC_GET_TEAM_SEED        20
+
+/* Function 21:   get_pos_updates
+   Arguments:     1: int id -- Set to the id to subscribe to updates for or
+                               -1 to get them for all clients in the team.
+   Returns:       1 or 4 values for storing the client(s) positions.
+   Note: Each return takes up 4 registers (x,y,z,f). Only the first of these are
+         specified. Additionally, 0 is not a supported value. All values are
+         truncated to integers. The registers specified will be updated
+         periodically with new values. */
+#define QUEST_FUNC_POS_UPDATES          21
 
 extern uint32_t quest_function_dispatch(ship_client_t *c, lobby_t *l);
 

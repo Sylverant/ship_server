@@ -913,9 +913,14 @@ static int lobby_remove_client_locked(ship_client_t *c, int client_id,
     }
 
     /* If this is a team, run the team leave script, if it exists. */
-    if(l->type != LOBBY_TYPE_DEFAULT)
+    if(l->type != LOBBY_TYPE_DEFAULT) {
         script_execute(ScriptActionTeamLeave, SCRIPT_ARG_PTR, c, SCRIPT_ARG_PTR,
                        l, SCRIPT_ARG_END);
+        l->qpos_regs[0][client_id] = 0;
+        l->qpos_regs[1][client_id] = 0;
+        l->qpos_regs[2][client_id] = 0;
+        l->qpos_regs[3][client_id] = 0;
+    }
 
     return l->type == LOBBY_TYPE_DEFAULT ? 0 : !l->num_clients;
 }

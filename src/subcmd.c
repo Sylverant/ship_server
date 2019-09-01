@@ -958,6 +958,35 @@ static int handle_bb_used_tech(ship_client_t *c, subcmd_bb_used_tech_t *pkt) {
     return send_lobby_mod_stat(l, c, SUBCMD_STAT_TPUP, 255);
 }
 
+static void update_qpos(ship_client_t *c, lobby_t *l) {
+    uint8_t r;
+
+    if((r = l->qpos_regs[c->client_id][0])) {
+        send_sync_register(l->clients[0], r, (uint32_t)c->x);
+        send_sync_register(l->clients[0], r + 1, (uint32_t)c->y);
+        send_sync_register(l->clients[0], r + 2, (uint32_t)c->z);
+        send_sync_register(l->clients[0], r + 3, (uint32_t)c->cur_area);
+    }
+    if((r = l->qpos_regs[c->client_id][1])) {
+        send_sync_register(l->clients[1], r, (uint32_t)c->x);
+        send_sync_register(l->clients[1], r + 1, (uint32_t)c->y);
+        send_sync_register(l->clients[1], r + 2, (uint32_t)c->z);
+        send_sync_register(l->clients[1], r + 3, (uint32_t)c->cur_area);
+    }
+    if((r = l->qpos_regs[c->client_id][2])) {
+        send_sync_register(l->clients[2], r, (uint32_t)c->x);
+        send_sync_register(l->clients[2], r + 1, (uint32_t)c->y);
+        send_sync_register(l->clients[2], r + 2, (uint32_t)c->z);
+        send_sync_register(l->clients[2], r + 3, (uint32_t)c->cur_area);
+    }
+    if((r = l->qpos_regs[c->client_id][3])) {
+        send_sync_register(l->clients[3], r, (uint32_t)c->x);
+        send_sync_register(l->clients[3], r + 1, (uint32_t)c->y);
+        send_sync_register(l->clients[3], r + 2, (uint32_t)c->z);
+        send_sync_register(l->clients[3], r + 3, (uint32_t)c->cur_area);
+    }
+}
+
 static int handle_set_area(ship_client_t *c, subcmd_set_area_t *pkt) {
     lobby_t *l = c->cur_lobby;
 
@@ -972,6 +1001,9 @@ static int handle_set_area(ship_client_t *c, subcmd_set_area_t *pkt) {
                        SCRIPT_ARG_INT, (int)pkt->area, SCRIPT_ARG_INT,
                        c->cur_area, SCRIPT_ARG_END);
         c->cur_area = pkt->area;
+
+        if((l->flags & LOBBY_FLAG_QUESTING))
+            update_qpos(c, l);
     }
 
     return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
@@ -987,7 +1019,13 @@ static int handle_bb_set_area(ship_client_t *c, subcmd_bb_set_area_t *pkt) {
 
     /* Save the new area and move along */
     if(c->client_id == pkt->client_id) {
+        script_execute(ScriptActionChangeArea, SCRIPT_ARG_PTR, c,
+                       SCRIPT_ARG_INT, (int)pkt->area, SCRIPT_ARG_INT,
+                       c->cur_area, SCRIPT_ARG_END);
         c->cur_area = pkt->area;
+
+        if((l->flags & LOBBY_FLAG_QUESTING))
+            update_qpos(c, l);
     }
 
     return subcmd_send_lobby_bb(l, c, (bb_subcmd_pkt_t *)pkt, 0);
@@ -1002,6 +1040,9 @@ static int handle_set_pos(ship_client_t *c, subcmd_set_pos_t *pkt) {
         c->x = pkt->x;
         c->y = pkt->y;
         c->z = pkt->z;
+
+        if((l->flags & LOBBY_FLAG_QUESTING))
+            update_qpos(c, l);
     }
 
     /* Clear this, in case we're at the lobby counter */
@@ -1017,6 +1058,9 @@ static int handle_move(ship_client_t *c, subcmd_move_t *pkt) {
     if(c->client_id == pkt->client_id) {
         c->x = pkt->x;
         c->z = pkt->z;
+
+        if((l->flags & LOBBY_FLAG_QUESTING))
+            update_qpos(c, l);
     }
 
     return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
@@ -1031,6 +1075,9 @@ static int handle_bb_set_pos(ship_client_t *c, subcmd_bb_set_pos_t *pkt) {
         c->x = pkt->x;
         c->y = pkt->y;
         c->z = pkt->z;
+
+        if((l->flags & LOBBY_FLAG_QUESTING))
+            update_qpos(c, l);
     }
 
     return subcmd_send_lobby_bb(l, c, (bb_subcmd_pkt_t *)pkt, 0);
@@ -1043,6 +1090,9 @@ static int handle_bb_move(ship_client_t *c, subcmd_bb_move_t *pkt) {
     if(c->client_id == pkt->client_id) {
         c->x = pkt->x;
         c->z = pkt->z;
+
+        if((l->flags & LOBBY_FLAG_QUESTING))
+            update_qpos(c, l);
     }
 
     return subcmd_send_lobby_bb(l, c, (bb_subcmd_pkt_t *)pkt, 0);

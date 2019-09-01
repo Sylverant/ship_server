@@ -35,6 +35,7 @@
 #include "mapdata.h"
 
 #define LOBBY_MAX_CLIENTS   12
+#define LOBBY_MAX_IN_TEAM   4
 
 /* Forward declaration. */
 struct ship_client;
@@ -143,6 +144,8 @@ struct lobby {
     int num_syncregs;
     uint8_t *syncregs;
     uint32_t *regvals;
+
+    uint8_t qpos_regs[LOBBY_MAX_IN_TEAM][LOBBY_MAX_IN_TEAM];
 
 #ifdef DEBUG
     uint8_t sdrops_ep;

@@ -762,6 +762,126 @@ uint32_t get_team_seed(ship_client_t *c, lobby_t *l) {
     return QUEST_FUNC_RET_NO_ERROR;
 }
 
+static uint32_t get_pos_updates(ship_client_t *c, lobby_t *l) {
+    if(c->q_stack[1] != 1)
+        return QUEST_FUNC_RET_BAD_ARG_COUNT;
+
+    /* Are we requesting everyone or just one person? */
+    if(c->q_stack[3] == 0xFFFFFFFF) {
+        if(c->q_stack[2] != 4)
+            return QUEST_FUNC_RET_BAD_RET_COUNT;
+
+        if(c->q_stack[4] > 255 || c->q_stack[5] > 255 ||
+           c->q_stack[6] > 255 || c->q_stack[7] > 255)
+            return QUEST_FUNC_RET_INVALID_REGISTER;
+
+        l->qpos_regs[0][c->client_id] = c->q_stack[4];
+        l->qpos_regs[1][c->client_id] = c->q_stack[5];
+        l->qpos_regs[2][c->client_id] = c->q_stack[6];
+        l->qpos_regs[3][c->client_id] = c->q_stack[7];
+
+        if(l->clients[0]) {
+            send_sync_register(c, c->q_stack[4], (uint32_t)l->clients[0]->x);
+            send_sync_register(c, c->q_stack[4] + 1,
+                               (uint32_t)l->clients[0]->y);
+            send_sync_register(c, c->q_stack[4] + 2,
+                               (uint32_t)l->clients[0]->z);
+            send_sync_register(c, c->q_stack[4] + 3,
+                               (uint32_t)l->clients[0]->cur_area);
+        }
+        else {
+            send_sync_register(c, c->q_stack[4], 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[4] + 1, 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[4] + 2, 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[4] + 3, 0xFFFFFFFF);
+        }
+
+        if(l->clients[1]) {
+            send_sync_register(c, c->q_stack[5], (uint32_t)l->clients[1]->x);
+            send_sync_register(c, c->q_stack[5] + 1,
+                               (uint32_t)l->clients[1]->y);
+            send_sync_register(c, c->q_stack[5] + 2,
+                               (uint32_t)l->clients[1]->z);
+            send_sync_register(c, c->q_stack[5] + 3,
+                               (uint32_t)l->clients[1]->cur_area);
+        }
+        else {
+            send_sync_register(c, c->q_stack[5], 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[5] + 1, 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[5] + 2, 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[5] + 3, 0xFFFFFFFF);
+        }
+
+        if(l->clients[2]) {
+            send_sync_register(c, c->q_stack[6], (uint32_t)l->clients[2]->x);
+            send_sync_register(c, c->q_stack[6] + 1,
+                               (uint32_t)l->clients[2]->y);
+            send_sync_register(c, c->q_stack[6] + 2,
+                               (uint32_t)l->clients[2]->z);
+            send_sync_register(c, c->q_stack[6] + 3,
+                               (uint32_t)l->clients[2]->cur_area);
+        }
+        else {
+            send_sync_register(c, c->q_stack[6], 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[6] + 1, 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[6] + 2, 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[6] + 3, 0xFFFFFFFF);
+        }
+
+        if(l->clients[3]) {
+            send_sync_register(c, c->q_stack[7], (uint32_t)l->clients[3]->x);
+            send_sync_register(c, c->q_stack[7] + 1,
+                               (uint32_t)l->clients[3]->y);
+            send_sync_register(c, c->q_stack[7] + 2,
+                               (uint32_t)l->clients[3]->z);
+            send_sync_register(c, c->q_stack[7] + 3,
+                               (uint32_t)l->clients[3]->cur_area);
+        }
+        else {
+            send_sync_register(c, c->q_stack[7], 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[7] + 1, 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[7] + 2, 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[7] + 3, 0xFFFFFFFF);
+        }
+
+        /* Done. */
+        return QUEST_FUNC_RET_NO_ERROR;
+    }
+    else if(c->q_stack[3] < 4) {
+        int cl = c->q_stack[3];
+
+        if(c->q_stack[2] != 1)
+            return QUEST_FUNC_RET_BAD_RET_COUNT;
+
+        if(c->q_stack[4] > 255)
+            return QUEST_FUNC_RET_INVALID_REGISTER;
+
+        l->qpos_regs[cl][c->client_id] = c->q_stack[4];
+
+        if(l->clients[cl]) {
+            send_sync_register(c, c->q_stack[4], (uint32_t)l->clients[cl]->x);
+            send_sync_register(c, c->q_stack[4] + 1,
+                               (uint32_t)l->clients[cl]->y);
+            send_sync_register(c, c->q_stack[4] + 2,
+                               (uint32_t)l->clients[cl]->z);
+            send_sync_register(c, c->q_stack[4] + 3,
+                               (uint32_t)l->clients[cl]->cur_area);
+        }
+        else {
+            send_sync_register(c, c->q_stack[4], 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[4] + 1, 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[4] + 2, 0xFFFFFFFF);
+            send_sync_register(c, c->q_stack[4] + 3, 0xFFFFFFFF);
+        }
+
+        /* Done. */
+        return QUEST_FUNC_RET_NO_ERROR;
+    }
+    else {
+        return QUEST_FUNC_RET_INVALID_ARG;
+    }
+}
+
 uint32_t quest_function_dispatch(ship_client_t *c, lobby_t *l) {
     /* Call the requested function... */
     switch(c->q_stack[0]) {
@@ -827,6 +947,9 @@ uint32_t quest_function_dispatch(ship_client_t *c, lobby_t *l) {
 
         case QUEST_FUNC_GET_TEAM_SEED:
             return get_team_seed(c, l);
+
+        case QUEST_FUNC_POS_UPDATES:
+            return get_pos_updates(c, l);
 
         default:
             return QUEST_FUNC_RET_INVALID_FUNC;
