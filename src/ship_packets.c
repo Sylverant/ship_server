@@ -4701,6 +4701,11 @@ static int send_dc_quest_categories(ship_client_t *c, int lang) {
         if((qlist->cats[i].type & SYLVERANT_QUEST_DEBUG) && !LOCAL_GM(c))
             continue;
 
+        /* Make sure the user's privilege level is good enough. */
+        if((qlist->cats[i].privileges & c->privilege) !=
+           qlist->cats[i].privileges)
+            continue;
+
         /* Clear the entry */
         memset(pkt->entries + entries, 0, 0x98);
 
@@ -4804,6 +4809,11 @@ static int send_pc_quest_categories(ship_client_t *c, int lang) {
         if((qlist->cats[i].type & SYLVERANT_QUEST_DEBUG) && !LOCAL_GM(c))
             continue;
 
+        /* Make sure the user's privilege level is good enough. */
+        if((qlist->cats[i].privileges & c->privilege) !=
+           qlist->cats[i].privileges)
+            continue;
+
         /* Clear the entry */
         memset(pkt->entries + i, 0, 0x128);
 
@@ -4876,6 +4886,11 @@ static int send_bb_quest_categories(ship_client_t *c, int lang) {
 
         /* Only show debug entries to GMs. */
         if((qlist->cats[i].type & SYLVERANT_QUEST_DEBUG) && !LOCAL_GM(c))
+            continue;
+
+        /* Make sure the user's privilege level is good enough. */
+        if((qlist->cats[i].privileges & c->privilege) !=
+           qlist->cats[i].privileges)
             continue;
 
         /* Clear the entry */
@@ -5025,6 +5040,10 @@ static int send_dc_quest_list(ship_client_t *c, int cn, int lang) {
             /* Skip quests where we can't play them due to restrictions by
                users' versions or language codes */
             if(j != l->max_clients)
+                continue;
+
+            /* Make sure the user's privilege level is good enough. */
+            if((quest->privileges & c->privilege) != quest->privileges)
                 continue;
 
             /* Clear the entry */
@@ -5181,6 +5200,10 @@ static int send_pc_quest_list(ship_client_t *c, int cn, int lang) {
             if(j != l->max_clients)
                 continue;
 
+            /* Make sure the user's privilege level is good enough. */
+            if((quest->privileges & c->privilege) != quest->privileges)
+                continue;
+
             /* Clear the entry */
             memset(pkt->entries + entries, 0, 0x128);
 
@@ -5328,6 +5351,10 @@ static int send_gc_quest_list(ship_client_t *c, int cn, int lang) {
             /* Skip quests where we can't play them due to restrictions by
                users' versions or language codes */
             if(j != l->max_clients)
+                continue;
+
+            /* Make sure the user's privilege level is good enough. */
+            if((quest->privileges & c->privilege) != quest->privileges)
                 continue;
 
             /* Clear the entry */
@@ -5483,6 +5510,10 @@ static int send_bb_quest_list(ship_client_t *c, int cn, int lang) {
             /* Skip quests where we can't play them due to restrictions by
                users' versions or language codes */
             if(j != l->max_clients)
+                continue;
+
+            /* Make sure the user's privilege level is good enough. */
+            if((quest->privileges & c->privilege) != quest->privileges)
                 continue;
 
             /* Clear the entry */
