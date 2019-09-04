@@ -58,7 +58,7 @@ typedef struct lobby lobby_t;
 
 #define PACKED __attribute__((packed))
 
-#define SHIPGATE_PROTO_VER  17
+#define SHIPGATE_PROTO_VER  18
 
 /* New header in protocol version 10 and newer. */
 typedef struct shipgate_hdr {
@@ -266,23 +266,23 @@ typedef struct shipgate_char_req {
     uint32_t slot;
 } PACKED shipgate_char_req_pkt;
 
-/* A packet sent to login a Global GM. */
-typedef struct shipgate_gmlogin_req {
+/* A packet sent to login a client. */
+typedef struct shipgate_usrlogin_req {
     shipgate_hdr_t hdr;
     uint32_t guildcard;
     uint32_t block;
     char username[32];
     char password[32];
-} PACKED shipgate_gmlogin_req_pkt;
+} PACKED shipgate_usrlogin_req_pkt;
 
-/* A packet replying to a Global GM login. */
-typedef struct shipgate_gmlogin_reply {
+/* A packet replying to a client login. */
+typedef struct shipgate_usrlogin_reply {
     shipgate_hdr_t hdr;
     uint32_t guildcard;
     uint32_t block;
-    uint8_t priv;
-    uint8_t reserved[7];
-} PACKED shipgate_gmlogin_reply_pkt;
+    uint32_t priv;
+    uint8_t reserved[4];
+} PACKED shipgate_usrlogin_reply_pkt;
 
 /* A packet used to set a ban. */
 typedef struct shipgate_ban_req {
@@ -512,7 +512,7 @@ static const char shipgate_login_msg[] =
 #define SHDR_TYPE_PING      0x0013      /* A Ping packet, enough said */
 #define SHDR_TYPE_CDATA     0x0014      /* Character data */
 #define SHDR_TYPE_CREQ      0x0015      /* Request saved character data */
-#define SHDR_TYPE_GMLOGIN   0x0016      /* User login request */
+#define SHDR_TYPE_USRLOGIN  0x0016      /* User login request */
 #define SHDR_TYPE_GCBAN     0x0017      /* Guildcard ban */
 #define SHDR_TYPE_IPBAN     0x0018      /* IP ban */
 #define SHDR_TYPE_BLKLOGIN  0x0019      /* User logs into a block */
@@ -572,9 +572,9 @@ static const char shipgate_login_msg[] =
 #define ERR_CREQ_NO_DATA        0x00000001
 
 /* Error codes in response to a client login */
-#define ERR_GMLOGIN_NO_ACC      0x00000001
-#define ERR_GMLOGIN_BAD_CRED    0x00000002
-#define ERR_GMLOGIN_BAD_PRIVS   0x00000003
+#define ERR_USRLOGIN_NO_ACC     0x00000001
+#define ERR_USRLOGIN_BAD_CRED   0x00000002
+#define ERR_USRLOGIN_BAD_PRIVS  0x00000003
 
 /* Error codes in response to a ban request */
 #define ERR_BAN_NOT_GM          0x00000001
@@ -662,9 +662,9 @@ int shipgate_send_cdata(shipgate_conn_t *c, uint32_t gc, uint32_t slot,
 /* Send the shipgate a request for character data. */
 int shipgate_send_creq(shipgate_conn_t *c, uint32_t gc, uint32_t slot);
 
-/* Send a GM login request. */
-int shipgate_send_gmlogin(shipgate_conn_t *c, uint32_t gc, uint32_t block,
-                          const char *username, const char *password, int tok);
+/* Send a user login request. */
+int shipgate_send_usrlogin(shipgate_conn_t *c, uint32_t gc, uint32_t block,
+                           const char *username, const char *password, int tok);
 
 /* Send a ban request. */
 int shipgate_send_ban(shipgate_conn_t *c, uint16_t type, uint32_t requester,

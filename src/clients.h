@@ -125,7 +125,7 @@ struct ship_client {
     uint32_t drop_item;
     uint32_t drop_amt;
 
-    uint8_t privilege;
+    uint32_t privilege;
     uint8_t cc_char;
     uint8_t q_lang;
     uint8_t autoreply_on;

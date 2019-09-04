@@ -893,8 +893,8 @@ static int handle_creq(shipgate_conn_t *conn, shipgate_char_data_pkt *pkt) {
     return 0;
 }
 
-static int handle_gmlogin(shipgate_conn_t *conn,
-                          shipgate_gmlogin_reply_pkt *pkt) {
+static int handle_usrlogin(shipgate_conn_t *conn,
+                           shipgate_usrlogin_reply_pkt *pkt) {
     uint16_t flags = ntohs(pkt->hdr.flags);
     uint32_t gc = ntohl(pkt->guildcard);
     uint32_t block = ntohl(pkt->block);
@@ -1137,7 +1137,8 @@ static int handle_creq_err(shipgate_conn_t *conn, shipgate_cdata_err_pkt *pkt) {
     return 0;
 }
 
-static int handle_gmlogin_err(shipgate_conn_t *conn, shipgate_gm_err_pkt *pkt) {
+static int handle_usrlogin_err(shipgate_conn_t *conn,
+                               shipgate_gm_err_pkt *pkt) {
     uint16_t flags = ntohs(pkt->base.hdr.flags);
     uint32_t gc = ntohl(pkt->guildcard);
     uint32_t block = ntohl(pkt->block);
@@ -2157,8 +2158,8 @@ static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
             case SHDR_TYPE_CBKUP:
                 return handle_creq_err(conn, (shipgate_cdata_err_pkt *)pkt);
 
-            case SHDR_TYPE_GMLOGIN:
-                return handle_gmlogin_err(conn, (shipgate_gm_err_pkt *)pkt);
+            case SHDR_TYPE_USRLOGIN:
+                return handle_usrlogin_err(conn, (shipgate_gm_err_pkt *)pkt);
 
             case SHDR_TYPE_IPBAN:
             case SHDR_TYPE_GCBAN:
@@ -2208,8 +2209,9 @@ static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
             case SHDR_TYPE_CREQ:
                 return handle_creq(conn, (shipgate_char_data_pkt *)pkt);
 
-            case SHDR_TYPE_GMLOGIN:
-                return handle_gmlogin(conn, (shipgate_gmlogin_reply_pkt *)pkt);
+            case SHDR_TYPE_USRLOGIN:
+                return handle_usrlogin(conn,
+                                       (shipgate_usrlogin_reply_pkt *)pkt);
 
             case SHDR_TYPE_COUNT:
                 return handle_count(conn, (shipgate_cnt_pkt *)pkt);
@@ -2622,11 +2624,12 @@ int shipgate_fw_bb(shipgate_conn_t *c, const void *bbp, uint32_t flags,
     return send_crypt(c, full_len, sendbuf);
 }
 
-/* Send a GM login request. */
-int shipgate_send_gmlogin(shipgate_conn_t *c, uint32_t gc, uint32_t block,
-                          const char *username, const char *password, int tok) {
+/* Send a user login request. */
+int shipgate_send_usrlogin(shipgate_conn_t *c, uint32_t gc, uint32_t block,
+                           const char *username, const char *password,
+                           int tok) {
     uint8_t *sendbuf = get_sendbuf();
-    shipgate_gmlogin_req_pkt *pkt = (shipgate_gmlogin_req_pkt *)sendbuf;
+    shipgate_usrlogin_req_pkt *pkt = (shipgate_usrlogin_req_pkt *)sendbuf;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -2634,12 +2637,12 @@ int shipgate_send_gmlogin(shipgate_conn_t *c, uint32_t gc, uint32_t block,
     }
 
     /* Fill in the data. */
-    memset(pkt, 0, sizeof(shipgate_gmlogin_req_pkt));
+    memset(pkt, 0, sizeof(shipgate_usrlogin_req_pkt));
 
-    pkt->hdr.pkt_len = htons(sizeof(shipgate_gmlogin_req_pkt));
+    pkt->hdr.pkt_len = htons(sizeof(shipgate_usrlogin_req_pkt));
 
     if(!tok)
-        pkt->hdr.pkt_type = htons(SHDR_TYPE_GMLOGIN);
+        pkt->hdr.pkt_type = htons(SHDR_TYPE_USRLOGIN);
     else
         pkt->hdr.pkt_type = htons(SHDR_TYPE_TLOGIN);
 
@@ -2652,7 +2655,7 @@ int shipgate_send_gmlogin(shipgate_conn_t *c, uint32_t gc, uint32_t block,
     strncpy(pkt->password, password, 32);
 
     /* Send the packet away */
-    return send_crypt(c, sizeof(shipgate_gmlogin_req_pkt), sendbuf);
+    return send_crypt(c, sizeof(shipgate_usrlogin_req_pkt), sendbuf);
 }
 
 /* Send a ban request. */

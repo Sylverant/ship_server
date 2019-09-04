@@ -419,8 +419,8 @@ static int handle_login(ship_client_t *c, const char *params) {
     password[len] = '\0';
 
     /* We'll get success/failure later from the shipgate. */
-    return shipgate_send_gmlogin(&ship->sg, c->guildcard, c->cur_block->b,
-                                 username, password, 0);
+    return shipgate_send_usrlogin(&ship->sg, c->guildcard, c->cur_block->b,
+                                  username, password, 0);
 }
 
 /* Usage /item item1,item2,item3,item4 */
@@ -2908,8 +2908,8 @@ static int handle_tlogin(ship_client_t *c, const char *params) {
     token[len] = '\0';
 
     /* We'll get success/failure later from the shipgate. */
-    return shipgate_send_gmlogin(&ship->sg, c->guildcard, c->cur_block->b,
-                                 username, token, 1);
+    return shipgate_send_usrlogin(&ship->sg, c->guildcard, c->cur_block->b,
+                                  username, token, 1);
 }
 
 /* Usage: /dsdrops version difficulty section episode */
