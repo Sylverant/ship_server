@@ -4703,7 +4703,7 @@ static int send_dc_quest_categories(ship_client_t *c, int lang) {
 
         /* Make sure the user's privilege level is good enough. */
         if((qlist->cats[i].privileges & c->privilege) !=
-           qlist->cats[i].privileges)
+           qlist->cats[i].privileges && !LOCAL_GM(c))
             continue;
 
         /* Clear the entry */
@@ -4811,7 +4811,7 @@ static int send_pc_quest_categories(ship_client_t *c, int lang) {
 
         /* Make sure the user's privilege level is good enough. */
         if((qlist->cats[i].privileges & c->privilege) !=
-           qlist->cats[i].privileges)
+           qlist->cats[i].privileges && !LOCAL_GM(c))
             continue;
 
         /* Clear the entry */
@@ -4890,7 +4890,7 @@ static int send_bb_quest_categories(ship_client_t *c, int lang) {
 
         /* Make sure the user's privilege level is good enough. */
         if((qlist->cats[i].privileges & c->privilege) !=
-           qlist->cats[i].privileges)
+           qlist->cats[i].privileges && !LOCAL_GM(c))
             continue;
 
         /* Clear the entry */
@@ -5043,7 +5043,8 @@ static int send_dc_quest_list(ship_client_t *c, int cn, int lang) {
                 continue;
 
             /* Make sure the user's privilege level is good enough. */
-            if((quest->privileges & c->privilege) != quest->privileges)
+            if((quest->privileges & c->privilege) != quest->privileges &&
+               !LOCAL_GM(c))
                 continue;
 
             /* Clear the entry */
@@ -5201,7 +5202,8 @@ static int send_pc_quest_list(ship_client_t *c, int cn, int lang) {
                 continue;
 
             /* Make sure the user's privilege level is good enough. */
-            if((quest->privileges & c->privilege) != quest->privileges)
+            if((quest->privileges & c->privilege) != quest->privileges &&
+               !LOCAL_GM(c))
                 continue;
 
             /* Clear the entry */
@@ -5354,7 +5356,8 @@ static int send_gc_quest_list(ship_client_t *c, int cn, int lang) {
                 continue;
 
             /* Make sure the user's privilege level is good enough. */
-            if((quest->privileges & c->privilege) != quest->privileges)
+            if((quest->privileges & c->privilege) != quest->privileges &&
+               !LOCAL_GM(c))
                 continue;
 
             /* Clear the entry */
@@ -5513,7 +5516,8 @@ static int send_bb_quest_list(ship_client_t *c, int cn, int lang) {
                 continue;
 
             /* Make sure the user's privilege level is good enough. */
-            if((quest->privileges & c->privilege) != quest->privileges)
+            if((quest->privileges & c->privilege) != quest->privileges &&
+               !LOCAL_GM(c))
                 continue;
 
             /* Clear the entry */
