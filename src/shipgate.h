@@ -190,11 +190,12 @@ typedef struct shipgate_login6_reply {
     uint32_t ship_addr4;                /* IPv4 address (required) */
     uint8_t ship_addr6[16];             /* IPv6 address (optional) */
     uint16_t ship_port;
-    uint16_t ship_key;                  /* Reserved in TLS clients */
+    uint16_t reserved1;
     uint16_t clients;
     uint16_t games;
     uint16_t menu_code;
-    uint8_t reserved[6];                /* Pad to a multiple of 8 bytes */
+    uint8_t reserved2[2];
+    uint32_t privileges;
 } PACKED shipgate_login6_reply_pkt;
 
 /* A update of the client/games count. */
@@ -237,7 +238,8 @@ typedef struct shipgate_ship_status {
     uint16_t games;
     uint16_t menu_code;
     uint8_t  ship_number;
-    uint8_t  reserved[5];
+    uint8_t  reserved;
+    uint32_t privileges;
 } PACKED shipgate_ship_status_pkt;
 
 /* A packet sent to/from clients to save/restore character data. */

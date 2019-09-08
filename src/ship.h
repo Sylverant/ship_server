@@ -72,6 +72,7 @@ typedef struct miniship {
     uint16_t menu_code;
     uint32_t flags;
     int ship_number;
+    uint32_t privileges;
 } miniship_t;
 
 TAILQ_HEAD(miniship_queue, miniship);

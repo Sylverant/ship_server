@@ -813,6 +813,7 @@ static int handle_sstatus(shipgate_conn_t *conn, shipgate_ship_status_pkt *p) {
         i->menu_code = code;
         i->flags = ntohl(p->flags);
         i->ship_number = p->ship_number;
+        i->privileges = ntohl(p->privileges);
 
         /* Add the new ship to the list */
         j = TAILQ_FIRST(&s->ships);
@@ -2485,10 +2486,10 @@ int shipgate_send_ship_info(shipgate_conn_t *c, ship_t *ship) {
     }
 
     pkt->ship_port = htons(ship->cfg->base_port);
-    pkt->ship_key = htons(c->key_idx);
     pkt->clients = htons(ship->num_clients);
     pkt->games = htons(ship->num_games);
     pkt->menu_code = htons(ship->cfg->menu_code);
+    pkt->privileges = ntohl(ship->cfg->privileges);
 
     /* Send it away */
     return send_raw(c, sizeof(shipgate_login6_reply_pkt), sendbuf, 0);
