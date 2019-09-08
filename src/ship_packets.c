@@ -7069,6 +7069,10 @@ static int send_dc_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
             else if((i->flags & (LOGIN_FLAG_NOV1 << c->version))) {
                 continue;
             }
+            else if((i->privileges & c->privilege) != i->privileges &&
+                    !GLOBAL_GM(c)) {
+                continue;
+            }
 
             /* Clear the new entry */
             memset(&pkt->entries[entries], 0, 0x1C);
@@ -7166,8 +7170,11 @@ static int send_pc_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
                !(c->privilege & CLIENT_PRIV_GLOBAL_GM)) {
                 continue;
             }
-
-            if((i->flags & (LOGIN_FLAG_NOV1 << c->version))) {
+            else if((i->flags & (LOGIN_FLAG_NOV1 << c->version))) {
+                continue;
+            }
+            else if((i->privileges & c->privilege) != i->privileges &&
+                    !GLOBAL_GM(c)) {
                 continue;
             }
 
@@ -7276,8 +7283,11 @@ static int send_bb_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
                !(c->privilege & CLIENT_PRIV_GLOBAL_GM)) {
                 continue;
             }
-
-            if((i->flags & LOGIN_FLAG_NOBB)) {
+            else if((i->flags & LOGIN_FLAG_NOBB)) {
+                continue;
+            }
+            else if((i->privileges & c->privilege) != i->privileges &&
+                    !GLOBAL_GM(c)) {
                 continue;
             }
 
