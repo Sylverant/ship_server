@@ -2373,6 +2373,7 @@ static int handle_logout(ship_client_t *c, const char *params) {
 
     /* Clear the logged in status. */
     c->flags &= ~(CLIENT_FLAG_LOGGED_IN | CLIENT_FLAG_OVERRIDE_GAME);
+    c->privilege &= ~(CLIENT_PRIV_LOCAL_GM | CLIENT_PRIV_LOCAL_ROOT);
 
     return send_txt(c, "%s", __(c, "\tE\tC7Logged out."));
 }
