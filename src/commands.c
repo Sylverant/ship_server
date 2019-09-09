@@ -396,13 +396,20 @@ static int handle_login(ship_client_t *c, const char *params) {
     int len = 0;
     const char *ch = params;
 
+    /* Make sure the user isn't doing something stupid. */
+    if(!*params) {
+        return send_txt(c, "%s", __(c, "\tE\tC7You must specify\n"
+                                    "your username and\n"
+                                    "password."));
+    }
+
     /* Copy over the username/password. */
     while(*ch != ' ' && len < 32) {
         username[len++] = *ch++;
     }
 
     if(len == 32)
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid request."));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid username."));
 
     username[len] = '\0';
 
@@ -414,7 +421,7 @@ static int handle_login(ship_client_t *c, const char *params) {
     }
 
     if(len == 32)
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid request."));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid password."));
 
     password[len] = '\0';
 
@@ -2886,13 +2893,20 @@ static int handle_tlogin(ship_client_t *c, const char *params) {
     int len = 0;
     const char *ch = params;
 
+    /* Make sure the user isn't doing something stupid. */
+    if(!*params) {
+        return send_txt(c, "%s", __(c, "\tE\tC7You must specify\n"
+                                    "your username and\n"
+                                    "website token."));
+    }
+
     /* Copy over the username/password. */
     while(*ch != ' ' && len < 32) {
         username[len++] = *ch++;
     }
 
     if(len == 32)
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid request."));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid username."));
 
     username[len] = '\0';
 
@@ -2904,7 +2918,7 @@ static int handle_tlogin(ship_client_t *c, const char *params) {
     }
 
     if(len == 32)
-        return send_txt(c, "%s", __(c, "\tE\tC7Invalid request."));
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid token."));
 
     token[len] = '\0';
 
