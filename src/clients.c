@@ -1559,6 +1559,55 @@ static int client_syncRegister_lua(lua_State *l) {
     return 1;
 }
 
+static int client_hasItem_lua(lua_State *l) {
+    ship_client_t *c;
+    lua_Integer ic;
+    uint32_t val;
+    int i;
+    sylverant_iitem_t *item;
+
+    if(lua_islightuserdata(l, 1) && lua_isinteger(l, 2)) {
+        c = (ship_client_t *)lua_touserdata(l, 1);
+        ic = lua_tointeger(l, 2);
+
+        for(i = 0; i < c->pl->v1.inv.item_count; ++i) {
+            item = (sylverant_iitem_t *)&c->pl->v1.inv.items[i];
+            val = item->data_l[0];
+
+            /* Grab the real item type, if its a v2 item.
+               Note: Gamecube uses this byte for wrapping paper design. */
+            if(c->version < ITEM_VERSION_GC && item->data_b[5])
+                val = (i->data_b[5] << 8);
+
+            if((val & 0x00FFFFFF) == ic) {
+                lua_pushboolean(l, 1);
+                return 1;
+            }
+        }
+    }
+
+    /* If we get here, the user doesn't have the item requested, so return
+       0 for false. */
+    lua_pushboolean(l, 0);
+    return 1;
+}
+
+static int client_legitCheck_lua(lua_State *l) {
+    ship_client_t *c;
+    int rv;
+
+    if(lua_islightuserdata(l, 1)) {
+        c = (ship_client_t *)lua_touserdata(l, 1);
+
+        rv = client_legit_check(c, ship->def_limits);
+        lua_pushboolean(l, !!rv);
+        return 1;
+    }
+
+    lua_pushboolean(l, 0);
+    return 1;
+}
+
 static const luaL_Reg clientlib[] = {
     { "guildcard", client_guildcard_lua },
     { "isOnBlock", client_isOnBlock_lua },
@@ -1584,6 +1633,8 @@ static const luaL_Reg clientlib[] = {
     { "item", client_item_lua },
     { "find", client_find_lua },
     { "syncRegister", client_syncRegister_lua },
+    { "hasItem", client_hasItem_lua },
+    { "legitCheck", client_legitCheck_lua },
     { NULL, NULL }
 };
 
