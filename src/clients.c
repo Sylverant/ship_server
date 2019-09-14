@@ -1577,7 +1577,7 @@ static int client_hasItem_lua(lua_State *l) {
             /* Grab the real item type, if its a v2 item.
                Note: Gamecube uses this byte for wrapping paper design. */
             if(c->version < ITEM_VERSION_GC && item->data_b[5])
-                val = (i->data_b[5] << 8);
+                val = (item->data_b[5] << 8);
 
             if((val & 0x00FFFFFF) == ic) {
                 lua_pushboolean(l, 1);
