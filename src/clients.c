@@ -1600,11 +1600,66 @@ static int client_legitCheck_lua(lua_State *l) {
         c = (ship_client_t *)lua_touserdata(l, 1);
 
         rv = client_legit_check(c, ship->def_limits);
+        lua_pushboolean(l, !rv);
+        return 1;
+    }
+
+    lua_pushboolean(l, 1);
+    return 1;
+}
+
+static int client_legitCheckItem_lua(lua_State *l) {
+    ship_client_t *c;
+    lua_Integer ic1, ic2, ic3, ic4, v;
+    sylverant_iitem_t item;
+    int rv;
+
+    if(lua_islightuserdata(l, 1) && lua_isinteger(l, 2) &&
+       lua_isinteger(l, 3) && lua_isinteger(l, 4) && lua_isinteger(l, 5)) {
+        c = (ship_client_t *)lua_touserdata(l, 1);
+        ic1 = lua_tointeger(l, 2);
+        ic2 = lua_tointeger(l, 3);
+        ic3 = lua_tointeger(l, 4);
+        ic4 = lua_tointeger(l, 5);
+
+        item.data_l[0] = (uint32_t)ic1;
+        item.data_l[1] = (uint32_t)ic2;
+        item.data_l[2] = (uint32_t)ic3;
+        item.data2_l = (uint32_t)ic4;
+
+        switch(c->version) {
+            case CLIENT_VERSION_DCV1:
+                v = ITEM_VERSION_V1;
+                break;
+
+            case CLIENT_VERSION_DCV2:
+            case CLIENT_VERSION_PC:
+                v = ITEM_VERSION_V2;
+                break;
+
+            case CLIENT_VERSION_GC:
+                v = ITEM_VERSION_GC;
+                break;
+
+            default:
+                lua_pushboolean(l, 1);
+                return 1;
+        }
+
+        rv = sylverant_limits_check_item(ship->def_limits, &item, v);
+
+        if(!rv) {
+            debug(DBG_LOG, "legitCheckItem failed for GC %" PRIu32 " with "
+                  "item %08" PRIx32 " %08" PRIx32 " %08" PRIx32 " %08" PRIx32
+                  "\n", c->guildcard, item.data_l[0], item.data_l[1],
+                  item.data_l[2], item.data2_l);
+        }
+
         lua_pushboolean(l, !!rv);
         return 1;
     }
 
-    lua_pushboolean(l, 0);
+    lua_pushboolean(l, 1);
     return 1;
 }
 
@@ -1635,6 +1690,7 @@ static const luaL_Reg clientlib[] = {
     { "syncRegister", client_syncRegister_lua },
     { "hasItem", client_hasItem_lua },
     { "legitCheck", client_legitCheck_lua },
+    { "legitCheckItem", client_legitCheckItem_lua },
     { NULL, NULL }
 };
 
