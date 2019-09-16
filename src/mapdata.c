@@ -1872,6 +1872,7 @@ int cache_quest_enemies(const char *ofn, const uint8_t *dat, uint32_t sz,
 
     /* Figure out the total number of enemies that the quest has... */
     parse_quest_objects(dat, sz, &objects, ptrs);
+    debug(DBG_LOG, "Cache file: %s\n", ofn);
     debug(DBG_LOG, "Number of objects: %" PRIu32 "\n", objects);
 
     /* Write out the objects in exactly the same form that they'll be needed
