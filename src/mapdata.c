@@ -2019,6 +2019,8 @@ int load_quest_enemies(lobby_t *l, uint32_t qid, int ver) {
     if(!(tmp = malloc(cnt * sizeof(game_object_t)))) {
         debug(DBG_WARN, "Cannot allocate object array for quest: %s\n",
               strerror(errno));
+        debug(DBG_WARN, "Quest ID: %" PRIu32 " Version: %d\n", qid, ver);
+        debug(DBG_WARN, "Object count: %" PRIu32 "\n", cnt);
         free(newob);
         free(newen);
         fclose(fp);
@@ -2031,7 +2033,10 @@ int load_quest_enemies(lobby_t *l, uint32_t qid, int ver) {
     for(i = 0; i < cnt; ++i) {
         if(fread(&newob->objs[i].data, 1, sizeof(map_object_t),
                  fp) != sizeof(map_object_t)) {
-            debug(DBG_WARN, "Cannot read map cache: %s\n", strerror(errno));
+            debug(DBG_WARN, "Cannot read cached map objects: %s\n",
+                  strerror(errno));
+            debug(DBG_WARN, "Quest ID: %" PRIu32 " Version: %d\n", qid, ver);
+            debug(DBG_WARN, "Object count: %" PRIu32 "\n", cnt);
             free(newob->objs);
             free(newob);
             free(newen);
@@ -2056,6 +2061,8 @@ int load_quest_enemies(lobby_t *l, uint32_t qid, int ver) {
     if(!(tmp = malloc(cnt * sizeof(game_enemy_t)))) {
         debug(DBG_WARN, "Cannot allocate enemies array for quest: %s\n",
               strerror(errno));
+        debug(DBG_WARN, "Quest ID: %" PRIu32 " Version: %d\n", qid, ver);
+        debug(DBG_WARN, "Enemy count: %" PRIu32 "\n", cnt);
         free(newob->objs);
         free(newob);
         free(newen);
@@ -2068,6 +2075,9 @@ int load_quest_enemies(lobby_t *l, uint32_t qid, int ver) {
     /* Read the enemies in from the cache file. */
     if(fread(newen->enemies, sizeof(game_enemy_t), cnt, fp) != cnt) {
         debug(DBG_WARN, "Cannot read map cache: %s\n", strerror(errno));
+        debug(DBG_WARN, "Quest ID: %" PRIu32 " Version: %d\n", qid, ver);
+        debug(DBG_WARN, "Object count: %" PRIu32 "\n", newob->count);
+        debug(DBG_WARN, "Enemy count: %" PRIu32 "\n", newen->count);
         free(newen->enemies);
         free(newob->objs);
         free(newob);
