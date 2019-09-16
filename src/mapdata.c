@@ -1872,6 +1872,7 @@ int cache_quest_enemies(const char *ofn, const uint8_t *dat, uint32_t sz,
 
     /* Figure out the total number of enemies that the quest has... */
     parse_quest_objects(dat, sz, &objects, ptrs);
+    debug(DBG_LOG, "Number of objects: %" PRIu32 "\n", objects);
 
     /* Write out the objects in exactly the same form that they'll be needed
        when loaded later on. */
@@ -1906,6 +1907,7 @@ int cache_quest_enemies(const char *ofn, const uint8_t *dat, uint32_t sz,
        we will have... */
     offs = ftello(fp);
     fseeko(fp, 4, SEEK_CUR);
+    debug(DBG_LOG, "Enemy data position: %" PRIx64 "\n", (uint64_t)offs);
     index = 0;
 
     /* Copy in the enemy data. */
@@ -1942,6 +1944,7 @@ int cache_quest_enemies(const char *ofn, const uint8_t *dat, uint32_t sz,
 
     /* Go back and write the amount of enemies we have. */
     fseeko(fp, offs, SEEK_SET);
+    debug(DBG_LOG, "Number of enemies: %" PRIu32 "\n", index);
     index = LE32(index);
 
     if(fwrite(&index, 1, 4, fp) != 4) {
