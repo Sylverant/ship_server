@@ -1562,6 +1562,11 @@ static int handle_dumpinv(ship_client_t *c, const char *params) {
 
 /* Usage: /showdcpc [off] */
 static int handle_showdcpc(ship_client_t *c, const char *params) {
+    /* Make sure the requester is a GM. */
+    if(!LOCAL_GM(c)) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
+    }
+
     /* Check if the client is on PSOGC */
     if(c->version != CLIENT_VERSION_GC) {
         return send_txt(c, "%s", __(c, "\tE\tC7Only valid on Gamecube."));
@@ -1584,6 +1589,12 @@ static int handle_allowgc(ship_client_t *c, const char *params) {
 
     /* Lock the lobby mutex... we've got some work to do. */
     pthread_mutex_lock(&l->mutex);
+
+    /* Make sure the requester is a GM. */
+    if(!LOCAL_GM(c)) {
+        pthread_mutex_unlock(&l->mutex);
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
+    }
 
     /* Make sure that the requester is in a team, not a lobby. */
     if(l->type != LOBBY_TYPE_GAME) {
