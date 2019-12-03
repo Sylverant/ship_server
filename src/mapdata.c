@@ -157,7 +157,8 @@ static int read_v2_level_data(const char *fn) {
     /* Swap all the exp values */
     for(j = 0; j < 9; ++j) {
         for(i = 0; i < 200; ++i) {
-            v2_char_stats[j][i].exp = LE32(v2_char_stats[j][i].exp);
+            v2_char_stats.levels[j][i].exp =
+                LE32(v2_char_stats.levels[j][i].exp);
         }
     }
 #endif
