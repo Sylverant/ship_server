@@ -867,6 +867,17 @@ static int dc_process_login(ship_client_t *c, dc_login_93_pkt *pkt) {
     return 0;
 }
 
+static int is_pctrial(dcv2_login_9d_pkt *pkt) {
+    int i = 0;
+
+    for(i = 0; i < 8; ++i) {
+        if(pkt->serial[i] || pkt->access_key[i])
+            return 0;
+    }
+
+    return 1;
+}
+
 /* Process a v2 login packet, sending security data, a lobby list, and a
    character data request. */
 static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
@@ -888,6 +899,10 @@ static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
             c->flags |= CLIENT_FLAG_DISCONNECTED;
             return 0;
         }
+
+        /* Mark trial users as trial users. */
+        if(is_pctrial(pkt))
+            c->flags |= CLIENT_FLAG_IS_DCNTE;
     }
 
     /* Save what we care about in here. */
@@ -918,8 +933,11 @@ static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
     if(c->version == CLIENT_VERSION_DCV2)
         debug(DBG_LOG, "%s(%d): DCv2 Guild Card %d connected with IP %s\n",
               ship->cfg->name, c->cur_block->b, c->guildcard, ipstr);
-    else
+    else if(!(c->flags & CLIENT_FLAG_IS_DCNTE))
         debug(DBG_LOG, "%s(%d): PC Guild Card %d connected with IP %s\n",
+              ship->cfg->name, c->cur_block->b, c->guildcard, ipstr);
+    else
+        debug(DBG_LOG, "%s(%d): PC NTE Guild Card %d connected with IP %s\n",
               ship->cfg->name, c->cur_block->b, c->guildcard, ipstr);
 
     return 0;
@@ -1182,7 +1200,8 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
                client hasn't already gotten it this session.
                Disabled for some Gamecube versions, due to bugginess (of the
                game) and for the DC NTE. */
-            if((c->flags & CLIENT_FLAG_IS_DCNTE) ||
+            if((c->version == CLIENT_VERSION_DCV1 &&
+                (c->flags & CLIENT_FLAG_IS_DCNTE)) ||
                ((c->version == CLIENT_VERSION_GC ||
                  c->version == CLIENT_VERSION_EP3) &&
                  !(c->flags & CLIENT_FLAG_GC_MSG_BOXES))) {
@@ -1992,7 +2011,8 @@ static int pc_process_game_create(ship_client_t *c, pc_game_create_pkt *pkt) {
 
     /* If its a non-challenge, non-battle, non-ultimate game, ask the user if
        they want v1 compatibility or not. */
-    if(!pkt->battle && !pkt->challenge && pkt->difficulty != 3) {
+    if(!pkt->battle && !pkt->challenge && pkt->difficulty != 3 &&
+       !(c->flags & CLIENT_FLAG_IS_DCNTE)) {
         c->create_lobby = l;
         return send_pc_game_type_sel(c);
     }
@@ -3082,7 +3102,8 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
 
         case DC_GAME_CREATE_TYPE:
         case GAME_CREATE_TYPE:
-            if(c->flags & CLIENT_FLAG_IS_DCNTE) {
+            if(c->version == CLIENT_VERSION_DCV1 &&
+               (c->flags & CLIENT_FLAG_IS_DCNTE)) {
                 return dcnte_process_game_create(c,
                                                  (dcnte_game_create_pkt *)pkt);
             }

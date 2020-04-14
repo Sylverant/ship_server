@@ -1243,7 +1243,8 @@ static int send_dcnte_lobby_join(ship_client_t *c, lobby_t *l) {
 
         /* Sigh... I should narrow the problem down a bit more, but this works
            for the time being... */
-        if(!(l->clients[i]->flags & CLIENT_FLAG_IS_DCNTE))
+        if(!(l->clients[i]->flags & CLIENT_FLAG_IS_DCNTE) ||
+           l->clients[i]->version != CLIENT_VERSION_DCV1)
             memset(&pkt->entries[pls].data.inv, 0, sizeof(inventory_t));
 
         ++pls;
@@ -1720,7 +1721,8 @@ static int send_dcnte_lobby_add_player(lobby_t *l, ship_client_t *c,
 
     /* Sigh... I should narrow the problem down a bit more, but this works for
        the time being... */
-    if(!(nc->flags & CLIENT_FLAG_IS_DCNTE))
+    if(!(nc->flags & CLIENT_FLAG_IS_DCNTE) ||
+       nc->version != CLIENT_VERSION_DCV1)
         memset(&pkt->entries[0].data.inv, 0, sizeof(inventory_t));
 
     /* Send it away */
@@ -2109,7 +2111,8 @@ static int send_dc_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
         ic = ic_utf8_to_sjis;
 
     if(!(c->flags & CLIENT_FLAG_WORD_CENSOR)) {
-        if(!(s->flags & CLIENT_FLAG_IS_DCNTE)) {
+        if(!(s->flags & CLIENT_FLAG_IS_DCNTE) ||
+           s->version != CLIENT_VERSION_DCV1) {
             if(!(c->flags & CLIENT_FLAG_IS_DCNTE))
                 in = sprintf(tm, "%s\t%s", s->pl->v1.name, msg) + 1;
             else {
@@ -2127,7 +2130,8 @@ static int send_dc_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
         }
     }
     else {
-        if(!(s->flags & CLIENT_FLAG_IS_DCNTE)) {
+        if(!(s->flags & CLIENT_FLAG_IS_DCNTE) ||
+           s->version != CLIENT_VERSION_DCV1) {
             if(!(c->flags & CLIENT_FLAG_IS_DCNTE))
                 in = sprintf(tm, "%s\t%s", s->pl->v1.name, cmsg) + 1;
             else {
@@ -2193,13 +2197,15 @@ static int send_pc_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
 
     /* Fill in the message */
     if(!(c->flags & CLIENT_FLAG_WORD_CENSOR)) {
-        if(!(s->flags & CLIENT_FLAG_IS_DCNTE))
+        if(!(s->flags & CLIENT_FLAG_IS_DCNTE) ||
+           s->version != CLIENT_VERSION_DCV1)
             in = sprintf(tm, "%s\t%s", s->pl->v1.name, msg) + 1;
         else
             in = sprintf(tm, "%s\t\tJ%s", s->pl->v1.name, msg) + 1;
     }
     else {
-        if(!(s->flags & CLIENT_FLAG_IS_DCNTE))
+        if(!(s->flags & CLIENT_FLAG_IS_DCNTE) ||
+           s->version != CLIENT_VERSION_DCV1)
             in = sprintf(tm, "%s\t%s", s->pl->v1.name, cmsg) + 1;
         else
             in = sprintf(tm, "%s\t\tJ%s", s->pl->v1.name, cmsg) + 1;
@@ -2253,13 +2259,15 @@ static int send_bb_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
 
     /* Fill in the message */
     if(!(c->flags & CLIENT_FLAG_WORD_CENSOR)) {
-        if(!(s->flags & CLIENT_FLAG_IS_DCNTE))
+        if(!(s->flags & CLIENT_FLAG_IS_DCNTE) ||
+           s->version != CLIENT_VERSION_DCV1)
             in = sprintf(tm, "%s\t%s", s->pl->v1.name, msg) + 1;
         else
             in = sprintf(tm, "%s\t\tJ%s", s->pl->v1.name, msg) + 1;
     }
     else {
-        if(!(s->flags & CLIENT_FLAG_IS_DCNTE))
+        if(!(s->flags & CLIENT_FLAG_IS_DCNTE) ||
+           s->version != CLIENT_VERSION_DCV1)
             in = sprintf(tm, "%s\t%s", s->pl->v1.name, cmsg) + 1;
         else
             in = sprintf(tm, "%s\t\tJ%s", s->pl->v1.name, cmsg) + 1;
@@ -4024,10 +4032,22 @@ static int send_pc_game_list(ship_client_t *c, block_t *b) {
             continue;
         }
 
-        /* Don't show DC NTE lobbies... */
-        if((l->flags & LOBBY_FLAG_DCNTE)) {
-            pthread_mutex_unlock(&l->mutex);
-            continue;
+        /* Is the client on the NTE? If not, don't show NTE teams. If they
+           are on the NTE, then only show NTE teams. */
+        if(!(c->flags & CLIENT_FLAG_IS_DCNTE)) {
+            /* Don't show NTE teams... */
+            if((l->flags & LOBBY_FLAG_DCNTE)) {
+                pthread_mutex_unlock(&l->mutex);
+                continue;
+            }
+        }
+        else {
+            /* Only show PC NTE teams... */
+            if(!(l->flags & LOBBY_FLAG_DCNTE) ||
+               l->version != CLIENT_VERSION_PC) {
+                pthread_mutex_unlock(&l->mutex);
+                continue;
+            }
         }
 
         /* Clear the entry */

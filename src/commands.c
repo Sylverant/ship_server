@@ -3127,7 +3127,8 @@ static int handle_info(ship_client_t *c, const char *params) {
         return send_txt(c, "%s", __(c, "\tE\tC7Not valid on Episode III."));
     else if(c->version == CLIENT_VERSION_BB)
         return send_txt(c, "%s", __(c, "\tE\tC7Not valid on Blue Burst."));
-    else if(c->flags & CLIENT_FLAG_IS_DCNTE)
+    else if(c->version == CLIENT_VERSION_DCV1 &&
+            (c->flags & CLIENT_FLAG_IS_DCNTE))
         return send_txt(c, "%s", __(c, "\tE\tC7Not valid on DC NTE."));
     else if(c->version == CLIENT_VERSION_GC &&
             !(c->flags & CLIENT_FLAG_GC_MSG_BOXES))

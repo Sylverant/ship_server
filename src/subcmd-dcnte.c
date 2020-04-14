@@ -83,7 +83,7 @@ int subcmd_dcnte_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
         case SUBCMD_DCNTE_SET_AREA:
             rv = handle_set_area(c, (subcmd_set_area_t *)pkt);
             break;
-            
+
         case SUBCMD_DCNTE_SET_POS:
             rv = handle_set_pos(c, (subcmd_set_pos_t *)pkt);
             break;
@@ -289,7 +289,8 @@ int subcmd_send_lobby_dcnte(lobby_t *l, ship_client_t *c, subcmd_pkt_t *pkt,
                 continue;
             }
 
-            if(l->clients[i]->flags & CLIENT_FLAG_IS_DCNTE)
+            if(l->clients[i]->version == CLIENT_VERSION_DCV1 &&
+               (l->clients[i]->flags & CLIENT_FLAG_IS_DCNTE))
                 send_pkt_dc(l->clients[i], (dc_pkt_hdr_t *)pkt);
             else
                 subcmd_translate_nte_to_dc(l->clients[i], pkt);

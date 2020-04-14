@@ -3101,7 +3101,7 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
     int rv, sent = 1, i;
 
     /* The DC NTE must be treated specially, so deal with that elsewhere... */
-    if(c->flags & CLIENT_FLAG_IS_DCNTE)
+    if(c->version == CLIENT_VERSION_DCV1 && (c->flags & CLIENT_FLAG_IS_DCNTE))
         return subcmd_dcnte_handle_bcast(c, pkt);
 
     /* Ignore these if the client isn't in a lobby. */
@@ -3713,7 +3713,8 @@ int subcmd_send_lobby_dc(lobby_t *l, ship_client_t *c, subcmd_pkt_t *pkt,
                 continue;
             }
 
-            if(!(l->clients[i]->flags & CLIENT_FLAG_IS_DCNTE))
+            if(l->clients[i]->version != CLIENT_VERSION_DCV1 ||
+               !(l->clients[i]->flags & CLIENT_FLAG_IS_DCNTE))
                 send_pkt_dc(l->clients[i], (dc_pkt_hdr_t *)pkt);
             else
                 subcmd_translate_dc_to_nte(l->clients[i], pkt);
@@ -3736,7 +3737,8 @@ int subcmd_send_lobby_bb(lobby_t *l, ship_client_t *c, bb_subcmd_pkt_t *pkt,
                 continue;
             }
 
-            if(!(l->clients[i]->flags & CLIENT_FLAG_IS_DCNTE))
+            if(l->clients[i]->version != CLIENT_VERSION_DCV1 ||
+               !(l->clients[i]->flags & CLIENT_FLAG_IS_DCNTE))
                 send_pkt_bb(l->clients[i], (bb_pkt_hdr_t *)pkt);
             else
                 subcmd_translate_bb_to_nte(l->clients[i], pkt);
@@ -3774,7 +3776,8 @@ int subcmd_send_pos(ship_client_t *dst, ship_client_t *src) {
         dc.hdr.flags = 0;
         dc.hdr.pkt_len = LE16(0x001C);
 
-        if(dst->flags & CLIENT_FLAG_IS_DCNTE)
+        if(dst->version == CLIENT_VERSION_DCV1 &&
+           (dst->flags & CLIENT_FLAG_IS_DCNTE))
             dc.type = 0x1C;
         else
             dc.type = 0x20;

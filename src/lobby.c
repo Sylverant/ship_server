@@ -324,7 +324,8 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
     /* Generate the random maps we'll be using for this game, assuming the
        client hasn't set a maps string. */
     if(!c->next_maps) {
-        if((c->flags & CLIENT_FLAG_IS_DCNTE)) {
+        if(c->version == CLIENT_VERSION_DCV1 &&
+           (c->flags & CLIENT_FLAG_IS_DCNTE)) {
             for(i = 0; i < 0x20; ++i) {
                 if(dcnte_maps[i] != 1) {
                     l->maps[i] = mt19937_genrand_int32(&block->rng) %
@@ -350,7 +351,8 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
         }
     }
     else {
-        if((c->flags & CLIENT_FLAG_IS_DCNTE)) {
+        if(c->version == CLIENT_VERSION_DCV1 &&
+           (c->flags & CLIENT_FLAG_IS_DCNTE)) {
             for(i = 0; i < 0x20; ++i) {
                 if(c->next_maps[i] < dcnte_maps[i]) {
                     l->maps[i] = c->next_maps[i];
@@ -423,7 +425,8 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
     }
 
     /* Add it to the list of lobbies, and increment the game count. */
-    if(version != CLIENT_VERSION_PC || battle || chal || difficulty == 3) {
+    if(version != CLIENT_VERSION_PC || battle || chal || difficulty == 3 ||
+       (c->flags & CLIENT_FLAG_IS_DCNTE)) {
         pthread_rwlock_wrlock(&block->lobby_lock);
         TAILQ_INSERT_TAIL(&block->lobbies, l, qentry);
         ++block->num_games;
@@ -1233,7 +1236,8 @@ int lobby_send_pkt_dcnte(lobby_t *l, ship_client_t *c, void *h, void *h2,
                 continue;
             }
 
-            if(c->flags & CLIENT_FLAG_IS_DCNTE)
+            if(c->version == CLIENT_VERSION_DCV1 &&
+               (c->flags & CLIENT_FLAG_IS_DCNTE))
                 send_pkt_dc(l->clients[i], hdr);
             else
                 send_pkt_dc(l->clients[i], hdr2);
