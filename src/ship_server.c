@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
     Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2016, 2018,
-                  2019 Lawrence Sebald
+                  2019, 2020 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -96,7 +96,7 @@ static const char *runas_user = RUNAS_DEFAULT;
 static void print_program_info(void) {
     printf("Sylverant Ship Server version %s\n", VERSION);
     printf("Git Build: %s (Changeset: %s)\n", GIT_BUILD, GIT_CHANGESET);
-    printf("Copyright (C) 2009-2019 Lawrence Sebald\n\n");
+    printf("Copyright (C) 2009-2020 Lawrence Sebald\n\n");
     printf("This program is free software: you can redistribute it and/or\n"
            "modify it under the terms of the GNU Affero General Public\n"
            "License version 3 as published by the Free Software Foundation.\n\n"
