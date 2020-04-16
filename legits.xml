@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <!DOCTYPE items PUBLIC "-//Sylverant//DTD Items List 1.3//EN"
-  "../dtd/items1.3/items.dtd">
+  "http://dtd.sylverant.net/items1.3/items.dtd">
 
 <!-- All items not included are automatically allowed -->
 <items byteorder="little" default="allow" check_sranks="true" check_pbs="true"
