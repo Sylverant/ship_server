@@ -1078,7 +1078,7 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
                  " with error code %d\n", ship->cfg->name, c->cur_block->b,
                  c->guildcard, i);
             if(c->cur_lobby) {
-                debug(DBG_LOG, "        Lobby name: %s (type: %d,%d,%d,%d)",
+                debug(DBG_LOG, "        Lobby name: %s (type: %d,%d,%d,%d)\n",
                       c->cur_lobby->name, c->cur_lobby->difficulty,
                       c->cur_lobby->battle, c->cur_lobby->challenge,
                       c->cur_lobby->v2);

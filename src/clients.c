@@ -1,6 +1,7 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2016, 2017, 2018, 2019 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2016, 2017, 2018, 2019,
+                  2020 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -936,8 +937,13 @@ int client_check_character(ship_client_t *c, player_t *pl, uint8_t ver) {
         case 2:
             if(c->version == CLIENT_VERSION_DCV2)
                 return check_char_v2(c, pl);
-            else if(c->version == CLIENT_VERSION_PC)
-                return check_char_pc(c, pl);
+            else if(c->version == CLIENT_VERSION_PC) {
+                if(!(c->flags & CLIENT_FLAG_IS_DCNTE))
+                    return check_char_pc(c, pl);
+                else
+                    /* XXXX */
+                    return 0;
+            }
             else
                 /* This shouldn't happen... */
                 return -1;
