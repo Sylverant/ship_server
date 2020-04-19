@@ -1528,6 +1528,10 @@ static int dc_process_guild_search(ship_client_t *c, dc_guild_search_pkt *pkt) {
                               "you can do that."));
     }
 
+    /* Don't allow guild searches for any reserved guild card numbers. */
+    if(gc < 1000)
+        return 0;
+
     /* Search the local ship first. */
     for(i = 0; i < ship->cfg->blocks && !done; ++i) {
         if(!ship->blocks[i] || !ship->blocks[i]->run) {
@@ -1596,6 +1600,10 @@ static int bb_process_guild_search(ship_client_t *c, bb_guild_search_pkt *pkt) {
         return send_txt(c, __(c, "\tE\tC7You must login before\n"
                               "you can do that."));
     }
+
+    /* Don't allow guild searches for any reserved guild card numbers. */
+    if(gc < 1000)
+        return 0;
 
     /* Search the local ship first. */
     for(i = 0; i < ship->cfg->blocks && !done; ++i) {
@@ -1676,6 +1684,11 @@ static int dc_process_mail(ship_client_t *c, dc_simple_mail_pkt *pkt) {
         return 0;
     }
 
+    /* Don't allow mails for any reserved guild card numbers other than the bug
+       report one. */
+    if(gc < 1000)
+        return 0;
+
     /* Search the local ship first. */
     for(i = 0; i < ship->cfg->blocks && !done; ++i) {
         if(!ship->blocks[i] || !ship->blocks[i]->run) {
@@ -1755,6 +1768,11 @@ static int pc_process_mail(ship_client_t *c, pc_simple_mail_pkt *pkt) {
         return 0;
     }
 
+    /* Don't allow mails for any reserved guild card numbers other than the bug
+       report one. */
+    if(gc < 1000)
+        return 0;
+
     /* Search the local ship first. */
     for(i = 0; i < ship->cfg->blocks && !done; ++i) {
         if(!ship->blocks[i] || !ship->blocks[i]->run) {
@@ -1832,6 +1850,11 @@ static int bb_process_mail(ship_client_t *c, bb_simple_mail_pkt *pkt) {
         bb_bug_report(c, pkt);
         return 0;
     }
+
+    /* Don't allow mails for any reserved guild card numbers other than the bug
+       report one. */
+    if(gc < 1000)
+        return 0;
 
     /* Search the local ship first. */
     for(i = 0; i < ship->cfg->blocks && !done; ++i) {

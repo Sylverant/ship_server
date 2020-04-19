@@ -7601,6 +7601,10 @@ static int fill_one_choice_entry(uint8_t *sendbuf, int version,
                                  ship_client_t *it, int entry, int port_off) {
     block_t *b = it->cur_block;
 
+    /* Don't allow any DC or PC NTE clients to show up in choice results. */
+    if(it->flags & CLIENT_FLAG_IS_DCNTE)
+        return 0;
+
     switch(version) {
         case CLIENT_VERSION_PC:
         {
@@ -7686,6 +7690,10 @@ static int fill_one_choice_entry(uint8_t *sendbuf, int version,
 static int fill_one_choice6_entry(uint8_t *sendbuf, int version,
                                   ship_client_t *it, int entry, int port_off) {
     block_t *b = it->cur_block;
+
+    /* Don't allow any DC or PC NTE clients to show up in choice results. */
+    if(it->flags & CLIENT_FLAG_IS_DCNTE)
+        return 0;
 
     switch(version) {
         case CLIENT_VERSION_PC:
@@ -8101,9 +8109,8 @@ static int send_pc_simple_mail_dc(ship_client_t *c, dc_simple_mail_pkt *p) {
     int i;
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Scrub the buffer. */
     memset(pkt, 0, PC_SIMPLE_MAIL_LENGTH);
@@ -8156,9 +8163,8 @@ static int send_dc_simple_mail_pc(ship_client_t *c, pc_simple_mail_pkt *p) {
     int i;
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Scrub the buffer. */
     memset(pkt, 0, DC_SIMPLE_MAIL_LENGTH);
@@ -8207,9 +8213,8 @@ static int send_pc_simple_mail_bb(ship_client_t *c, bb_simple_mail_pkt *p) {
     pc_simple_mail_pkt *pkt = (pc_simple_mail_pkt *)sendbuf;
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Scrub the buffer. */
     memset(pkt, 0, PC_SIMPLE_MAIL_LENGTH);
@@ -8240,9 +8245,8 @@ static int send_dc_simple_mail_bb(ship_client_t *c, bb_simple_mail_pkt *p) {
     char *outptr;
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Scrub the buffer. */
     memset(pkt, 0, DC_SIMPLE_MAIL_LENGTH);
@@ -8292,9 +8296,8 @@ static int send_bb_simple_mail_dc(ship_client_t *c, dc_simple_mail_pkt *p) {
     struct tm cooked;
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Scrub the buffer. */
     memset(pkt, 0, BB_SIMPLE_MAIL_LENGTH);
@@ -8354,9 +8357,8 @@ static int send_bb_simple_mail_pc(ship_client_t *c, pc_simple_mail_pkt *p) {
     int i;
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Scrub the buffer. */
     memset(pkt, 0, BB_SIMPLE_MAIL_LENGTH);
@@ -8399,9 +8401,8 @@ static int send_bb_simple_mail_bb(ship_client_t *c, bb_simple_mail_pkt *p) {
     int i;
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Scrub the buffer. */
     memset(pkt, 0, BB_SIMPLE_MAIL_LENGTH);
@@ -8452,6 +8453,10 @@ int send_simple_mail(int version, ship_client_t *c, dc_pkt_hdr_t *pkt) {
             break;
 
         case CLIENT_VERSION_PC:
+            /* Don't send these to PC NTE clients. */
+            if((c->flags & CLIENT_FLAG_IS_DCNTE))
+                return 0;
+
             if(c->version == CLIENT_VERSION_PC) {
                 return send_pkt_dc(c, pkt);
             }
