@@ -7601,10 +7601,6 @@ static int fill_one_choice_entry(uint8_t *sendbuf, int version,
                                  ship_client_t *it, int entry, int port_off) {
     block_t *b = it->cur_block;
 
-    /* Don't allow any DC or PC NTE clients to show up in choice results. */
-    if(it->flags & CLIENT_FLAG_IS_NTE)
-        return 0;
-
     switch(version) {
         case CLIENT_VERSION_PC:
         {
@@ -7690,10 +7686,6 @@ static int fill_one_choice_entry(uint8_t *sendbuf, int version,
 static int fill_one_choice6_entry(uint8_t *sendbuf, int version,
                                   ship_client_t *it, int entry, int port_off) {
     block_t *b = it->cur_block;
-
-    /* Don't allow any DC or PC NTE clients to show up in choice results. */
-    if(it->flags & CLIENT_FLAG_IS_NTE)
-        return 0;
 
     switch(version) {
         case CLIENT_VERSION_PC:
@@ -7811,6 +7803,11 @@ static int fill_choice_entries(ship_client_t *c, uint8_t *sendbuf,
                     continue;
                 }
                 else if(it->version > vmax || it->version < vmin) {
+                    continue;
+                }
+                else if(it->flags & CLIENT_FLAG_IS_NTE) {
+                    /* Don't allow any DC or PC NTE clients to show up in
+                       choice results. */
                     continue;
                 }
 
