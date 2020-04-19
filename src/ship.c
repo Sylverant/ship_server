@@ -1,6 +1,7 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2016, 2018, 2019 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2016, 2018, 2019,
+                  2020 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -1008,7 +1009,7 @@ static int dcnte_process_login(ship_client_t *c, dcnte_login_8b_pkt *pkt) {
     }
 
     c->language_code = CLIENT_LANG_JAPANESE;
-    c->flags |= CLIENT_FLAG_IS_DCNTE;
+    c->flags |= CLIENT_FLAG_IS_NTE;
     c->guildcard = LE32(pkt->guildcard);
 
     /* See if the user is banned */

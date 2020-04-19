@@ -290,7 +290,7 @@ int subcmd_send_lobby_dcnte(lobby_t *l, ship_client_t *c, subcmd_pkt_t *pkt,
             }
 
             if(l->clients[i]->version == CLIENT_VERSION_DCV1 &&
-               (l->clients[i]->flags & CLIENT_FLAG_IS_DCNTE))
+               (l->clients[i]->flags & CLIENT_FLAG_IS_NTE))
                 send_pkt_dc(l->clients[i], (dc_pkt_hdr_t *)pkt);
             else
                 subcmd_translate_nte_to_dc(l->clients[i], pkt);

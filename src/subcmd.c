@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2015, 2016, 2018,
-                  2019, 2020 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2015, 2016, 2018, 2019,
+                  2020 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -99,7 +99,7 @@ int handle_dc_gcsend(ship_client_t *s, ship_client_t *d,
 
             /* Don't allow guild cards to be sent to PC NTE, as it doesn't
                support them. */
-            if((d->flags & CLIENT_FLAG_IS_DCNTE))
+            if((d->flags & CLIENT_FLAG_IS_NTE))
                 return send_txt(s, "%s", __(s, "\tE\tC7Cannot send Guild\n"
                                                "Card to that user."));
 
@@ -200,7 +200,7 @@ static int handle_pc_gcsend(ship_client_t *s, ship_client_t *d,
         case CLIENT_VERSION_PC:
             /* Don't allow guild cards to be sent to PC NTE, as it doesn't
                support them. */
-            if((d->flags & CLIENT_FLAG_IS_DCNTE))
+            if((d->flags & CLIENT_FLAG_IS_NTE))
                 return send_txt(s, "%s", __(s, "\tE\tC7Cannot send Guild\n"
                                                "Card to that user."));
 
@@ -378,7 +378,7 @@ static int handle_gc_gcsend(ship_client_t *s, ship_client_t *d,
 
             /* Don't allow guild cards to be sent to PC NTE, as it doesn't
                support them. */
-            if((d->flags & CLIENT_FLAG_IS_DCNTE))
+            if((d->flags & CLIENT_FLAG_IS_NTE))
                 return send_txt(s, "%s", __(s, "\tE\tC7Cannot send Guild\n"
                                                "Card to that user."));
 
@@ -532,7 +532,7 @@ static int handle_bb_gcsend(ship_client_t *s, ship_client_t *d) {
 
             /* Don't allow guild cards to be sent to PC NTE, as it doesn't
                support them. */
-            if((d->flags & CLIENT_FLAG_IS_DCNTE))
+            if((d->flags & CLIENT_FLAG_IS_NTE))
                 return send_txt(s, "%s", __(s, "\tE\tC7Cannot send Guild\n"
                                                "Card to that user."));
 
@@ -3128,7 +3128,7 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
     int rv, sent = 1, i;
 
     /* The DC NTE must be treated specially, so deal with that elsewhere... */
-    if(c->version == CLIENT_VERSION_DCV1 && (c->flags & CLIENT_FLAG_IS_DCNTE))
+    if(c->version == CLIENT_VERSION_DCV1 && (c->flags & CLIENT_FLAG_IS_NTE))
         return subcmd_dcnte_handle_bcast(c, pkt);
 
     /* Ignore these if the client isn't in a lobby. */
@@ -3741,7 +3741,7 @@ int subcmd_send_lobby_dc(lobby_t *l, ship_client_t *c, subcmd_pkt_t *pkt,
             }
 
             if(l->clients[i]->version != CLIENT_VERSION_DCV1 ||
-               !(l->clients[i]->flags & CLIENT_FLAG_IS_DCNTE))
+               !(l->clients[i]->flags & CLIENT_FLAG_IS_NTE))
                 send_pkt_dc(l->clients[i], (dc_pkt_hdr_t *)pkt);
             else
                 subcmd_translate_dc_to_nte(l->clients[i], pkt);
@@ -3765,7 +3765,7 @@ int subcmd_send_lobby_bb(lobby_t *l, ship_client_t *c, bb_subcmd_pkt_t *pkt,
             }
 
             if(l->clients[i]->version != CLIENT_VERSION_DCV1 ||
-               !(l->clients[i]->flags & CLIENT_FLAG_IS_DCNTE))
+               !(l->clients[i]->flags & CLIENT_FLAG_IS_NTE))
                 send_pkt_bb(l->clients[i], (bb_pkt_hdr_t *)pkt);
             else
                 subcmd_translate_bb_to_nte(l->clients[i], pkt);
@@ -3804,7 +3804,7 @@ int subcmd_send_pos(ship_client_t *dst, ship_client_t *src) {
         dc.hdr.pkt_len = LE16(0x001C);
 
         if(dst->version == CLIENT_VERSION_DCV1 &&
-           (dst->flags & CLIENT_FLAG_IS_DCNTE))
+           (dst->flags & CLIENT_FLAG_IS_NTE))
             dc.type = 0x1C;
         else
             dc.type = 0x20;

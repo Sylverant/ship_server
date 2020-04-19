@@ -290,7 +290,7 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
     if(single_player)
         l->flags |= LOBBY_FLAG_SINGLEPLAYER;
 
-    if(c->flags & CLIENT_FLAG_IS_DCNTE)
+    if(c->flags & CLIENT_FLAG_IS_NTE)
         l->flags |= LOBBY_FLAG_NTE;
 
     if(c->flags & CLIENT_FLAG_LEGIT && c->limits) {
@@ -325,7 +325,7 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
        client hasn't set a maps string. */
     if(!c->next_maps) {
         if(c->version == CLIENT_VERSION_DCV1 &&
-           (c->flags & CLIENT_FLAG_IS_DCNTE)) {
+           (c->flags & CLIENT_FLAG_IS_NTE)) {
             for(i = 0; i < 0x20; ++i) {
                 if(dcnte_maps[i] != 1) {
                     l->maps[i] = mt19937_genrand_int32(&block->rng) %
@@ -352,7 +352,7 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
     }
     else {
         if(c->version == CLIENT_VERSION_DCV1 &&
-           (c->flags & CLIENT_FLAG_IS_DCNTE)) {
+           (c->flags & CLIENT_FLAG_IS_NTE)) {
             for(i = 0; i < 0x20; ++i) {
                 if(c->next_maps[i] < dcnte_maps[i]) {
                     l->maps[i] = c->next_maps[i];
@@ -426,7 +426,7 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
 
     /* Add it to the list of lobbies, and increment the game count. */
     if(version != CLIENT_VERSION_PC || battle || chal || difficulty == 3 ||
-       (c->flags & CLIENT_FLAG_IS_DCNTE)) {
+       (c->flags & CLIENT_FLAG_IS_NTE)) {
         pthread_rwlock_wrlock(&block->lobby_lock);
         TAILQ_INSERT_TAIL(&block->lobbies, l, qentry);
         ++block->num_games;
@@ -1237,7 +1237,7 @@ int lobby_send_pkt_dcnte(lobby_t *l, ship_client_t *c, void *h, void *h2,
             }
 
             if(c->version == CLIENT_VERSION_DCV1 &&
-               (c->flags & CLIENT_FLAG_IS_DCNTE))
+               (c->flags & CLIENT_FLAG_IS_NTE))
                 send_pkt_dc(l->clients[i], hdr);
             else
                 send_pkt_dc(l->clients[i], hdr2);

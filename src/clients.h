@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
     Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018,
-                  2019 Lawrence Sebald
+                  2019, 2020 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -254,7 +254,7 @@ extern pthread_key_t sendbuf_key;
 #define CLIENT_FLAG_AUTO_BACKUP     0x00002000
 #define CLIENT_FLAG_SERVER_DROPS    0x00004000
 #define CLIENT_FLAG_GC_PROTECT      0x00008000
-#define CLIENT_FLAG_IS_DCNTE        0x00010000
+#define CLIENT_FLAG_IS_NTE          0x00010000
 #define CLIENT_FLAG_TRACK_INVENTORY 0x00020000
 #define CLIENT_FLAG_TRACK_KILLS     0x00040000
 #define CLIENT_FLAG_QLOAD_DONE      0x00080000

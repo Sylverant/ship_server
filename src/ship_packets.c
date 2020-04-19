@@ -1243,7 +1243,7 @@ static int send_dcnte_lobby_join(ship_client_t *c, lobby_t *l) {
 
         /* Sigh... I should narrow the problem down a bit more, but this works
            for the time being... */
-        if(!(l->clients[i]->flags & CLIENT_FLAG_IS_DCNTE) ||
+        if(!(l->clients[i]->flags & CLIENT_FLAG_IS_NTE) ||
            l->clients[i]->version != CLIENT_VERSION_DCV1)
             memset(&pkt->entries[pls].data.inv, 0, sizeof(inventory_t));
 
@@ -1516,7 +1516,7 @@ int send_lobby_join(ship_client_t *c, lobby_t *l) {
     /* Call the appropriate function. */
     switch(c->version) {
         case CLIENT_VERSION_DCV1:
-            if(!(c->flags & CLIENT_FLAG_IS_DCNTE)) {
+            if(!(c->flags & CLIENT_FLAG_IS_NTE)) {
                 if(send_dc_lobby_join(c, l))
                     return -1;
             }
@@ -1721,7 +1721,7 @@ static int send_dcnte_lobby_add_player(lobby_t *l, ship_client_t *c,
 
     /* Sigh... I should narrow the problem down a bit more, but this works for
        the time being... */
-    if(!(nc->flags & CLIENT_FLAG_IS_DCNTE) ||
+    if(!(nc->flags & CLIENT_FLAG_IS_NTE) ||
        nc->version != CLIENT_VERSION_DCV1)
         memset(&pkt->entries[0].data.inv, 0, sizeof(inventory_t));
 
@@ -1977,7 +1977,7 @@ int send_lobby_add_player(lobby_t *l, ship_client_t *c) {
                 case CLIENT_VERSION_DCV2:
                 case CLIENT_VERSION_GC:
                 case CLIENT_VERSION_EP3:
-                    if(!(l->clients[i]->flags & CLIENT_FLAG_IS_DCNTE))
+                    if(!(l->clients[i]->flags & CLIENT_FLAG_IS_NTE))
                         send_dc_lobby_add_player(l, l->clients[i], c);
                     else
                         send_dcnte_lobby_add_player(l, l->clients[i], c);
@@ -2111,9 +2111,9 @@ static int send_dc_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
         ic = ic_utf8_to_sjis;
 
     if(!(c->flags & CLIENT_FLAG_WORD_CENSOR)) {
-        if(!(s->flags & CLIENT_FLAG_IS_DCNTE) ||
+        if(!(s->flags & CLIENT_FLAG_IS_NTE) ||
            s->version != CLIENT_VERSION_DCV1) {
-            if(!(c->flags & CLIENT_FLAG_IS_DCNTE))
+            if(!(c->flags & CLIENT_FLAG_IS_NTE))
                 in = sprintf(tm, "%s\t%s", s->pl->v1.name, msg) + 1;
             else {
                 in = sprintf(tm, "%s>%X%s", s->pl->v1.name, s->client_id,
@@ -2121,7 +2121,7 @@ static int send_dc_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
             }
         }
         else {
-            if(!(c->flags & CLIENT_FLAG_IS_DCNTE))
+            if(!(c->flags & CLIENT_FLAG_IS_NTE))
                 in = sprintf(tm, "%s\t\tJ%s", s->pl->v1.name, msg) + 1;
             else {
                 in = sprintf(tm, "%s>%X%s", s->pl->v1.name, s->client_id,
@@ -2130,9 +2130,9 @@ static int send_dc_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
         }
     }
     else {
-        if(!(s->flags & CLIENT_FLAG_IS_DCNTE) ||
+        if(!(s->flags & CLIENT_FLAG_IS_NTE) ||
            s->version != CLIENT_VERSION_DCV1) {
-            if(!(c->flags & CLIENT_FLAG_IS_DCNTE))
+            if(!(c->flags & CLIENT_FLAG_IS_NTE))
                 in = sprintf(tm, "%s\t%s", s->pl->v1.name, cmsg) + 1;
             else {
                 in = sprintf(tm, "%s>%X%s", s->pl->v1.name, s->client_id,
@@ -2140,7 +2140,7 @@ static int send_dc_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
             }
         }
         else {
-            if(!(c->flags & CLIENT_FLAG_IS_DCNTE))
+            if(!(c->flags & CLIENT_FLAG_IS_NTE))
                 in = sprintf(tm, "%s\t\tJ%s", s->pl->v1.name, cmsg) + 1;
             else {
                 in = sprintf(tm, "%s>%X%s", s->pl->v1.name, s->client_id,
@@ -2197,14 +2197,14 @@ static int send_pc_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
 
     /* Fill in the message */
     if(!(c->flags & CLIENT_FLAG_WORD_CENSOR)) {
-        if(!(s->flags & CLIENT_FLAG_IS_DCNTE) ||
+        if(!(s->flags & CLIENT_FLAG_IS_NTE) ||
            s->version != CLIENT_VERSION_DCV1)
             in = sprintf(tm, "%s\t%s", s->pl->v1.name, msg) + 1;
         else
             in = sprintf(tm, "%s\t\tJ%s", s->pl->v1.name, msg) + 1;
     }
     else {
-        if(!(s->flags & CLIENT_FLAG_IS_DCNTE) ||
+        if(!(s->flags & CLIENT_FLAG_IS_NTE) ||
            s->version != CLIENT_VERSION_DCV1)
             in = sprintf(tm, "%s\t%s", s->pl->v1.name, cmsg) + 1;
         else
@@ -2259,14 +2259,14 @@ static int send_bb_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
 
     /* Fill in the message */
     if(!(c->flags & CLIENT_FLAG_WORD_CENSOR)) {
-        if(!(s->flags & CLIENT_FLAG_IS_DCNTE) ||
+        if(!(s->flags & CLIENT_FLAG_IS_NTE) ||
            s->version != CLIENT_VERSION_DCV1)
             in = sprintf(tm, "%s\t%s", s->pl->v1.name, msg) + 1;
         else
             in = sprintf(tm, "%s\t\tJ%s", s->pl->v1.name, msg) + 1;
     }
     else {
-        if(!(s->flags & CLIENT_FLAG_IS_DCNTE) ||
+        if(!(s->flags & CLIENT_FLAG_IS_NTE) ||
            s->version != CLIENT_VERSION_DCV1)
             in = sprintf(tm, "%s\t%s", s->pl->v1.name, cmsg) + 1;
         else
@@ -2384,7 +2384,7 @@ static int send_dc_lobby_bbchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
         outptr = pkt->msg;
         iconv(ic_utf16_to_ascii, &inptr, &in, &outptr, &out);
 
-    if(!(c->flags & CLIENT_FLAG_IS_DCNTE)) {
+    if(!(c->flags & CLIENT_FLAG_IS_NTE)) {
         /* Add the separator */
         *outptr++ = '\t';
         --out;
@@ -2400,13 +2400,13 @@ static int send_dc_lobby_bbchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
     /* Fill in the message */
     in = len;
 
-    if(!(c->flags & CLIENT_FLAG_IS_DCNTE))
+    if(!(c->flags & CLIENT_FLAG_IS_NTE))
         inptr = (char *)msg;
     else
         inptr = ((char *)msg) + 4;
 
     /* Convert the message to the appropriate encoding. */
-    if((c->flags & CLIENT_FLAG_IS_DCNTE) || msg[1] == LE16('J'))
+    if((c->flags & CLIENT_FLAG_IS_NTE) || msg[1] == LE16('J'))
         iconv(ic_utf16_to_sjis, &inptr, &in, &outptr, &out);
     else
         iconv(ic_utf16_to_8859, &inptr, &in, &outptr, &out);
@@ -3467,7 +3467,7 @@ int send_txt(ship_client_t *c, const char *fmt, ...) {
         case CLIENT_VERSION_DCV1:
             /* The NTE will crash if it gets the standard version of this
                packet, so fake it in the easiest way possible... */
-            if(c->flags & CLIENT_FLAG_IS_DCNTE) {
+            if(c->flags & CLIENT_FLAG_IS_NTE) {
                 rv = send_dcnte_txt(c, fmt, args);
                 break;
             }
@@ -3844,7 +3844,7 @@ int send_game_join(ship_client_t *c, lobby_t *l) {
     /* Call the appropriate function. */
     switch(c->version) {
         case CLIENT_VERSION_DCV1:
-            if(c->flags & CLIENT_FLAG_IS_DCNTE)
+            if(c->flags & CLIENT_FLAG_IS_NTE)
                 return send_dcnte_game_join(c, l);
 
         case CLIENT_VERSION_DCV2:
@@ -3929,7 +3929,7 @@ static int send_dc_game_list(ship_client_t *c, block_t *b) {
 
         /* Is the client on the NTE? If not, don't show NTE teams. If they
            are on the NTE, then only show NTE teams. */
-        if(!(c->flags & CLIENT_FLAG_IS_DCNTE)) {
+        if(!(c->flags & CLIENT_FLAG_IS_NTE)) {
             /* Don't show DC NTE teams... */
             if((l->flags & LOBBY_FLAG_NTE)) {
                 pthread_mutex_unlock(&l->mutex);
@@ -4034,7 +4034,7 @@ static int send_pc_game_list(ship_client_t *c, block_t *b) {
 
         /* Is the client on the NTE? If not, don't show NTE teams. If they
            are on the NTE, then only show NTE teams. */
-        if(!(c->flags & CLIENT_FLAG_IS_DCNTE)) {
+        if(!(c->flags & CLIENT_FLAG_IS_NTE)) {
             /* Don't show NTE teams... */
             if((l->flags & LOBBY_FLAG_NTE)) {
                 pthread_mutex_unlock(&l->mutex);
@@ -7058,7 +7058,7 @@ static int send_dc_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
     memset(pkt, 0, 0x20);
 
     /* Fill in the basics. */
-    if(!(c->flags & CLIENT_FLAG_IS_DCNTE))
+    if(!(c->flags & CLIENT_FLAG_IS_NTE))
         pkt->hdr.pkt_type = SHIP_LIST_TYPE;
     else
         pkt->hdr.pkt_type = DCNTE_SHIP_LIST_TYPE;
@@ -7082,7 +7082,7 @@ static int send_dc_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
                !(c->privilege & CLIENT_PRIV_GLOBAL_GM))
                 continue;
 
-            if(c->flags & CLIENT_FLAG_IS_DCNTE) {
+            if(c->flags & CLIENT_FLAG_IS_NTE) {
                 if(i->flags & LOGIN_FLAG_NODCNTE)
                     continue;
             }
@@ -7602,7 +7602,7 @@ static int fill_one_choice_entry(uint8_t *sendbuf, int version,
     block_t *b = it->cur_block;
 
     /* Don't allow any DC or PC NTE clients to show up in choice results. */
-    if(it->flags & CLIENT_FLAG_IS_DCNTE)
+    if(it->flags & CLIENT_FLAG_IS_NTE)
         return 0;
 
     switch(version) {
@@ -7692,7 +7692,7 @@ static int fill_one_choice6_entry(uint8_t *sendbuf, int version,
     block_t *b = it->cur_block;
 
     /* Don't allow any DC or PC NTE clients to show up in choice results. */
-    if(it->flags & CLIENT_FLAG_IS_DCNTE)
+    if(it->flags & CLIENT_FLAG_IS_NTE)
         return 0;
 
     switch(version) {
@@ -8454,7 +8454,7 @@ int send_simple_mail(int version, ship_client_t *c, dc_pkt_hdr_t *pkt) {
 
         case CLIENT_VERSION_PC:
             /* Don't send these to PC NTE clients. */
-            if((c->flags & CLIENT_FLAG_IS_DCNTE))
+            if((c->flags & CLIENT_FLAG_IS_NTE))
                 return 0;
 
             if(c->version == CLIENT_VERSION_PC) {

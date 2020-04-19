@@ -801,7 +801,7 @@ static int dcnte_process_login(ship_client_t *c, dcnte_login_8b_pkt *pkt) {
     c->guildcard = LE32(pkt->guildcard);
     c->language_code = CLIENT_LANG_JAPANESE;
     c->q_lang = CLIENT_LANG_JAPANESE;
-    c->flags |= CLIENT_FLAG_IS_DCNTE;
+    c->flags |= CLIENT_FLAG_IS_NTE;
 
     /* See if this person is a GM. */
     c->privilege = is_gm(c->guildcard, ship);
@@ -902,7 +902,7 @@ static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
 
         /* Mark trial users as trial users. */
         if(is_pctrial(pkt))
-            c->flags |= CLIENT_FLAG_IS_DCNTE;
+            c->flags |= CLIENT_FLAG_IS_NTE;
     }
 
     /* Save what we care about in here. */
@@ -933,7 +933,7 @@ static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
     if(c->version == CLIENT_VERSION_DCV2)
         debug(DBG_LOG, "%s(%d): DCv2 Guild Card %d connected with IP %s\n",
               ship->cfg->name, c->cur_block->b, c->guildcard, ipstr);
-    else if(!(c->flags & CLIENT_FLAG_IS_DCNTE))
+    else if(!(c->flags & CLIENT_FLAG_IS_NTE))
         debug(DBG_LOG, "%s(%d): PC Guild Card %d connected with IP %s\n",
               ship->cfg->name, c->cur_block->b, c->guildcard, ipstr);
     else
@@ -1201,7 +1201,7 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
                Disabled for some Gamecube versions, due to bugginess (of the
                game) and for the DC NTE. */
             if((c->version == CLIENT_VERSION_DCV1 &&
-                (c->flags & CLIENT_FLAG_IS_DCNTE)) ||
+                (c->flags & CLIENT_FLAG_IS_NTE)) ||
                ((c->version == CLIENT_VERSION_GC ||
                  c->version == CLIENT_VERSION_EP3) &&
                  !(c->flags & CLIENT_FLAG_GC_MSG_BOXES))) {
@@ -1389,7 +1389,7 @@ static int dc_process_chat(ship_client_t *c, dc_chat_pkt *pkt) {
         return -1;
 
     if((pkt->msg[0] == '\t' && pkt->msg[1] == 'J') ||
-       (c->flags & CLIENT_FLAG_IS_DCNTE)) {
+       (c->flags & CLIENT_FLAG_IS_NTE)) {
         istrncpy(ic_sjis_to_utf8, u8msg, pkt->msg, (len + 1) << 2);
     }
     else {
@@ -2035,7 +2035,7 @@ static int pc_process_game_create(ship_client_t *c, pc_game_create_pkt *pkt) {
     /* If its a non-challenge, non-battle, non-ultimate game, ask the user if
        they want v1 compatibility or not. */
     if(!pkt->battle && !pkt->challenge && pkt->difficulty != 3 &&
-       !(c->flags & CLIENT_FLAG_IS_DCNTE)) {
+       !(c->flags & CLIENT_FLAG_IS_NTE)) {
         c->create_lobby = l;
         return send_pc_game_type_sel(c);
     }
@@ -3126,7 +3126,7 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
         case DC_GAME_CREATE_TYPE:
         case GAME_CREATE_TYPE:
             if(c->version == CLIENT_VERSION_DCV1 &&
-               (c->flags & CLIENT_FLAG_IS_DCNTE)) {
+               (c->flags & CLIENT_FLAG_IS_NTE)) {
                 return dcnte_process_game_create(c,
                                                  (dcnte_game_create_pkt *)pkt);
             }

@@ -924,7 +924,7 @@ int client_check_character(ship_client_t *c, player_t *pl, uint8_t ver) {
     switch(ver) {
         case 1:
             if(c->version == CLIENT_VERSION_DCV1) {
-                if((c->flags & CLIENT_FLAG_IS_DCNTE))
+                if((c->flags & CLIENT_FLAG_IS_NTE))
                     /* XXXX */
                     return 0;
                 else
@@ -938,7 +938,7 @@ int client_check_character(ship_client_t *c, player_t *pl, uint8_t ver) {
             if(c->version == CLIENT_VERSION_DCV2)
                 return check_char_v2(c, pl);
             else if(c->version == CLIENT_VERSION_PC) {
-                if(!(c->flags & CLIENT_FLAG_IS_DCNTE))
+                if(!(c->flags & CLIENT_FLAG_IS_NTE))
                     return check_char_pc(c, pl);
                 else
                     /* XXXX */
