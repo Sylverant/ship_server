@@ -3931,14 +3931,14 @@ static int send_dc_game_list(ship_client_t *c, block_t *b) {
            are on the NTE, then only show NTE teams. */
         if(!(c->flags & CLIENT_FLAG_IS_DCNTE)) {
             /* Don't show DC NTE teams... */
-            if((l->flags & LOBBY_FLAG_DCNTE)) {
+            if((l->flags & LOBBY_FLAG_NTE)) {
                 pthread_mutex_unlock(&l->mutex);
                 continue;
             }
         }
         else {
             /* Only show DC NTE teams... */
-            if(!(l->flags & LOBBY_FLAG_DCNTE)) {
+            if(!(l->flags & LOBBY_FLAG_NTE)) {
                 pthread_mutex_unlock(&l->mutex);
                 continue;
             }
@@ -4036,14 +4036,14 @@ static int send_pc_game_list(ship_client_t *c, block_t *b) {
            are on the NTE, then only show NTE teams. */
         if(!(c->flags & CLIENT_FLAG_IS_DCNTE)) {
             /* Don't show NTE teams... */
-            if((l->flags & LOBBY_FLAG_DCNTE)) {
+            if((l->flags & LOBBY_FLAG_NTE)) {
                 pthread_mutex_unlock(&l->mutex);
                 continue;
             }
         }
         else {
             /* Only show PC NTE teams... */
-            if(!(l->flags & LOBBY_FLAG_DCNTE) ||
+            if(!(l->flags & LOBBY_FLAG_NTE) ||
                l->version != CLIENT_VERSION_PC) {
                 pthread_mutex_unlock(&l->mutex);
                 continue;
@@ -4141,8 +4141,8 @@ static int send_gc_game_list(ship_client_t *c, block_t *b) {
             continue;
         }
 
-        /* Don't show DC NTE lobbies... */
-        if((l->flags & LOBBY_FLAG_DCNTE)) {
+        /* Don't show DC or PC NTE teams... */
+        if((l->flags & LOBBY_FLAG_NTE)) {
             pthread_mutex_unlock(&l->mutex);
             continue;
         }

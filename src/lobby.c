@@ -291,7 +291,7 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
         l->flags |= LOBBY_FLAG_SINGLEPLAYER;
 
     if(c->flags & CLIENT_FLAG_IS_DCNTE)
-        l->flags |= LOBBY_FLAG_DCNTE;
+        l->flags |= LOBBY_FLAG_NTE;
 
     if(c->flags & CLIENT_FLAG_LEGIT && c->limits) {
         /* Steal the client's reference to the legit list. */
@@ -1362,7 +1362,13 @@ int lobby_info_reply(ship_client_t *c, uint32_t lobby) {
         }
         else {
             /* Slightly more interesting here... */
-            if(l->v2) {
+            if((l->flags & LOBBY_FLAG_NTE)) {
+                if(l->v2)
+                    strcat(msg, " PC-NTE");
+                else
+                    strcat(msg, " DC-NTE");
+            }
+            else if(l->v2) {
                 if(!(l->flags & LOBBY_FLAG_PCONLY)) {
                     sprintf(msg, "%s V2", msg);
                 }
@@ -1387,7 +1393,8 @@ int lobby_info_reply(ship_client_t *c, uint32_t lobby) {
             if((l->flags & LOBBY_FLAG_GC_ALLOWED) &&
                !(l->flags & LOBBY_FLAG_DCONLY) &&
                !(l->flags & LOBBY_FLAG_PCONLY) &&
-               !(l->flags & LOBBY_FLAG_V1ONLY)) {
+               !(l->flags & LOBBY_FLAG_V1ONLY) &&
+               !(l->flags & LOBBY_FLAG_NTE)) {
                 sprintf(msg, "%s GC", msg);
             }
         }
