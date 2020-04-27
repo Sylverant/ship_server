@@ -23,6 +23,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <errno.h>
+#include <math.h>
 #include <sys/socket.h>
 
 #include <sylverant/encryption.h>
@@ -1669,6 +1670,53 @@ static int client_legitCheckItem_lua(lua_State *l) {
     return 1;
 }
 
+static int client_coords_lua(lua_State *l) {
+    ship_client_t *c;
+
+    if(lua_islightuserdata(l, 1)) {
+        c = (ship_client_t *)lua_touserdata(l, 1);
+        lua_pushnumber(l, c->x);
+        lua_pushnumber(l, c->y);
+        lua_pushnumber(l, c->z);
+
+        return 3;
+    }
+
+    lua_pushnumber(l, 0);
+    lua_pushnumber(l, 0);
+    lua_pushnumber(l, 0);
+    return 3;
+}
+
+static int client_distance_lua(lua_State *l) {
+    ship_client_t *c, *c2;
+    double x, y, z, d;
+
+    if(lua_islightuserdata(l, 1) && lua_islightuserdata(l, 2)) {
+        c = (ship_client_t *)lua_touserdata(l, 1);
+        c2 = (ship_client_t *)lua_touserdata(l, 2);
+
+        if(c->cur_lobby != c2->cur_lobby)
+            goto err;
+
+        if(c->cur_area != c2->cur_area)
+            goto err;
+
+        /* Calculate euclidian distance. */
+        x = c->x - c2->x;
+        y = c->y - c2->y;
+        z = c->z - c2->z;
+
+        d = sqrt(x * x + y * y + z * z);
+        lua_pushnumber(l, d);
+        return 1;
+    }
+
+err:
+    lua_pushnumber(l, -1);
+    return 1;
+}
+
 static const luaL_Reg clientlib[] = {
     { "guildcard", client_guildcard_lua },
     { "isOnBlock", client_isOnBlock_lua },
@@ -1697,6 +1745,8 @@ static const luaL_Reg clientlib[] = {
     { "hasItem", client_hasItem_lua },
     { "legitCheck", client_legitCheck_lua },
     { "legitCheckItem", client_legitCheckItem_lua },
+    { "coords", client_coords_lua },
+    { "distance", client_distance_lua },
     { NULL, NULL }
 };
 
