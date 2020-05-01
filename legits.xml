@@ -1900,11 +1900,12 @@
 
     <!-- MARK3 -->
     <item code="0x003102">
-        <versions v1="true" v2="true" />
+        <versions v1="true" v2="true" gc="true" />
         <level max="200" />
         <synchro max="120" />
         <iq max="200" />
     </item>
+
 
     <!-- MASTER SYSTEM -->
     <item code="0x003202">
@@ -1913,6 +1914,13 @@
         <synchro max="120" />
         <iq max="200" />
         <pbs pos="right" disallow="Pilla, Leilla, Mylla+Youlla, Golla, Farlla" />
+    </item>
+
+    <item code="0x003202">
+        <versions gc="true" />
+        <level max="200" />
+        <synchro max="120" />
+        <iq max="200" />
     </item>
 
     <!-- GENESIS -->
@@ -1924,6 +1932,14 @@
         <pbs pos="right" disallow="Pilla, Leilla, Estlla, Golla, Farlla" />
     </item>
 
+    <item code="0x003302">
+        <versions gc="true" />
+        <level max="200" />
+        <synchro max="120" />
+        <iq max="200" />
+    </item>
+
+
     <!-- SEGA SATURN -->
     <item code="0x003402">
         <versions v1="true" v2="true" />
@@ -1933,6 +1949,13 @@
         <pbs pos="right" disallow="Leilla, Mylla+Youlla, Estlla, Golla, Farlla" />
     </item>
 
+    <item code="0x003402">
+        <versions gc="true" />
+        <level max="200" />
+        <synchro max="120" />
+        <iq max="200" />
+    </item>
+
     <!-- DREAMCAST -->
     <item code="0x003502">
         <versions v1="true" v2="true" />
@@ -1940,6 +1963,13 @@
         <synchro max="120" />
         <iq max="200" />
         <pbs pos="right" disallow="Pilla, Leilla, Mylla+Youlla, Estlla, Golla" />
+    </item>
+
+    <item code="0x003502">
+        <versions gc="true" />
+        <level max="200" />
+        <synchro max="120" />
+        <iq max="200" />
     </item>
 
     <!-- HAMBURGER -->
