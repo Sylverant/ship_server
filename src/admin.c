@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2016 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2016, 2020 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -244,9 +244,12 @@ int refresh_limits(ship_client_t *c, msgfunc f) {
                 free(ent);
                 goto err;
             }
+
+            l->name = ent->name;
         }
         else {
             ent->name = NULL;
+            l->name = NULL;
         }
 
         ent->limits = l;

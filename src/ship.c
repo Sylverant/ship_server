@@ -923,9 +923,12 @@ void ship_check_cfg(sylverant_ship_t *s) {
                 debug(DBG_ERROR, "%s: %s\n", s->name, strerror(errno));
                 free(ent);
             }
+
+            l->name = ent->name;
         }
         else {
             ent->name = NULL;
+            l->name = NULL;
         }
 
         ent->limits = l;
