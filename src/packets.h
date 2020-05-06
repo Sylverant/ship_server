@@ -1,6 +1,7 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2018 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2018,
+                  2020 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -871,7 +872,7 @@ typedef struct dc_game_list {
         uint8_t difficulty;
         uint8_t players;
         char name[16];
-        uint8_t v2;
+        uint8_t padding;
         uint8_t flags;
     } entries[0];
 } PACKED dc_game_list_pkt;

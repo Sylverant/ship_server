@@ -3952,7 +3952,6 @@ static int send_dc_game_list(ship_client_t *c, block_t *b) {
         pkt->entries[entries].item_id = LE32(l->lobby_id);
         pkt->entries[entries].difficulty = 0x22 + l->difficulty;
         pkt->entries[entries].players = l->num_clients;
-        pkt->entries[entries].v2 = l->v2;
         pkt->entries[entries].flags = (l->challenge ? 0x20 : 0x00) |
             (l->battle ? 0x10 : 0x00) | (l->passwd[0] ? 2 : 0) |
             (l->v2 ? 0x40 : 0x00);
