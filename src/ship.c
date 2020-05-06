@@ -901,8 +901,9 @@ void ship_check_cfg(sylverant_ship_t *s) {
         /* Check if they've given us one of the reserved names... */
         if(s->limits[i].name && (!strcmp(s->limits[i].name, "default") ||
                                  !strcmp(s->limits[i].name, "list"))) {
-            debug(DBG_ERROR, "%s: Illegal limits list name: %s\n", s->name,
-                  s->limits[i].name);
+            debug(DBG_ERROR, "%s: Skipping illegal limits list name: %s\n",
+                  s->name, s->limits[i].name);
+            continue;
         }
 
         debug(DBG_LOG, "%s:     Name: %s\n", s->name, s->limits[i].name);
@@ -916,15 +917,25 @@ void ship_check_cfg(sylverant_ship_t *s) {
 
         if(!(ent = malloc(sizeof(limits_entry_t)))) {
             debug(DBG_ERROR, "%s: %s\n", s->name, strerror(errno));
+            sylverant_free_limits(l);
+            continue;
         }
 
         if(s->limits[i].name) {
             if(!(ent->name = strdup(s->limits[i].name))) {
                 debug(DBG_ERROR, "%s: %s\n", s->name, strerror(errno));
                 free(ent);
+                sylverant_free_limits(l);
+                continue;
             }
 
-            l->name = ent->name;
+            if(!(l->name = strdup(s->limits[i].name))) {
+                debug(DBG_ERROR, "%s: %s\n", s->name, strerror(errno));
+                free(ent->name);
+                free(ent);
+                sylverant_free_limits(l);
+                continue;
+            }
         }
         else {
             ent->name = NULL;

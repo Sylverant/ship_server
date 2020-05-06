@@ -245,7 +245,13 @@ int refresh_limits(ship_client_t *c, msgfunc f) {
                 goto err;
             }
 
-            l->name = ent->name;
+            if(!(l->name = strdup(s->limits[i].name))) {
+                debug(DBG_ERROR, "%s: %s\n", s->name, strerror(errno));
+                sylverant_free_limits(l);
+                free(ent->name);
+                free(ent);
+                goto err;
+            }
         }
         else {
             ent->name = NULL;
