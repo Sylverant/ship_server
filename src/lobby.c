@@ -1319,7 +1319,7 @@ int lobby_info_reply(ship_client_t *c, uint32_t lobby) {
     sylverant_quest_t *quest;
 
     if(!l) {
-        return send_info_reply(c, __(c, "\tEThis game is no\nlonger active."));
+        return send_info_reply(c, __(c, "\tEThis team is no\nlonger active."));
     }
 
     /* Lock the lobby */
@@ -1350,15 +1350,15 @@ int lobby_info_reply(ship_client_t *c, uint32_t lobby) {
         /* Figure out what versions are allowed. */
         if(l->version == CLIENT_VERSION_BB) {
             /* Blue Burst is easy... */
-            sprintf(msg, "%s Blue Burst", msg);
+            strcat(msg, " Blue Burst");
         }
         else if(l->version == CLIENT_VERSION_GC) {
             /* Easy one here, GC games can only have GC chars */
-            sprintf(msg, "%s GC", msg);
+            strcat(msg, " GC");
         }
         else if(l->version == CLIENT_VERSION_EP3) {
             /* Also easy, since Episode 3 games are completely different */
-            sprintf(msg, "%s Episode 3", msg);
+            strcat(msg, " Episode 3");
         }
         else {
             /* Slightly more interesting here... */
@@ -1370,23 +1370,23 @@ int lobby_info_reply(ship_client_t *c, uint32_t lobby) {
             }
             else if(l->v2) {
                 if(!(l->flags & LOBBY_FLAG_PCONLY)) {
-                    sprintf(msg, "%s V2", msg);
+                    strcat(msg, " V2");
                 }
                 if(!(l->flags & LOBBY_FLAG_DCONLY)) {
-                    sprintf(msg, "%s PC", msg);
+                    strcat(msg, " PC");
                 }
             }
             else {
                 if(!(l->flags & LOBBY_FLAG_PCONLY)) {
-                    sprintf(msg, "%s V1", msg);
+                    strcat(msg, " V1");
 
                     if(!(l->flags & LOBBY_FLAG_V1ONLY)) {
-                        sprintf(msg, "%s V2", msg);
+                        strcat(msg, " V2");
                     }
                 }
                 if(!(l->flags & LOBBY_FLAG_DCONLY) &&
                    !(l->flags & LOBBY_FLAG_V1ONLY)) {
-                    sprintf(msg, "%s PC", msg);
+                    strcat(msg, " PC");
                 }
             }
 
@@ -1395,7 +1395,7 @@ int lobby_info_reply(ship_client_t *c, uint32_t lobby) {
                !(l->flags & LOBBY_FLAG_PCONLY) &&
                !(l->flags & LOBBY_FLAG_V1ONLY) &&
                !(l->flags & LOBBY_FLAG_NTE)) {
-                sprintf(msg, "%s GC", msg);
+                strcat(msg, " GC");
             }
         }
 
@@ -1436,6 +1436,16 @@ int lobby_info_reply(ship_client_t *c, uint32_t lobby) {
             sprintf(msg, "%s\n%s", msg, __(c, "Free Adventure"));
         }
 
+        /* We might have a third page... */
+        if(ship->cfg->limits_count && legit)
+            c->last_info_req |= 0x80000000;
+        else
+            c->last_info_req = 0;
+    }
+    else if(c->last_info_req == (lobby | 0x80000000)) {
+        sprintf(msg, "%s:\n%s",
+                __(c, "\tELegit Mode"),
+                l->limits_list->name ? l->limits_list->name : "Default");
         c->last_info_req = 0;
     }
     else {
