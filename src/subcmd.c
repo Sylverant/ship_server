@@ -99,9 +99,13 @@ int handle_dc_gcsend(ship_client_t *s, ship_client_t *d,
 
             /* Don't allow guild cards to be sent to PC NTE, as it doesn't
                support them. */
-            if((d->flags & CLIENT_FLAG_IS_NTE))
-                return send_txt(s, "%s", __(s, "\tE\tC7Cannot send Guild\n"
-                                               "Card to that user."));
+            if((d->flags & CLIENT_FLAG_IS_NTE)) {
+                if(s)
+                    return send_txt(s, "%s", __(s, "\tE\tC7Cannot send Guild\n"
+                                                   "Card to that user."));
+                else
+                    return 0;
+            }
 
             memset(&pc, 0, sizeof(pc));
 

@@ -44,7 +44,8 @@
 #include "rtdata.h"
 #include "scripts.h"
 
-extern int handle_dc_gcsend(ship_client_t *d, subcmd_dc_gcsend_t *pkt);
+int handle_dc_gcsend(ship_client_t *s, ship_client_t *d,
+                     subcmd_dc_gcsend_t *pkt);
 
 typedef struct command {
     char trigger[10];
@@ -596,7 +597,7 @@ static int handle_bug(ship_client_t *c, const char *params) {
                          "'Report Bug' user to report\n"
                          "a bug."));
 
-    return handle_dc_gcsend(c, &gcpkt);
+    return handle_dc_gcsend(NULL, c, &gcpkt);
 }
 
 /* Usage /clinfo client_id */
@@ -1195,7 +1196,7 @@ static int handle_forgegc(ship_client_t *c, const char *params) {
     gcpkt.padding[0] = gcpkt.padding[1] = gcpkt.padding[2] = 0;
 
     /* Send the packet */
-    return handle_dc_gcsend(c, &gcpkt);
+    return handle_dc_gcsend(NULL, c, &gcpkt);
 }
 
 /* Usage: /invuln [off] */
