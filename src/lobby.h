@@ -19,6 +19,7 @@
 #ifndef LOBBY_H
 #define LOBBY_H
 
+#include <stdio.h>
 #include <time.h>
 #include <pthread.h>
 #include <inttypes.h>
@@ -154,6 +155,7 @@ struct lobby {
 #endif
 
     int script_ref;
+    FILE *logfp;
 };
 
 #ifndef LOBBY_DEFINED
@@ -281,6 +283,8 @@ void lobby_send_kill_counts(lobby_t *l);
 
 /* Set up lobby information for a quest being loaded. */
 int lobby_setup_quest(lobby_t *l, ship_client_t *c, uint32_t qid, int lang);
+
+void lobby_print_info(lobby_t *l, FILE *fp);
 
 #ifdef ENABLE_LUA
 #include <lua.h>

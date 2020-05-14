@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2018 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2018, 2020 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -360,6 +360,81 @@ int pkt_log_stop(ship_client_t *i) {
     fprintf(i->logfile, "[%s] Packet log ended\n", str);
     fclose(i->logfile);
     i->logfile = NULL;
+
+    /* We're done, so clean up */
+    pthread_mutex_unlock(&i->mutex);
+    return 0;
+}
+
+/* Begin logging the specified team */
+int team_log_start(lobby_t *i) {
+    struct timeval rawtime;
+    struct tm cooked;
+    char str[128];
+    FILE *fp;
+    time_t now;
+
+    pthread_mutex_lock(&i->mutex);
+
+    if(i->logfp) {
+        pthread_mutex_unlock(&i->mutex);
+        return -1;
+    }
+
+    /* Get the timestamp */
+    gettimeofday(&rawtime, NULL);
+
+    /* Get UTC */
+    gmtime_r(&rawtime.tv_sec, &cooked);
+
+    /* Figure out the name of the file we'll be writing to */
+    sprintf(str, "logs/team/%u.%02u.%02u.%02u.%02u.%02u.%03u-%d",
+            cooked.tm_year + 1900, cooked.tm_mon + 1, cooked.tm_mday,
+            cooked.tm_hour, cooked.tm_min, cooked.tm_sec,
+            (unsigned int)(rawtime.tv_usec / 1000), (int)i->lobby_id);
+    fp = fopen(str, "wt");
+
+    if(!fp) {
+        pthread_mutex_unlock(&i->mutex);
+        return -2;
+    }
+
+    /* Write a nice header to the log */
+    now = time(NULL);
+    ctime_r(&now, str);
+    str[strlen(str) - 1] = 0;
+
+    fprintf(fp, "[%s] Team log started\n", str);
+    lobby_print_info(i, i->logfp);
+    i->logfp = fp;
+
+    /* We're done, so clean up */
+    pthread_mutex_unlock(&i->mutex);
+    return 0;
+}
+
+/* Stop logging the specified client's packets */
+int team_log_stop(lobby_t *i) {
+    time_t now;
+    char str[64];
+
+    pthread_mutex_lock(&i->mutex);
+
+    if(!i->logfp) {
+        pthread_mutex_unlock(&i->mutex);
+        return -1;
+    }
+
+    /* Write a nice footer to the log */
+    now = time(NULL);
+    ctime_r(&now, str);
+    str[strlen(str) - 1] = 0;
+
+    fprintf(i->logfp, "[%s] Team log ended\n", str);
+    lobby_print_info(i, i->logfp);
+
+    fclose(i->logfp);
+    i->logfp = NULL;
 
     /* We're done, so clean up */
     pthread_mutex_unlock(&i->mutex);

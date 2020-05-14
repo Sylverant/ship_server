@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2018 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2018, 2020 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -35,6 +35,9 @@ int bb_bug_report(ship_client_t *c, bb_simple_mail_pkt *pkt);
 
 int pkt_log_start(ship_client_t *i);
 int pkt_log_stop(ship_client_t *i);
+
+int team_log_start(lobby_t *i);
+int team_log_stop(lobby_t *i);
 
 char *istrncpy(iconv_t ic, char *outs, const char *ins, int out_len);
 size_t strlen16(const uint16_t *str);

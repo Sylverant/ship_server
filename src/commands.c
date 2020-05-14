@@ -3284,6 +3284,57 @@ static int handle_censor(ship_client_t *c, const char *params) {
     return send_txt(c, "%s", __(c, "\tE\tC7Word censor on."));
 }
 
+/* Usage: /teamlog */
+static int handle_teamlog(ship_client_t *c, const char *params) {
+    lobby_t *l = c->cur_lobby;
+    int rv;
+
+    /* Make sure the requester is a local GM, at least. */
+    if(!LOCAL_GM(c))
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
+
+    /* Make sure that the requester is in a team, not a lobby. */
+    if(l->type != LOBBY_TYPE_GAME)
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a team."));
+
+    rv = team_log_start(l);
+
+    if(!rv) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Logging started."));
+    }
+    else if(rv == -1) {
+        return send_txt(c, "%s", __(c, "\tE\tC7The team is already\n"
+                                    "being logged."));
+    }
+    else {
+        return send_txt(c, "%s", __(c, "\tE\tC7Cannot create log file."));
+    }
+}
+
+/* Usage: /eteamlog */
+static int handle_eteamlog(ship_client_t *c, const char *params) {
+    lobby_t *l = c->cur_lobby;
+    int rv;
+
+    /* Make sure the requester is a local GM, at least. */
+    if(!LOCAL_GM(c))
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
+
+    /* Make sure that the requester is in a team, not a lobby. */
+    if(l->type != LOBBY_TYPE_GAME)
+        return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a team."));
+
+    rv = team_log_stop(l);
+
+    if(!rv) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Logging ended."));
+    }
+    else {
+        return send_txt(c, "%s", __(c,"\tE\tC7The team is not\n"
+                                    "being logged."));
+    }
+}
+
 static command_t cmds[] = {
     { "warp"     , handle_warp      },
     { "kill"     , handle_kill      },
@@ -3376,6 +3427,8 @@ static command_t cmds[] = {
     { "quest"    , handle_quest     },
     { "autolegit", handle_autolegit },
     { "censor"   , handle_censor    },
+    { "teamlog"  , handle_teamlog   },
+    { "eteamlog" , handle_eteamlog  },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

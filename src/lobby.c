@@ -590,6 +590,10 @@ static void lobby_destroy_locked(lobby_t *l, int remove) {
     pthread_mutex_unlock(&log_mutex);
 #endif
 
+    /* If this is a team that's being logged, clean that up. */
+    if(l->logfp)
+        team_log_stop(l);
+
     /* Run the team deletion script, if one exists. */
     script_execute(ScriptActionTeamDestroy, SCRIPT_ARG_PTR, l,  SCRIPT_ARG_END);
 
