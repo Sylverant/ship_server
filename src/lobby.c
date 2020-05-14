@@ -1834,6 +1834,13 @@ int lobby_setup_quest(lobby_t *l, ship_client_t *c, uint32_t qid, int lang) {
         pthread_mutex_unlock(&log_mutex);
 #endif
 
+        /* If the team log is running, note that the quest is loading... */
+        if(l->logfp) {
+            fdebug(l->logfp, DBG_LOG, "Loading quest ID %" PRIu32 "\n", qid);
+            fdebug(l->logfp, DBG_LOG, "Enemies Array: %p\n", l->map_enemies);
+            fdebug(l->logfp, DBG_LOG, "Object Array: %p\n", l->map_objs);
+        }
+
         /* Figure out any information we need about the quest for dealing with
            register shenanigans. */
         for(rv = 0; rv < CLIENT_LANG_COUNT; ++rv) {
