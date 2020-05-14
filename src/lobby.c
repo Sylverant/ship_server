@@ -184,26 +184,32 @@ static void create_key(void) {
     pthread_key_create(&id_key, NULL);
 }
 
-#ifdef DEBUG
-static void print_info(lobby_t *l) {
-    fdebug(logfp, DBG_LOG, "         Name: %s\n", l->name);
-    fdebug(logfp, DBG_LOG, "         Flags: %08" PRIx32 "\n", l->flags);
-    fdebug(logfp, DBG_LOG, "         Version: %d (v2: %d)\n", l->version,
+void lobby_print_info(lobby_t *l, FILE *fp) {
+    int i;
+
+    fdebug(fp, DBG_LOG, "         Name: %s\n", l->name);
+    fdebug(fp, DBG_LOG, "         Flags: %08" PRIx32 "\n", l->flags);
+    fdebug(fp, DBG_LOG, "         Version: %d (v2: %d)\n", l->version,
            (int)l->v2);
-    fdebug(logfp, DBG_LOG, "         Battle/Challenge: %d/%d\n",
+    fdebug(fp, DBG_LOG, "         Battle/Challenge: %d/%d\n",
            (int)l->battle, (int)l->challenge);
-    fdebug(logfp, DBG_LOG, "         Difficulty: %d\n", (int)l->difficulty);
-    fdebug(logfp, DBG_LOG, "         Enemies Array: %p\n", l->map_enemies);
-    fdebug(logfp, DBG_LOG, "         Object Array: %p\n", l->map_objs);
+    fdebug(fp, DBG_LOG, "         Difficulty: %d\n", (int)l->difficulty);
+    fdebug(fp, DBG_LOG, "         Enemies Array: %p\n", l->map_enemies);
+    fdebug(fp, DBG_LOG, "         Object Array: %p\n", l->map_objs);
 
     if(l->qid)
-        fdebug(logfp, DBG_LOG, "         Quest ID: %" PRIu32 "\n", l->qid);
+        fdebug(fp, DBG_LOG, "         Quest ID: %" PRIu32 "\n", l->qid);
 
 #ifdef ENABLE_LUA
-    fdebug(logfp, DBG_LOG, "         Lua table: %d\n", l->script_ref);
+    fdebug(fp, DBG_LOG, "         Lua table: %d\n", l->script_ref);
 #endif /* ENABLE_LUA */
+
+    fdebug(fp, DBG_LOG, "         Maps in use:\n");
+    for(i = 0; i < 0x10; ++i) {
+        fdebug(fp, DBG_LOG, "             %d: %d %d\n", i, (int)l->maps[i << 1],
+               (int)l->maps[(i << 1) + 1]);
+    }
 }
-#endif /* DEBUG */
 
 lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
                            uint8_t difficulty, uint8_t battle, uint8_t chal,
@@ -460,10 +466,10 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
         logfp = fopen(fn, "a");
 
         if(!logfp) {
-            /* Uhh... Welp, guess we'll try to continue writing to the old one,
-               then... */
+            /* Uhh... That's a problem... */
             debug(DBG_ERROR, "Cannot open team log!\n");
             perror("fopen");
+            goto out;
         }
 
         fdebug(logfp, DBG_LOG, "***************************************\n");
@@ -473,7 +479,8 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
 
     fdebug(logfp, DBG_LOG, "BLOCK%02d: Created team with id %" PRIu32
            " at %p\n", block->b, id, l);
-    print_info(l);
+    lobby_print_info(l, logfp);
+out:
     pthread_mutex_unlock(&log_mutex);
 #endif
 
@@ -573,9 +580,13 @@ static void lobby_destroy_locked(lobby_t *l, int remove) {
 
 #ifdef DEBUG
     pthread_mutex_lock(&log_mutex);
-    fdebug(logfp, DBG_LOG, "BLOCK%02d: Destroying team with id %" PRIu32
-           " at %p\n", l->block->b, l->lobby_id, l);
-    print_info(l);
+
+    if(logfp) {
+        fdebug(logfp, DBG_LOG, "BLOCK%02d: Destroying team with id %" PRIu32
+               " at %p\n", l->block->b, l->lobby_id, l);
+        lobby_print_info(l, logfp);
+    }
+
     pthread_mutex_unlock(&log_mutex);
 #endif
 
