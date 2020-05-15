@@ -35,6 +35,9 @@
 #include "items.h"
 #include "utils.h"
 
+#define LOG(team, ...) team_log_write(team, TLOG_DROPS, __VA_ARGS__)
+#define LOGV(team, ...) team_log_write(team, TLOG_DROPSV, __VA_ARGS__)
+
 #define MIN(x, y) (x < y ? x : y)
 
 static int have_v2pt = 0;
@@ -1584,7 +1587,7 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
     pt_v2_entry_t *ent;
     uint32_t rnd;
     uint32_t item[4];
-    int area, do_rare = 1;
+    int area, rarea, do_rare = 1;
     struct mt19937_state *rng = &c->cur_block->rng;
     uint16_t mid;
     game_enemy_t *enemy;
@@ -1607,7 +1610,7 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
     ent = &v2_ptdata[l->difficulty][section];
 
     /* Figure out the area we'll be worried with */
-    area = c->cur_area;
+    rarea = area = c->cur_area;
 
     /* Dragon -> Cave 1 */
     if(area == 11)
@@ -1626,8 +1629,10 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
         area = 10;
     /* Invalid areas... */
     else if(area == 0) {
-        debug(DBG_WARN, "Guildcard %u requested enemy drop on Pioneer 2\n",
-              c->guildcard);
+        debug(DBG_WARN, "Guildcard %" PRIu32 " requested enemy drop on Pioneer "
+              "2\n", c->guildcard);
+        LOG(l, "Guildcard %" PRIu32 " requested enemy drop on Pioneer 2\n",
+            c->guildcard);
         return -1;
     }
 
@@ -1643,28 +1648,36 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
               mid, l->map_enemies->count, l->qid);
 #endif
 
-        if(l->logfp) {
-            fdebug(l->logfp, DBG_WARN, "Guildcard %" PRIu32 " requested v2 "
-                   "drop for invalid enemy (%d -- max: %d, quest=%" PRIu32
-                   ")!\n", c->guildcard, mid, l->map_enemies->count, l->qid);
-        }
-
+        LOG(l, "Guildcard %" PRIu32 " requested v2 drop for invalid enemy (%d "
+            "-- max: %d, quest=%" PRIu32 ")!\n", c->guildcard, mid,
+            l->map_enemies->count, l->qid);
         return -1;
     }
 
     /* Grab the map enemy to make sure it hasn't already dropped something. */
     enemy = &l->map_enemies->enemies[mid];
-    if(enemy->drop_done)
+
+    LOG(l, "Guildcard %" PRIu32 " requested v2 drop...\n"
+        "mid: %d (max: %d), pt: %d (%d), area: %d (%d), quest: %" PRIu32
+        "section: %d, difficulty: %d\n",
+        c->guildcard, mid, l->map_enemies->count, req->pt_index,
+        enemy->rt_index, area + 1, rarea, l->qid, section, l->difficulty);
+
+    if(enemy->drop_done) {
+        LOGV(l, "Drop already done.\n");
         return 0;
+    }
 
     enemy->drop_done = 1;
 
     /* See if the enemy is going to drop anything at all this time... */
     rnd = mt19937_genrand_int32(rng) % 100;
 
-    if(rnd >= ent->enemy_dar[req->pt_index])
+    if(rnd >= ent->enemy_dar[req->pt_index]) {
         /* Nope. You get nothing! */
+        LOGV(l, "DAR roll failed.\n");
         return 0;
+    }
 
     /* See if we'll do a rare roll. */
     if(l->qid) {
@@ -1675,6 +1688,7 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
 
         switch(qdrop) {
             case SYLVERANT_QUEST_ENDROP_NONE:
+                LOGV(l, "Enemy fixed to drop nothing by policy.\n");
                 return 0;
 
             case SYLVERANT_QUEST_ENDROP_NORARE:
@@ -1702,6 +1716,8 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
 
     /* See if the user is lucky today... */
     if(do_rare && (item[0] = rt_generate_v2_rare(c, l, req->pt_index, 0))) {
+        LOGV(l, "Rare roll succeeded, generating %08" PRIx32 "\n", item[0]);
+
         switch(item[0] & 0xFF) {
             case 0:
                 /* Weapon -- add percentages and (potentially) grind values and
@@ -1733,14 +1749,11 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
                     default:
 #ifdef DEBUG
                         debug(DBG_WARN, "V2 ItemRT generated an invalid item: "
-                              "%08x\n", item[0]);
+                              "%08" PRIx32 "\n", item[0]);
 #endif
 
-                        if(l->logfp) {
-                            fdebug(l->logfp, DBG_WARN, "V2 ItemRT generated an "
-                                   "invalid item: %08x\n", item[0]);
-                        }
-
+                        LOG(l, "V2 ItemRT generated an invalid item: %08"
+                            PRIx32 "\n", item[0]);
                         return 0;
                 }
                 break;
@@ -1763,15 +1776,12 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
 
             default:
 #ifdef DEBUG
-                debug(DBG_WARN, "V2 ItemRT generated an invalid item: %08x\n",
-                      item[0]);
+                debug(DBG_WARN, "V2 ItemRT generated an invalid item: %08"
+                      PRIx32 "\n", item[0]);
 #endif
 
-                if(l->logfp) {
-                    fdebug(l->logfp, DBG_WARN, "V2 ItemRT generated an "
-                           "invalid item: %08x\n", item[0]);
-                }
-
+                LOG(l, "V2 ItemRT generated an invalid item: %08" PRIx32 "\n",
+                    item[0]);
                 return 0;
         }
 
@@ -1822,6 +1832,7 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
                 case -1:
                     /* This shouldn't happen, but if it does, don't drop
                        anything at all. */
+                    LOGV(l, "Designated drop type set to invalid value.\n");
                     return 0;
 
                 default:
@@ -1831,12 +1842,8 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
                           req->pt_index);
 #endif
 
-                    if(l->logfp) {
-                        fdebug(l->logfp, DBG_WARN, "Unknown/Invalid v2 enemy "
-                              "drop (%d) for index %d\n",
-                              ent->enemy_drop[req->pt_index], req->pt_index);
-                    }
-
+                    LOG(l, "Unknown/Invalid v2 enemy drop (%d) for index %d\n",
+                        ent->enemy_drop[req->pt_index], req->pt_index);
                     return 0;
             }
 
@@ -2051,11 +2058,8 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
                         debug(DBG_WARN, "V2 ItemRT generated an invalid item: "
                               "%08x\n", item[0]);
 #endif
-                        if(l->logfp) {
-                            fdebug(l->logfp, DBG_WARN, "V2 ItemRT generated an "
-                                   "invalid item: %08x\n", item[0]);
-                        }
-
+                        LOG(l, "V2 ItemRT generated an invalid box item: "
+                            "%08x\n", item[0]);
                         return 0;
                 }
 
@@ -2083,11 +2087,8 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
                       item[0]);
 #endif
 
-                if(l->logfp) {
-                    fdebug(l->logfp, DBG_WARN, "V2 ItemRT generated an invalid "
-                           "item: %08x\n", item[0]);
-                }
-
+                LOG(l, "V2 ItemRT generated an invalid box item: %08x\n",
+                    item[0]);
                 return 0;
         }
 
