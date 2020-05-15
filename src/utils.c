@@ -16,6 +16,7 @@
 */
 
 #include <stdio.h>
+#include <stdarg.h>
 #include <time.h>
 #include <sys/time.h>
 #include <iconv.h>
@@ -439,6 +440,24 @@ int team_log_stop(lobby_t *i) {
     /* We're done, so clean up */
     pthread_mutex_unlock(&i->mutex);
     return 0;
+}
+
+int team_log_write(lobby_t *l, uint32_t msg_type, const char *fmt, ...) {
+    va_list args;
+    int rv;
+
+    /* Don't bother if we're not logging this team... */
+    if(!l->logfp)
+        return 0;
+
+    /* XXXX: Check the message type. */
+    (void)msg_type;
+
+    va_start(args, fmt);
+    rv = vfdebug(l->logfp, fmt, args);
+    va_end(args);
+
+    return rv;
 }
 
 char *istrncpy(iconv_t ic, char *outs, const char *ins, int out_len) {

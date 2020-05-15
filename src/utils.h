@@ -38,6 +38,7 @@ int pkt_log_stop(ship_client_t *i);
 
 int team_log_start(lobby_t *i);
 int team_log_stop(lobby_t *i);
+int team_log_write(lobby_t *l, uint32_t msg_type, const char *fmt, ...);
 
 char *istrncpy(iconv_t ic, char *outs, const char *ins, int out_len);
 size_t strlen16(const uint16_t *str);

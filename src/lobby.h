@@ -188,6 +188,11 @@ TAILQ_HEAD(lobby_queue, lobby);
 #define LOBBY_FLAG_NTE          0x00004000
 #define LOBBY_FLAG_HAS_NPC      0x00008000
 
+/* Team log entry types. */
+#define TLOG_BASIC              0x00000001
+#define TLOG_DROPS              0x00000002
+#define TLOG_DROPSV             0x00000004
+
 /* Events that can be set on games */
 #define GAME_EVENT_NONE         0
 #define GAME_EVENT_CHRISTMAS    1
