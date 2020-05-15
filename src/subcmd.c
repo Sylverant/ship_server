@@ -2296,6 +2296,7 @@ static int handle_mhit(ship_client_t *c, subcmd_mhit_pkt_t *pkt) {
 
     /* Make sure the enemy is in range. */
     if(mid > l->map_enemies->count) {
+#ifdef DEBUG
         debug(DBG_WARN, "Guild card %" PRIu32 " hit invalid enemy (%d -- max: "
               "%d)!\n"
               "Episode: %d, Floor: %d, Map: (%d, %d)\n", c->guildcard, mid,
@@ -2304,6 +2305,19 @@ static int handle_mhit(ship_client_t *c, subcmd_mhit_pkt_t *pkt) {
 
         if((l->flags & LOBBY_FLAG_QUESTING))
             debug(DBG_WARN, "Quest ID: %d, Version: %d\n", l->qid, l->version);
+#endif
+
+        if(l->logfp) {
+            fdebug(l->logfp, DBG_WARN, "Guild card %" PRIu32 " hit invalid "
+                   "enemy (%d -- max: %d)!\n"
+                   "Episode: %d, Floor: %d, Map: (%d, %d)\n", c->guildcard, mid,
+                   l->map_enemies->count, l->episode, c->cur_area,
+                   l->maps[c->cur_area << 1], l->maps[(c->cur_area << 1) + 1]);
+
+            if((l->flags & LOBBY_FLAG_QUESTING))
+                fdebug(l->logfp, DBG_WARN, "Quest ID: %d, Version: %d\n",
+                       l->qid, l->version);
+        }
 
         script_execute(ScriptActionEnemyHit, SCRIPT_ARG_PTR, c,
                        SCRIPT_ARG_UINT16, mid, SCRIPT_ARG_END);
@@ -2323,6 +2337,7 @@ static int handle_mhit(ship_client_t *c, subcmd_mhit_pkt_t *pkt) {
     /* Make sure it looks like they're in the right area for this... */
     /* XXXX: There are some issues still with Episode 2, so only spit this out
        for now on Episode 1. */
+#ifdef DEBUG
     if(c->cur_area != l->map_enemies->enemies[mid].area && l->episode == 1 &&
        !(l->flags & LOBBY_FLAG_QUESTING)) {
         debug(DBG_WARN, "Guild card %" PRIu32 " hit enemy in wrong area "
@@ -2330,6 +2345,16 @@ static int handle_mhit(ship_client_t *c, subcmd_mhit_pkt_t *pkt) {
               "Map: (%d, %d)\n", c->guildcard, mid, l->map_enemies->count,
               l->episode, c->cur_area, l->map_enemies->enemies[mid].area,
               l->maps[c->cur_area << 1], l->maps[(c->cur_area << 1) + 1]);
+    }
+#endif
+
+    if(l->logfp && c->cur_area != l->map_enemies->enemies[mid].area &&
+       !(l->flags & LOBBY_FLAG_QUESTING)) {
+        fdebug(l->logfp, DBG_WARN, "Guild card %" PRIu32 " hit enemy in wrong "
+               "area (%d -- max: %d)!\n Episode: %d, Area: %d, Enemy Area: %d "
+               "Map: (%d, %d)\n", c->guildcard, mid, l->map_enemies->count,
+               l->episode, c->cur_area, l->map_enemies->enemies[mid].area,
+               l->maps[c->cur_area << 1], l->maps[(c->cur_area << 1) + 1]);
     }
 
     /* Make sure the person's allowed to be on this floor in the first place. */
