@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2012, 2013, 2014, 2015, 2016 Lawrence Sebald
+    Copyright (C) 2012, 2013, 2014, 2015, 2016, 2020 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -1637,9 +1637,18 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
     /* Make sure the enemy's id is sane... */
     mid = LE16(req->req);
     if(mid > l->map_enemies->count) {
-        debug(DBG_WARN, "Guildcard %" PRIu32 " requested drop for invalid "
-              "enemy (%d -- max: %d, quest=%" PRIu32 ")!\n", c->guildcard, mid,
-              l->map_enemies->count, l->qid);
+#ifdef DEBUG
+        debug(DBG_WARN, "Guildcard %" PRIu32 " requested v2 drop for invalid "
+              "enemy (%d -- max: %d, quest=%" PRIu32 ")!\n", c->guildcard,
+              mid, l->map_enemies->count, l->qid);
+#endif
+
+        if(l->logfp) {
+            fdebug(l->logfp, DBG_WARN, "Guildcard %" PRIu32 " requested v2 "
+                   "drop for invalid enemy (%d -- max: %d, quest=%" PRIu32
+                   ")!\n", c->guildcard, mid, l->map_enemies->count, l->qid);
+        }
+
         return -1;
     }
 
@@ -1722,8 +1731,16 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
                         break;
 
                     default:
-                        debug(DBG_WARN, "ItemRT generated an invalid item: "
+#ifdef DEBUG
+                        debug(DBG_WARN, "V2 ItemRT generated an invalid item: "
                               "%08x\n", item[0]);
+#endif
+
+                        if(l->logfp) {
+                            fdebug(l->logfp, DBG_WARN, "V2 ItemRT generated an "
+                                   "invalid item: %08x\n", item[0]);
+                        }
+
                         return 0;
                 }
                 break;
@@ -1745,8 +1762,16 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
                 break;
 
             default:
-                debug(DBG_WARN, "ItemRT generated an invalid item: %08x\n",
+#ifdef DEBUG
+                debug(DBG_WARN, "V2 ItemRT generated an invalid item: %08x\n",
                       item[0]);
+#endif
+
+                if(l->logfp) {
+                    fdebug(l->logfp, DBG_WARN, "V2 ItemRT generated an "
+                           "invalid item: %08x\n", item[0]);
+                }
+
                 return 0;
         }
 
@@ -1800,9 +1825,18 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
                     return 0;
 
                 default:
-                    debug(DBG_WARN, "Unknown/Invalid enemy drop (%d) for index "
-                          "%d\n", ent->enemy_drop[req->pt_index],
+#ifdef DEBUG
+                    debug(DBG_WARN, "Unknown/Invalid v2 enemy drop (%d) for "
+                          "index %d\n", ent->enemy_drop[req->pt_index],
                           req->pt_index);
+#endif
+
+                    if(l->logfp) {
+                        fdebug(l->logfp, DBG_WARN, "Unknown/Invalid v2 enemy "
+                              "drop (%d) for index %d\n",
+                              ent->enemy_drop[req->pt_index], req->pt_index);
+                    }
+
                     return 0;
             }
 
@@ -2013,8 +2047,15 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
                         break;
 
                     default:
-                        debug(DBG_WARN, "ItemRT generated an invalid item: "
+#ifdef DEBUG
+                        debug(DBG_WARN, "V2 ItemRT generated an invalid item: "
                               "%08x\n", item[0]);
+#endif
+                        if(l->logfp) {
+                            fdebug(l->logfp, DBG_WARN, "V2 ItemRT generated an "
+                                   "invalid item: %08x\n", item[0]);
+                        }
+
                         return 0;
                 }
 
@@ -2037,8 +2078,16 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
                 break;
 
             default:
-                debug(DBG_WARN, "ItemRT generated an invalid item: %08x\n",
+#ifdef DEBUG
+                debug(DBG_WARN, "V2 ItemRT generated an invalid item: %08x\n",
                       item[0]);
+#endif
+
+                if(l->logfp) {
+                    fdebug(l->logfp, DBG_WARN, "V2 ItemRT generated an invalid "
+                           "item: %08x\n", item[0]);
+                }
+
                 return 0;
         }
 
@@ -2214,9 +2263,18 @@ int pt_generate_gc_drop(ship_client_t *c, lobby_t *l, void *r) {
     area = darea;
 
     if(mid > l->map_enemies->count) {
-        debug(DBG_WARN, "Guildcard %" PRIu32 " requested drop for invalid "
+#ifdef DEBUG
+        debug(DBG_WARN, "Guildcard %" PRIu32 " requested GC drop for invalid "
               "enemy (%d -- max: %d, quest=%" PRIu32 ")!\n", c->guildcard, mid,
               l->map_enemies->count, l->qid);
+#endif
+
+        if(l->logfp) {
+            fdebug(l->logfp, DBG_WARN, "Guildcard %" PRIu32 " requested GC "
+                   "drop for invalid enemy (%d -- max: %d, quest=%" PRIu32
+                   ")!\n", c->guildcard, mid, l->map_enemies->count, l->qid);
+        }
+
         return -1;
     }
 
@@ -2295,8 +2353,16 @@ int pt_generate_gc_drop(ship_client_t *c, lobby_t *l, void *r) {
                         break;
 
                     default:
-                        debug(DBG_WARN, "ItemRT generated an invalid item: "
+#ifdef DEBUG
+                        debug(DBG_WARN, "GC ItemRT generated an invalid item: "
                               "%08x\n", item[0]);
+#endif
+
+                        if(l->logfp) {
+                            fdebug(l->logfp, DBG_WARN, "GC ItemRT generated an "
+                                   "invalid item: %08x\n", item[0]);
+                        }
+
                         return 0;
                 }
                 break;
@@ -2318,8 +2384,16 @@ int pt_generate_gc_drop(ship_client_t *c, lobby_t *l, void *r) {
                 break;
 
             default:
+#ifdef DEBUG
                 debug(DBG_WARN, "ItemRT generated an invalid item: %08x\n",
                       item[0]);
+#endif
+
+                if(l->logfp) {
+                    fdebug(l->logfp, DBG_WARN, "GC ItemRT generated an invalid "
+                           "item: %08x\n", item[0]);
+                }
+
                 return 0;
         }
 
@@ -2389,9 +2463,18 @@ int pt_generate_gc_drop(ship_client_t *c, lobby_t *l, void *r) {
                     return 0;
 
                 default:
-                    debug(DBG_WARN, "Unknown/Invalid enemy drop (%d) for index "
-                          "%d\n", ent->enemy_drop[req->pt_index],
+#ifdef DEBUG
+                    debug(DBG_WARN, "Unknown/Invalid GC enemy drop (%d) for "
+                          "index %d\n", ent->enemy_drop[req->pt_index],
                           req->pt_index);
+#endif
+
+                    if(l->logfp) {
+                        fdebug(l->logfp, DBG_WARN, "Unknown/Invalid GC enemy "
+                              "drop (%d) for index %d\n",
+                              ent->enemy_drop[req->pt_index], req->pt_index);
+                    }
+
                     return 0;
             }
 
@@ -2656,8 +2739,16 @@ int pt_generate_gc_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
                         break;
 
                     default:
-                        debug(DBG_WARN, "ItemRT generated an invalid item: "
+#ifdef DEBUG
+                        debug(DBG_WARN, "GC ItemRT generated an invalid item: "
                               "%08x\n", item[0]);
+#endif
+
+                        if(l->logfp) {
+                            fdebug(l->logfp, DBG_WARN, "GC ItemRT generated an "
+                                   "invalid item: %08x\n", item[0]);
+                        }
+
                         return 0;
                 }
 
@@ -2680,8 +2771,16 @@ int pt_generate_gc_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
                 break;
 
             default:
+#ifdef DEBUG
                 debug(DBG_WARN, "ItemRT generated an invalid item: %08x\n",
                       item[0]);
+#endif
+
+                if(l->logfp) {
+                    fdebug(l->logfp, DBG_WARN, "GC ItemRT generated an invalid "
+                           "item: %08x\n", item[0]);
+                }
+
                 return 0;
         }
 
