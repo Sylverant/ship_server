@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2019 Lawrence Sebald
+    Copyright (C) 2019, 2020 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -192,6 +192,12 @@
          truncated to integers. The registers specified will be updated
          periodically with new values. */
 #define QUEST_FUNC_POS_UPDATES          21
+
+/* Function 22:   get_level
+   Arguments:    1: int id -- Set to a client id from 0-3 for one player.
+                              Set to -1 for all players in the team.
+   Returns:      1 or 4 values of the requested levels. */
+#define QUEST_FUNC_GET_LEVEL            22
 
 extern uint32_t quest_function_dispatch(ship_client_t *c, lobby_t *l);
 
