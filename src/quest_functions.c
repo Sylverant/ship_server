@@ -897,25 +897,25 @@ static uint32_t get_level(ship_client_t *c, lobby_t *l) {
 
         if(l->clients[0])
             send_sync_register(c, c->q_stack[4],
-                               l->clients[0]->pl->v1.level);
+                               l->clients[0]->pl->v1.level + 1);
         else
             send_sync_register(c, c->q_stack[4], 0xFFFFFFFF);
 
         if(l->clients[1])
             send_sync_register(c, c->q_stack[5],
-                               l->clients[1]->pl->v1.level);
+                               l->clients[1]->pl->v1.level + 1);
         else
             send_sync_register(c, c->q_stack[5], 0xFFFFFFFF);
 
         if(l->clients[2])
             send_sync_register(c, c->q_stack[6],
-                               l->clients[2]->pl->v1.level);
+                               l->clients[2]->pl->v1.level + 1);
         else
             send_sync_register(c, c->q_stack[6], 0xFFFFFFFF);
 
         if(l->clients[3])
             send_sync_register(c, c->q_stack[7],
-                               l->clients[3]->pl->v1.level);
+                               l->clients[3]->pl->v1.level + 1);
         else
             send_sync_register(c, c->q_stack[7], 0xFFFFFFFF);
 
@@ -931,7 +931,7 @@ static uint32_t get_level(ship_client_t *c, lobby_t *l) {
 
         if(l->clients[c->q_stack[3]])
             send_sync_register(c, c->q_stack[4],
-                               l->clients[c->q_stack[3]]->pl->v1.level);
+                               l->clients[c->q_stack[3]]->pl->v1.level + 1);
         else
             send_sync_register(c, c->q_stack[4], 0xFFFFFFFF);
 
