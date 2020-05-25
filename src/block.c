@@ -901,8 +901,17 @@ static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
         }
 
         /* Mark trial users as trial users. */
-        if(is_pctrial(pkt))
+        if(is_pctrial(pkt)) {
             c->flags |= CLIENT_FLAG_IS_NTE;
+
+            if((ship->cfg->shipgate_flags & SHIPGATE_FLAG_NOPCNTE)) {
+                send_message_box(c, "%s", __(c, "\tEPSO for PC Network Trial "
+                                             "Edition\nis not supported on "
+                                             "this ship.\n\nDisconnecting."));
+                c->flags |= CLIENT_FLAG_DISCONNECTED;
+                return 0;
+            }
+        }
     }
 
     /* Save what we care about in here. */

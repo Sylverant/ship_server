@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2016, 2018,
-                  2019, 2020 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2016, 2018, 2019,
+                  2020 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -337,6 +337,26 @@ static void print_config(sylverant_ship_t *cfg) {
     }
 
     debug(DBG_LOG, "Shipgate Flags: 0x%08X\n", cfg->shipgate_flags);
+    debug(DBG_LOG, "Supported versions:\n");
+
+    if(!(cfg->shipgate_flags & SHIPGATE_FLAG_NODCNTE))
+        debug(DBG_LOG, "Dreamcast Network Trial Edition\n");
+    if(!(cfg->shipgate_flags & SHIPGATE_FLAG_NOV1))
+        debug(DBG_LOG, "Dreamcast Version 1\n");
+    if(!(cfg->shipgate_flags & SHIPGATE_FLAG_NOV2))
+        debug(DBG_LOG, "Dreamcast Version 2\n");
+    if(!(cfg->shipgate_flags & SHIPGATE_FLAG_NOPCNTE))
+        debug(DBG_LOG, "PSO for PC Network Trial Edition\n");
+    if(!(cfg->shipgate_flags & SHIPGATE_FLAG_NOPC))
+        debug(DBG_LOG, "PSO for PC\n");
+    if(!(cfg->shipgate_flags & SHIPGATE_FLAG_NOEP12))
+        debug(DBG_LOG, "Gamecube Episode I & II\n");
+    if(!(cfg->shipgate_flags & SHIPGATE_FLAG_NOEP3))
+        debug(DBG_LOG, "Gamecube Episode III\n");
+    if(!(cfg->shipgate_flags & SHIPGATE_FLAG_NOPSOX))
+        debug(DBG_LOG, "Xbox Episode I & II\n");
+    if(!(cfg->shipgate_flags & SHIPGATE_FLAG_NOBB))
+        debug(DBG_LOG, "Blue Burst\n");
 }
 
 static void open_log(sylverant_ship_t *cfg) {

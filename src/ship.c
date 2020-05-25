@@ -1077,6 +1077,17 @@ static int dc_process_login(ship_client_t *c, dc_login_93_pkt *pkt) {
     return 0;
 }
 
+static int is_pctrial(dcv2_login_9d_pkt *pkt) {
+    int i = 0;
+
+    for(i = 0; i < 8; ++i) {
+        if(pkt->serial[i] || pkt->access_key[i])
+            return 0;
+    }
+
+    return 1;
+}
+
 /* Just in case I ever use the rest of the stuff... */
 static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
     char *ban_reason;
@@ -1097,6 +1108,19 @@ static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
                                          "on\nthis ship.\n\nDisconnecting."));
             c->flags |= CLIENT_FLAG_DISCONNECTED;
             return 0;
+        }
+
+        /* Mark trial users as trial users. */
+        if(is_pctrial(pkt)) {
+            c->flags |= CLIENT_FLAG_IS_NTE;
+
+            if((ship->cfg->shipgate_flags & SHIPGATE_FLAG_NOPCNTE)) {
+                send_message_box(c, "%s", __(c, "\tEPSO for PC Network Trial "
+                                             "Edition\nis not supported on "
+                                             "this ship.\n\nDisconnecting."));
+                c->flags |= CLIENT_FLAG_DISCONNECTED;
+                return 0;
+            }
         }
     }
 
