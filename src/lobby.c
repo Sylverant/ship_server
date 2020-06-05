@@ -2234,6 +2234,31 @@ static int lobby_randFloat_lua(lua_State *l) {
     return 1;
 }
 
+static int lobby_setSinglePlayer_lua(lua_State *l) {
+    lobby_t *lb;
+
+    if(lua_islightuserdata(l, 1)) {
+        lb = (lobby_t *)lua_touserdata(l, 1);
+
+        pthread_mutex_lock(&lb->mutex);
+
+        if(lb->num_clients == 1) {
+            lb->flags |= LOBBY_FLAG_SINGLEPLAYER;
+            lua_pushboolean(l, 1);
+        }
+        else {
+            lua_pushboolean(l, 0);
+        }
+
+        pthread_mutex_unlock(&lb->mutex);
+    }
+    else {
+        lua_pushboolean(l, 0);
+    }
+
+    return 1;
+}
+
 static const luaL_Reg lobbylib[] = {
     { "id", lobby_id_lua },
     { "type", lobby_type_lua },
@@ -2256,6 +2281,7 @@ static const luaL_Reg lobbylib[] = {
     { "getTable", lobby_gettable_lua },
     { "randInt", lobby_randInt_lua },
     { "randFloat", lobby_randFloat_lua },
+    { "setSinglePlayer", lobby_setSinglePlayer_lua },
     { NULL, NULL }
 };
 
