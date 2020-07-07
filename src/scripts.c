@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2011, 2016, 2018, 2019 Lawrence Sebald
+    Copyright (C) 2011, 2016, 2018, 2019, 2020 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -49,6 +49,7 @@ static lua_State *lstate;
 static int scripts_ref = 0;
 
 static int script_ids[ScriptActionCount] = { 0 };
+static int script_ids_gate[ScriptActionCount] = { 0 };
 
 /* Text versions of the script actions. This must match the list in the
    script_action_t enum in scripts.h. */
@@ -119,15 +120,15 @@ int script_add(script_action_t action, const char *filename) {
     }
 
     /* Issue a warning if we're redefining something before doing it. */
-    if(script_ids[action]) {
+    if(script_ids_gate[action]) {
         debug(DBG_WARN, "Redefining script event %d\n", (int)action);
-        luaL_unref(lstate, -2, script_ids[action]);
+        luaL_unref(lstate, -2, script_ids_gate[action]);
     }
 
     /* Add the script to the Lua table. */
-    script_ids[action] = luaL_ref(lstate, -2);
+    script_ids_gate[action] = luaL_ref(lstate, -2);
     debug(DBG_LOG, "Script for type %d added as ID %d\n", (int)action,
-          script_ids[action]);
+          script_ids_gate[action]);
 
     /* Pop off the scripts table and unlock the mutex to clean up. */
     lua_pop(lstate, 1);
@@ -144,7 +145,7 @@ int script_remove(script_action_t action) {
     pthread_mutex_lock(&script_mutex);
 
     /* Make sure there's actually something registered. */
-    if(!script_ids[action]) {
+    if(!script_ids_gate[action]) {
         debug(DBG_WARN, "Attempt to unregister script for event %d that does "
               "not exist.\n", (int)action);
         pthread_mutex_unlock(&script_mutex);
@@ -154,10 +155,12 @@ int script_remove(script_action_t action) {
     /* Pull the scripts table out to the top of the stack and remove the
        script reference from it. */
     lua_rawgeti(lstate, LUA_REGISTRYINDEX, scripts_ref);
-    luaL_unref(lstate, -2, script_ids[action]);
+    luaL_unref(lstate, -2, script_ids_gate[action]);
 
-    /* Pop off the scripts table and unlock the mutex to clean up. */
+    /* Pop off the scripts table, clear out the id stored in the script_ids_gate
+       array, and unlock the mutex to finish up. */
     lua_pop(lstate, 1);
+    script_ids_gate[action] = 0;
     pthread_mutex_unlock(&script_mutex);
 
     return 0;
@@ -222,14 +225,14 @@ int script_eventlist_read(const char *fn) {
     /* Open the script list XML file for reading. */
     doc = xmlReadFile(fn, NULL, 0);
     if(!doc) {
-        xmlParserError(cxt, "Error in parsing script List");
+        xmlParserError(cxt, "Error in parsing script list\n");
         rv = -2;
         goto err_cxt;
     }
 
     /* Make sure the document validated properly. */
     if(!cxt->valid) {
-        xmlParserValidityError(cxt, "Validity Error parsing script List");
+        xmlParserValidityError(cxt, "Validity Error parsing script list\n");
         rv = -3;
         goto err_doc;
     }
@@ -409,32 +412,20 @@ void cleanup_scripts(ship_t *s) {
         scripts_ref = 0;
         for(i = 0; i < ScriptActionCount; ++i) {
             script_ids[i] = 0;
+            script_ids_gate[i] = 0;
         }
 
         s->lstate = NULL;
     }
 }
 
-int script_execute_pkt(script_action_t event, ship_client_t *c, const void *pkt,
-                       uint16_t len) {
+static lua_Integer exec_pkt(int scr, script_action_t event, ship_client_t *c,
+                            const void *pkt, uint16_t len) {
     lua_Integer rv = 0;
-    int err = 0;
-
-    /* Can't do anything if we don't have any scripts loaded. */
-    if(!scripts_ref)
-        return 0;
-
-    pthread_mutex_lock(&script_mutex);
-
-    /* Pull the scripts table out to the top of the stack. */
-    lua_rawgeti(lstate, LUA_REGISTRYINDEX, scripts_ref);
-
-    /* See if there's a script event defined */
-    if(!script_ids[event])
-        goto out;
+    int err;
 
     /* There is an script defined, grab it from the table. */
-    lua_rawgeti(lstate, -1, script_ids[event]);
+    lua_rawgeti(lstate, -1, scr);
 
     /* Now, push the arguments onto the stack. First up is a light userdata
        for the client object. */
@@ -454,23 +445,19 @@ int script_execute_pkt(script_action_t event, ship_client_t *c, const void *pkt,
        integer). */
     rv = lua_tointegerx(lstate, -1, &err);
     if(!err) {
-        debug(DBG_ERROR, "Script for event %d didn't return int\n",(int)event);
+        debug(DBG_ERROR, "Script for event %d didn't return int\n", (int)event);
     }
 
     /* Pop off the return value. */
     lua_pop(lstate, 1);
 
 out:
-    /* Pop off the table reference that we pushed up above. */
-    lua_pop(lstate, 1);
-    pthread_mutex_unlock(&script_mutex);
-    return (int)rv;
+    return rv;
 }
 
-int script_execute(script_action_t event, ...) {
-    lua_Integer rv = 0;
-    int err = 0, argtype, argcount = 0;
-    va_list ap;
+int script_execute_pkt(script_action_t event, ship_client_t *c, const void *pkt,
+                       uint16_t len) {
+    lua_Integer grv = 0, lrv = 0;
 
     /* Can't do anything if we don't have any scripts loaded. */
     if(!scripts_ref)
@@ -481,15 +468,31 @@ int script_execute(script_action_t event, ...) {
     /* Pull the scripts table out to the top of the stack. */
     lua_rawgeti(lstate, LUA_REGISTRYINDEX, scripts_ref);
 
-    /* See if there's a script event defined */
-    if(!script_ids[event])
-        goto out;
+    /* See if there's a script event defined by the shipgate. */
+    if(script_ids_gate[event])
+        grv = exec_pkt(script_ids_gate[event], event, c, pkt, len);
 
-    /* There is an script defined, grab it from the table. */
-    lua_rawgeti(lstate, -1, script_ids[event]);
+    /* See if there's a script event defined locally */
+    if(script_ids[event])
+        lrv = exec_pkt(script_ids[event], event, c, pkt, len);
+
+    /* Pop off the table reference that we pushed up above. */
+    lua_pop(lstate, 1);
+    pthread_mutex_unlock(&script_mutex);
+
+    /* Return success if either script ran and returned success. */
+    return (int)(grv | lrv);
+}
+
+static lua_Integer push_args_and_exec(int scr, script_action_t event,
+                                      va_list ap) {
+    lua_Integer rv = 0;
+    int err = 0, argtype, argcount = 0;
+
+    /* Push the script that we're looking at onto the stack. */
+    lua_rawgeti(lstate, -1, scr);
 
     /* Now, push the arguments onto the stack. */
-    va_start(ap, event);
     while((argtype = va_arg(ap, int))) {
         switch(argtype) {
             case SCRIPT_ARG_INT:
@@ -564,7 +567,6 @@ int script_execute(script_action_t event, ...) {
 
         ++argcount;
     }
-    va_end(ap);
 
     /* Done with that, call the function. */
     if(lua_pcall(lstate, argcount, 1, 0) != LUA_OK) {
@@ -584,10 +586,40 @@ int script_execute(script_action_t event, ...) {
     lua_pop(lstate, 1);
 
 out:
+    return rv;
+}
+
+int script_execute(script_action_t event, ...) {
+    lua_Integer lrv = 0, grv = 0;
+    va_list ap;
+
+    /* Can't do anything if we don't have any scripts loaded. */
+    if(!scripts_ref)
+        return 0;
+
+    pthread_mutex_lock(&script_mutex);
+
+    /* Pull the scripts table out to the top of the stack. */
+    lua_rawgeti(lstate, LUA_REGISTRYINDEX, scripts_ref);
+
+    /* See if there's a script event defined by the gate */
+    if(script_ids_gate[event]) {
+        va_start(ap, event);
+        grv = push_args_and_exec(script_ids_gate[event], event, ap);
+        va_end(ap);
+    }
+
+    /* See if there's a script event defined locally */
+    if(script_ids[event]) {
+        va_start(ap, event);
+        lrv = push_args_and_exec(script_ids[event], event, ap);
+        va_end(ap);
+    }
+
     /* Pop off the table reference that we pushed up above. */
     lua_pop(lstate, 1);
     pthread_mutex_unlock(&script_mutex);
-    return (int)rv;
+    return (int)(lrv | grv);
 }
 
 #else
