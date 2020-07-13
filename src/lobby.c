@@ -2264,6 +2264,7 @@ static const luaL_Reg lobbylib[] = {
     { "type", lobby_type_lua },
     { "flags", lobby_flags_lua },
     { "num_clients", lobby_numclients_lua },
+    { "numClients", lobby_numclients_lua },
     { "block", lobby_block_lua },
     { "version", lobby_version_lua },
     { "leaderID", lobby_leaderID_lua },
