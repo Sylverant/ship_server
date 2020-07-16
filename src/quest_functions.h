@@ -87,7 +87,7 @@
 
 /* Function 8:   get_position
    Arguments:    1: int id -- Set to a client id from 0-3 for one player.
-                              Set to -1 for all playes in the team.
+                              Set to -1 for all players in the team.
    Returns:      1 or 4 values of the requested client(s)'s positions.
    Note: Each return value takes up three registers. Only the first of the
          three are specified. Also, note that all values are truncated to

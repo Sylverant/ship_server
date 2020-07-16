@@ -2874,7 +2874,7 @@ static int handle_sync_reg(ship_client_t *c, subcmd_sync_reg_t *pkt) {
             send_sync_register(c, pkt->reg_num, 0x8000FFFE);
         }
         /* Make sure we don't have anything with any reserved ctl bits set
-           (unless a quest has already handled the sync). */
+           (unless a script has already handled the sync). */
         else if((val & 0x17000000) && !done) {
             debug(DBG_LOG, "Quest set flag register with reserved ctl!\n");
             send_sync_register(c, pkt->reg_num, 0x8000FFFE);
