@@ -48,6 +48,7 @@ uint16_t *strcat16(uint16_t *d, const uint16_t *s);
 
 void *xmalloc(size_t size);
 const void *my_ntop(struct sockaddr_storage *addr, char str[INET6_ADDRSTRLEN]);
+int my_pton(int family, const char *str, struct sockaddr_storage *addr);
 int open_sock(int family, uint16_t port);
 
 const char *skip_lang_code(const char *input);

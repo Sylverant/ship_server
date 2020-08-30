@@ -550,6 +550,24 @@ const void *my_ntop(struct sockaddr_storage *addr, char str[INET6_ADDRSTRLEN]) {
     return NULL;
 }
 
+int my_pton(int family, const char *str, struct sockaddr_storage *addr) {
+    switch(family) {
+        case AF_INET:
+        {
+            struct sockaddr_in *a = (struct sockaddr_in *)addr;
+            return inet_pton(family, str, &a->sin_addr);
+        }
+
+        case AF_INET6:
+        {
+            struct sockaddr_in6 *a = (struct sockaddr_in6 *)addr;
+            return inet_pton(family, str, &a->sin6_addr);
+        }
+    }
+
+    return -1;
+}
+
 int open_sock(int family, uint16_t port) {
     int sock = -1, val;
     struct sockaddr_in addr;
