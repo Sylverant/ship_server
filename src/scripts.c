@@ -297,6 +297,7 @@ int script_eventlist_read(const char *fn) {
             if(luaL_loadfile(lstate, (const char *)file) != LUA_OK) {
                 debug(DBG_WARN, "Couldn't load script \"%s\" on line %hu\n",
                       (char *)file, n->line);
+                lua_pop(lstate, 1);
                 goto next;
             }
 
