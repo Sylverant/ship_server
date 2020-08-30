@@ -414,7 +414,7 @@ int team_log_start(lobby_t *i) {
     return 0;
 }
 
-/* Stop logging the specified client's packets */
+/* Stop logging the specified team's packets */
 int team_log_stop(lobby_t *i) {
     time_t now;
     char str[64];
