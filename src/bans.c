@@ -661,6 +661,7 @@ next:
             end_time = xmlGetProp(n, XC"end");
             reason = xmlGetProp(n, XC"reason");
             ip6 = xmlGetProp(n, XC"ipv6");
+            is_ipv6 = 0;
 
             if(!set_by || !banned_gc || !start_time || !end_time || !reason ||
                !ip6 || !netmask) {
@@ -701,6 +702,11 @@ next:
                       n->line, netmask);
                 goto next_ip;
             }
+
+            if(is_ipv6)
+                ban_ip.ss_family = ban_nm.ss_family = AF_INET6;
+            else
+                ban_ip.ss_family = ban_nm.ss_family = AF_INET;
 
             s_time = (time_t)strtoll((char *)start_time, NULL, 0);
             if(errno) {
