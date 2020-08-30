@@ -57,9 +57,13 @@ static int write_bans_list(ship_t *s) {
     xmlDtd *dtd;
     xmlNode *node;
     guildcard_ban_t *i;
+    ip_ban_t *j;
     int rv = 0;
     time_t now = time(NULL);
     char tmp_str[64];
+    struct sockaddr_storage addr;
+    struct sockaddr_in6 *ip6 = (struct sockaddr_in6 *)&addr;
+    struct sockaddr_in *ip4 = (struct sockaddr_in *)&addr;
 
     /* Make sure the file exists and can be read, otherwise quietly bail out */
     if(!s->cfg->bans_file[0]) {
@@ -119,6 +123,61 @@ static int write_bans_list(ship_t *s) {
         xmlNewProp(node, XC"end", XC tmp_str);
 
         xmlNewProp(node, XC"reason", XC i->reason);
+    }
+
+    TAILQ_FOREACH(j, &s->ip_bans, qentry) {
+        /* Ignore bans that are over already */
+        if(j->end_time != -1 && j->end_time < now) {
+            continue;
+        }
+
+        /* Create the node for this entry, and fill it in. */
+        node = xmlNewChild(root, NULL, XC"ipban", NULL);
+        if(!node) {
+            rv = -5;
+            goto err_doc;
+        }
+
+        sprintf(tmp_str, "%lu", (unsigned long)j->set_by);
+        xmlNewProp(node, XC"set_by", XC tmp_str);
+
+        const void *my_ntop(struct sockaddr_storage *addr, char str[INET6_ADDRSTRLEN]);
+
+        if(j->ipv6) {
+            xmlNewProp(node, XC"ipv6", XC"true");
+            ip6->sin6_family = AF_INET6;
+            memcpy(ip6->sin6_addr.s6_addr, j->ip_addr, 16);
+
+        }
+        else {
+            xmlNewProp(node, XC"ipv6", XC"false");
+            ip4->sin_family = AF_INET;
+            ip4->sin_addr.s_addr = j->ip_addr[0];
+        }
+
+        my_ntop(&addr, tmp_str);
+        xmlNewProp(node, XC"ip", XC tmp_str);
+
+        if(j->ipv6) {
+            ip6->sin6_family = AF_INET6;
+            memcpy(ip6->sin6_addr.s6_addr, j->netmask, 16);
+
+        }
+        else {
+            ip4->sin_family = AF_INET;
+            ip4->sin_addr.s_addr = j->netmask[0];
+        }
+
+        my_ntop(&addr, tmp_str);
+        xmlNewProp(node, XC"ip", XC tmp_str);
+
+        sprintf(tmp_str, "%lld", (long long)j->start_time);
+        xmlNewProp(node, XC"start", XC tmp_str);
+
+        sprintf(tmp_str, "%lld", (long long)j->end_time);
+        xmlNewProp(node, XC"end", XC tmp_str);
+
+        xmlNewProp(node, XC"reason", XC j->reason);
     }
 
     pthread_rwlock_unlock(&s->banlock);
