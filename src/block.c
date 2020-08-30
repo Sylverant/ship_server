@@ -788,12 +788,28 @@ static int join_game(ship_client_t *c, lobby_t *l) {
    data request. */
 static int dcnte_process_login(ship_client_t *c, dcnte_login_8b_pkt *pkt) {
     char ipstr[INET6_ADDRSTRLEN];
+    char *ban_reason;
+    time_t ban_end;
 
     /* Make sure v1 is allowed on this ship. */
     if((ship->cfg->shipgate_flags & SHIPGATE_FLAG_NODCNTE)) {
         send_message_box(c, "%s", __(c, "\tEPSO NTE is not supported on\n"
                                      "this ship.\n\nDisconnecting."));
         c->flags |= CLIENT_FLAG_DISCONNECTED;
+        return 0;
+    }
+
+    /* See if the user is banned */
+    if(is_guildcard_banned(ship, c->guildcard, &ban_reason, &ban_end)) {
+        send_ban_msg(c, ban_end, ban_reason);
+        c->flags |= CLIENT_FLAG_DISCONNECTED;
+        free(ban_reason);
+        return 0;
+    }
+    else if(is_ip_banned(ship, &c->ip_addr, &ban_reason, &ban_end)) {
+        send_ban_msg(c, ban_end, ban_reason);
+        c->flags |= CLIENT_FLAG_DISCONNECTED;
+        free(ban_reason);
         return 0;
     }
 
@@ -830,12 +846,28 @@ static int dcnte_process_login(ship_client_t *c, dcnte_login_8b_pkt *pkt) {
    data request. */
 static int dc_process_login(ship_client_t *c, dc_login_93_pkt *pkt) {
     char ipstr[INET6_ADDRSTRLEN];
+    char *ban_reason;
+    time_t ban_end;
 
     /* Make sure v1 is allowed on this ship. */
     if((ship->cfg->shipgate_flags & SHIPGATE_FLAG_NOV1)) {
         send_message_box(c, "%s", __(c, "\tEPSO Version 1 is not supported on\n"
                                      "this ship.\n\nDisconnecting."));
         c->flags |= CLIENT_FLAG_DISCONNECTED;
+        return 0;
+    }
+
+    /* See if the user is banned */
+    if(is_guildcard_banned(ship, c->guildcard, &ban_reason, &ban_end)) {
+        send_ban_msg(c, ban_end, ban_reason);
+        c->flags |= CLIENT_FLAG_DISCONNECTED;
+        free(ban_reason);
+        return 0;
+    }
+    else if(is_ip_banned(ship, &c->ip_addr, &ban_reason, &ban_end)) {
+        send_ban_msg(c, ban_end, ban_reason);
+        c->flags |= CLIENT_FLAG_DISCONNECTED;
+        free(ban_reason);
         return 0;
     }
 
@@ -882,6 +914,8 @@ static int is_pctrial(dcv2_login_9d_pkt *pkt) {
    character data request. */
 static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
     char ipstr[INET6_ADDRSTRLEN];
+    char *ban_reason;
+    time_t ban_end;
 
     /* Make sure the client's version is allowed on this ship. */
     if(c->version != CLIENT_VERSION_PC) {
@@ -912,6 +946,20 @@ static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
                 return 0;
             }
         }
+    }
+
+    /* See if the user is banned */
+    if(is_guildcard_banned(ship, c->guildcard, &ban_reason, &ban_end)) {
+        send_ban_msg(c, ban_end, ban_reason);
+        c->flags |= CLIENT_FLAG_DISCONNECTED;
+        free(ban_reason);
+        return 0;
+    }
+    else if(is_ip_banned(ship, &c->ip_addr, &ban_reason, &ban_end)) {
+        send_ban_msg(c, ban_end, ban_reason);
+        c->flags |= CLIENT_FLAG_DISCONNECTED;
+        free(ban_reason);
+        return 0;
     }
 
     /* Save what we care about in here. */
@@ -956,6 +1004,8 @@ static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
    character data request. */
 static int gc_process_login(ship_client_t *c, gc_login_9e_pkt *pkt) {
     char ipstr[INET6_ADDRSTRLEN];
+    char *ban_reason;
+    time_t ban_end;
 
     /* Make sure PSOGC is allowed on this ship. */
     if(c->version == CLIENT_VERSION_GC) {
@@ -975,6 +1025,20 @@ static int gc_process_login(ship_client_t *c, gc_login_9e_pkt *pkt) {
             c->flags |= CLIENT_FLAG_DISCONNECTED;
             return 0;
         }
+    }
+
+    /* See if the user is banned */
+    if(is_guildcard_banned(ship, c->guildcard, &ban_reason, &ban_end)) {
+        send_ban_msg(c, ban_end, ban_reason);
+        c->flags |= CLIENT_FLAG_DISCONNECTED;
+        free(ban_reason);
+        return 0;
+    }
+    else if(is_ip_banned(ship, &c->ip_addr, &ban_reason, &ban_end)) {
+        send_ban_msg(c, ban_end, ban_reason);
+        c->flags |= CLIENT_FLAG_DISCONNECTED;
+        free(ban_reason);
+        return 0;
     }
 
     /* Save what we care about in here. */
@@ -1020,6 +1084,8 @@ static int gc_process_login(ship_client_t *c, gc_login_9e_pkt *pkt) {
 static int bb_process_login(ship_client_t *c, bb_login_93_pkt *pkt) {
     uint32_t team_id;
     char ipstr[INET6_ADDRSTRLEN];
+    char *ban_reason;
+    time_t ban_end;
 
     /* Make sure PSOBB is allowed on this ship. */
     if((ship->cfg->shipgate_flags & LOGIN_FLAG_NOBB)) {
@@ -1027,6 +1093,20 @@ static int bb_process_login(ship_client_t *c, bb_login_93_pkt *pkt) {
                                         "supported on\nthis ship.\n\n"
                                         "Disconnecting."));
         c->flags |= CLIENT_FLAG_DISCONNECTED;
+        return 0;
+    }
+
+    /* See if the user is banned */
+    if(is_guildcard_banned(ship, c->guildcard, &ban_reason, &ban_end)) {
+        send_ban_msg(c, ban_end, ban_reason);
+        c->flags |= CLIENT_FLAG_DISCONNECTED;
+        free(ban_reason);
+        return 0;
+    }
+    else if(is_ip_banned(ship, &c->ip_addr, &ban_reason, &ban_end)) {
+        send_ban_msg(c, ban_end, ban_reason);
+        c->flags |= CLIENT_FLAG_DISCONNECTED;
+        free(ban_reason);
         return 0;
     }
 

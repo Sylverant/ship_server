@@ -9969,3 +9969,25 @@ int send_lobby_sync_register(lobby_t *l, uint8_t n, uint32_t v) {
 
     return 0;
 }
+
+int send_ban_msg(ship_client_t *c, time_t until, const char *reason) {
+    char string[512];
+    struct tm cooked;
+
+    /* Create the ban string. */
+    sprintf(string, "%s\n%s\n%s\n\n%s\n",
+            __(c, "\tEYou have been banned from this ship."), __(c, "Reason:"),
+            reason, __(c, "Your ban expires:"));
+
+    if(until == (time_t)-1) {
+        strcat(string, __(c, "Never"));
+    }
+    else {
+        gmtime_r(&until, &cooked);
+        sprintf(string, "%s%02u:%02u UTC %u.%02u.%02u", string, cooked.tm_hour,
+                cooked.tm_min, cooked.tm_year + 1900, cooked.tm_mon + 1,
+                cooked.tm_mday);
+    }
+
+    return send_message_box(c, "%s", string);
+}

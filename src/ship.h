@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2016 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2016, 2020 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -120,6 +120,7 @@ struct ship {
 
     pthread_rwlock_t banlock;
     struct gcban_queue guildcard_bans;
+    struct ipban_queue ip_bans;
 
     struct miniship_queue ships;
     int mccount;

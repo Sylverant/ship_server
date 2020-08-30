@@ -171,7 +171,7 @@ static void *ship_thd(void *d) {
 
         /* If we haven't swept the bans list in the last day, do it now. */
         if((last_ban_sweep + 3600 * 24) <= now) {
-            ban_sweep_guildcards(s);
+            ban_sweep(s);
             last_ban_sweep = now = time(NULL);
         }
 
@@ -736,6 +736,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     TAILQ_INIT(rv->clients);
     TAILQ_INIT(&rv->ships);
     TAILQ_INIT(&rv->guildcard_bans);
+    TAILQ_INIT(&rv->ip_bans);
     rv->cfg = s;
     rv->dcsock[0] = dcsock[0];
     rv->pcsock[0] = pcsock[0];
@@ -988,28 +989,6 @@ void ship_server_shutdown(ship_t *s, time_t when) {
     }
 }
 
-static int send_ban_msg(ship_client_t *c, time_t until, const char *reason) {
-    char string[512];
-    struct tm cooked;
-
-    /* Create the ban string. */
-    sprintf(string, "%s\n%s\n%s\n\n%s\n",
-            __(c, "\tEYou have been banned from this ship."), __(c, "Reason:"),
-            reason, __(c, "Your ban expires:"));
-
-    if(until == (time_t)-1) {
-        strcat(string, __(c, "Never"));
-    }
-    else {
-        gmtime_r(&until, &cooked);
-        sprintf(string, "%s%02u:%02u UTC %u.%02u.%02u", string, cooked.tm_hour,
-                cooked.tm_min, cooked.tm_year + 1900, cooked.tm_mon + 1,
-                cooked.tm_mday);
-    }
-
-    return send_message_box(c, "%s", string);
-}
-
 static int dcnte_process_login(ship_client_t *c, dcnte_login_8b_pkt *pkt) {
     char *ban_reason;
     time_t ban_end;
@@ -1030,6 +1009,13 @@ static int dcnte_process_login(ship_client_t *c, dcnte_login_8b_pkt *pkt) {
     if(is_guildcard_banned(ship, c->guildcard, &ban_reason, &ban_end)) {
         send_ban_msg(c, ban_end, ban_reason);
         c->flags |= CLIENT_FLAG_DISCONNECTED;
+        free(ban_reason);
+        return 0;
+    }
+    else if(is_ip_banned(ship, &c->ip_addr, &ban_reason, &ban_end)) {
+        send_ban_msg(c, ban_end, ban_reason);
+        c->flags |= CLIENT_FLAG_DISCONNECTED;
+        free(ban_reason);
         return 0;
     }
 
@@ -1063,6 +1049,13 @@ static int dc_process_login(ship_client_t *c, dc_login_93_pkt *pkt) {
     if(is_guildcard_banned(ship, c->guildcard, &ban_reason, &ban_end)) {
         send_ban_msg(c, ban_end, ban_reason);
         c->flags |= CLIENT_FLAG_DISCONNECTED;
+        free(ban_reason);
+        return 0;
+    }
+    else if(is_ip_banned(ship, &c->ip_addr, &ban_reason, &ban_end)) {
+        send_ban_msg(c, ban_end, ban_reason);
+        c->flags |= CLIENT_FLAG_DISCONNECTED;
+        free(ban_reason);
         return 0;
     }
 
@@ -1131,6 +1124,13 @@ static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
     if(is_guildcard_banned(ship, c->guildcard, &ban_reason, &ban_end)) {
         send_ban_msg(c, ban_end, ban_reason);
         c->flags |= CLIENT_FLAG_DISCONNECTED;
+        free(ban_reason);
+        return 0;
+    }
+    else if(is_ip_banned(ship, &c->ip_addr, &ban_reason, &ban_end)) {
+        send_ban_msg(c, ban_end, ban_reason);
+        c->flags |= CLIENT_FLAG_DISCONNECTED;
+        free(ban_reason);
         return 0;
     }
 
@@ -1176,6 +1176,13 @@ static int gc_process_login(ship_client_t *c, gc_login_9e_pkt *pkt) {
     if(is_guildcard_banned(ship, c->guildcard, &ban_reason, &ban_end)) {
         send_ban_msg(c, ban_end, ban_reason);
         c->flags |= CLIENT_FLAG_DISCONNECTED;
+        free(ban_reason);
+        return 0;
+    }
+    else if(is_ip_banned(ship, &c->ip_addr, &ban_reason, &ban_end)) {
+        send_ban_msg(c, ban_end, ban_reason);
+        c->flags |= CLIENT_FLAG_DISCONNECTED;
+        free(ban_reason);
         return 0;
     }
 
@@ -1211,6 +1218,13 @@ static int bb_process_login(ship_client_t *c, bb_login_93_pkt *pkt) {
     if(is_guildcard_banned(ship, c->guildcard, &ban_reason, &ban_end)) {
         send_ban_msg(c, ban_end, ban_reason);
         c->flags |= CLIENT_FLAG_DISCONNECTED;
+        free(ban_reason);
+        return 0;
+    }
+    else if(is_ip_banned(ship, &c->ip_addr, &ban_reason, &ban_end)) {
+        send_ban_msg(c, ban_end, ban_reason);
+        c->flags |= CLIENT_FLAG_DISCONNECTED;
+        free(ban_reason);
         return 0;
     }
 

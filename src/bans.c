@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2011 Lawrence Sebald
+    Copyright (C) 2011, 2020 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -28,12 +28,26 @@
 
 #include "bans.h"
 #include "ship.h"
+#include "utils.h"
 
 #ifndef LIBXML_TREE_ENABLED
 #error You must have libxml2 with tree support built-in.
 #endif
 
 #define XC (const xmlChar *)
+
+static inline int eq_ip6(const struct sockaddr_in6 *ip1, const uint32_t ip2[4],
+                         const uint32_t netmask[4]) {
+    uint32_t tmp[4];
+
+    memcpy(tmp, ip1->sin6_addr.s6_addr, 16);
+    if((tmp[0] & netmask[0]) == (ip2[0] & netmask[0]) &&
+       (tmp[1] & netmask[1]) == (ip2[1] & netmask[1]) &&
+       (tmp[2] & netmask[2]) == (ip2[2] & netmask[2]) &&
+       (tmp[3] & netmask[3]) == (ip2[3] & netmask[3]))
+        return 1;
+    return 0;
+}
 
 static int write_bans_list(ship_t *s) {
     xmlDoc *doc;
@@ -67,8 +81,8 @@ static int write_bans_list(ship_t *s) {
 
     /* Create the DTD declaration we need */
     dtd = xmlCreateIntSubset(doc, XC"bans",
-                             XC"-//Sylverant//DTD Ban Configuration 1.0//EN",
-                             XC"http://dtd.sylverant.net/bans1/bans.dtd");
+                             XC"-//Sylverant//DTD Ban Configuration 1.1//EN",
+                             XC"http://dtd.sylverant.net/bans1.1/bans.dtd");
     if(!dtd) {
         rv = -4;
         goto err_doc;
@@ -159,12 +173,92 @@ static int ban_gc_int(ship_t *s, time_t end_time, time_t start_time,
     return 0;
 }
 
+static int ban_ip_int(ship_t *s, time_t end_time, time_t start_time,
+                      uint32_t set_by, const struct sockaddr_storage *ip,
+                      const struct sockaddr_storage *netmask,
+                      const char *reason) {
+    ip_ban_t *ban;
+    int len = reason ? strlen(reason) + 1 : 1;
+
+    /* Allocate space for the new ban... */
+    ban = (ip_ban_t *)malloc(sizeof(ip_ban_t));
+    if(!ban) {
+        debug(DBG_WARN, "Can't allocate space for new ip ban\n");
+        perror("malloc");
+        return -1;
+    }
+
+    /* Allocate space for the string and copy it over */
+    ban->reason = (char *)malloc(len);
+    if(!ban->reason) {
+        debug(DBG_WARN, "Can't allocate space for new ip ban reason\n");
+        perror("malloc");
+        free(ban);
+        return -1;
+    }
+
+    if(len > 1) {
+        strcpy(ban->reason, reason);
+    }
+    else {
+        ban->reason[0] = '\0';
+    }
+
+    /* Fill in the struct */
+    ban->start_time = start_time;
+    ban->end_time = end_time;
+    ban->set_by = set_by;
+
+    if(ip->ss_family == AF_INET) {
+        struct sockaddr_in *ip4 = (struct sockaddr_in *)ip;
+        ban->ip_addr[0] = ip4->sin_addr.s_addr;
+        ban->ip_addr[1] = ban->ip_addr[2] = ban->ip_addr[3] = 0;
+
+        ip4 = (struct sockaddr_in *)netmask;
+        ban->netmask[0] = ip4->sin_addr.s_addr;
+        ban->netmask[1] = ban->netmask[2] = ban->netmask[3] = 0;
+
+        ban->ipv6 = 0;
+    }
+    else {
+        struct sockaddr_in6 *ip6 = (struct sockaddr_in6 *)ip;
+        memcpy(ban->ip_addr, ip6->sin6_addr.s6_addr, 16);
+
+        ip6 = (struct sockaddr_in6 *)netmask;
+        memcpy(ban->netmask, ip6->sin6_addr.s6_addr, 16);
+
+        ban->ipv6 = 1;
+    }
+
+    /* Now that that's done, we need to add it to the list... */
+    pthread_rwlock_wrlock(&s->banlock);
+    TAILQ_INSERT_TAIL(&s->ip_bans, ban, qentry);
+    pthread_rwlock_unlock(&s->banlock);
+
+    return 0;
+}
+
 int ban_guildcard(ship_t *s, time_t end_time, uint32_t set_by,
                   uint32_t guildcard, const char *reason) {
     /* Add the ban to the list... */
-    if(ban_gc_int(s, end_time, time(NULL), set_by, guildcard, reason)) {
+    if(ban_gc_int(s, end_time, time(NULL), set_by, guildcard, reason))
         return -1;
+
+    /* Save the file */
+    if(write_bans_list(s)) {
+        debug(DBG_WARN, "Couldn't save bans list\n");
+        return -2;
     }
+
+    return 0;
+}
+
+int ban_ip(ship_t *s, time_t end_time, uint32_t set_by,
+           const struct sockaddr_storage *ip,
+           const struct sockaddr_storage *netmask, const char *reason) {
+    /* Add the ban to the list... */
+    if(ban_ip_int(s, end_time, time(NULL), set_by, ip, netmask, reason))
+        return -1;
 
     /* Save the file */
     if(write_bans_list(s)) {
@@ -226,8 +320,73 @@ int ban_lift_guildcard_ban(ship_t *s, uint32_t guildcard) {
     return -1;
 }
 
-int ban_sweep_guildcards(ship_t *s) {
+int ban_lift_ip_ban(ship_t *s, const struct sockaddr_storage *ip) {
+    ip_ban_t *i, *tmp;
+    int num_lifted = 0, num_matching = 0;
+    time_t now = time(NULL);
+
+    /* This involves writing to the ban list, in general. So, we have to lock
+       for writing, unfortunately... */
+    pthread_rwlock_wrlock(&s->banlock);
+
+    /* Look for any matching entries, and remove all of them. */
+    i = TAILQ_FIRST(&s->ip_bans);
+    while(i) {
+        tmp = TAILQ_NEXT(i, qentry);
+
+        /* Did we find a match? */
+        if(i->ipv6) {
+            if(eq_ip6((const struct sockaddr_in6 *)ip, i->ip_addr,
+                      i->netmask)) {
+                TAILQ_REMOVE(&s->ip_bans, i, qentry);
+                free(i->reason);
+                free(i);
+                ++num_lifted;
+                ++num_matching;
+            }
+        }
+        else {
+            const struct sockaddr_in *ip4 = (const struct sockaddr_in *)ip;
+            if(i->ip_addr[0] == ip4->sin_addr.s_addr) {
+                TAILQ_REMOVE(&s->ip_bans, i, qentry);
+                free(i->reason);
+                free(i);
+                ++num_lifted;
+                ++num_matching;
+            }
+        }
+
+        /* While we're at it, remove any stale bans */
+        if(i->end_time != (time_t)-1 && i->end_time < now) {
+            TAILQ_REMOVE(&s->ip_bans, i, qentry);
+            free(i->reason);
+            free(i);
+            ++num_lifted;
+        }
+
+        i = tmp;
+    }
+
+    /* We're done with writing to the list, unlock this now... */
+    pthread_rwlock_unlock(&s->banlock);
+
+    if(num_lifted) {
+        /* Save the file */
+        if(write_bans_list(s)) {
+            debug(DBG_WARN, "Couldn't save bans list\n");
+            return -2;
+        }
+
+        return num_matching ? 0 : -1;
+    }
+
+    /* Didn't find anything if we get here, return failure. */
+    return -1;
+}
+
+int ban_sweep(ship_t *s) {
     guildcard_ban_t *i, *tmp;
+    ip_ban_t *j, *tmp2;
     int num_lifted = 0;
     time_t now = time(NULL);
 
@@ -248,6 +407,20 @@ int ban_sweep_guildcards(ship_t *s) {
         }
 
         i = tmp;
+    }
+
+    j = TAILQ_FIRST(&s->ip_bans);
+    while(j) {
+        tmp2 = TAILQ_NEXT(j, qentry);
+
+        if(j->end_time != (time_t)-1 && j->end_time < now) {
+            TAILQ_REMOVE(&s->ip_bans, j, qentry);
+            free(j->reason);
+            free(j);
+            ++num_lifted;
+        }
+
+        j = tmp2;
     }
 
     /* We're done with writing to the list, unlock this now... */
@@ -278,7 +451,7 @@ int is_guildcard_banned(ship_t *s, uint32_t guildcard, char **reason,
         if(i->banned_gc == guildcard) {
             if(i->end_time >= now || i->end_time == (time_t)-1) {
                 banned = 1;
-                *reason = i->reason;
+                *reason = strdup(i->reason);
                 *until = i->end_time;
                 break;
             }
@@ -290,14 +463,78 @@ int is_guildcard_banned(ship_t *s, uint32_t guildcard, char **reason,
     return banned;
 }
 
+static int is_ip4_banned(ship_t *s, const struct sockaddr_in *ip, char **reason,
+                         time_t *until) {
+    time_t now = time(NULL);
+    ip_ban_t *i;
+
+    /* Look for the user with any bans that haven't expired */
+    TAILQ_FOREACH(i, &s->ip_bans, qentry) {
+        if(i->ipv6)
+            continue;
+
+        if((i->end_time >= now || i->end_time == (time_t) -1) &&
+           (ip->sin_addr.s_addr & i->netmask[0]) ==
+           (i->ip_addr[0] & i->netmask[0])) {
+            *reason = strdup(i->reason);
+            *until = i->end_time;
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+static int is_ip6_banned(ship_t *s, const struct sockaddr_in6 *ip,
+                         char **reason, time_t *until) {
+    time_t now = time(NULL);
+    ip_ban_t *i;
+
+    /* Look for the user with any bans that haven't expired */
+    TAILQ_FOREACH(i, &s->ip_bans, qentry) {
+        if(!i->ipv6)
+            continue;
+
+        if((i->end_time >= now || i->end_time == (time_t) -1) &&
+           eq_ip6(ip, i->ip_addr, i->netmask)) {
+            *reason = strdup(i->reason);
+            *until = i->end_time;
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+int is_ip_banned(ship_t *s, const struct sockaddr_storage *ip, char **reason,
+                 time_t *until) {
+    int banned = 0;
+
+    /* Lock the ban lock so nothing changes under us */
+    pthread_rwlock_rdlock(&s->banlock);
+
+    if(ip->ss_family == AF_INET)
+        banned = is_ip4_banned(s, (const struct sockaddr_in *)ip, reason,
+                               until);
+    else
+        banned = is_ip6_banned(s, (const struct sockaddr_in6 *)ip, reason,
+                               until);
+
+    pthread_rwlock_unlock(&s->banlock);
+
+    return banned;
+}
+
 int ban_list_read(const char *fn, ship_t *s) {
     xmlParserCtxtPtr cxt;
     xmlDoc *doc;
     xmlNode *n;
     xmlChar *set_by, *banned_gc, *start_time, *end_time, *reason;
+    xmlChar *netmask, *ip6;
     uint32_t set_gc, ban_gc;
     time_t s_time, e_time, now = time(NULL);
-    int rv = 0, num_bans = 0;
+    int rv = 0, num_bans = 0, is_ipv6 = 0;
+    struct sockaddr_storage ban_ip, ban_nm;
 
     if(!TAILQ_EMPTY(&s->guildcard_bans)) {
         debug(DBG_WARN, "Cannot read guildcard bans multiple times!\n");
@@ -356,10 +593,7 @@ int ban_list_read(const char *fn, ship_t *s) {
             n = n->next;
             continue;
         }
-        else if(xmlStrcmp(n->name, XC"ban")) {
-            debug(DBG_WARN, "Invalid Tag %s on line %hu\n", n->name, n->line);
-        }
-        else {
+        else if(!xmlStrcmp(n->name, XC"ban")) {
             /* We've got the right tag, see if we have all the attributes... */
             set_by = xmlGetProp(n, XC"set_by");
             banned_gc = xmlGetProp(n, XC"guildcard");
@@ -416,11 +650,95 @@ next:
             xmlFree(end_time);
             xmlFree(reason);
         }
+        else if(!xmlStrcmp(n->name, XC"ipban")) {
+            /* We've got the right tag, see if we have all the attributes... */
+            set_by = xmlGetProp(n, XC"set_by");
+            banned_gc = xmlGetProp(n, XC"ip");
+            netmask = xmlGetProp(n, XC"netmask");
+            start_time = xmlGetProp(n, XC"start");
+            end_time = xmlGetProp(n, XC"end");
+            reason = xmlGetProp(n, XC"reason");
+            ip6 = xmlGetProp(n, XC"ipv6");
+
+            if(!set_by || !banned_gc || !start_time || !end_time || !reason ||
+               !ip6 || !netmask) {
+                debug(DBG_WARN, "Incomplete ipban entry on line %hu\n",
+                      n->line);
+                goto next_ip;
+            }
+
+            if(!xmlStrcmp(ip6, XC"true")) {
+                is_ipv6 = 1;
+            }
+            else if(xmlStrcmp(ip6, XC"false")) {
+                debug(DBG_WARN, "Invalid ipban ipv6 value on line %hu: %s\n",
+                      n->line, ip6);
+                goto next_ip;
+            }
+
+            errno = 0;
+            set_gc = (uint32_t)strtoul((char *)set_by, NULL, 0);
+
+            if(errno) {
+                debug(DBG_WARN, "Invalid ipban set_by on line %hu: %s\n",
+                      n->line, set_by);
+                goto next_ip;
+            }
+
+            /* Parse the IP and netmask. */
+            if(my_pton(is_ipv6 ? AF_INET6 : AF_INET, (const char *)banned_gc,
+                       &ban_ip) != 1) {
+                debug(DBG_WARN, "Invalid IP address on line %hu: %s\n",
+                      n->line, banned_gc);
+                goto next_ip;
+            }
+
+            if(my_pton(is_ipv6 ? AF_INET6 : AF_INET, (const char *)netmask,
+                       &ban_nm) != 1) {
+                debug(DBG_WARN, "Invalid netmask on line %hu: %s\n",
+                      n->line, netmask);
+                goto next_ip;
+            }
+
+            s_time = (time_t)strtoll((char *)start_time, NULL, 0);
+            if(errno) {
+                debug(DBG_WARN, "Invalid start time on line %hu: %s\n", n->line,
+                      start_time);
+                goto next_ip;
+            }
+
+            e_time = (time_t)strtoll((char *)end_time, NULL, 0);
+            if(errno) {
+                debug(DBG_WARN, "Invalid end time on line %hu: %s\n", n->line,
+                      end_time);
+                goto next_ip;
+            }
+
+            /* Add the ban to the list, if its not expired already */
+            if(e_time == -1 || e_time > now) {
+                ban_ip_int(s, e_time, s_time, set_gc, &ban_ip, &ban_nm,
+                           (char *)reason);
+                ++num_bans;
+            }
+
+next_ip:
+            /* Free the memory we allocated here... */
+            xmlFree(set_by);
+            xmlFree(banned_gc);
+            xmlFree(netmask);
+            xmlFree(ip6);
+            xmlFree(start_time);
+            xmlFree(end_time);
+            xmlFree(reason);
+        }
+        else {
+            debug(DBG_WARN, "Invalid Tag %s on line %hu\n", n->name, n->line);
+        }
 
         n = n->next;
     }
 
-    debug(DBG_LOG, "Read %d current guildcard bans\n", num_bans);
+    debug(DBG_LOG, "Read %d current local bans\n", num_bans);
 
     /* Cleanup/error handling below... */
 err_doc:
@@ -434,6 +752,7 @@ err:
 
 void ban_list_clear(ship_t *s) {
     guildcard_ban_t *i, *tmp;
+    ip_ban_t *j, *tmp2;
 
     pthread_rwlock_wrlock(&s->banlock);
 
@@ -448,7 +767,19 @@ void ban_list_clear(ship_t *s) {
         i = tmp;
     }
 
+    j = TAILQ_FIRST(&s->ip_bans);
+    while(j) {
+        tmp2 = TAILQ_NEXT(j, qentry);
+
+        TAILQ_REMOVE(&s->ip_bans, j, qentry);
+        free(j->reason);
+        free(j);
+
+        j = tmp2;
+    }
+
     TAILQ_INIT(&s->guildcard_bans);
+    TAILQ_INIT(&s->ip_bans);
 
     pthread_rwlock_unlock(&s->banlock);
 }

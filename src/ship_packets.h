@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2015, 2018, 2019 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2015, 2018, 2019, 2020 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -285,5 +285,8 @@ int send_sync_register(ship_client_t *c, uint8_t reg_num, uint32_t value);
 
 /* Send a quest register sync to all clients in a lobby. */
 int send_lobby_sync_register(lobby_t *l, uint8_t n, uint32_t v);
+
+/* Send a message box to the user telling them that they are banned. */
+int send_ban_msg(ship_client_t *c, time_t until, const char *reason);
 
 #endif /* !SHIP_PACKETS_H */
