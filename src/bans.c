@@ -68,7 +68,7 @@ static int write_bans_list(ship_t *s) {
     /* Create the DTD declaration we need */
     dtd = xmlCreateIntSubset(doc, XC"bans",
                              XC"-//Sylverant//DTD Ban Configuration 1.0//EN",
-                             XC"http://sylverant.net/dtd/bans1/bans.dtd");
+                             XC"http://dtd.sylverant.net/bans1/bans.dtd");
     if(!dtd) {
         rv = -4;
         goto err_doc;
@@ -112,7 +112,7 @@ static int write_bans_list(ship_t *s) {
 
 err_doc:
     free(doc);
-    
+
     return rv;
 }
 
