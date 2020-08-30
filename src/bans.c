@@ -156,7 +156,7 @@ static int write_bans_list(ship_t *s) {
         }
 
         my_ntop(&addr, tmp_str);
-        xmlNewProp(node, XC"ip", XC tmp_str);
+        xmlNewProp(node, XC"netmask", XC tmp_str);
 
         if(j->ipv6) {
             ip6->sin6_family = AF_INET6;
