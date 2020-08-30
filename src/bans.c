@@ -21,6 +21,8 @@
 #include <unistd.h>
 #include <errno.h>
 
+#include <sys/socket.h>
+
 #include <sylverant/debug.h>
 
 #include <libxml/parser.h>
