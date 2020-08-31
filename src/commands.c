@@ -3383,6 +3383,7 @@ static int handle_ib(ship_client_t *c, const char *params) {
     /* Set the ban in the list (86,400s = 1 day) */
     if(ban_ip(ship, time(NULL) + 86400 * len, c->guildcard, &addr, &netmask,
               reason)) {
+        free(str);
         return send_txt(c, "%s", __(c, "\tE\tC7Error setting ban."));
     }
 
