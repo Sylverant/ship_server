@@ -3335,6 +3335,91 @@ static int handle_eteamlog(ship_client_t *c, const char *params) {
     }
 }
 
+/* Usage: /ib days ip reason */
+static int handle_ib(ship_client_t *c, const char *params) {
+    struct sockaddr_storage addr, netmask;
+    struct sockaddr_in *ip = (struct sockaddr_in *)&addr;
+    struct sockaddr_in *nm = (struct sockaddr_in *)&netmask;
+    block_t *b;
+    ship_client_t *i;
+    char *slen, *sip, *reason;
+    char *str, *tok;
+    int j;
+    uint32_t len;
+
+    /* Make sure the requester is a local GM. */
+    if(!LOCAL_GM(c)) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
+    }
+
+    if(!(str = strdup(params))) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Internal server error."));
+    }
+
+    /* Grab each token we're expecting... */
+    slen = strtok_r(str, " ,", &tok);
+    sip = strtok_r(NULL, " ,", &tok);
+    reason = strtok_r(NULL, "", &tok);
+
+    /* Figure out the user requested */
+    errno = 0;
+    len = (uint32_t)strtoul(slen, NULL, 10);
+
+    if(errno != 0) {
+        /* Send a message saying invalid length */
+        free(str);
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid ban length."));
+    }
+
+    /* Parse the IP address. We only support IPv4 here. */
+    if(!my_pton(AF_INET, sip, &addr)) {
+        free(str);
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid IP address."));
+    }
+
+    nm->sin_addr.s_addr = 0xFFFFFFFF;
+    addr.ss_family = netmask.ss_family = AF_INET;
+
+    /* Set the ban in the list (86,400s = 1 day) */
+    if(ban_ip(ship, time(NULL) + 86400 * len, c->guildcard, &addr, &netmask,
+              reason)) {
+        return send_txt(c, "%s", __(c, "\tE\tC7Error setting ban."));
+    }
+
+    /* Look for the requested user and kick them if they're on the ship. */
+    for(j = 0; j < ship->cfg->blocks; ++j) {
+        if((b = ship->blocks[j])) {
+            pthread_rwlock_rdlock(&b->lock);
+
+            TAILQ_FOREACH(i, b->clients, qentry) {
+                /* Disconnect them if we find them */
+                nm = (struct sockaddr_in *)&i->ip_addr;
+                if(nm->sin_family == AF_INET &&
+                   ip->sin_addr.s_addr == nm->sin_addr.s_addr) {
+                    if(strlen(reason)) {
+                        send_message_box(i, "%s\n%s\n%s",
+                                         __(i, "\tEYou have been banned from "
+                                            "this ship."), __(i, "Reason:"),
+                                         reason);
+                    }
+                    else {
+                        send_message_box(i, "%s",
+                                         __(i, "\tEYou have been banned from "
+                                            "this ship."));
+                    }
+
+                    i->flags |= CLIENT_FLAG_DISCONNECTED;
+                }
+            }
+
+            pthread_rwlock_unlock(&b->lock);
+        }
+    }
+
+    free(str);
+    return send_txt(c, "%s", __(c, "\tE\tC7Successfully set ban."));
+}
+
 static command_t cmds[] = {
     { "warp"     , handle_warp      },
     { "kill"     , handle_kill      },
@@ -3429,6 +3514,7 @@ static command_t cmds[] = {
     { "censor"   , handle_censor    },
     { "teamlog"  , handle_teamlog   },
     { "eteamlog" , handle_eteamlog  },
+    { "ib"       , handle_ib        },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 
