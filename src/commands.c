@@ -3396,7 +3396,7 @@ static int handle_ib(ship_client_t *c, const char *params) {
                 nm = (struct sockaddr_in *)&i->ip_addr;
                 if(nm->sin_family == AF_INET &&
                    ip->sin_addr.s_addr == nm->sin_addr.s_addr) {
-                    if(strlen(reason)) {
+                    if(reason && strlen(reason)) {
                         send_message_box(i, "%s\n%s\n%s",
                                          __(i, "\tEYou have been banned from "
                                             "this ship."), __(i, "Reason:"),
