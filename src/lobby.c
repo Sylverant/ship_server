@@ -146,7 +146,7 @@ static void lobby_setup_drops(ship_client_t *c, lobby_t *l, uint32_t rs) {
             case CLIENT_VERSION_DCV2:
             case CLIENT_VERSION_PC:
                 if(pt_v2_enabled() && map_have_v2_maps() && pmt_v2_enabled() &&
-                   rt_v2_enabled()) {
+                   rt_v2_enabled() && !l->battle && !l->challenge) {
                     l->dropfunc = pt_generate_v2_drop;
                     l->flags |= LOBBY_FLAG_SERVER_DROPS;
                 }
@@ -154,7 +154,7 @@ static void lobby_setup_drops(ship_client_t *c, lobby_t *l, uint32_t rs) {
 
             case CLIENT_VERSION_GC:
                 if(pt_gc_enabled() && map_have_gc_maps() && pmt_gc_enabled() &&
-                   rt_gc_enabled()) {
+                   rt_gc_enabled() && !l->battle && !l->challenge) {
                     l->dropfunc = pt_generate_gc_drop;
                     l->flags |= LOBBY_FLAG_SERVER_DROPS;
                 }
@@ -443,7 +443,8 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
 
     l->rand_seed = mt19937_genrand_int32(&block->rng);
 
-    lobby_setup_drops(c, l, sylverant_crc32((uint8_t *)l->name, 16));
+    if(!chal && !battle)
+        lobby_setup_drops(c, l, sylverant_crc32((uint8_t *)l->name, 16));
 
 #ifdef ENABLE_LUA
     /* Initialize the script table */
