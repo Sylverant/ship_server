@@ -9975,7 +9975,7 @@ int send_ban_msg(ship_client_t *c, time_t until, const char *reason) {
     struct tm cooked;
 
     /* Create the ban string. */
-    sprintf(string, "%s\n%s\n%s\n\n%s\n",
+    sprintf(string, "%s\n%s\n%s\tC7\n\n%s\n",
             __(c, "\tEYou have been banned from this ship."), __(c, "Reason:"),
             reason, __(c, "Your ban expires:"));
 
