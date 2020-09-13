@@ -3551,7 +3551,7 @@ static int command_call(ship_client_t *c, const char *txt, size_t len) {
     }
 
     /* Make sure a script isn't set up to respond to the user's command... */
-    if(!script_execute(ScriptActionUnknownCommand, SCRIPT_ARG_PTR, c,
+    if(!script_execute(ScriptActionUnknownCommand, c, SCRIPT_ARG_PTR, c,
                        SCRIPT_ARG_CSTRING, cmd, SCRIPT_ARG_CSTRING, params,
                        SCRIPT_ARG_END)) {
         /* Send the user a message saying invalid command. */

@@ -1931,7 +1931,7 @@ static int handle_sdata(shipgate_conn_t *c, shipgate_sdata_pkt *pkt) {
     TAILQ_FOREACH(i, b->clients, qentry) {
         if(i->guildcard == gc) {
             pthread_mutex_lock(&i->mutex);
-            script_execute(ScriptActionSData, SCRIPT_ARG_PTR, i,
+            script_execute(ScriptActionSData, i, SCRIPT_ARG_PTR, i,
                            SCRIPT_ARG_UINT32, ntohl(pkt->event_id),
                            SCRIPT_ARG_STRING, ntohl(pkt->data_len), pkt->data,
                            SCRIPT_ARG_END);

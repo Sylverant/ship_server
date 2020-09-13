@@ -1276,7 +1276,7 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
 
         /* Do a few things that should only be done once per session... */
         if(!(c->flags & CLIENT_FLAG_SENT_MOTD)) {
-            script_execute(ScriptActionClientBlockLogin, SCRIPT_ARG_PTR,
+            script_execute(ScriptActionClientBlockLogin, c, SCRIPT_ARG_PTR,
                            c, SCRIPT_ARG_END);
 
             /* Notify the shipgate */
@@ -2676,7 +2676,7 @@ static int process_menu(ship_client_t *c, uint32_t menu_id, uint32_t item_id,
             return process_gm_menu(c, menu_id, item_id);
 
         default:
-            if(script_execute(ScriptActionUnknownMenu, SCRIPT_ARG_PTR, c,
+            if(script_execute(ScriptActionUnknownMenu, c, SCRIPT_ARG_PTR, c,
                               SCRIPT_ARG_UINT32, menu_id, SCRIPT_ARG_UINT32,
                               item_id, SCRIPT_ARG_END) > 0)
                 return 0;

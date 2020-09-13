@@ -309,7 +309,7 @@ void client_destroy_connection(ship_client_t *c,
         shipgate_send_bb_opts(&ship->sg, c);
     }
 
-    script_execute(action, SCRIPT_ARG_PTR, c, 0);
+    script_execute(action, c, SCRIPT_ARG_PTR, c, 0);
 
 #ifdef ENABLE_LUA
     /* Remove the table from the registry */

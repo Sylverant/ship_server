@@ -306,7 +306,7 @@ int script_eventlist_read(const char *fn) {
             debug(DBG_LOG, "Script for type %s added as ID %d\n", event,
                   script_ids[idx]);
 
-        next:
+next:
             /* Free the memory we allocated here... */
             xmlFree(event);
             xmlFree(file);
@@ -590,7 +590,7 @@ out:
     return rv;
 }
 
-int script_execute(script_action_t event, ...) {
+int script_execute(script_action_t event, ship_client_t *c, ...) {
     lua_Integer lrv = 0, grv = 0;
     va_list ap;
 
@@ -626,29 +626,41 @@ int script_execute(script_action_t event, ...) {
 #else
 
 void init_scripts(ship_t *s) {
+    (void)s;
 }
 
 void cleanup_scripts(ship_t *s) {
+    (void)s;
 }
 
 int script_execute_pkt(script_action_t event, ship_client_t *c, const void *pkt,
                        uint16_t len) {
+    (void)event;
+    (void)c;
+    (void)pkt;
+    (void)len;
     return 0;
 }
 
-int script_execute(script_action_t event, ...) {
+int script_execute(script_action_t event, ship_client_t *c, ...) {
+    (void)event;
+    (void)c;
     return 0;
 }
 
 int script_add(script_action_t event, const char *filename) {
+    (void)event;
+    (void)filename;
     return 0;
 }
 
 int script_remove(script_action_t event) {
+    (void)event;
     return 0;
 }
 
 int script_update_module(const char *modname) {
+    (void)modname;
     return 0;
 }
 

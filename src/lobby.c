@@ -453,8 +453,8 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
 #endif
 
     /* Run the team creation script, if one exists. */
-    script_execute(ScriptActionTeamCreate, SCRIPT_ARG_PTR, c, SCRIPT_ARG_PTR, l,
-                   SCRIPT_ARG_END);
+    script_execute(ScriptActionTeamCreate, c, SCRIPT_ARG_PTR, c, SCRIPT_ARG_PTR,
+                   l, SCRIPT_ARG_END);
 
 #ifdef DEBUG
     pthread_mutex_lock(&log_mutex);
@@ -553,8 +553,8 @@ lobby_t *lobby_create_ep3_game(block_t *block, char *name, char *passwd,
 #endif
 
     /* Run the team creation script, if one exists. */
-    script_execute(ScriptActionTeamCreate, SCRIPT_ARG_PTR, c, SCRIPT_ARG_PTR, l,
-                   SCRIPT_ARG_END);
+    script_execute(ScriptActionTeamCreate, c, SCRIPT_ARG_PTR, c, SCRIPT_ARG_PTR,
+                   l, SCRIPT_ARG_END);
 
     return l;
 }
@@ -596,7 +596,8 @@ static void lobby_destroy_locked(lobby_t *l, int remove) {
         team_log_stop(l);
 
     /* Run the team deletion script, if one exists. */
-    script_execute(ScriptActionTeamDestroy, SCRIPT_ARG_PTR, l,  SCRIPT_ARG_END);
+    script_execute(ScriptActionTeamDestroy, NULL, SCRIPT_ARG_PTR, l,
+                   SCRIPT_ARG_END);
 
 #ifdef ENABLE_LUA
     /* Remove the table from the registry */
@@ -768,8 +769,8 @@ static int lobby_add_client_locked(ship_client_t *c, lobby_t *l) {
 
     /* If this is a team, run the team join script, if it exists. */
     if(l->type != LOBBY_TYPE_DEFAULT)
-        script_execute(ScriptActionTeamJoin, SCRIPT_ARG_PTR, c, SCRIPT_ARG_PTR,
-                       l, SCRIPT_ARG_END);
+        script_execute(ScriptActionTeamJoin, c, SCRIPT_ARG_PTR, c,
+                       SCRIPT_ARG_PTR, l, SCRIPT_ARG_END);
 
     /* First client goes in slot 1, not 0 on DC/PC. Why Sega did this, who
        knows? Also slot 1 gets priority for all DC/PC teams, even if slot 0 is
@@ -933,8 +934,8 @@ static int lobby_remove_client_locked(ship_client_t *c, int client_id,
 
     /* If this is a team, run the team leave script, if it exists. */
     if(l->type != LOBBY_TYPE_DEFAULT) {
-        script_execute(ScriptActionTeamLeave, SCRIPT_ARG_PTR, c, SCRIPT_ARG_PTR,
-                       l, SCRIPT_ARG_END);
+        script_execute(ScriptActionTeamLeave, c, SCRIPT_ARG_PTR, c,
+                       SCRIPT_ARG_PTR, l, SCRIPT_ARG_END);
         l->qpos_regs[0][client_id] = 0;
         l->qpos_regs[1][client_id] = 0;
         l->qpos_regs[2][client_id] = 0;

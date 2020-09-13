@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2011, 2016, 2018, 2019 Lawrence Sebald
+    Copyright (C) 2011, 2016, 2018, 2019, 2020 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -66,7 +66,7 @@ typedef enum script_action {
 #define SCRIPT_ARG_CSTRING  8               /* NUL-terminated string */
 
 /* Call the script function for the given event with the args listed */
-int script_execute(script_action_t event, ...);
+int script_execute(script_action_t event, ship_client_t *c, ...);
 
 /* Call the script function for the given event that involves an unknown pkt */
 int script_execute_pkt(script_action_t event, ship_client_t *c, const void *pkt,

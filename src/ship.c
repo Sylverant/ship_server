@@ -151,7 +151,7 @@ static void *ship_thd(void *d) {
 
     /* We've now started up completely, so run the startup script, if one is
        configured. */
-    script_execute(ScriptActionStartup, SCRIPT_ARG_PTR, s, 0);
+    script_execute(ScriptActionStartup, NULL, SCRIPT_ARG_PTR, s, 0);
 
     /* While we're still supposed to run... do it. */
     while(s->run) {
@@ -507,7 +507,7 @@ static void *ship_thd(void *d) {
     debug(DBG_LOG, "%s: Shutting down...\n", s->cfg->name);
 
     /* Before we shut down, run the shutdown script, if one is configured. */
-    script_execute(ScriptActionShutdown, SCRIPT_ARG_PTR, s, 0);
+    script_execute(ScriptActionShutdown, NULL, SCRIPT_ARG_PTR, s, 0);
 
 #ifdef ENABLE_LUA
     /* Remove the table from the registry */

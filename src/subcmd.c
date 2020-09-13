@@ -734,11 +734,11 @@ static int handle_take_item(ship_client_t *c, subcmd_take_item_t *pkt) {
         return -1;
 
     /* Run the bank action script, if any. */
-    if(script_execute(ScriptActionBankAction, SCRIPT_ARG_PTR, c, SCRIPT_ARG_INT,
-                      1, SCRIPT_ARG_UINT32, pkt->data_l[0], SCRIPT_ARG_UINT32,
-                      pkt->data_l[1], SCRIPT_ARG_UINT32, pkt->data_l[2],
-                      SCRIPT_ARG_UINT32, pkt->data2_l, SCRIPT_ARG_UINT32,
-                      pkt->item_id, SCRIPT_ARG_END) < 0) {
+    if(script_execute(ScriptActionBankAction, c, SCRIPT_ARG_PTR, c,
+                      SCRIPT_ARG_INT, 1, SCRIPT_ARG_UINT32, pkt->data_l[0],
+                      SCRIPT_ARG_UINT32, pkt->data_l[1], SCRIPT_ARG_UINT32,
+                      pkt->data_l[2], SCRIPT_ARG_UINT32, pkt->data2_l,
+                      SCRIPT_ARG_UINT32, pkt->item_id, SCRIPT_ARG_END) < 0) {
         return -1;
     }
 
@@ -1028,7 +1028,7 @@ static int handle_set_area(ship_client_t *c, subcmd_set_area_t *pkt) {
 
     /* Save the new area and move along */
     if(c->client_id == pkt->client_id) {
-        script_execute(ScriptActionChangeArea, SCRIPT_ARG_PTR, c,
+        script_execute(ScriptActionChangeArea, c, SCRIPT_ARG_PTR, c,
                        SCRIPT_ARG_INT, (int)pkt->area, SCRIPT_ARG_INT,
                        c->cur_area, SCRIPT_ARG_END);
         c->cur_area = pkt->area;
@@ -1050,7 +1050,7 @@ static int handle_bb_set_area(ship_client_t *c, subcmd_bb_set_area_t *pkt) {
 
     /* Save the new area and move along */
     if(c->client_id == pkt->client_id) {
-        script_execute(ScriptActionChangeArea, SCRIPT_ARG_PTR, c,
+        script_execute(ScriptActionChangeArea, c, SCRIPT_ARG_PTR, c,
                        SCRIPT_ARG_INT, (int)pkt->area, SCRIPT_ARG_INT,
                        c->cur_area, SCRIPT_ARG_END);
         c->cur_area = pkt->area;
@@ -2284,11 +2284,11 @@ static int handle_mhit(ship_client_t *c, subcmd_mhit_pkt_t *pkt) {
 
     /* Bail out now if we don't have any enemy data on the team. */
     if(!l->map_enemies) {
-        script_execute(ScriptActionEnemyHit, SCRIPT_ARG_PTR, c,
+        script_execute(ScriptActionEnemyHit, c, SCRIPT_ARG_PTR, c,
                        SCRIPT_ARG_UINT16, mid, SCRIPT_ARG_END);
 
         if(flags & 0x00000800)
-            script_execute(ScriptActionEnemyKill, SCRIPT_ARG_PTR, c,
+            script_execute(ScriptActionEnemyKill, c, SCRIPT_ARG_PTR, c,
                            SCRIPT_ARG_UINT16, mid, SCRIPT_ARG_END);
 
         return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
@@ -2319,11 +2319,11 @@ static int handle_mhit(ship_client_t *c, subcmd_mhit_pkt_t *pkt) {
                        l->qid, l->version);
         }
 
-        script_execute(ScriptActionEnemyHit, SCRIPT_ARG_PTR, c,
+        script_execute(ScriptActionEnemyHit, c, SCRIPT_ARG_PTR, c,
                        SCRIPT_ARG_UINT16, mid, SCRIPT_ARG_END);
 
         if(flags & 0x00000800)
-            script_execute(ScriptActionEnemyKill, SCRIPT_ARG_PTR, c,
+            script_execute(ScriptActionEnemyKill, c, SCRIPT_ARG_PTR, c,
                            SCRIPT_ARG_UINT16, mid, SCRIPT_ARG_END);
 
         /* If server-side drops aren't on, then just send it on and hope for the
@@ -2378,7 +2378,7 @@ static int handle_mhit(ship_client_t *c, subcmd_mhit_pkt_t *pkt) {
         en->clients_hit |= (1 << c->client_id);
         en->last_client = c->client_id;
 
-        script_execute(ScriptActionEnemyHit, SCRIPT_ARG_PTR, c,
+        script_execute(ScriptActionEnemyHit, c, SCRIPT_ARG_PTR, c,
                        SCRIPT_ARG_UINT16, mid, SCRIPT_ARG_UINT32, en->bp_entry,
                        SCRIPT_ARG_UINT8, en->rt_index, SCRIPT_ARG_UINT8,
                        en->clients_hit, SCRIPT_ARG_END);
@@ -2388,7 +2388,7 @@ static int handle_mhit(ship_client_t *c, subcmd_mhit_pkt_t *pkt) {
         if(flags & 0x00000800) {
             en->clients_hit |= 0x80;
 
-            script_execute(ScriptActionEnemyKill, SCRIPT_ARG_PTR, c,
+            script_execute(ScriptActionEnemyKill, c, SCRIPT_ARG_PTR, c,
                            SCRIPT_ARG_UINT16, mid, SCRIPT_ARG_UINT32,
                            en->bp_entry, SCRIPT_ARG_UINT8, en->rt_index,
                            SCRIPT_ARG_UINT8, en->clients_hit, SCRIPT_ARG_END);
@@ -2481,7 +2481,7 @@ static void handle_objhit_common(ship_client_t *c, lobby_t *l, uint16_t bid) {
             case OBJ_SKIN_CCA_REG_BOX:
             case OBJ_SKIN_CCA_FIXED_BOX:
                 /* Run the box broken script. */
-                script_execute(ScriptActionBoxBreak, SCRIPT_ARG_PTR, c,
+                script_execute(ScriptActionBoxBreak, c, SCRIPT_ARG_PTR, c,
                                SCRIPT_ARG_UINT16, bid, SCRIPT_ARG_UINT16,
                                obj_type, SCRIPT_ARG_END);
                 break;
@@ -2857,7 +2857,7 @@ static int handle_sync_reg(ship_client_t *c, subcmd_sync_reg_t *pkt) {
     /* XXXX: Probably should do some checking here... */
     /* Run the register sync script, if one is set. If the script returns
        non-zero, then assume that it has adequately handled the sync. */
-    if((script_execute(ScriptActionQuestSyncRegister, SCRIPT_ARG_PTR, c,
+    if((script_execute(ScriptActionQuestSyncRegister, c, SCRIPT_ARG_PTR, c,
                         SCRIPT_ARG_PTR, l, SCRIPT_ARG_UINT8, pkt->reg_num,
                         SCRIPT_ARG_UINT32, val, SCRIPT_ARG_END))) {
         done = 1;
