@@ -591,8 +591,9 @@ out:
 }
 
 int script_execute(script_action_t event, ship_client_t *c, ...) {
-    lua_Integer lrv = 0, grv = 0;
+    lua_Integer llrv = 0, lrv = 0, grv = 0;
     va_list ap;
+    lobby_t *l;
 
     /* Can't do anything if we don't have any scripts loaded. */
     if(!scripts_ref)
@@ -617,10 +618,20 @@ int script_execute(script_action_t event, ship_client_t *c, ...) {
         va_end(ap);
     }
 
+    /* See if there is a team-defined event. */
+    if(c && c->cur_lobby && c->cur_lobby->script_ids) {
+        if(c->cur_lobby->script_ids[event]) {
+            va_start(ap, event);
+            llrv = push_args_and_exec(c->cur_lobby->script_ids[event], event,
+                                      ap);
+            va_end(ap);
+        }
+    }
+
     /* Pop off the table reference that we pushed up above. */
     lua_pop(lstate, 1);
     pthread_mutex_unlock(&script_mutex);
-    return (int)(lrv | grv);
+    return (int)(llrv | lrv | grv);
 }
 
 #else

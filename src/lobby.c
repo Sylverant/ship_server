@@ -450,6 +450,11 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
     /* Initialize the script table */
     lua_newtable(block->ship->lstate);
     l->script_ref = luaL_ref(block->ship->lstate, LUA_REGISTRYINDEX);
+
+    if(!(l->script_ids = (int *)malloc(sizeof(int) * ScriptActionCount)))
+        debug(DBG_WARN, "Couldn't allocate team script list!\n");
+    else
+        memset(l->script_ids, 0, sizeof(int) * ScriptActionCount);
 #endif
 
     /* Run the team creation script, if one exists. */
@@ -550,6 +555,11 @@ lobby_t *lobby_create_ep3_game(block_t *block, char *name, char *passwd,
     /* Initialize the script table */
     lua_newtable(block->ship->lstate);
     l->script_ref = luaL_ref(block->ship->lstate, LUA_REGISTRYINDEX);
+
+    if(!(l->script_ids = (int *)malloc(sizeof(int) * ScriptActionCount)))
+        debug(DBG_WARN, "Couldn't allocate team script list!\n");
+    else
+        memset(l->script_ids, 0, sizeof(int) * ScriptActionCount);
 #endif
 
     /* Run the team creation script, if one exists. */
@@ -578,6 +588,7 @@ static void lobby_empty_pkt_queue(lobby_t *l) {
 static void lobby_destroy_locked(lobby_t *l, int remove) {
     pthread_mutex_t m = l->mutex;
     lobby_item_t *i, *tmp;
+    int j;
 
 #ifdef DEBUG
     pthread_mutex_lock(&log_mutex);
@@ -600,6 +611,15 @@ static void lobby_destroy_locked(lobby_t *l, int remove) {
                    SCRIPT_ARG_END);
 
 #ifdef ENABLE_LUA
+    /* Clean up any scripts. */
+    for(j = 0; j < ScriptActionCount; ++j) {
+        if(l->script_ids[j])
+            luaL_unref(l->block->ship->lstate, LUA_REGISTRYINDEX,
+                       l->script_ids[j]);
+    }
+
+    free(l->script_ids);
+
     /* Remove the table from the registry */
     luaL_unref(l->block->ship->lstate, LUA_REGISTRYINDEX, l->script_ref);
 #endif
