@@ -137,6 +137,35 @@ int script_add(script_action_t action, const char *filename) {
     return 0;
 }
 
+int script_add_lobby_locked(lobby_t *l, script_action_t action) {
+    /* Can't do anything if we don't have any scripts loaded. */
+    if(!scripts_ref)
+        return 0;
+
+    /* Pull the scripts table out to the top of the stack. */
+    lua_rawgeti(lstate, LUA_REGISTRYINDEX, scripts_ref);
+
+    /* Issue a warning if we're redefining something before doing it. */
+    if(l->script_ids[event]) {
+        debug(DBG_WARN, "Redefining lobby event %d for lobby %" PRIu32 "\n",
+              (int)action, lb->lobby_id);
+        luaL_unref(lstate, -1, l->script_ids[action]);
+    }
+
+    /* Pull the function out to the top of the stack. */
+    lua_pushvalue(lstate, -2);
+
+    /* Add the script to the Lua table. */
+    l->script_ids[action] = luaL_ref(lstate, -2);
+    debug(DBG_LOG, "Lobby callback for type %d added as ID %d\n", (int)action,
+          l->script_ids[action]);
+
+    /* Pop off the scripts table and the function to clean up. */
+    lua_pop(lstate, 2);
+
+    return 0;
+}
+
 int script_remove(script_action_t action) {
     /* Can't do anything if we don't have any scripts loaded. */
     if(!scripts_ref)
@@ -162,6 +191,31 @@ int script_remove(script_action_t action) {
     lua_pop(lstate, 1);
     script_ids_gate[action] = 0;
     pthread_mutex_unlock(&script_mutex);
+
+    return 0;
+}
+
+int script_remove_lobby_locked(lobby_t *l, script_action_t action) {
+    /* Can't do anything if we don't have any scripts loaded. */
+    if(!scripts_ref)
+        return 0;
+
+    /* Make sure there's actually something registered. */
+    if(!l->script_ids[action]) {
+        debug(DBG_WARN, "Attempt to unregister lobby %" PRIu32 " script for "
+              "event %d that does not exist.\n", l->lobby_id, (int)action);
+        return -1;
+    }
+
+    /* Pull the scripts table out to the top of the stack and remove the
+       script reference from it. */
+    lua_rawgeti(lstate, LUA_REGISTRYINDEX, scripts_ref);
+    luaL_unref(lstate, -2, l->script_ids[action]);
+
+    /* Pop off the scripts table and clear out the id stored in the lobby's
+       script_ids array to finish up. */
+    lua_pop(lstate, 1);
+    l->script_ids[action] = 0;
 
     return 0;
 }

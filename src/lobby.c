@@ -2281,6 +2281,77 @@ static int lobby_setSinglePlayer_lua(lua_State *l) {
     return 1;
 }
 
+static int lobby_setEventCallback_lua(lua_State *l) {
+    lobby_t *lb;
+    lua_Integer event;
+    int rv;
+
+    if(lua_islightuserdata(l, 1) && lua_isinteger(l, 2) &&
+       lua_isfunction(l, 3)) {
+        lb = (lobby_t *)lua_touserdata(l, 1);
+        event = lua_tointeger(l, 2);
+
+        if(event > ScriptActionCount) {
+            debug(DBG_WARN, "Script setting unknown lobby event: %d\n",
+                  (int)event);
+            lua_pushboolean(l, 0);
+            return 1;
+        }
+
+        pthread_mutex_lock(&lb->mutex);
+
+        /* Push the function to the top of the Lua stack. */
+        lua_pushvalue(l, 3);
+
+        /* Attempt to add the callback. */
+        rv = script_add_lobby_locked(lb, (script_action_t)event);
+
+        /* Pop the function off of the stack. */
+        lua_pop(l, 1);
+
+        /* Push the result of adding the callback to the stack. */
+        lua_pushboolean(l, rv);
+        pthread_mutex_unlock(&lb->mutex);
+    }
+    else {
+        lua_pushboolean(l, 0);
+    }
+
+    return 1;
+}
+
+static int lobby_clearEventCallback_lua(lua_State *l) {
+    lobby_t *lb;
+    lua_Integer event;
+    int rv;
+
+    if(lua_islightuserdata(l, 1) && lua_isinteger(l, 2)) {
+        lb = (lobby_t *)lua_touserdata(l, 1);
+        event = lua_tointeger(l, 2);
+
+        if(event > ScriptActionCount) {
+            debug(DBG_WARN, "Script clearing unknown lobby event: %d\n",
+                  (int)event);
+            lua_pushboolean(l, 0);
+            return 1;
+        }
+
+        pthread_mutex_lock(&lb->mutex);
+
+        /* Attempt to add the callback. */
+        rv = script_remove_lobby_locked(lb, (script_action_t)event);
+
+        /* Push the result of removing the callback to the stack. */
+        lua_pushboolean(l, rv);
+        pthread_mutex_unlock(&lb->mutex);
+    }
+    else {
+        lua_pushboolean(l, 0);
+    }
+
+    return 1;
+}
+
 static const luaL_Reg lobbylib[] = {
     { "id", lobby_id_lua },
     { "type", lobby_type_lua },
@@ -2305,6 +2376,8 @@ static const luaL_Reg lobbylib[] = {
     { "randInt", lobby_randInt_lua },
     { "randFloat", lobby_randFloat_lua },
     { "setSinglePlayer", lobby_setSinglePlayer_lua },
+    { "setEventCallback", lobby_setEventCallback_lua },
+    { "clearEventCallback", lobby_clearEventCallback_lua },
     { NULL, NULL }
 };
 
