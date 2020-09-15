@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2011 Lawrence Sebald
+    Copyright (C) 2011, 2020 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -33,6 +33,11 @@ struct ship;
 typedef struct ship ship_t;
 #endif
 
+#ifndef QENEMY_DEFINED
+#define QENEMY_DEFINED
+typedef struct sylverant_quest_enemy qenemy_t;
+#endif
+
 typedef struct quest_map_elem {
     TAILQ_ENTRY(quest_map_elem) qentry;
     uint32_t qid;
@@ -58,5 +63,8 @@ int quest_map(quest_map_t *map, sylverant_quest_list_t *list, int version,
 
 /* Build/rebuild the quest enemy/object data cache. */
 int quest_cache_maps(ship_t *s, quest_map_t *map, const char *dir);
+
+/* Search an enemy list from a quest for an entry. */
+uint32_t quest_search_enemy_list(uint32_t id, qenemy_t *list, int len, int sd);
 
 #endif /* !QUESTS_H */

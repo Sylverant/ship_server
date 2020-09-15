@@ -34,6 +34,7 @@
 #include "subcmd.h"
 #include "items.h"
 #include "utils.h"
+#include "quests.h"
 
 #define LOG(team, ...) team_log_write(team, TLOG_DROPS, __VA_ARGS__)
 #define LOGV(team, ...) team_log_write(team, TLOG_DROPSV, __VA_ARGS__)
@@ -1568,17 +1569,6 @@ static int check_and_send_bb(ship_client_t *c, lobby_t *l, uint32_t item[4],
     return rv;
 }
 
-static uint32_t search_enemy_list(uint32_t id, qenemy_t *list, int len) {
-    int i;
-
-    for(i = 0; i < len; ++i) {
-        if(list[i].key == id)
-            return list[i].value;
-    }
-
-    return 0xFFFFFFFF;
-}
-
 /* Generate an item drop from the PT data. This version uses the v2 PT data set,
    and thus is appropriate for any version before PSOGC. */
 int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
@@ -1682,9 +1672,10 @@ int pt_generate_v2_drop(ship_client_t *c, lobby_t *l, void *r) {
     /* See if we'll do a rare roll. */
     if(l->qid) {
         if(l->mids)
-            qdrop = search_enemy_list(mid, l->mids, l->num_mids);
+            qdrop = quest_search_enemy_list(mid, l->mids, l->num_mids, 1);
         if(qdrop == 0xFFFFFFFF && l->mtypes)
-            qdrop = search_enemy_list(req->pt_index, l->mtypes, l->num_mtypes);
+            qdrop = quest_search_enemy_list(req->pt_index, l->mtypes,
+                                            l->num_mtypes, 1);
 
         switch(qdrop) {
             case SYLVERANT_QUEST_ENDROP_NONE:
@@ -1947,7 +1938,7 @@ int pt_generate_v2_boxdrop(ship_client_t *c, lobby_t *l, void *r) {
     /* See if we'll do a rare roll. */
     if(l->qid) {
         if(l->mtypes)
-            qdrop = search_enemy_list(0x30, l->mtypes, l->num_mtypes);
+            qdrop = quest_search_enemy_list(0x30, l->mtypes, l->num_mtypes, 1);
 
         switch(qdrop) {
             case SYLVERANT_QUEST_ENDROP_NONE:

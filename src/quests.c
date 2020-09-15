@@ -31,6 +31,19 @@
 #include "ship.h"
 #include "packets.h"
 
+uint32_t quest_search_enemy_list(uint32_t id, qenemy_t *list, int len, int sd) {
+    int i;
+    uint32_t mask = sd ? SYLVERANT_QUEST_ENDROP_SDROPS :
+        SYLVERANT_QUEST_ENDROP_CDROPS;
+
+    for(i = 0; i < len; ++i) {
+        if(list[i].key == id && (list[i].mask & mask))
+            return list[i].value & 0xFF;
+    }
+
+    return 0xFFFFFFFF;
+}
+
 /* Find a quest by ID, if it exists */
 quest_map_elem_t *quest_lookup(quest_map_t *map, uint32_t qid) {
     quest_map_elem_t *i;

@@ -57,7 +57,10 @@ typedef struct block block_t;
 typedef struct ship ship_t;
 #endif
 
+#ifndef QENEMY_DEFINED
+#define QENEMY_DEFINED
 typedef struct sylverant_quest_enemy qenemy_t;
+#endif
 
 typedef struct lobby_pkt {
     STAILQ_ENTRY(lobby_pkt) qentry;
