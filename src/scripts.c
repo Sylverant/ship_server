@@ -146,7 +146,7 @@ int script_add_lobby_locked(lobby_t *l, script_action_t action) {
     lua_rawgeti(lstate, LUA_REGISTRYINDEX, scripts_ref);
 
     /* Issue a warning if we're redefining something before doing it. */
-    if(l->script_ids[event]) {
+    if(l->script_ids[action]) {
         debug(DBG_WARN, "Redefining lobby event %d for lobby %" PRIu32 "\n",
               (int)action, l->lobby_id);
         luaL_unref(lstate, -1, l->script_ids[action]);
@@ -659,15 +659,15 @@ int script_execute(script_action_t event, ship_client_t *c, ...) {
 
     /* See if there's a script event defined by the gate */
     if(script_ids_gate[event]) {
-        va_start(ap, event);
-        grv = push_args_and_exec(script_ids_gate[event], c, ap);
+        va_start(ap, c);
+        grv = push_args_and_exec(script_ids_gate[event], event, ap);
         va_end(ap);
     }
 
     /* See if there's a script event defined locally */
     if(script_ids[event]) {
-        va_start(ap, event);
-        lrv = push_args_and_exec(script_ids[event], c, ap);
+        va_start(ap, c);
+        lrv = push_args_and_exec(script_ids[event], event, ap);
         va_end(ap);
     }
 
