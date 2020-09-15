@@ -637,7 +637,7 @@ static int handle_bb_gcsend(ship_client_t *s, ship_client_t *d) {
     return 0;
 }
 
-static int handle_itemreq(ship_client_t *c, subcmd_itemreq_t *req) {
+static int handle_gm_itemreq(ship_client_t *c, subcmd_itemreq_t *req) {
     subcmd_itemgen_t gen;
     int r = LE16(req->req);
     int i;
@@ -677,6 +677,41 @@ static int handle_itemreq(ship_client_t *c, subcmd_itemreq_t *req) {
     c->next_item[0] = c->next_item[1] = c->next_item[2] = c->next_item[3] = 0;
 
     return 0;
+}
+
+static int handle_quest_itemreq(ship_client_t *c, subcmd_itemreq_t *req,
+                                ship_client_t *dest) {
+    uint32_t mid = LE16(req->req);
+    uint32_t pti = req->pt_index;
+    lobby_t *l = c->cur_lobby;
+    uint32_t qdrop = 0xFFFFFFFF;
+
+    if(pti != 0x30 && l->mids)
+        qdrop = quest_search_enemy_list(mid, l->mids, l->num_mids, 0);
+    if(qdrop == 0xFFFFFFFF && l->mtypes)
+        qdrop = quest_search_enemy_list(pti, l->mtypes, l->num_mtypes, 0);
+
+    /* If we found something, the version matters here. Basically, we only care
+       about the none option on DC/PC, as rares do not drop in quests. On GC,
+       we have to block drops on all options other than free, since we have no
+       control over the drop once we send it to the leader. */
+    if(qdrop != SYLVERANT_QUEST_ENDROP_FREE) {
+        switch(l->version) {
+            case CLIENT_VERSION_DCV1:
+            case CLIENT_VERSION_DCV2:
+            case CLIENT_VERSION_PC:
+                if(qdrop == SYLVERANT_QUEST_ENDROP_NONE)
+                    return 0;
+                break;
+
+            case CLIENT_VERSION_GC:
+                return 0;
+        }
+    }
+
+    /* If we haven't handled it, we're not supposed to, so send it on to the
+       leader. */
+    return send_pkt_dc(dest, (dc_pkt_hdr_t *)req);
 }
 
 static int handle_levelup(ship_client_t *c, subcmd_levelup_t *pkt) {
@@ -3054,14 +3089,19 @@ int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
 
         case SUBCMD_ITEMREQ:
         case SUBCMD_BITEMREQ:
-            /* There's only two ways we pay attention to this one: First, if the
-               lobby is not in legit mode and a GM has used /item. Second, if
-               the lobby has a drop function (for server-side drops). */
+            /* There's only three ways we pay attention to this one: First, if
+               the lobby is not in legit mode and a GM has used /item. Second,
+               if the lobby has a drop function (for server-side drops). Third,
+               if there is a quest going on with modified drops. */
             if(c->next_item[0] && !(l->flags & LOBBY_FLAG_LEGIT_MODE)) {
-                rv = handle_itemreq(c, (subcmd_itemreq_t *)pkt);
+                rv = handle_gm_itemreq(c, (subcmd_itemreq_t *)pkt);
             }
             else if(l->dropfunc && (l->flags & LOBBY_FLAG_SERVER_DROPS)) {
                 rv = l->dropfunc(c, l, pkt);
+            }
+            else if((l->num_mtypes || l->num_mids) &&
+                    (l->flags & LOBBY_FLAG_QUESTING)) {
+                rv = handle_quest_itemreq(c, (subcmd_itemreq_t *)pkt, dest);
             }
             else {
                 rv = send_pkt_dc(dest, (dc_pkt_hdr_t *)pkt);
