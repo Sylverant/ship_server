@@ -634,7 +634,7 @@ static lua_Integer push_args_and_exec(int scr, script_action_t event,
        integer). */
     rv = lua_tointegerx(lstate, -1, &err);
     if(!err) {
-        debug(DBG_ERROR, "Script for event %d didn't return int\n",(int)event);
+        debug(DBG_ERROR, "Script for event %d didn't return int\n", (int)event);
     }
 
     /* Pop off the return value. */
@@ -687,6 +687,46 @@ int script_execute(script_action_t event, ship_client_t *c, ...) {
     return (int)(llrv | lrv | grv);
 }
 
+int script_execute_file(const char *fn, lobby_t *l) {
+    lua_Integer rv;
+    int err;
+
+    /* Can't do anything if we can't run scripts. */
+    if(!scripts_ref)
+        return -1;
+
+    pthread_mutex_lock(&script_mutex);
+
+    /* Attempt to read in the script. */
+    if(luaL_loadfile(lstate, (const char *)fn) != LUA_OK) {
+        debug(DBG_WARN, "Couldn't load script '%s'\n", fn);
+        lua_pop(lstate, 1);
+        return -1;
+    }
+
+    /* Push the lobby structure for the team to the stack. */
+    lua_pushlightuserdata(lstate, l);
+
+    /* Run the script. */
+    if(lua_pcall(lstate, 1, 1, 0) != LUA_OK) {
+        debug(DBG_ERROR, "Error running Lua script '%s'\n", fn);
+        lua_pop(lstate, 1);
+        return -1;
+    }
+
+    /* Grab the return value from the lua function (it should be of type
+       integer). */
+    rv = lua_tointegerx(lstate, -1, &err);
+    if(!err) {
+        debug(DBG_ERROR, "Script '%s' didn't return int\n", fn);
+    }
+
+    /* Pop off the return value. */
+    lua_pop(lstate, 1);
+
+    return (int)rv;
+}
+
 #else
 
 void init_scripts(ship_t *s) {
@@ -725,6 +765,24 @@ int script_remove(script_action_t event) {
 
 int script_update_module(const char *modname) {
     (void)modname;
+    return 0;
+}
+
+int script_add_lobby_locked(lobby_t *l, script_action_t action) {
+    (void)l;
+    (void)action;
+    return 0;
+}
+
+int script_remove_lobby_locked(lobby_t *l, script_action_t action) {
+    (void)l;
+    (void)action;
+    return 0;
+}
+
+int script_execute_file(const char *fn, lobby_t *l) {
+    (void)fn;
+    (void)l;
     return 0;
 }
 

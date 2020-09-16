@@ -81,4 +81,6 @@ int script_remove(script_action_t action);
 int script_remove_lobby_locked(lobby_t *l, script_action_t action);
 int script_update_module(const char *modname);
 
+int script_execute_file(const char *fn, lobby_t *l);
+
 #endif /* !SCRIPTS_H */
