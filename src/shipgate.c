@@ -29,7 +29,6 @@
 
 #include <sylverant/config.h>
 #include <sylverant/debug.h>
-#include <sylverant/sha4.h>
 #include <sylverant/checksum.h>
 
 #include "ship.h"
