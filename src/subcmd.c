@@ -695,7 +695,7 @@ static int handle_quest_itemreq(ship_client_t *c, subcmd_itemreq_t *req,
        about the none option on DC/PC, as rares do not drop in quests. On GC,
        we have to block drops on all options other than free, since we have no
        control over the drop once we send it to the leader. */
-    if(qdrop != SYLVERANT_QUEST_ENDROP_FREE) {
+    if(qdrop != SYLVERANT_QUEST_ENDROP_FREE && qdrop != 0xFFFFFFFF) {
         switch(l->version) {
             case CLIENT_VERSION_DCV1:
             case CLIENT_VERSION_DCV2:
