@@ -5026,7 +5026,7 @@ static int send_dc_quest_list(ship_client_t *c, int cn, int lang) {
 
     for(k = 0; k < 2; ++k) {
         for(i = 0; i < cat->quest_count && i < max; ++i) {
-            quest = &cat->quests[i];
+            quest = cat->quests[i];
             elem = (quest_map_elem_t *)quest->user_data;
 
             /* Skip quests we should have already covered if we're on the second
@@ -5185,7 +5185,7 @@ static int send_pc_quest_list(ship_client_t *c, int cn, int lang) {
 
     for(k = 0; k < 2; ++k) {
         for(i = 0; i < cat->quest_count && i < max; ++i) {
-            quest = &cat->quests[i];
+            quest = cat->quests[i];
             elem = (quest_map_elem_t *)quest->user_data;
 
             /* Skip quests we should have already covered if we're on the second
@@ -5339,7 +5339,7 @@ static int send_gc_quest_list(ship_client_t *c, int cn, int lang) {
                     break;
             }
 
-            quest = &cat->quests[i];
+            quest = cat->quests[i];
             elem = (quest_map_elem_t *)quest->user_data;
 
             /* Skip quests we should have already covered if we're on the second
@@ -5499,7 +5499,7 @@ static int send_bb_quest_list(ship_client_t *c, int cn, int lang) {
                     break;
             }
 
-            quest = &cat->quests[i];
+            quest = cat->quests[i];
             elem = (quest_map_elem_t *)quest->user_data;
 
             /* Skip quests we should have already covered if we're on the second

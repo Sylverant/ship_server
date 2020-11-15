@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2011, 2013, 2014, 2015, 2017 Lawrence Sebald
+    Copyright (C) 2011, 2013, 2014, 2015, 2017, 2020 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -110,7 +110,7 @@ int quest_map(quest_map_t *map, sylverant_quest_list_t *list, int version,
         cat = &list->cats[i];
 
         for(j = 0; j < cat->quest_count; ++j) {
-            q = &cat->quests[j];
+            q = cat->quests[j];
 
             /* Find the quest if we have it */
             elem = quest_lookup(map, q->qid);
@@ -142,7 +142,7 @@ static uint32_t quest_cat_type(ship_t *s, int ver, int lang,
     /* Look for it. */
     for(i = 0; i < s->qlist[ver][lang].cat_count; ++i) {
         for(j = 0; j < s->qlist[ver][lang].cats[i].quest_count; ++j) {
-            if(q == &s->qlist[ver][lang].cats[i].quests[j])
+            if(q == s->qlist[ver][lang].cats[i].quests[j])
                 return s->qlist[ver][lang].cats[i].type;
         }
     }
