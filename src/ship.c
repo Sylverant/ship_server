@@ -146,7 +146,7 @@ static void *ship_thd(void *d) {
     /* Fire up the threads for each block. */
     for(i = 1; i <= s->cfg->blocks; ++i) {
         s->blocks[i - 1] = block_server_start(s, i, s->cfg->base_port +
-                                              (i * 5));
+                                              (i * 6));
     }
 
     /* We've now started up completely, so run the startup script, if one is
@@ -246,6 +246,8 @@ static void *ship_thd(void *d) {
             nfds = nfds > s->ep3sock[i] ? nfds : s->ep3sock[i];
             FD_SET(s->bbsock[i], &readfds);
             nfds = nfds > s->bbsock[i] ? nfds : s->bbsock[i];
+            FD_SET(s->xbsock[i], &readfds);
+            nfds = nfds > s->xbsock[i] ? nfds : s->xbsock[i];
         }
 
         FD_SET(s->pipes[1], &readfds);
@@ -413,6 +415,34 @@ static void *ship_thd(void *d) {
                         tmp->flags |= CLIENT_FLAG_DISCONNECTED;
                     }
                 }
+
+                if(FD_ISSET(s->xbsock[i], &readfds)) {
+                    len = sizeof(struct sockaddr_storage);
+                    if((sock = accept(s->xbsock[i], addr_p, &len)) < 0) {
+                        perror("accept");
+                    }
+
+                    my_ntop(&addr, ipstr);
+                    debug(DBG_LOG, "%s: Accepted Xbox ship connection "
+                          "from %s\n", s->cfg->name, ipstr);
+
+                    if(!(tmp = client_create_connection(sock,
+                                                        CLIENT_VERSION_XBOX,
+                                                        CLIENT_TYPE_SHIP,
+                                                        s->clients, s, NULL,
+                                                        addr_p, len))) {
+                        close(sock);
+                    }
+
+                    if(s->shutdown_time) {
+                        send_message_box(tmp, "%s\n\n%s\n%s",
+                                         __(tmp, "\tEShip is going down for "
+                                            "shutdown."),
+                                         __(tmp, "Please try another ship."),
+                                         __(tmp, "Disconnecting."));
+                        tmp->flags |= CLIENT_FLAG_DISCONNECTED;
+                    }
+                }
             }
 
             /* Process the shipgate */
@@ -543,6 +573,7 @@ static void *ship_thd(void *d) {
     close(s->pipes[1]);
 #ifdef SYLVERANT_ENABLE_IPV6
     if(enable_ipv6) {
+        close(s->xbsock[1]);
         close(s->bbsock[1]);
         close(s->ep3sock[1]);
         close(s->gcsock[1]);
@@ -550,6 +581,7 @@ static void *ship_thd(void *d) {
         close(s->dcsock[1]);
     }
 #endif
+    close(s->xbsock[0]);
     close(s->bbsock[0]);
     close(s->ep3sock[0]);
     close(s->gcsock[0]);
@@ -566,7 +598,7 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     ship_t *rv;
     int dcsock[2] = { -1, -1 }, pcsock[2] = { -1, -1 };
     int gcsock[2] = { -1, -1 }, ep3sock[2] = { -1, -1 };
-    int bbsock[2] = { -1, -1 };
+    int bbsock[2] = { -1, -1 }, xbsock[2] = { -1, -1 };
     int i;
     sylverant_limits_t *l;
     limits_entry_t *ent;
@@ -599,11 +631,16 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
         goto err_close_ep3;
     }
 
+    xbsock[0] = open_sock(AF_INET, s->base_port + 5);
+    if(xbsock[0] < 0) {
+        goto err_close_bb;
+    }
+
 #ifdef SYLVERANT_ENABLE_IPV6
     if(enable_ipv6) {
         dcsock[1] = open_sock(AF_INET6, s->base_port);
         if(dcsock[1] < 0) {
-            goto err_close_bb;
+            goto err_close_xb;
         }
 
         pcsock[1] = open_sock(AF_INET6, s->base_port + 1);
@@ -624,6 +661,11 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
         bbsock[1] = open_sock(AF_INET6, s->base_port + 4);
         if(bbsock[1] < 0) {
             goto err_close_ep3_6;
+        }
+
+        xbsock[1] = open_sock(AF_INET6, s->base_port + 5);
+        if(xbsock[1] < 0) {
+            goto err_close_bb_6;
         }
     }
 #endif
@@ -743,11 +785,13 @@ ship_t *ship_server_start(sylverant_ship_t *s) {
     rv->gcsock[0] = gcsock[0];
     rv->ep3sock[0] = ep3sock[0];
     rv->bbsock[0] = bbsock[0];
+    rv->xbsock[0] = xbsock[0];
     rv->dcsock[1] = dcsock[1];
     rv->pcsock[1] = pcsock[1];
     rv->gcsock[1] = gcsock[1];
     rv->ep3sock[1] = ep3sock[1];
     rv->bbsock[1] = bbsock[1];
+    rv->xbsock[1] = xbsock[1];
     rv->run = 1;
     rv->lobby_event = s->events[0].lobby_event;
     rv->game_event = s->events[0].game_event;
@@ -809,6 +853,8 @@ err_free:
 err_close_all:
 #ifdef SYLVERANT_ENABLE_IPV6
     if(enable_ipv6) {
+        close(xbsock[1]);
+err_close_bb_6:
         close(bbsock[1]);
 err_close_ep3_6:
         close(ep3sock[1]);
@@ -819,8 +865,10 @@ err_close_pc_6:
 err_close_dc_6:
         close(dcsock[1]);
     }
-err_close_bb:
+err_close_xb:
 #endif
+    close(xbsock[0]);
+err_close_bb:
     close(bbsock[0]);
 err_close_ep3:
     close(ep3sock[0]);
@@ -1291,6 +1339,10 @@ static int dc_process_block_sel(ship_client_t *c, dc_select_pkt *pkt) {
             port = ship->blocks[block - 1]->bb_port;
             break;
 
+        case CLIENT_VERSION_XBOX:
+            port = ship->blocks[block - 1]->xb_port;
+            break;
+
         default:
             return -3;
     }
@@ -1348,6 +1400,10 @@ static int dc_process_menu(ship_client_t *c, dc_select_pkt *pkt) {
 
                 case CLIENT_VERSION_BB:
                     off = 4;
+                    break;
+
+                case CLIENT_VERSION_XBOX:
+                    off = 5;
                     break;
             }
 
@@ -1443,10 +1499,9 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
     dc_pkt_hdr_t *dc = (dc_pkt_hdr_t *)pkt;
     pc_pkt_hdr_t *pc = (pc_pkt_hdr_t *)pkt;
 
-    if(c->version == CLIENT_VERSION_DCV1 ||
-       c->version == CLIENT_VERSION_DCV2 ||
-       c->version == CLIENT_VERSION_GC ||
-       c->version == CLIENT_VERSION_EP3) {
+    if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
+       c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3 ||
+       c->version == CLIENT_VERSION_XBOX) {
         type = dc->pkt_type;
         len = LE16(dc->pkt_len);
     }
@@ -1534,6 +1589,7 @@ int ship_process_pkt(ship_client_t *c, uint8_t *pkt) {
         case CLIENT_VERSION_PC:
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
             return dc_process_pkt(c, pkt);
 
         case CLIENT_VERSION_BB:

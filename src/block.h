@@ -58,6 +58,7 @@ struct block {
     int gcsock[2];
     int ep3sock[2];
     int bbsock[2];
+    int xbsock[2];
 
     int pipes[2];
 
@@ -66,6 +67,7 @@ struct block {
     uint16_t gc_port;
     uint16_t ep3_port;
     uint16_t bb_port;
+    uint16_t xb_port;
 
     /* Reader-writer lock for the lobby tailqueue */
     pthread_rwlock_t lobby_lock;

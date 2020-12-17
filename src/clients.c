@@ -210,6 +210,7 @@ ship_client_t *client_create_connection(int sock, int version, int type,
 
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
             /* Generate the encryption keys for the client and server. */
             client_seed_dc = mt19937_genrand_int32(rng);
             server_seed_dc = mt19937_genrand_int32(rng);
@@ -438,6 +439,7 @@ int client_process_pkt(ship_client_t *c) {
             case CLIENT_VERSION_DCV2:
             case CLIENT_VERSION_GC:
             case CLIENT_VERSION_EP3:
+            case CLIENT_VERSION_XBOX:
                 pkt_sz = LE16(c->pkt.dc.pkt_len);
                 break;
 
@@ -577,6 +579,7 @@ int client_set_autoreply(ship_client_t *c, void *buf, uint16_t len) {
 
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
             c->pl->v3.autoreply_enabled = LE32(1);
             c->autoreply_on = 1;
             break;
@@ -607,6 +610,7 @@ int client_disable_autoreply(ship_client_t *c) {
 
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
             c->pl->v3.autoreply_enabled = 0;
             c->autoreply_on = 0;
             break;
@@ -921,6 +925,10 @@ static int check_char_gc(ship_client_t *c, player_t *pl) {
     return 0;
 }
 
+static int check_char_xbox(ship_client_t *c, player_t *pl) {
+    return 0;
+}
+
 int client_check_character(ship_client_t *c, player_t *pl, uint8_t ver) {
     switch(ver) {
         case 1:
@@ -952,6 +960,8 @@ int client_check_character(ship_client_t *c, player_t *pl, uint8_t ver) {
         case 3:
             if(c->version == CLIENT_VERSION_GC)
                 return check_char_gc(c, pl);
+            else if(c->version == CLIENT_VERSION_XBOX)
+                return check_char_xbox(c, pl);
             else if(c->version == CLIENT_VERSION_EP3)
                 /* XXXX */
                 return 0;
@@ -993,6 +1003,7 @@ int client_legit_check(ship_client_t *c, sylverant_limits_t *limits) {
             break;
 
         case CLIENT_VERSION_GC:
+        case CLIENT_VERSION_XBOX: /* XXXX */
             v = ITEM_VERSION_GC;
             break;
 

@@ -99,6 +99,7 @@ struct ship {
     int gcsock[2];
     int ep3sock[2];
     int bbsock[2];
+    int xbsock[2];
 
     time_t shutdown_time;
     int pipes[2];

@@ -153,6 +153,8 @@ static void *block_thd(void *d) {
             nfds = nfds > b->ep3sock[i] ? nfds : b->ep3sock[i];
             FD_SET(b->bbsock[i], &readfds);
             nfds = nfds > b->bbsock[i] ? nfds : b->bbsock[i];
+            FD_SET(b->xbsock[i], &readfds);
+            nfds = nfds > b->xbsock[i] ? nfds : b->xbsock[i];
         }
 
         FD_SET(b->pipes[1], &readfds);
@@ -244,6 +246,23 @@ static void *block_thd(void *d) {
                           "connection from %s\n", s->cfg->name, b->b, ipstr);
 
                     if(!client_create_connection(sock, CLIENT_VERSION_BB,
+                                                 CLIENT_TYPE_BLOCK, b->clients,
+                                                 s, b, addr_p, len)) {
+                        close(sock);
+                    }
+                }
+
+                if(FD_ISSET(b->xbsock[i], &readfds)) {
+                    len = sizeof(struct sockaddr_storage);
+                    if((sock = accept(b->xbsock[i], addr_p, &len)) < 0) {
+                        perror("accept");
+                    }
+
+                    my_ntop(&addr, ipstr);
+                    debug(DBG_LOG, "%s(%d): Accepted Xbox block "
+                          "connection from %s\n", s->cfg->name, b->b, ipstr);
+
+                    if(!client_create_connection(sock, CLIENT_VERSION_XBOX,
                                                  CLIENT_TYPE_BLOCK, b->clients,
                                                  s, b, addr_p, len)) {
                         close(sock);
@@ -346,7 +365,7 @@ block_t *block_server_start(ship_t *s, int b, uint16_t port) {
     block_t *rv;
     int dcsock[2] = { -1, -1 }, pcsock[2] = { -1, -1 };
     int gcsock[2] = { -1, -1 }, ep3sock[2] = { -1, -1 };
-    int bbsock[2] = { -1, -1 }, i;
+    int bbsock[2] = { -1, -1 }, xbsock[2] = { -1, -1 }, i;
     lobby_t *l, *l2;
     uint32_t rng_seed;
 
@@ -378,11 +397,16 @@ block_t *block_server_start(ship_t *s, int b, uint16_t port) {
         goto err_close_ep3;
     }
 
+    xbsock[0] = open_sock(AF_INET, port + 5);
+    if(xbsock[0] < 0) {
+        goto err_close_bb;
+    }
+
 #ifdef SYLVERANT_ENABLE_IPV6
     if(enable_ipv6) {
         dcsock[1] = open_sock(AF_INET6, port);
         if(dcsock[1] < 0) {
-            goto err_close_bb;
+            goto err_close_xb;
         }
 
         pcsock[1] = open_sock(AF_INET6, port + 1);
@@ -403,6 +427,11 @@ block_t *block_server_start(ship_t *s, int b, uint16_t port) {
         bbsock[1] = open_sock(AF_INET6, port + 4);
         if(bbsock[1] < 0) {
             goto err_close_ep3_6;
+        }
+
+        xbsock[1] = open_sock(AF_INET6, port + 5);
+        if(xbsock[1] < 0) {
+            goto err_close_bb_6;
         }
     }
 #endif
@@ -441,16 +470,19 @@ block_t *block_server_start(ship_t *s, int b, uint16_t port) {
     rv->gc_port = port + 2;
     rv->ep3_port = port + 3;
     rv->bb_port = port + 4;
+    rv->xb_port = port + 5;
     rv->dcsock[0] = dcsock[0];
     rv->pcsock[0] = pcsock[0];
     rv->gcsock[0] = gcsock[0];
     rv->ep3sock[0] = ep3sock[0];
     rv->bbsock[0] = bbsock[0];
+    rv->xbsock[0] = xbsock[0];
     rv->dcsock[1] = dcsock[1];
     rv->pcsock[1] = pcsock[1];
     rv->gcsock[1] = gcsock[1];
     rv->ep3sock[1] = ep3sock[1];
     rv->bbsock[1] = bbsock[1];
+    rv->xbsock[1] = xbsock[1];
     rv->run = 1;
 
     TAILQ_INIT(&rv->lobbies);
@@ -502,6 +534,8 @@ err_free:
 err_close_all:
 #ifdef SYLVERANT_ENABLE_IPV6
     if(enable_ipv6) {
+        close(xbsock[1]);
+err_close_bb_6:
         close(bbsock[1]);
 err_close_ep3_6:
         close(ep3sock[1]);
@@ -512,8 +546,10 @@ err_close_pc_6:
 err_close_dc_6:
         close(dcsock[1]);
     }
-err_close_bb:
+err_close_xb:
 #endif
+    close(xbsock[0]);
+err_close_bb:
     close(bbsock[0]);
 err_close_ep3:
     close(ep3sock[0]);
@@ -548,6 +584,7 @@ void block_server_stop(block_t *b) {
     close(b->gcsock[0]);
     close(b->ep3sock[0]);
     close(b->bbsock[0]);
+    close(b->xbsock[0]);
 #ifdef SYLVERANT_ENABLE_IPV6
     if(enable_ipv6) {
         close(b->dcsock[1]);
@@ -555,6 +592,7 @@ void block_server_stop(block_t *b) {
         close(b->gcsock[1]);
         close(b->ep3sock[1]);
         close(b->bbsock[1]);
+        close(b->xbsock[1]);
     }
 #endif
 
@@ -3094,7 +3132,8 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
     int rv;
 
     if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
-       c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3) {
+       c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3 ||
+       c->version == CLIENT_VERSION_XBOX) {
         type = dc->pkt_type;
         len = LE16(dc->pkt_len);
         flags = dc->flags;
@@ -3555,6 +3594,7 @@ int block_process_pkt(ship_client_t *c, uint8_t *pkt) {
         case CLIENT_VERSION_PC:
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
             return dc_process_pkt(c, pkt);
 
         case CLIENT_VERSION_BB:

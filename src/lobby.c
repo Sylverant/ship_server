@@ -115,6 +115,7 @@ static void lobby_setup_drops(ship_client_t *c, lobby_t *l, uint32_t rs) {
                 break;
 
             case CLIENT_VERSION_GC:
+            case CLIENT_VERSION_XBOX: /* XXXX? */
                 l->dropfunc = pt_generate_gc_drop;
                 break;
         }
@@ -153,6 +154,7 @@ static void lobby_setup_drops(ship_client_t *c, lobby_t *l, uint32_t rs) {
                 return;
 
             case CLIENT_VERSION_GC:
+            case CLIENT_VERSION_XBOX: /* XXXX? */
                 if(pt_gc_enabled() && map_have_gc_maps() && pmt_gc_enabled() &&
                    rt_gc_enabled() && !l->battle && !l->challenge) {
                     l->dropfunc = pt_generate_gc_drop;
@@ -257,6 +259,10 @@ lobby_t *lobby_create_game(block_t *block, char *name, char *passwd,
         *pid = id + 1;
     else
         *pid = 0x20;
+
+    if(version == CLIENT_VERSION_XBOX)
+        /* Let's be optimistic for now until we can prove otherwise. */
+        version = CLIENT_VERSION_GC;
 
     /* Clear it. */
     memset(l, 0, sizeof(lobby_t));
@@ -707,6 +713,7 @@ static uint8_t lobby_find_max_challenge(lobby_t *l) {
 
                 case CLIENT_VERSION_GC:
                 case CLIENT_VERSION_BB:
+                case CLIENT_VERSION_XBOX:
                     for(i = 0; i < 9; ++i) {
                         if(c->pl->v3.c_rank.part.times[i] == 0) {
                             break;
@@ -1556,6 +1563,7 @@ int lobby_check_client_legit(lobby_t *l, ship_t *s, ship_client_t *c) {
             break;
 
         case CLIENT_VERSION_GC:
+        case CLIENT_VERSION_XBOX: /* XXXX? */
             version = ITEM_VERSION_GC;
             break;
 

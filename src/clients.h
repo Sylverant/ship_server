@@ -19,7 +19,7 @@
 #ifndef CLIENTS_H_COUNTS
 #define CLIENTS_H_COUNTS
 
-#define CLIENT_VERSION_COUNT    6
+#define CLIENT_VERSION_COUNT    7
 #define CLIENT_LANG_COUNT       8
 
 #endif /* !CLIENTS_H_COUNTS */
@@ -227,6 +227,7 @@ extern pthread_key_t sendbuf_key;
 #define CLIENT_VERSION_GC       3
 #define CLIENT_VERSION_EP3      4
 #define CLIENT_VERSION_BB       5
+#define CLIENT_VERSION_XBOX     6
 
 /* Language codes. */
 #define CLIENT_LANG_JAPANESE        0
@@ -295,12 +296,12 @@ static const char language_codes[][3] __attribute__((unused)) = {
 
 /* The list of version codes for the quest directories. */
 static const char version_codes[][3] __attribute__((unused)) = {
-    "v1", "v2", "pc", "gc", "e3", "bb"
+    "v1", "v2", "pc", "gc", "e3", "bb", "xb"
 };
 
 /* Sizes of the headers sent on packets */
 static const int hdr_sizes[] __attribute__((unused)) = {
-    4, 4, 4, 4, 4, 8
+    4, 4, 4, 4, 4, 8, 4
 };
 
 /* Initialize the clients system, allocating any thread specific keys */
