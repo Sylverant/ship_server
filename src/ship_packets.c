@@ -4981,6 +4981,7 @@ static int send_dc_quest_list(ship_client_t *c, int cn, int lang) {
     sylverant_quest_t *quest;
     quest_map_elem_t *elem;
     ship_client_t *tmp;
+    time_t now = time(NULL);
 
     /* Verify we got the sendbuf. */
     if(!sendbuf)
@@ -5066,6 +5067,12 @@ static int send_dc_quest_list(ship_client_t *c, int cn, int lang) {
                !LOCAL_GM(c))
                 continue;
 
+            /* Check the availability time against the current time. */
+            if(quest->start_time && quest->start_time > (uint64_t)now)
+                continue;
+            else if(quest->end_time && quest->end_time < (uint64_t)now)
+                continue;
+
             /* Clear the entry */
             memset(pkt->entries + entries, 0, 0x98);
 
@@ -5140,6 +5147,7 @@ static int send_pc_quest_list(ship_client_t *c, int cn, int lang) {
     sylverant_quest_t *quest;
     quest_map_elem_t *elem;
     ship_client_t *tmp;
+    time_t now = time(NULL);
 
     /* Verify we got the sendbuf. */
     if(!sendbuf)
@@ -5225,6 +5233,12 @@ static int send_pc_quest_list(ship_client_t *c, int cn, int lang) {
                !LOCAL_GM(c))
                 continue;
 
+            /* Check the availability time against the current time. */
+            if(quest->start_time && quest->start_time > (uint64_t)now)
+                continue;
+            else if(quest->end_time && quest->end_time < (uint64_t)now)
+                continue;
+
             /* Clear the entry */
             memset(pkt->entries + entries, 0, 0x128);
 
@@ -5278,6 +5292,7 @@ static int send_gc_quest_list(ship_client_t *c, int cn, int lang) {
     sylverant_quest_t *quest;
     quest_map_elem_t *elem;
     ship_client_t *tmp;
+    time_t now = time(NULL);
 
     /* Verify we got the sendbuf. */
     if(!sendbuf)
@@ -5379,6 +5394,12 @@ static int send_gc_quest_list(ship_client_t *c, int cn, int lang) {
                !LOCAL_GM(c))
                 continue;
 
+            /* Check the availability time against the current time. */
+            if(quest->start_time && quest->start_time > (uint64_t)now)
+                continue;
+            else if(quest->end_time && quest->end_time < (uint64_t)now)
+                continue;
+
             /* Clear the entry */
             memset(pkt->entries + entries, 0, 0x98);
 
@@ -5454,6 +5475,7 @@ static int send_bb_quest_list(ship_client_t *c, int cn, int lang) {
     sylverant_quest_t *quest;
     quest_map_elem_t *elem;
     ship_client_t *tmp;
+    time_t now = time(NULL);
 
     /* Verify we got the sendbuf. */
     if(!sendbuf)
@@ -5537,6 +5559,12 @@ static int send_bb_quest_list(ship_client_t *c, int cn, int lang) {
             /* Make sure the user's privilege level is good enough. */
             if((quest->privileges & c->privilege) != quest->privileges &&
                !LOCAL_GM(c))
+                continue;
+
+            /* Check the availability time against the current time. */
+            if(quest->start_time && quest->start_time > (uint64_t)now)
+                continue;
+            else if(quest->end_time && quest->end_time < (uint64_t)now)
                 continue;
 
             /* Clear the entry */
