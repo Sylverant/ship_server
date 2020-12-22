@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2010, 2011, 2012, 2014 Lawrence Sebald
+    Copyright (C) 2010, 2011, 2012, 2014, 2020 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -146,6 +146,7 @@ int word_select_send_dc(ship_client_t *c, subcmd_word_select_t *pkt) {
 
                 case CLIENT_VERSION_GC:
                 case CLIENT_VERSION_EP3:
+                case CLIENT_VERSION_XBOX:
                     if(!gcuntrans) {
                         send_pkt_dc(l->clients[i], (dc_pkt_hdr_t *)&gc);
                     }
@@ -285,6 +286,7 @@ int word_select_send_pc(ship_client_t *c, subcmd_word_select_t *pkt) {
 
                 case CLIENT_VERSION_GC:
                 case CLIENT_VERSION_EP3:
+                case CLIENT_VERSION_XBOX:
                     if(!gcuntrans) {
                         send_pkt_dc(l->clients[i], (dc_pkt_hdr_t *)&gc);
                     }
@@ -428,6 +430,7 @@ int word_select_send_gc(ship_client_t *c, subcmd_word_select_t *pkt) {
 
                 case CLIENT_VERSION_GC:
                 case CLIENT_VERSION_EP3:
+                case CLIENT_VERSION_XBOX:
                     send_pkt_dc(l->clients[i], (dc_pkt_hdr_t *)pkt);
                     break;
 

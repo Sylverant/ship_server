@@ -1245,6 +1245,47 @@ static int gc_process_login(ship_client_t *c, gc_login_9e_pkt *pkt) {
     return 0;
 }
 
+static int xb_process_login(ship_client_t *c, xb_login_9e_pkt *pkt) {
+    char *ban_reason;
+    time_t ban_end;
+
+    /* Make sure PSOX is allowed on this ship. */
+    if((ship->cfg->shipgate_flags & SHIPGATE_FLAG_NOPSOX)) {
+        send_message_box(c, "%s", __(c, "\tEPSO Episode 1 & 2 for Xbox "
+                                     "is not supported on\nthis ship.\n\n"
+                                     "Disconnecting."));
+        c->flags |= CLIENT_FLAG_DISCONNECTED;
+        return 0;
+    }
+
+    c->language_code = pkt->language_code;
+    c->guildcard = LE32(pkt->guildcard);
+
+    /* See if the user is banned */
+    if(is_guildcard_banned(ship, c->guildcard, &ban_reason, &ban_end)) {
+        send_ban_msg(c, ban_end, ban_reason);
+        c->flags |= CLIENT_FLAG_DISCONNECTED;
+        free(ban_reason);
+        return 0;
+    }
+    else if(is_ip_banned(ship, &c->ip_addr, &ban_reason, &ban_end)) {
+        send_ban_msg(c, ban_end, ban_reason);
+        c->flags |= CLIENT_FLAG_DISCONNECTED;
+        free(ban_reason);
+        return 0;
+    }
+
+    if(send_dc_security(c, c->guildcard, NULL, 0)) {
+        return -1;
+    }
+
+    if(send_block_list(c, ship)) {
+        return -2;
+    }
+
+    return 0;
+}
+
 static int bb_process_login(ship_client_t *c, bb_login_93_pkt *pkt) {
     char *ban_reason;
     time_t ban_end;

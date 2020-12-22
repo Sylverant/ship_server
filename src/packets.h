@@ -190,6 +190,21 @@ typedef struct gc_login_9c {
     uint8_t padding6[32];
 } gc_login_9c_pkt;
 
+typedef struct xb_login_9c {
+    dc_pkt_hdr_t hdr;
+    uint8_t padding1[8];
+    uint8_t version;
+    uint8_t padding2[4];
+    uint8_t language_code;
+    uint8_t padding3[2];
+    uint8_t xbl_gamertag[16];
+    uint8_t padding4[32];
+    uint8_t xbl_userid[16];
+    uint8_t padding5[32];
+    uint8_t xbox_pso[8];        /* Literally "xbox-pso" */
+    uint8_t padding6[40];
+} xb_login_9c_pkt;
+
 typedef struct dcv2_login_9d {
     union {
         dc_pkt_hdr_t dc;
@@ -234,6 +249,26 @@ typedef struct gc_login_9e {
     uint8_t padding8[32];
     uint8_t sec_data[0];
 } PACKED gc_login_9e_pkt;
+
+typedef struct xb_login_9e {
+    dc_pkt_hdr_t hdr;
+    uint32_t tag;
+    uint32_t guildcard;
+    uint8_t padding1[8];
+    uint8_t version;
+    uint8_t padding2[4];
+    uint8_t language_code;
+    uint8_t padding3[34];
+    uint8_t xbl_gamertag[16];
+    uint8_t xbl_userid[16];
+    uint8_t xbl_gamertag2[16];
+    uint8_t padding6[32];
+    uint8_t xbl_userid2[16];
+    uint8_t padding7[32];
+    char name[16];
+    uint8_t padding8[32];
+    uint8_t sec_data[0];
+} PACKED xb_login_9e_pkt;
 
 typedef struct bb_login_93 {
     bb_pkt_hdr_t hdr;
@@ -307,6 +342,23 @@ typedef struct login_gc_hlcheck {
     char password[16];
     uint8_t padding7[32];
 } PACKED gc_hlcheck_pkt;
+
+/* The same as above, but for xbox. */
+typedef struct login_xb_hlcheck {
+    dc_pkt_hdr_t hdr;
+    uint8_t padding1[32];
+    uint8_t xbl_gamertag[16];
+    uint8_t xbl_userid[16];
+    uint8_t padding2[8];
+    uint8_t version;
+    uint8_t padding3[3];
+    uint8_t xbl_gamertag2[16];
+    uint8_t padding4[32];
+    uint8_t xbl_userid2[16];
+    uint8_t padding5[32];
+    uint8_t xbox_pso[8];        /* Literally "xbox-pso" */
+    uint8_t padding6[40];
+} PACKED xb_hlcheck_pkt;
 
 /* The packet sent to redirect clients */
 typedef struct dc_redirect {

@@ -1330,7 +1330,8 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
             if((c->version == CLIENT_VERSION_DCV1 &&
                 (c->flags & CLIENT_FLAG_IS_NTE)) ||
                ((c->version == CLIENT_VERSION_GC ||
-                 c->version == CLIENT_VERSION_EP3) &&
+                 c->version == CLIENT_VERSION_EP3 ||
+                 c->version == CLIENT_VERSION_XBOX) &&
                  !(c->flags & CLIENT_FLAG_GC_MSG_BOXES))) {
                 /* Just say that we sent the MOTD, even though we won't ever do
                    it at all. */
@@ -2504,6 +2505,10 @@ static int process_menu(ship_client_t *c, uint32_t menu_id, uint32_t item_id,
                     port = ship->blocks[item_id - 1]->bb_port;
                     break;
 
+                case CLIENT_VERSION_XBOX:
+                    port = ship->blocks[item_id - 1]->xb_port;
+                    break;
+
                 default:
                     return -1;
             }
@@ -2644,6 +2649,10 @@ static int process_menu(ship_client_t *c, uint32_t menu_id, uint32_t item_id,
 
                 case CLIENT_VERSION_BB:
                     off = 4;
+                    break;
+
+                case CLIENT_VERSION_XBOX:
+                    off = 5;
                     break;
             }
 
@@ -3059,6 +3068,7 @@ int send_motd(ship_client_t *c) {
             break;
 
         case CLIENT_VERSION_GC:
+        case CLIENT_VERSION_XBOX:
             ver = SYLVERANT_INFO_GC;
             break;
 
@@ -3259,7 +3269,8 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
                                                  (dcnte_game_create_pkt *)pkt);
             }
             else if(c->version != CLIENT_VERSION_PC &&
-               c->version != CLIENT_VERSION_GC) {
+               c->version != CLIENT_VERSION_GC &&
+               c->version != CLIENT_VERSION_XBOX) {
                 return dc_process_game_create(c, (dc_game_create_pkt *)pkt);
             }
             else if(c->version == CLIENT_VERSION_PC) {

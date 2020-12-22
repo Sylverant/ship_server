@@ -282,7 +282,8 @@ int send_dc_welcome(ship_client_t *c, uint32_t svect, uint32_t cvect) {
 
     /* Fill in the header */
     if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
-       c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3) {
+       c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3 ||
+       c->version == CLIENT_VERSION_XBOX) {
         pkt->hdr.dc.pkt_len = LE16(DC_WELCOME_LENGTH);
         pkt->hdr.dc.pkt_type = WELCOME_TYPE;
     }
@@ -347,7 +348,8 @@ int send_dc_security(ship_client_t *c, uint32_t gc, uint8_t *data,
 
     /* Fill in the header */
     if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
-       c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3) {
+       c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3 ||
+       c->version == CLIENT_VERSION_XBOX) {
         pkt->hdr.dc.pkt_type = SECURITY_TYPE;
         pkt->hdr.dc.pkt_len = LE16((0x0C + data_len));
     }
@@ -421,7 +423,8 @@ static int send_dc_redirect(ship_client_t *c, in_addr_t ip, uint16_t port) {
 
     /* Fill in the header */
     if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
-       c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3) {
+       c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3 ||
+       c->version == CLIENT_VERSION_XBOX) {
         pkt->hdr.dc.pkt_type = REDIRECT_TYPE;
         pkt->hdr.dc.pkt_len = LE16(DC_REDIRECT_LENGTH);
     }
@@ -470,6 +473,7 @@ int send_redirect(ship_client_t *c, in_addr_t ip, uint16_t port) {
         case CLIENT_VERSION_PC:
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
             return send_dc_redirect(c, ip, port);
 
         case CLIENT_VERSION_BB:
@@ -496,7 +500,8 @@ static int send_redirect6_dc(ship_client_t *c, const uint8_t ip[16],
 
     /* Fill in the header */
     if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
-       c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3) {
+       c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3 ||
+       c->version == CLIENT_VERSION_XBOX) {
         pkt->hdr.dc.pkt_type = REDIRECT_TYPE;
         pkt->hdr.dc.pkt_len = LE16(DC_REDIRECT6_LENGTH);
         pkt->hdr.dc.flags = 6;
@@ -549,6 +554,7 @@ int send_redirect6(ship_client_t *c, const uint8_t ip[16], uint16_t port) {
         case CLIENT_VERSION_PC:
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
             return send_redirect6_dc(c, ip, port);
 
         case CLIENT_VERSION_BB:
@@ -576,7 +582,8 @@ static int send_dc_timestamp(ship_client_t *c) {
 
     /* Fill in the header */
     if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
-       c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3) {
+       c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3 ||
+       c->version == CLIENT_VERSION_XBOX) {
         pkt->hdr.dc.pkt_type = TIMESTAMP_TYPE;
         pkt->hdr.dc.pkt_len = LE16(DC_TIMESTAMP_LENGTH);
     }
@@ -609,6 +616,7 @@ int send_timestamp(ship_client_t *c) {
         case CLIENT_VERSION_PC:
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
             return send_dc_timestamp(c);
     }
 
@@ -857,6 +865,7 @@ int send_block_list(ship_client_t *c, ship_t *s) {
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
             return send_dc_block_list(c, s);
 
         case CLIENT_VERSION_PC:
@@ -884,7 +893,8 @@ static int send_dc_info_reply(ship_client_t *c, const char *msg) {
     }
 
     if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
-       c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3) {
+       c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3 ||
+       c->version == CLIENT_VERSION_XBOX) {
         if(msg[1] == 'J') {
             ic = ic_utf8_to_sjis;
         }
@@ -917,7 +927,8 @@ static int send_dc_info_reply(ship_client_t *c, const char *msg) {
 
     /* Fill in the header */
     if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
-       c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3) {
+       c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3 ||
+       c->version == CLIENT_VERSION_XBOX) {
         pkt->hdr.dc.pkt_type = INFO_REPLY_TYPE;
         pkt->hdr.dc.flags = 0;
         pkt->hdr.dc.pkt_len = LE16(out);
@@ -979,6 +990,7 @@ int send_info_reply(ship_client_t *c, const char *msg) {
         case CLIENT_VERSION_PC:
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
             return send_dc_info_reply(c, msg);
 
         case CLIENT_VERSION_BB:
@@ -1050,6 +1062,7 @@ int send_simple(ship_client_t *c, int type, int flags) {
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
             return send_dc_simple(c, type, flags);
 
         case CLIENT_VERSION_PC:
@@ -1081,7 +1094,8 @@ static int send_dc_lobby_list(ship_client_t *c) {
         max = 10;
     }
     else if(c->version == CLIENT_VERSION_DCV2 ||
-            c->version == CLIENT_VERSION_GC) {
+            c->version == CLIENT_VERSION_GC ||
+            c->version == CLIENT_VERSION_XBOX) {
         pkt->hdr.dc.pkt_type = LOBBY_LIST_TYPE;
         pkt->hdr.dc.flags = 0x0F;                               /* 15 lobbies */
         pkt->hdr.dc.pkt_len = LE16(DC_LOBBY_LIST_LENGTH);
@@ -1159,6 +1173,7 @@ int send_lobby_list(ship_client_t *c) {
         case CLIENT_VERSION_PC:
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
             return send_dc_lobby_list(c);
 
         case CLIENT_VERSION_BB:
@@ -1529,6 +1544,7 @@ int send_lobby_join(ship_client_t *c, lobby_t *l) {
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
             if(send_dc_lobby_join(c, l))
                 return -1;
 
@@ -1977,6 +1993,7 @@ int send_lobby_add_player(lobby_t *l, ship_client_t *c) {
                 case CLIENT_VERSION_DCV2:
                 case CLIENT_VERSION_GC:
                 case CLIENT_VERSION_EP3:
+                case CLIENT_VERSION_XBOX:
                     if(!(l->clients[i]->flags & CLIENT_FLAG_IS_NTE))
                         send_dc_lobby_add_player(l, l->clients[i], c);
                     else
@@ -2011,7 +2028,8 @@ static int send_dc_lobby_leave(lobby_t *l, ship_client_t *c, int client_id) {
 
     /* Fill in the header */
     if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
-       c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3) {
+       c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3 ||
+       c->version == CLIENT_VERSION_XBOX) {
         pkt->hdr.dc.pkt_type = (l->type == LOBBY_TYPE_DEFAULT) ?
             LOBBY_LEAVE_TYPE : GAME_LEAVE_TYPE;
         pkt->hdr.dc.flags = client_id;
@@ -2069,6 +2087,7 @@ int send_lobby_leave(lobby_t *l, ship_client_t *c, int client_id) {
                 case CLIENT_VERSION_PC:
                 case CLIENT_VERSION_GC:
                 case CLIENT_VERSION_EP3:
+                case CLIENT_VERSION_XBOX:
                     send_dc_lobby_leave(l, l->clients[i], client_id);
                     break;
 
@@ -2307,6 +2326,7 @@ int send_lobby_chat(lobby_t *l, ship_client_t *sender, const char *msg,
             case CLIENT_VERSION_DCV2:
             case CLIENT_VERSION_GC:
             case CLIENT_VERSION_EP3:
+            case CLIENT_VERSION_XBOX:
                 return send_dc_lobby_chat(l, sender, sender, msg, cmsg);
 
             case CLIENT_VERSION_PC:
@@ -2329,6 +2349,7 @@ int send_lobby_chat(lobby_t *l, ship_client_t *sender, const char *msg,
                 case CLIENT_VERSION_DCV2:
                 case CLIENT_VERSION_GC:
                 case CLIENT_VERSION_EP3:
+                case CLIENT_VERSION_XBOX:
                     /* Only send if they're not being /ignore'd */
                     if(!client_has_ignored(l->clients[i], sender->guildcard)) {
                         send_dc_lobby_chat(l, l->clients[i], sender, msg, cmsg);
@@ -2523,6 +2544,7 @@ int send_lobby_bbchat(lobby_t *l, ship_client_t *sender, const uint16_t *msg,
                 case CLIENT_VERSION_DCV2:
                 case CLIENT_VERSION_GC:
                 case CLIENT_VERSION_EP3:
+                case CLIENT_VERSION_XBOX:
                     /* Only send if they're not being /ignore'd */
                     if(!client_has_ignored(l->clients[i], sender->guildcard)) {
                         send_dc_lobby_bbchat(l, l->clients[i], sender, msg,
@@ -2588,6 +2610,10 @@ static int send_dc_guild_reply(ship_client_t *c, ship_client_t *s) {
 
         case CLIENT_VERSION_EP3:
             port = b->ep3_port;
+            break;
+
+        case CLIENT_VERSION_XBOX:
+            port = b->xb_port;
             break;
     }
 
@@ -2779,6 +2805,7 @@ int send_guild_reply(ship_client_t *c, ship_client_t *s) {
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
             return send_dc_guild_reply(c, s);
 
         case CLIENT_VERSION_PC:
@@ -2827,6 +2854,10 @@ static int send_dc_guild_reply6(ship_client_t *c, ship_client_t *s) {
 
         case CLIENT_VERSION_EP3:
             port = b->ep3_port;
+            break;
+
+        case CLIENT_VERSION_XBOX:
+            port = b->xb_port;
             break;
     }
 
@@ -3055,6 +3086,10 @@ static int send_dc_guild_reply_sg(ship_client_t *c, dc_guild_reply_pkt *p) {
         case CLIENT_VERSION_EP3:
             pkt->port = LE16((port + 3));
             break;
+
+        case CLIENT_VERSION_XBOX:
+            pkt->port = LE16((port + 5));
+            break;
     }
 
     memcpy(pkt, p, sizeof(dc_guild_reply_pkt));
@@ -3113,6 +3148,7 @@ int send_guild_reply_sg(ship_client_t *c, dc_guild_reply_pkt *pkt) {
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
             return send_dc_guild_reply_sg(c, pkt);
 
         case CLIENT_VERSION_PC:
@@ -3145,6 +3181,10 @@ static int send_dc_guild_reply6_sg(ship_client_t *c, dc_guild_reply6_pkt *p) {
 
         case CLIENT_VERSION_EP3:
             pkt->port = LE16((port + 3));
+            break;
+
+        case CLIENT_VERSION_XBOX:
+            pkt->port = LE16((port + 5));
             break;
     }
 
@@ -3205,6 +3245,7 @@ int send_guild_reply6_sg(ship_client_t *c, dc_guild_reply6_pkt *pkt) {
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
             return send_dc_guild_reply6_sg(c, pkt);
 
         case CLIENT_VERSION_PC:
@@ -3326,7 +3367,8 @@ static int send_dc_message(ship_client_t *c, uint16_t type, const char *fmt,
 
     /* Set up to convert between encodings */
     if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
-       c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3) {
+       c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3 ||
+       c->version == CLIENT_VERSION_XBOX) {
         if(tm[1] != 'J') {
             ic = ic_utf8_to_8859;
         }
@@ -3358,7 +3400,8 @@ static int send_dc_message(ship_client_t *c, uint16_t type, const char *fmt,
     len += 0x0C;
 
     if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
-       c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3) {
+       c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3 ||
+       c->version == CLIENT_VERSION_XBOX) {
         pkt->hdr.dc.pkt_type = type;
         pkt->hdr.dc.flags = 0;
         pkt->hdr.dc.pkt_len = LE16(len);
@@ -3442,6 +3485,7 @@ int send_message1(ship_client_t *c, const char *fmt, ...) {
         case CLIENT_VERSION_PC:
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
             rv = send_dc_message(c, MSG1_TYPE, fmt, args);
             break;
 
@@ -3476,6 +3520,7 @@ int send_txt(ship_client_t *c, const char *fmt, ...) {
         case CLIENT_VERSION_PC:
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
             rv = send_dc_message(c, TEXT_MSG_TYPE, fmt, args);
             break;
 
@@ -3854,6 +3899,7 @@ int send_game_join(ship_client_t *c, lobby_t *l) {
             return send_pc_game_join(c, l);
 
         case CLIENT_VERSION_GC:
+        case CLIENT_VERSION_XBOX:
             return send_gc_game_join(c, l);
 
         case CLIENT_VERSION_EP3:
@@ -4340,6 +4386,7 @@ int send_game_list(ship_client_t *c, block_t *b) {
             return send_pc_game_list(c, b);
 
         case CLIENT_VERSION_GC:
+        case CLIENT_VERSION_XBOX:
             return send_gc_game_list(c, b);
 
         case CLIENT_VERSION_EP3:
@@ -4495,6 +4542,7 @@ int send_info_list(ship_client_t *c, ship_t *s) {
             return send_dc_info_list(c, s, SYLVERANT_INFO_V2);
 
         case CLIENT_VERSION_GC:
+        case CLIENT_VERSION_XBOX:
             /* Don't bother if they can't see the results anyway... */
             if(!(c->flags & CLIENT_FLAG_GC_MSG_BOXES))
                 return 0;
@@ -4578,7 +4626,8 @@ static int send_dc_message_box(ship_client_t *c, const char *fmt,
     }
 
     /* Don't send these to GC players with buggy versions. */
-    if((c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3) &&
+    if((c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3 ||
+        c->version == CLIENT_VERSION_XBOX) &&
        !(c->flags & CLIENT_FLAG_TYPE_SHIP) &&
        !(c->flags & CLIENT_FLAG_GC_MSG_BOXES)) {
         debug(DBG_LOG, "Silently (to the user) dropping message box for GC\n");
@@ -4601,7 +4650,8 @@ static int send_dc_message_box(ship_client_t *c, const char *fmt,
 
     /* Set up to convert between encodings */
     if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
-       c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3) {
+       c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3 ||
+       c->version == CLIENT_VERSION_XBOX) {
         if(tm[1] == 'J') {
             ic = ic_utf8_to_sjis;
         }
@@ -4629,7 +4679,8 @@ static int send_dc_message_box(ship_client_t *c, const char *fmt,
     len += 0x04;
 
     if(c->version == CLIENT_VERSION_DCV1 || c->version == CLIENT_VERSION_DCV2 ||
-       c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3) {
+       c->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3 ||
+       c->version == CLIENT_VERSION_XBOX) {
         pkt->hdr.dc.pkt_type = MSG_BOX_TYPE;
         pkt->hdr.dc.flags = 0;
         pkt->hdr.dc.pkt_len = LE16(len);
@@ -4657,6 +4708,7 @@ int send_message_box(ship_client_t *c, const char *fmt, ...) {
         case CLIENT_VERSION_PC:
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
             rv = send_dc_message_box(c, fmt, args);
     }
 
@@ -4677,7 +4729,8 @@ static int send_dc_quest_categories(ship_client_t *c, int lang) {
     sylverant_quest_list_t *qlist;
     lobby_t *l = c->cur_lobby;
 
-    if(l->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3)
+    if(l->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3 ||
+       l->version == CLIENT_VERSION_XBOX)
         qlist = &ship->qlist[CLIENT_VERSION_GC][lang];
     else if(!l->v2)
         qlist = &ship->qlist[CLIENT_VERSION_DCV1][lang];
@@ -4688,7 +4741,9 @@ static int send_dc_quest_categories(ship_client_t *c, int lang) {
     if(!qlist->cat_count) {
         lang = CLIENT_LANG_ENGLISH;
 
-        if(l->version == CLIENT_VERSION_GC || c->version == CLIENT_VERSION_EP3)
+        if(l->version == CLIENT_VERSION_GC ||
+           c->version == CLIENT_VERSION_EP3 ||
+           l->version == CLIENT_VERSION_XBOX)
             qlist = &ship->qlist[CLIENT_VERSION_GC][lang];
         else if(!l->v2)
             qlist = &ship->qlist[CLIENT_VERSION_DCV1][lang];
@@ -4955,6 +5010,7 @@ int send_quest_categories(ship_client_t *c, int lang) {
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3: /* XXXX? */
+        case CLIENT_VERSION_XBOX:
             return send_dc_quest_categories(c, lang);
 
         case CLIENT_VERSION_PC:
@@ -5283,7 +5339,7 @@ static int send_gc_quest_list(ship_client_t *c, int cn, int lang) {
     if(!sendbuf)
         return -1;
 
-    if(l->version == CLIENT_VERSION_GC) {
+    if(l->version == CLIENT_VERSION_GC || l->version == CLIENT_VERSION_XBOX) {
         ver = CLIENT_VERSION_GC;
         qlist = &ship->qlist[CLIENT_VERSION_GC][lang];
         qlisten = &ship->qlist[CLIENT_VERSION_GC][CLIENT_LANG_ENGLISH];
@@ -5595,6 +5651,7 @@ int send_quest_list(ship_client_t *c, int cat, int lang) {
 
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3: /* XXXX? */
+        case CLIENT_VERSION_XBOX:
             return send_gc_quest_list(c, cat, lang);
 
         case CLIENT_VERSION_BB:
@@ -5764,6 +5821,7 @@ int send_quest_info(lobby_t *l, uint32_t qid, int lang) {
                 case CLIENT_VERSION_DCV2:
                 case CLIENT_VERSION_GC:
                 case CLIENT_VERSION_EP3:
+                case CLIENT_VERSION_XBOX:
                     send_dc_quest_info(c, q, sel_lang);
                     break;
 
@@ -6483,6 +6541,12 @@ static int send_qst_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
                         version_codes[c->version], language_codes[lang],
                         q->prefix);
                 break;
+
+            case CLIENT_VERSION_XBOX:
+                sprintf(filename, "%s/%s-%s/%sv1.qst", ship->cfg->quests_dir,
+                        version_codes[CLIENT_VERSION_GC], language_codes[lang],
+                        q->prefix);
+                break;
         }
     }
 
@@ -6619,6 +6683,7 @@ int send_quest(lobby_t *l, uint32_t qid, int lc) {
                         break;
 
                     case CLIENT_VERSION_GC:
+                    case CLIENT_VERSION_XBOX:
                         rv = send_gc_quest(c, elem, v1, lang);
                         break;
 
@@ -6726,6 +6791,7 @@ int send_quest_one(lobby_t *l, ship_client_t *c, uint32_t qid, int lc) {
                 break;
 
             case CLIENT_VERSION_GC:
+            case CLIENT_VERSION_XBOX:
                 rv = send_gc_quest(c, elem, v1, lang);
                 break;
 
@@ -6884,6 +6950,7 @@ int send_lobby_name(ship_client_t *c, lobby_t *l) {
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
             return send_dcv2_lobby_name(c, l);
 
         case CLIENT_VERSION_PC:
@@ -6925,7 +6992,7 @@ static int send_dc_lobby_arrows(lobby_t *l, ship_client_t *c) {
 
     /* Fill in the rest of it */
     if(c->version == CLIENT_VERSION_DCV2 || c->version == CLIENT_VERSION_GC ||
-       c->version == CLIENT_VERSION_EP3) {
+       c->version == CLIENT_VERSION_EP3 || c->version == CLIENT_VERSION_XBOX) {
         pkt->hdr.dc.pkt_type = LOBBY_ARROW_LIST_TYPE;
         pkt->hdr.dc.flags = (uint8_t)clients;
         pkt->hdr.dc.pkt_len = LE16(((uint16_t)len));
@@ -7002,6 +7069,7 @@ int send_lobby_arrows(lobby_t *l) {
                 case CLIENT_VERSION_PC:
                 case CLIENT_VERSION_GC:
                 case CLIENT_VERSION_EP3:
+                case CLIENT_VERSION_XBOX:
                     send_dc_lobby_arrows(l, l->clients[i]);
                     break;
 
@@ -7031,6 +7099,7 @@ int send_arrows(ship_client_t *c, lobby_t *l) {
         case CLIENT_VERSION_PC:
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
             return send_dc_lobby_arrows(l, c);
 
         case CLIENT_VERSION_BB:
@@ -7386,6 +7455,7 @@ int send_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
             return send_dc_ship_list(c, s, menu_code);
 
         case CLIENT_VERSION_PC:
@@ -7483,6 +7553,7 @@ int send_warp(ship_client_t *c, uint8_t area) {
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
             return send_dc_warp(c, area);
 
         case CLIENT_VERSION_PC:
@@ -7507,6 +7578,7 @@ int send_lobby_warp(lobby_t *l, uint8_t area) {
                 case CLIENT_VERSION_DCV2:
                 case CLIENT_VERSION_GC:
                 case CLIENT_VERSION_EP3:
+                case CLIENT_VERSION_XBOX:
                     send_dc_warp(l->clients[i], area);
                     break;
 
@@ -7586,6 +7658,7 @@ int send_choice_search(ship_client_t *c) {
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
             return send_dc_choice_search(c);
 
         case CLIENT_VERSION_PC:
@@ -7641,6 +7714,7 @@ static int fill_one_choice_entry(uint8_t *sendbuf, int version,
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
         {
             dc_choice_reply_pkt *pkt = (dc_choice_reply_pkt *)sendbuf;
             char lname[17];
@@ -7727,6 +7801,7 @@ static int fill_one_choice6_entry(uint8_t *sendbuf, int version,
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
         {
             dc_choice_reply6_pkt *pkt = (dc_choice_reply6_pkt *)sendbuf;
             char lname[17];
@@ -8085,6 +8160,7 @@ int send_choice_reply(ship_client_t *c, dc_choice_set_pkt *search) {
             return send_pc_choice_reply(c, search, minlvl, maxlvl, cl);
 
         case CLIENT_VERSION_GC:
+        case CLIENT_VERSION_XBOX:
             return send_gc_choice_reply(c, search, minlvl, maxlvl, cl);
 
         case CLIENT_VERSION_EP3:
@@ -8437,6 +8513,7 @@ int send_simple_mail(int version, ship_client_t *c, dc_pkt_hdr_t *pkt) {
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
             if(c->version == CLIENT_VERSION_PC) {
                 return send_pc_simple_mail_dc(c, (dc_simple_mail_pkt *)pkt);
             }
@@ -8474,6 +8551,7 @@ int send_bb_simple_mail(ship_client_t *c, bb_simple_mail_pkt *pkt) {
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
             return send_dc_simple_mail_bb(c, pkt);
             break;
 
@@ -8520,6 +8598,7 @@ int send_mail_autoreply(ship_client_t *d, ship_client_t *s) {
 
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
         {
             dc_simple_mail_pkt p;
             dc_pkt_hdr_t *dc = (dc_pkt_hdr_t *)&p;
@@ -8592,6 +8671,7 @@ static int send_gc_infoboard(ship_client_t *c, lobby_t *l) {
             switch(c2->version) {
                 case CLIENT_VERSION_GC:
                 case CLIENT_VERSION_EP3:
+                case CLIENT_VERSION_XBOX:
                     if(c2->infoboard[0]) {
                         memset(&pkt->entries[entries], 0, 0xBC);
                         strcpy(pkt->entries[entries].name, c2->pl->v1.name);
@@ -8675,6 +8755,7 @@ static int send_bb_infoboard(ship_client_t *c, lobby_t *l) {
             switch(c2->version) {
                 case CLIENT_VERSION_GC:
                 case CLIENT_VERSION_EP3:
+                case CLIENT_VERSION_XBOX:
                     if(c2->infoboard[0]) {
                         memset(&pkt->entries[entries], 0, 0x178);
 
@@ -8741,6 +8822,7 @@ int send_infoboard(ship_client_t *c, lobby_t *l) {
     switch(c->version) {
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
             return send_gc_infoboard(c, l);
 
         case CLIENT_VERSION_BB:
@@ -8758,6 +8840,7 @@ static void copy_c_rank_gc(gc_c_rank_update_pkt *pkt, int entry,
     switch(s->version) {
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
             pkt->entries[entry].client_id = LE32(s->client_id);
             memcpy(pkt->entries[entry].c_rank, s->c_rank, 0x0118);
             break;
@@ -8898,6 +8981,7 @@ static void copy_c_rank_dc(dc_c_rank_update_pkt *pkt, int entry,
 
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
             pkt->entries[entry].client_id = LE32(s->client_id);
 
             memset(pkt->entries[entry].c_rank, 0, 0xB8);
@@ -8997,6 +9081,7 @@ static void copy_c_rank_pc(pc_c_rank_update_pkt *pkt, int entry,
 
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
             pkt->entries[entry].client_id = LE32(s->client_id);
 
             memset(pkt->entries[entry].c_rank, 0, 0xF0);
@@ -9136,6 +9221,7 @@ int send_lobby_c_rank(ship_client_t *c, lobby_t *l) {
     switch(c->version) {
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
             return send_gc_lobby_c_rank(c, l);
 
         case CLIENT_VERSION_DCV2:
@@ -9221,6 +9307,7 @@ int send_c_rank_update(ship_client_t *c, lobby_t *l) {
             switch(l->clients[i]->version) {
                 case CLIENT_VERSION_GC:
                 case CLIENT_VERSION_EP3:
+                case CLIENT_VERSION_XBOX:
                     send_gc_c_rank_update(l->clients[i], c);
                     break;
 
@@ -9267,7 +9354,8 @@ static int send_dc_mod_stat(ship_client_t *d, ship_client_t *s, int stat,
 
     /* Fill in the header */
     if(d->version == CLIENT_VERSION_DCV1 || d->version == CLIENT_VERSION_DCV2 ||
-       d->version == CLIENT_VERSION_GC || d->version == CLIENT_VERSION_EP3) {
+       d->version == CLIENT_VERSION_GC || d->version == CLIENT_VERSION_EP3 ||
+       d->version == CLIENT_VERSION_XBOX) {
         pkt->hdr.dc.pkt_type = GAME_COMMAND0_TYPE;
         pkt->hdr.dc.flags = 0;
         pkt->hdr.dc.pkt_len = LE16(len);
@@ -9342,6 +9430,7 @@ int send_lobby_mod_stat(lobby_t *l, ship_client_t *c, int stat, int amt) {
                 case CLIENT_VERSION_PC:
                 case CLIENT_VERSION_GC:
                 case CLIENT_VERSION_EP3:
+                case CLIENT_VERSION_XBOX:
                     send_dc_mod_stat(l->clients[i], c, stat, amt);
                     break;
 
@@ -9667,6 +9756,7 @@ int send_gm_menu(ship_client_t *c, uint32_t menu_id) {
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
             return send_dc_gm_menu(c, menu_id);
 
         case CLIENT_VERSION_PC:
@@ -9877,6 +9967,7 @@ int send_generic_menu(ship_client_t *c, uint32_t menu_id, size_t count,
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
             return send_dc_gen_menu(c, menu_id, count, ents);
 
         case CLIENT_VERSION_PC:
@@ -9926,6 +10017,7 @@ int send_sync_register(ship_client_t *c, uint8_t reg_num, uint32_t value) {
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_PC:
         case CLIENT_VERSION_GC:
+        case CLIENT_VERSION_XBOX:
             return send_dc_sync_register(c, reg_num, value);
 
         case CLIENT_VERSION_BB:     /* XXXX */
@@ -9952,6 +10044,7 @@ int send_lobby_sync_register(lobby_t *l, uint8_t n, uint32_t v) {
                 case CLIENT_VERSION_DCV2:
                 case CLIENT_VERSION_PC:
                 case CLIENT_VERSION_GC:
+                case CLIENT_VERSION_XBOX:
                     send_dc_sync_register(l->clients[i], n, v);
                     break;
 

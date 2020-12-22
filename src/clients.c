@@ -1656,6 +1656,7 @@ static int client_legitCheckItem_lua(lua_State *l) {
                 break;
 
             case CLIENT_VERSION_GC:
+            case CLIENT_VERSION_XBOX:
                 v = ITEM_VERSION_GC;
                 break;
 

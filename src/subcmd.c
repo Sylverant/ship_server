@@ -63,6 +63,7 @@ int handle_dc_gcsend(ship_client_t *s, ship_client_t *d,
 
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
         {
             subcmd_gc_gcsend_t gc;
 
@@ -261,6 +262,7 @@ static int handle_pc_gcsend(ship_client_t *s, ship_client_t *d,
 
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
         {
             subcmd_gc_gcsend_t gc;
             size_t in, out;
@@ -341,6 +343,7 @@ static int handle_gc_gcsend(ship_client_t *s, ship_client_t *d,
     switch(d->version) {
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
             return send_pkt_dc(d, (dc_pkt_hdr_t *)pkt);
 
         case CLIENT_VERSION_DCV1:
@@ -566,6 +569,7 @@ static int handle_bb_gcsend(ship_client_t *s, ship_client_t *d) {
 
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
         {
             subcmd_gc_gcsend_t gc;
 
@@ -705,6 +709,7 @@ static int handle_quest_itemreq(ship_client_t *c, subcmd_itemreq_t *req,
                 break;
 
             case CLIENT_VERSION_GC:
+            case CLIENT_VERSION_XBOX:
                 return 0;
         }
     }
@@ -790,6 +795,7 @@ static int handle_take_item(ship_client_t *c, subcmd_take_item_t *pkt) {
                 break;
 
             case CLIENT_VERSION_GC:
+            case CLIENT_VERSION_XBOX:
                 v = ITEM_VERSION_GC;
                 break;
 
@@ -880,6 +886,7 @@ static int handle_itemdrop(ship_client_t *c, subcmd_itemgen_t *pkt) {
                 break;
 
             case CLIENT_VERSION_GC:
+            case CLIENT_VERSION_XBOX:
                 v = ITEM_VERSION_GC;
                 break;
 
@@ -1613,6 +1620,7 @@ static int handle_word_select(ship_client_t *c, subcmd_word_select_t *pkt) {
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
         case CLIENT_VERSION_BB:
+        case CLIENT_VERSION_XBOX:
             return word_select_send_gc(c, pkt);
     }
 
@@ -3078,6 +3086,7 @@ int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
 
                 case CLIENT_VERSION_GC:
                 case CLIENT_VERSION_EP3:
+                case CLIENT_VERSION_XBOX:
                     rv = handle_gc_gcsend(c, dest, (subcmd_gc_gcsend_t *)pkt);
                     break;
 

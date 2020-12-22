@@ -778,6 +778,7 @@ static int handle_legit(ship_client_t *c, const char *params) {
             break;
 
         case CLIENT_VERSION_GC:
+        case CLIENT_VERSION_XBOX:
             v = ITEM_VERSION_GC;
             break;
 
@@ -2764,6 +2765,7 @@ static int handle_sdrops(ship_client_t *c, const char *params) {
             break;
 
         case CLIENT_VERSION_GC:
+        case CLIENT_VERSION_XBOX:
             /* XXXX: GM-only until they're fixed... */
             if(!pt_gc_enabled() || !map_have_gc_maps() || !pmt_gc_enabled() ||
                !rt_gc_enabled() || !LOCAL_GM(c))
@@ -3131,9 +3133,10 @@ static int handle_info(ship_client_t *c, const char *params) {
     else if(c->version == CLIENT_VERSION_DCV1 &&
             (c->flags & CLIENT_FLAG_IS_NTE))
         return send_txt(c, "%s", __(c, "\tE\tC7Not valid on DC NTE."));
-    else if(c->version == CLIENT_VERSION_GC &&
+    else if((c->version == CLIENT_VERSION_GC ||
+             c->version == CLIENT_VERSION_XBOX) &&
             !(c->flags & CLIENT_FLAG_GC_MSG_BOXES))
-        return send_txt(c, "%s", __(c, "\tE\tC7Not valid on this GC version."));
+        return send_txt(c, "%s", __(c, "\tE\tC7Not valid on this version."));
 
     return send_info_list(c, ship);
 }

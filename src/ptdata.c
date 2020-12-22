@@ -1485,6 +1485,7 @@ static int check_and_send(ship_client_t *c, lobby_t *l, uint32_t item[4],
                 break;
 
             case CLIENT_VERSION_GC:
+            case CLIENT_VERSION_XBOX:
                 v = ITEM_VERSION_GC;
                 break;
 
@@ -1522,6 +1523,7 @@ static int check_and_send(ship_client_t *c, lobby_t *l, uint32_t item[4],
                 break;
 
             case CLIENT_VERSION_GC:
+            case CLIENT_VERSION_XBOX:
                 stars = pmt_lookup_stars_gc(item[0]);
                 break;
         }
