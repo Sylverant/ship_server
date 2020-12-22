@@ -1572,7 +1572,10 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return dcv2_process_login(c, (dcv2_login_9d_pkt *)pkt);
 
         case LOGIN_9E_TYPE:
-            return gc_process_login(c, (gc_login_9e_pkt *)pkt);
+            if(c->version != CLIENT_VERSION_XBOX)
+                return gc_process_login(c, (gc_login_9e_pkt *)pkt);
+            else
+                return xb_process_login(c, (xb_login_9e_pkt *)pkt);
 
         case GC_MSG_BOX_CLOSED_TYPE:
             return send_block_list(c, ship);

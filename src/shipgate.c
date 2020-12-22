@@ -407,6 +407,7 @@ static void handle_mail_autoreply(shipgate_conn_t *c, ship_client_t *s,
 
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_XBOX:
         {
             dc_simple_mail_pkt p;
             dc_pkt_hdr_t *dc = (dc_pkt_hdr_t *)&p;

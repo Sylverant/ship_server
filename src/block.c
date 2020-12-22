@@ -1119,6 +1119,64 @@ static int gc_process_login(ship_client_t *c, gc_login_9e_pkt *pkt) {
     return 0;
 }
 
+/* Process a Xbox login packet, sending security data, a lobby list, and a
+   character data request. */
+static int xb_process_login(ship_client_t *c, xb_login_9e_pkt *pkt) {
+    char ipstr[INET6_ADDRSTRLEN];
+    char *ban_reason;
+    time_t ban_end;
+
+    /* Make sure PSOX is allowed on this ship. */
+    if((ship->cfg->shipgate_flags & SHIPGATE_FLAG_NOPSOX)) {
+        send_message_box(c, "%s", __(c, "\tEPSO Episode 1 & 2 for Xbox "
+                                     "is not supported on\nthis ship.\n\n"
+                                     "Disconnecting."));
+        c->flags |= CLIENT_FLAG_DISCONNECTED;
+        return 0;
+    }
+
+    /* See if the user is banned */
+    if(is_guildcard_banned(ship, c->guildcard, &ban_reason, &ban_end)) {
+        send_ban_msg(c, ban_end, ban_reason);
+        c->flags |= CLIENT_FLAG_DISCONNECTED;
+        free(ban_reason);
+        return 0;
+    }
+    else if(is_ip_banned(ship, &c->ip_addr, &ban_reason, &ban_end)) {
+        send_ban_msg(c, ban_end, ban_reason);
+        c->flags |= CLIENT_FLAG_DISCONNECTED;
+        free(ban_reason);
+        return 0;
+    }
+
+    /* Save what we care about in here. */
+    c->guildcard = LE32(pkt->guildcard);
+    c->language_code = pkt->language_code;
+    c->q_lang = pkt->language_code;
+
+    /* See if this person is a GM. */
+    c->privilege = is_gm(c->guildcard, ship);
+
+    if(send_dc_security(c, c->guildcard, NULL, 0)) {
+        return -1;
+    }
+
+    if(send_lobby_list(c)) {
+        return -2;
+    }
+
+    if(send_simple(c, CHAR_DATA_REQUEST_TYPE, 0)) {
+        return -3;
+    }
+
+    /* Log the connection. */
+    my_ntop(&c->ip_addr, ipstr);
+    debug(DBG_LOG, "%s(%d): Xbox Guild Card %d connected with IP %s\n",
+          ship->cfg->name, c->cur_block->b, c->guildcard, ipstr);
+
+    return 0;
+}
+
 static int bb_process_login(ship_client_t *c, bb_login_93_pkt *pkt) {
     uint32_t team_id;
     char ipstr[INET6_ADDRSTRLEN];
@@ -3350,7 +3408,10 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return send_choice_reply(c, (dc_choice_set_pkt *)pkt);
 
         case LOGIN_9E_TYPE:
-            return gc_process_login(c, (gc_login_9e_pkt *)pkt);
+            if(c->version != CLIENT_VERSION_XBOX)
+                return gc_process_login(c, (gc_login_9e_pkt *)pkt);
+            else
+                return xb_process_login(c, (xb_login_9e_pkt *)pkt);
 
         case QUEST_CHUNK_TYPE:
         case QUEST_FILE_TYPE:
