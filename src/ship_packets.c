@@ -299,6 +299,10 @@ int send_dc_welcome(ship_client_t *c, uint32_t svect, uint32_t cvect) {
     pkt->svect = LE32(svect);
     pkt->cvect = LE32(cvect);
 
+    if(c->logfile) {
+        fprint_packet(c->logfile, sendbuf, DC_WELCOME_LENGTH, 0);
+    }
+
     /* Send the packet away */
     return send_raw(c, DC_WELCOME_LENGTH, sendbuf);
 }
@@ -327,6 +331,10 @@ int send_bb_welcome(ship_client_t *c, const uint8_t svect[48],
     /* Fill in the encryption vectors */
     memcpy(pkt->svect, svect, 48);
     memcpy(pkt->cvect, cvect, 48);
+
+    if(c->logfile) {
+        fprint_packet(c->logfile, sendbuf, BB_WELCOME_LENGTH, 0);
+    }
 
     /* Send the packet away */
     return send_raw(c, BB_WELCOME_LENGTH, sendbuf);
