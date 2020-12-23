@@ -770,7 +770,8 @@ static void convert_bb_to_dcpcgc(ship_client_t *s, uint8_t *buf) {
 void make_disp_data(ship_client_t *s, ship_client_t *d, void *buf) {
     uint8_t *bp = (uint8_t *)buf;
 
-    if(s->version < CLIENT_VERSION_BB && d->version < CLIENT_VERSION_BB) {
+    if((s->version < CLIENT_VERSION_BB || s->version == CLIENT_VERSION_XBOX) &&
+       (d->version < CLIENT_VERSION_BB || d->version == CLIENT_VERSION_XBOX)) {
         /* Neither are Blue Burst -- trivial */
         memcpy(buf, &s->pl->v1, sizeof(v1_player_t));
     }
