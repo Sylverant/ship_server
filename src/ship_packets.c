@@ -1472,6 +1472,81 @@ static int send_pc_lobby_join(ship_client_t *c, lobby_t *l) {
     return crypt_send(c, pkt_size, sendbuf);
 }
 
+static int send_xbox_lobby_join(ship_client_t *c, lobby_t *l) {
+    uint8_t *sendbuf = get_sendbuf();
+    xbox_lobby_join_pkt *pkt = (xbox_lobby_join_pkt *)sendbuf;
+    int i, pls = 0;
+    uint16_t pkt_size = 0x28;
+    uint8_t event = l->event;
+    uint16_t costume;
+    uint8_t ch_class;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Clear the packet's header. */
+    memset(pkt, 0, sizeof(xbox_lobby_join_pkt));
+
+    /* Fill in the basics. */
+    pkt->hdr.pkt_type = LOBBY_JOIN_TYPE;
+    pkt->leader_id = l->leader_id;
+    pkt->one = 1;
+    pkt->lobby_num = l->lobby_id - 1;
+    pkt->block_num = LE16(l->block->b);
+    pkt->event = LE16(event);
+
+    for(i = 0; i < l->max_clients; ++i) {
+        /* Skip blank clients. */
+        if(l->clients[i] == NULL) {
+            continue;
+        }
+
+        /* If this is the client we're sending to, mark their client id. */
+        else if(l->clients[i] == c) {
+            pkt->client_id = (uint8_t)i;
+        }
+
+        /* Copy the player's data into the packet. */
+        /* XXXX: Do this more correct. */
+        pkt->entries[pls].hdr.tag = LE32(0x00010000);
+        pkt->entries[pls].hdr.guildcard = LE32(l->clients[i]->guildcard);
+        memset(&pkt->entries[pls].hdr.xbox_ip, 0, sizeof(xbox_ip_t));
+        pkt->entries[pls].hdr.xbox_ip.lan_ip = 0x12345678;
+        pkt->entries[pls].hdr.xbox_ip.wan_ip = 0x87654321;
+        pkt->entries[pls].hdr.xbox_ip.port = 1234;
+        memset(&pkt->entries[pls].hdr.xbox_ip.mac_addr, 0x12, 6);
+        pkt->entries[pls].hdr.xbox_ip.sg_addr = 0x90807060;
+        pkt->entries[pls].hdr.xbox_ip.sg_session_id = 0x12345678;
+        pkt->entries[pls].hdr.d1 = 123;
+        pkt->entries[pls].hdr.d2 = 456;
+        pkt->entries[pls].hdr.d3 = 789;
+        pkt->entries[pls].hdr.client_id = LE32(i);
+
+        /* If its a Blue Burst client, iconv it. */
+        if(l->clients[i]->version == CLIENT_VERSION_BB) {
+            istrncpy16(ic_utf16_to_ascii, pkt->entries[pls].hdr.name,
+                       l->clients[i]->pl->bb.character.name, 16);
+        }
+        else {
+            memcpy(pkt->entries[pls].hdr.name, l->clients[i]->pl->v1.name, 16);
+        }
+
+        make_disp_data(l->clients[i], c, &pkt->entries[pls].data);
+
+        ++pls;
+        pkt_size += 1128;
+    }
+
+    /* Fill in the rest of it. */
+    pkt->hdr.flags = (uint8_t)pls;
+    pkt->hdr.pkt_len = LE16(pkt_size);
+
+    /* Send it away */
+    return crypt_send(c, pkt_size, sendbuf);
+}
+
 static int send_bb_lobby_join(ship_client_t *c, lobby_t *l) {
     uint8_t *sendbuf = get_sendbuf();
     bb_lobby_join_pkt *pkt = (bb_lobby_join_pkt *)sendbuf;
@@ -1552,7 +1627,6 @@ int send_lobby_join(ship_client_t *c, lobby_t *l) {
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
-        case CLIENT_VERSION_XBOX:
             if(send_dc_lobby_join(c, l))
                 return -1;
 
@@ -1565,6 +1639,17 @@ int send_lobby_join(ship_client_t *c, lobby_t *l) {
 
         case CLIENT_VERSION_PC:
             if(send_pc_lobby_join(c, l))
+                return -1;
+
+            if(send_lobby_c_rank(c, l))
+                return -1;
+
+            if(send_dc_lobby_arrows(l, c))
+                return -1;
+            break;
+
+        case CLIENT_VERSION_XBOX:
+            if(send_xbox_lobby_join(c, l))
                 return -1;
 
             if(send_lobby_c_rank(c, l))
@@ -1926,6 +2011,68 @@ static int send_pc_lobby_add_player(lobby_t *l, ship_client_t *c,
     return crypt_send(c, 0x045C, sendbuf);
 }
 
+static int send_xbox_lobby_add_player(lobby_t *l, ship_client_t *c,
+                                      ship_client_t *nc) {
+    uint8_t *sendbuf = get_sendbuf();
+    xbox_lobby_join_pkt *pkt = (xbox_lobby_join_pkt *)sendbuf;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Clear the packet's header. */
+    memset(pkt, 0, sizeof(xbox_lobby_join_pkt));
+
+    /* Fill in the basics. */
+    pkt->hdr.pkt_type = (l->type == LOBBY_TYPE_DEFAULT) ?
+        LOBBY_ADD_PLAYER_TYPE : GAME_ADD_PLAYER_TYPE;
+    pkt->hdr.flags = 1;
+    pkt->hdr.pkt_len = LE16(0x0490);
+    pkt->client_id = c->client_id;
+    pkt->leader_id = l->leader_id;
+    pkt->one = 1;
+    pkt->lobby_num = (l->type == LOBBY_TYPE_DEFAULT) ? l->lobby_id - 1 : 0xFF;
+
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        pkt->block_num = LE16(l->block->b);
+    }
+    else {
+        pkt->block_num = LE16(0x0001);
+        pkt->event = LE16(0x0001);
+    }
+
+    /* Copy the player's data into the packet. */
+    /* XXXX: Do this more correct. */
+    pkt->entries[0].hdr.tag = LE32(0x00010000);
+    pkt->entries[0].hdr.guildcard = LE32(nc->guildcard);
+    memset(&pkt->entries[0].hdr.xbox_ip, 0, sizeof(xbox_ip_t));
+    pkt->entries[0].hdr.xbox_ip.lan_ip = 0x12345678;
+    pkt->entries[0].hdr.xbox_ip.wan_ip = 0x87654321;
+    pkt->entries[0].hdr.xbox_ip.port = 1234;
+    memset(&pkt->entries[0].hdr.xbox_ip.mac_addr, 0x12, 6);
+    pkt->entries[0].hdr.xbox_ip.sg_addr = 0x90807060;
+    pkt->entries[0].hdr.xbox_ip.sg_session_id = 0x12345678;
+    pkt->entries[0].hdr.d1 = 123;
+    pkt->entries[0].hdr.d2 = 456;
+    pkt->entries[0].hdr.d3 = 789;
+    pkt->entries[0].hdr.client_id = LE32(nc->client_id);
+
+    /* If its a Blue Burst client, iconv it. */
+    if(nc->version == CLIENT_VERSION_BB) {
+        istrncpy16(ic_utf16_to_ascii, pkt->entries[0].hdr.name,
+                   &nc->pl->bb.character.name[2], 16);
+    }
+    else {
+        memcpy(pkt->entries[0].hdr.name, nc->pl->v1.name, 16);
+    }
+
+    make_disp_data(nc, c, &pkt->entries[0].data);
+
+    /* Send it away */
+    return crypt_send(c, 0x0490, sendbuf);
+}
+
 static int send_bb_lobby_add_player(lobby_t *l, ship_client_t *c,
                                     ship_client_t *nc) {
     uint8_t *sendbuf = get_sendbuf();
@@ -2001,7 +2148,6 @@ int send_lobby_add_player(lobby_t *l, ship_client_t *c) {
                 case CLIENT_VERSION_DCV2:
                 case CLIENT_VERSION_GC:
                 case CLIENT_VERSION_EP3:
-                case CLIENT_VERSION_XBOX:
                     if(!(l->clients[i]->flags & CLIENT_FLAG_IS_NTE))
                         send_dc_lobby_add_player(l, l->clients[i], c);
                     else
@@ -2010,6 +2156,10 @@ int send_lobby_add_player(lobby_t *l, ship_client_t *c) {
 
                 case CLIENT_VERSION_PC:
                     send_pc_lobby_add_player(l, l->clients[i], c);
+                    break;
+
+                case CLIENT_VERSION_XBOX:
+                    send_xbox_lobby_add_player(l, l->clients[i], c);
                     break;
 
                 case CLIENT_VERSION_BB:

@@ -558,6 +558,22 @@ typedef struct pc_lobby_join {
     } entries[0];
 } PACKED pc_lobby_join_pkt;
 
+typedef struct xbox_lobby_join {
+    dc_pkt_hdr_t hdr;
+    uint8_t client_id;
+    uint8_t leader_id;
+    uint8_t one;                        /* Always 1 */
+    uint8_t lobby_num;
+    uint16_t block_num;
+    uint16_t event;
+    uint32_t padding;
+    uint8_t unk[0x18];
+    struct {
+        xbox_player_hdr_t hdr;
+        v1_player_t data;
+    } entries[0];
+} PACKED xbox_lobby_join_pkt;
+
 typedef struct bb_lobby_join {
     bb_pkt_hdr_t hdr;
     uint8_t client_id;

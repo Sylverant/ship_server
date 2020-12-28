@@ -44,6 +44,28 @@ typedef struct pc_player_hdr {
     uint16_t name[16];
 } PACKED pc_player_hdr_t;
 
+typedef struct xbox_ip {
+    uint32_t lan_ip;
+    uint32_t wan_ip;
+    uint16_t port;
+    uint8_t mac_addr[6];
+    uint32_t sg_addr;
+    uint32_t sg_session_id;
+    uint64_t xbox_account_id;
+    uint32_t unused;
+} PACKED xbox_ip_t;
+
+typedef struct xbox_player_hdr {
+    uint32_t tag;
+    uint32_t guildcard;
+    xbox_ip_t xbox_ip;
+    uint32_t d1;
+    uint32_t d2;
+    uint32_t d3;
+    uint32_t client_id;
+    char name[16];
+} PACKED xbox_player_hdr_t;
+
 typedef struct bb_player_hdr {
     uint32_t tag;
     uint32_t guildcard;
