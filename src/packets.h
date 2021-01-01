@@ -558,7 +558,7 @@ typedef struct pc_lobby_join {
     } entries[0];
 } PACKED pc_lobby_join_pkt;
 
-typedef struct xbox_lobby_join {
+typedef struct xb_lobby_join {
     dc_pkt_hdr_t hdr;
     uint8_t client_id;
     uint8_t leader_id;
@@ -572,7 +572,7 @@ typedef struct xbox_lobby_join {
         xbox_player_hdr_t hdr;
         v1_player_t data;
     } entries[0];
-} PACKED xbox_lobby_join_pkt;
+} PACKED xb_lobby_join_pkt;
 
 typedef struct bb_lobby_join {
     bb_pkt_hdr_t hdr;
@@ -890,6 +890,24 @@ typedef struct gc_game_join {
     uint8_t one2;                       /* Always 1. */
     uint16_t padding;
 } PACKED gc_game_join_pkt;
+
+typedef struct xb_game_join {
+    dc_pkt_hdr_t hdr;
+    uint32_t maps[0x20];
+    xbox_player_hdr_t players[4];
+    uint8_t client_id;
+    uint8_t leader_id;
+    uint8_t one;                        /* Always 1. */
+    uint8_t difficulty;
+    uint8_t battle;
+    uint8_t event;
+    uint8_t section;
+    uint8_t challenge;
+    uint32_t rand_seed;
+    uint8_t episode;
+    uint8_t one2;                       /* Always 1. */
+    uint16_t padding;
+} PACKED xb_game_join_pkt;
 
 typedef struct ep3_game_join {
     dc_pkt_hdr_t hdr;

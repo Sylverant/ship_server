@@ -1474,7 +1474,7 @@ static int send_pc_lobby_join(ship_client_t *c, lobby_t *l) {
 
 static int send_xbox_lobby_join(ship_client_t *c, lobby_t *l) {
     uint8_t *sendbuf = get_sendbuf();
-    xbox_lobby_join_pkt *pkt = (xbox_lobby_join_pkt *)sendbuf;
+    xb_lobby_join_pkt *pkt = (xb_lobby_join_pkt *)sendbuf;
     int i, pls = 0;
     uint16_t pkt_size = 0x28;
     uint8_t event = l->event;
@@ -1487,7 +1487,7 @@ static int send_xbox_lobby_join(ship_client_t *c, lobby_t *l) {
     }
 
     /* Clear the packet's header. */
-    memset(pkt, 0, sizeof(xbox_lobby_join_pkt));
+    memset(pkt, 0, sizeof(xb_lobby_join_pkt));
 
     /* Fill in the basics. */
     pkt->hdr.pkt_type = LOBBY_JOIN_TYPE;
@@ -2014,7 +2014,7 @@ static int send_pc_lobby_add_player(lobby_t *l, ship_client_t *c,
 static int send_xbox_lobby_add_player(lobby_t *l, ship_client_t *c,
                                       ship_client_t *nc) {
     uint8_t *sendbuf = get_sendbuf();
-    xbox_lobby_join_pkt *pkt = (xbox_lobby_join_pkt *)sendbuf;
+    xb_lobby_join_pkt *pkt = (xb_lobby_join_pkt *)sendbuf;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -2022,7 +2022,7 @@ static int send_xbox_lobby_add_player(lobby_t *l, ship_client_t *c,
     }
 
     /* Clear the packet's header. */
-    memset(pkt, 0, sizeof(xbox_lobby_join_pkt));
+    memset(pkt, 0, sizeof(xb_lobby_join_pkt));
 
     /* Fill in the basics. */
     pkt->hdr.pkt_type = (l->type == LOBBY_TYPE_DEFAULT) ?
@@ -3923,6 +3923,75 @@ static int send_gc_game_join(ship_client_t *c, lobby_t *l) {
     return crypt_send(c, GC_GAME_JOIN_LENGTH, sendbuf);
 }
 
+static int send_xbox_game_join(ship_client_t *c, lobby_t *l) {
+    uint8_t *sendbuf = get_sendbuf();
+    xb_game_join_pkt *pkt = (xb_game_join_pkt *)sendbuf;
+    int clients = 0, i;
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf) {
+        return -1;
+    }
+
+    /* Clear it out first. */
+    memset(pkt, 0, GC_GAME_JOIN_LENGTH);
+
+    /* Fill in the basics. */
+    pkt->hdr.pkt_type = GAME_JOIN_TYPE;
+    pkt->hdr.pkt_len = LE16(sizeof(xb_game_join_pkt));
+    pkt->client_id = c->client_id;
+    pkt->leader_id = l->leader_id;
+    pkt->one = 1;
+    pkt->difficulty = l->difficulty;
+    pkt->battle = l->battle;
+    pkt->event = l->event;
+    pkt->section = l->section;
+    pkt->challenge = l->challenge;
+    pkt->rand_seed = LE32(l->rand_seed);
+    pkt->episode = l->episode;
+    pkt->one2 = 1;
+
+    /* Fill in the variations array. */
+    for(i = 0; i < 0x20; ++i) {
+        pkt->maps[i] = LE32(l->maps[i]);
+    }
+
+    for(i = 0; i < 4; ++i) {
+        if(l->clients[i]) {
+            /* Copy the player's data into the packet. */
+            pkt->players[i].tag = LE32(0x00010000);
+            pkt->players[i].guildcard = LE32(l->clients[i]->guildcard);
+            memset(&pkt->players[i].xbox_ip, 0, sizeof(xbox_ip_t));
+            pkt->players[i].xbox_ip.lan_ip = 0x12345678;
+            pkt->players[i].xbox_ip.wan_ip = 0x87654321;
+            pkt->players[i].xbox_ip.port = 1234;
+            memset(&pkt->players[i].xbox_ip.mac_addr, 0x12, 6);
+            pkt->players[i].xbox_ip.sg_addr = 0x90807060;
+            pkt->players[i].xbox_ip.sg_session_id = 0x12345678;
+            pkt->players[i].d1 = 123;
+            pkt->players[i].d2 = 456;
+            pkt->players[i].d3 = 789;
+            pkt->players[i].client_id = LE32(i);
+
+            if(l->clients[i]->version == CLIENT_VERSION_BB) {
+                istrncpy16(ic_utf16_to_ascii, pkt->players[i].name,
+                           l->clients[i]->pl->bb.character.name, 16);
+            }
+            else {
+                memcpy(pkt->players[i].name, l->clients[i]->pl->v1.name, 16);
+            }
+
+            ++clients;
+        }
+    }
+
+    /* Copy the client count over. */
+    pkt->hdr.flags = (uint8_t)clients;
+
+    /* Send it away */
+    return crypt_send(c, sizeof(xb_game_join_pkt), sendbuf);
+}
+
 static int send_ep3_game_join(ship_client_t *c, lobby_t *l) {
     uint8_t *sendbuf = get_sendbuf();
     ep3_game_join_pkt *pkt = (ep3_game_join_pkt *)sendbuf;
@@ -4057,8 +4126,10 @@ int send_game_join(ship_client_t *c, lobby_t *l) {
             return send_pc_game_join(c, l);
 
         case CLIENT_VERSION_GC:
-        case CLIENT_VERSION_XBOX:
             return send_gc_game_join(c, l);
+
+        case CLIENT_VERSION_XBOX:
+            return send_xbox_game_join(c, l);
 
         case CLIENT_VERSION_EP3:
             return send_ep3_game_join(c, l);
