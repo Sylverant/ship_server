@@ -46,6 +46,9 @@ static int subcmd_send_destroy_map_item(ship_client_t *c, uint8_t area,
                                         uint32_t item_id);
 static int subcmd_send_destroy_item(ship_client_t *c, uint32_t item_id,
                                     uint8_t amt);
+static int subcmd_send_lobby_mhit(lobby_t *l, ship_client_t *c,
+                                  uint16_t enemy_id, uint16_t enemy_id2,
+                                  uint16_t damage, uint32_t flags);
 
 #define SWAP32(x) (((x >> 24) & 0x00FF) | \
                    ((x >>  8) & 0xFF00) | \
@@ -2296,7 +2299,7 @@ static int handle_bb_sort_inv(ship_client_t *c, subcmd_bb_sort_inv_t *pkt) {
    still (for more than just kill tracking). */
 static int handle_mhit(ship_client_t *c, subcmd_mhit_pkt_t *pkt) {
     lobby_t *l = c->cur_lobby;
-    uint16_t mid;
+    uint16_t mid, mid2, dmg;
     game_enemy_t *en;
     uint32_t flags;
 
@@ -2318,6 +2321,8 @@ static int handle_mhit(ship_client_t *c, subcmd_mhit_pkt_t *pkt) {
 
     /* Grab relevant information from the packet */
     mid = LE16(pkt->enemy_id);
+    mid2 = LE16(pkt->enemy_id2);
+    dmg = LE16(pkt->damage);
     flags = LE32(pkt->flags);
 
     /* Swap the flags on the packet if the user is on GC... Looks like Sega
@@ -2334,7 +2339,7 @@ static int handle_mhit(ship_client_t *c, subcmd_mhit_pkt_t *pkt) {
             script_execute(ScriptActionEnemyKill, c, SCRIPT_ARG_PTR, c,
                            SCRIPT_ARG_UINT16, mid, SCRIPT_ARG_END);
 
-        return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
+        return subcmd_send_lobby_mhit(l, c, mid, mid2, dmg, flags);
     }
 
     /* Make sure the enemy is in range. */
@@ -2372,7 +2377,7 @@ static int handle_mhit(ship_client_t *c, subcmd_mhit_pkt_t *pkt) {
         /* If server-side drops aren't on, then just send it on and hope for the
            best. We've probably got a bug somewhere on our end anyway... */
         if(!(l->flags & LOBBY_FLAG_SERVER_DROPS))
-            return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
+            return subcmd_send_lobby_mhit(l, c, mid, mid2, dmg, flags);
 
         return -1;
     }
@@ -2441,7 +2446,7 @@ static int handle_mhit(ship_client_t *c, subcmd_mhit_pkt_t *pkt) {
         }
     }
 
-    return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
+    return subcmd_send_lobby_mhit(l, c, mid, mid2, dmg, flags);
 }
 
 static int handle_bb_mhit(ship_client_t *c, subcmd_bb_mhit_pkt_t *pkt) {
@@ -3823,6 +3828,58 @@ int subcmd_send_lobby_dc(lobby_t *l, ship_client_t *c, subcmd_pkt_t *pkt,
                 send_pkt_dc(l->clients[i], (dc_pkt_hdr_t *)pkt);
             else
                 subcmd_translate_dc_to_nte(l->clients[i], pkt);
+        }
+    }
+
+    return 0;
+}
+
+static int send_mhit(ship_client_t *c, uint16_t enemy_id, uint16_t enemy_id2,
+                     uint16_t damage, uint32_t flags) {
+    subcmd_mhit_pkt_t pkt;
+
+    memset(&pkt, 0, sizeof(subcmd_mhit_pkt_t));
+    pkt.hdr.pkt_type = GAME_COMMAND0_TYPE;
+    pkt.hdr.pkt_len = LE16(0x0010);
+    pkt.type = SUBCMD_HIT_MONSTER;
+    pkt.size = 0x03;
+    pkt.enemy_id2 = LE16(enemy_id2);
+    pkt.enemy_id = LE16(enemy_id);
+    pkt.damage = LE16(damage);
+    pkt.flags = LE32(flags);
+
+    return send_pkt_dc(c, (dc_pkt_hdr_t *)&pkt);
+}
+
+static int send_mhit_gc(ship_client_t *c, uint16_t enemy_id, uint16_t enemy_id2,
+                        uint16_t damage, uint32_t flags) {
+    subcmd_mhit_pkt_t pkt;
+
+    memset(&pkt, 0, sizeof(subcmd_mhit_pkt_t));
+    pkt.hdr.pkt_type = GAME_COMMAND0_TYPE;
+    pkt.hdr.pkt_len = LE16(0x0010);
+    pkt.type = SUBCMD_HIT_MONSTER;
+    pkt.size = 0x03;
+    pkt.enemy_id2 = LE16(enemy_id2);
+    pkt.enemy_id = LE16(enemy_id);
+    pkt.damage = LE16(damage);
+    pkt.flags = LE32(SWAP32(flags));
+
+    return send_pkt_dc(c, (dc_pkt_hdr_t *)&pkt);
+}
+
+static int subcmd_send_lobby_mhit(lobby_t *l, ship_client_t *c,
+                                  uint16_t enemy_id, uint16_t enemy_id2,
+                                  uint16_t damage, uint32_t flags) {
+    int i;
+
+    /* Send the packet to every connected client. */
+    for(i = 0; i < l->max_clients; ++i) {
+        if(l->clients[i] && l->clients[i] != c) {
+            if(l->clients[i]->version == CLIENT_VERSION_GC)
+                send_mhit_gc(l->clients[i], enemy_id, enemy_id2, damage, flags);
+            else
+                send_mhit(l->clients[i], enemy_id, enemy_id2, damage, flags);
         }
     }
 
