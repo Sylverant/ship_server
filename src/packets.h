@@ -1024,6 +1024,16 @@ typedef struct pc_quest_list {
     } entries[0];
 } PACKED pc_quest_list_pkt;
 
+typedef struct xb_quest_list {
+    dc_pkt_hdr_t hdr;
+    struct {
+        uint32_t menu_id;
+        uint32_t item_id;
+        char name[32];
+        char desc[128];
+    } entries[0];
+} PACKED xb_quest_list_pkt;
+
 typedef struct bb_quest_list {
     bb_pkt_hdr_t hdr;
     struct {

@@ -5150,6 +5150,107 @@ static int send_pc_quest_categories(ship_client_t *c, int lang) {
     return crypt_send(c, len, sendbuf);
 }
 
+static int send_xb_quest_categories(ship_client_t *c, int lang) {
+    uint8_t *sendbuf = get_sendbuf();
+    xb_quest_list_pkt *pkt = (xb_quest_list_pkt *)sendbuf;
+    int i, len = 0x04, entries = 0;
+    uint32_t type = SYLVERANT_QUEST_NORMAL;
+    size_t in, out;
+    ICONV_CONST char *inptr;
+    char *outptr;
+    sylverant_quest_list_t *qlist;
+    lobby_t *l = c->cur_lobby;
+
+    qlist = &ship->qlist[CLIENT_VERSION_GC][lang];
+
+    /* Fall back to English if there's no list for this language... */
+    if(!qlist->cat_count) {
+        lang = CLIENT_LANG_ENGLISH;
+        qlist = &ship->qlist[CLIENT_VERSION_GC][lang];
+    }
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf)
+        return -1;
+
+    if(c->cur_lobby->battle)
+        type = SYLVERANT_QUEST_BATTLE;
+    else if(c->cur_lobby->challenge)
+        type = SYLVERANT_QUEST_CHALLENGE;
+
+    /* Clear out the header */
+    memset(pkt, 0, 0x04);
+
+    /* Fill in the header */
+    pkt->hdr.pkt_type = QUEST_LIST_TYPE;
+
+    for(i = 0; i < qlist->cat_count; ++i) {
+        /* Skip quests not of the right type. */
+        if((qlist->cats[i].type & SYLVERANT_QUEST_TYPE_MASK) != type)
+            continue;
+
+        /* Only show debug entries to GMs. */
+        if((qlist->cats[i].type & SYLVERANT_QUEST_DEBUG) && !LOCAL_GM(c))
+            continue;
+
+        /* Make sure the user's privilege level is good enough. */
+        if((qlist->cats[i].privileges & c->privilege) !=
+           qlist->cats[i].privileges && !LOCAL_GM(c))
+            continue;
+
+        /* Clear the entry */
+        memset(pkt->entries + entries, 0, 0xA8);
+
+        /* Copy the category's information over to the packet */
+        pkt->entries[entries].menu_id = LE32((MENU_ID_QCATEGORY |
+                                              (lang << 24)));
+        pkt->entries[entries].item_id = LE32(i);
+
+        /* Convert the name and the description to the appropriate encoding */
+        in = 32;
+        out = 30;
+        inptr = qlist->cats[i].name;
+        outptr = &pkt->entries[entries].name[2];
+
+        if(lang == CLIENT_LANG_JAPANESE) {
+            iconv(ic_utf8_to_sjis, &inptr, &in, &outptr, &out);
+            pkt->entries[entries].name[0] = '\t';
+            pkt->entries[entries].name[1] = 'J';
+        }
+        else {
+            iconv(ic_utf8_to_8859, &inptr, &in, &outptr, &out);
+            pkt->entries[entries].name[0] = '\t';
+            pkt->entries[entries].name[1] = 'E';
+        }
+
+        in = 112;
+        out = 126;
+        inptr = qlist->cats[i].desc;
+        outptr = &pkt->entries[entries].desc[2];
+
+        if(lang == CLIENT_LANG_JAPANESE) {
+            iconv(ic_utf8_to_sjis, &inptr, &in, &outptr, &out);
+            pkt->entries[entries].desc[0] = '\t';
+            pkt->entries[entries].desc[1] = 'J';
+        }
+        else {
+            iconv(ic_utf8_to_8859, &inptr, &in, &outptr, &out);
+            pkt->entries[entries].desc[0] = '\t';
+            pkt->entries[entries].desc[1] = 'E';
+        }
+
+        ++entries;
+        len += 0xA8;
+    }
+
+    /* Fill in the rest of the header */
+    pkt->hdr.flags = entries;
+    pkt->hdr.pkt_len = LE16(len);
+
+    /* Send it away */
+    return crypt_send(c, len, sendbuf);
+}
+
 static int send_bb_quest_categories(ship_client_t *c, int lang) {
     uint8_t *sendbuf = get_sendbuf();
     bb_quest_list_pkt *pkt = (bb_quest_list_pkt *)sendbuf;
@@ -5239,11 +5340,13 @@ int send_quest_categories(ship_client_t *c, int lang) {
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3: /* XXXX? */
-        case CLIENT_VERSION_XBOX:
             return send_dc_quest_categories(c, lang);
 
         case CLIENT_VERSION_PC:
             return send_pc_quest_categories(c, lang);
+
+        case CLIENT_VERSION_XBOX:
+            return send_xb_quest_categories(c, lang);
 
         case CLIENT_VERSION_BB:
             return send_bb_quest_categories(c, lang);
