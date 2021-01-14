@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
     Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018,
-                  2019, 2020 Lawrence Sebald
+                  2019, 2020, 2021 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -5150,7 +5150,7 @@ static int send_pc_quest_categories(ship_client_t *c, int lang) {
     return crypt_send(c, len, sendbuf);
 }
 
-static int send_xb_quest_categories(ship_client_t *c, int lang) {
+static int send_xbox_quest_categories(ship_client_t *c, int lang) {
     uint8_t *sendbuf = get_sendbuf();
     xb_quest_list_pkt *pkt = (xb_quest_list_pkt *)sendbuf;
     int i, len = 0x04, entries = 0;
@@ -5346,7 +5346,7 @@ int send_quest_categories(ship_client_t *c, int lang) {
             return send_pc_quest_categories(c, lang);
 
         case CLIENT_VERSION_XBOX:
-            return send_xb_quest_categories(c, lang);
+            return send_xbox_quest_categories(c, lang);
 
         case CLIENT_VERSION_BB:
             return send_bb_quest_categories(c, lang);
@@ -5359,7 +5359,7 @@ int send_quest_categories(ship_client_t *c, int lang) {
 static int send_dc_quest_list(ship_client_t *c, int cn, int lang) {
     uint8_t *sendbuf = get_sendbuf();
     dc_quest_list_pkt *pkt = (dc_quest_list_pkt *)sendbuf;
-    int i, len = 0x04, entries = 0, max = INT_MAX, j, k, ver;
+    int i, len = 0x04, entries = 0, max = INT_MAX, j, k, ver, v;
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
@@ -5438,10 +5438,15 @@ static int send_dc_quest_list(ship_client_t *c, int cn, int lang) {
                 if(!(tmp = l->clients[j]))
                     continue;
 
-                if(!k && !elem->qptr[tmp->version][tmp->q_lang] &&
-                   !elem->qptr[tmp->version][tmp->language_code] &&
-                   !elem->qptr[tmp->version][CLIENT_LANG_ENGLISH] &&
-                   !elem->qptr[tmp->version][lang])
+                v = tmp->version;
+
+                if(v == CLIENT_VERSION_XBOX)
+                    v = CLIENT_VERSION_GC;
+
+                if(!k && !elem->qptr[v][tmp->q_lang] &&
+                   !elem->qptr[v][tmp->language_code] &&
+                   !elem->qptr[v][CLIENT_LANG_ENGLISH] &&
+                   !elem->qptr[v][lang])
                     break;
             }
 
@@ -5529,7 +5534,7 @@ static int send_dc_quest_list(ship_client_t *c, int cn, int lang) {
 static int send_pc_quest_list(ship_client_t *c, int cn, int lang) {
     uint8_t *sendbuf = get_sendbuf();
     pc_quest_list_pkt *pkt = (pc_quest_list_pkt *)sendbuf;
-    int i, len = 0x04, entries = 0, max = INT_MAX, j, k, ver;
+    int i, len = 0x04, entries = 0, max = INT_MAX, j, k, ver, v;
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
@@ -5608,10 +5613,15 @@ static int send_pc_quest_list(ship_client_t *c, int cn, int lang) {
                 if(!(tmp = l->clients[j]))
                     continue;
 
-                if(!k && !elem->qptr[tmp->version][tmp->q_lang] &&
-                   !elem->qptr[tmp->version][tmp->language_code] &&
-                   !elem->qptr[tmp->version][CLIENT_LANG_ENGLISH] &&
-                   !elem->qptr[tmp->version][lang])
+                v = tmp->version;
+
+                if(v == CLIENT_VERSION_XBOX)
+                    v = CLIENT_VERSION_GC;
+
+                if(!k && !elem->qptr[v][tmp->q_lang] &&
+                   !elem->qptr[v][tmp->language_code] &&
+                   !elem->qptr[v][CLIENT_LANG_ENGLISH] &&
+                   !elem->qptr[v][lang])
                     break;
             }
 
@@ -5678,7 +5688,7 @@ static int send_pc_quest_list(ship_client_t *c, int cn, int lang) {
 static int send_gc_quest_list(ship_client_t *c, int cn, int lang) {
     uint8_t *sendbuf = get_sendbuf();
     dc_quest_list_pkt *pkt = (dc_quest_list_pkt *)sendbuf;
-    int i, len = 0x04, entries = 0, max = INT_MAX, max2 = INT_MAX, j, k, ver;
+    int i, len = 0x04, entries = 0, max = INT_MAX, max2 = INT_MAX, j, k, ver, v;
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
@@ -5773,10 +5783,15 @@ static int send_gc_quest_list(ship_client_t *c, int cn, int lang) {
                 if(!(tmp = l->clients[j]))
                     continue;
 
-                if(!k && !elem->qptr[tmp->version][tmp->q_lang] &&
-                   !elem->qptr[tmp->version][tmp->language_code] &&
-                   !elem->qptr[tmp->version][CLIENT_LANG_ENGLISH] &&
-                   !elem->qptr[tmp->version][lang])
+                v = tmp->version;
+
+                if(v == CLIENT_VERSION_XBOX)
+                    v = CLIENT_VERSION_GC;
+
+                if(!k && !elem->qptr[v][tmp->q_lang] &&
+                   !elem->qptr[v][tmp->language_code] &&
+                   !elem->qptr[v][CLIENT_LANG_ENGLISH] &&
+                   !elem->qptr[v][lang])
                     break;
             }
 
@@ -5845,6 +5860,198 @@ static int send_gc_quest_list(ship_client_t *c, int cn, int lang) {
 
             ++entries;
             len += 0x98;
+        }
+
+        /* If we already did English, then we're done. */
+        if(cat == caten)
+            break;
+
+        cat = caten;
+    }
+
+    /* Fill in the rest of the header */
+    pkt->hdr.flags = entries;
+    pkt->hdr.pkt_len = LE16(len);
+
+    /* Send it away */
+    return crypt_send(c, len, sendbuf);
+}
+
+static int send_xbox_quest_list(ship_client_t *c, int cn, int lang) {
+    uint8_t *sendbuf = get_sendbuf();
+    xb_quest_list_pkt *pkt = (xb_quest_list_pkt *)sendbuf;
+    int i, len = 0x04, entries = 0, max = INT_MAX, max2 = INT_MAX, j, k, ver, v;
+    size_t in, out;
+    ICONV_CONST char *inptr;
+    char *outptr;
+    sylverant_quest_list_t *qlist, *qlisten;
+    lobby_t *l = c->cur_lobby;
+    sylverant_quest_category_t *cat, *caten;
+    sylverant_quest_t *quest;
+    quest_map_elem_t *elem;
+    ship_client_t *tmp;
+    time_t now = time(NULL);
+
+    /* Verify we got the sendbuf. */
+    if(!sendbuf)
+        return -1;
+
+    if(l->version == CLIENT_VERSION_GC || l->version == CLIENT_VERSION_XBOX) {
+        ver = CLIENT_VERSION_GC;
+        qlist = &ship->qlist[CLIENT_VERSION_GC][lang];
+        qlisten = &ship->qlist[CLIENT_VERSION_GC][CLIENT_LANG_ENGLISH];
+    }
+    else if(!l->v2) {
+        ver = CLIENT_VERSION_DCV1;
+        qlist = &ship->qlist[CLIENT_VERSION_DCV1][lang];
+        qlisten = &ship->qlist[CLIENT_VERSION_DCV1][CLIENT_LANG_ENGLISH];
+    }
+    else {
+        ver = CLIENT_VERSION_DCV2;
+        qlist = &ship->qlist[CLIENT_VERSION_DCV2][lang];
+        qlisten = &ship->qlist[CLIENT_VERSION_DCV2][CLIENT_LANG_ENGLISH];
+    }
+
+    /* If this quest category isn't in range for this language, try it in
+       English before giving up... */
+    if(qlist->cat_count <= cn) {
+        lang = CLIENT_LANG_ENGLISH;
+        qlist = qlisten;
+
+        /* If we still don't have it, something screwy's going on... */
+        if(qlist->cat_count <= cn)
+            return -1;
+    }
+
+    /* Grab the category... This implicitly assumes that the categories are in
+       the same order, regardless of language. At some point, I'll work this out
+       a better way, but for now, this will work. */
+    cat = &qlist->cats[cn];
+    caten = &qlisten->cats[cn];
+
+    /* Clear out the header */
+    memset(pkt, 0, 0x04);
+
+    /* If this is for challenge mode, figure out our limit. */
+    if(c->cur_lobby->challenge) {
+        max = c->cur_lobby->max_chal & 0x0F;
+        max2 = (c->cur_lobby->max_chal >> 4) & 0x0F;
+    }
+
+    /* Fill in the header */
+    pkt->hdr.pkt_type = QUEST_LIST_TYPE;
+
+    for(k = 0; k < 2; ++k) {
+        for(i = 0; i < cat->quest_count; ++i) {
+            if(c->cur_lobby->challenge) {
+                /* Skip episode 1 challenge quests we're not qualified for. */
+                if(i < 9 && i >= max)
+                    continue;
+                /* Same for episode 2. */
+                else if(i > 9 && (i - 9) >= max2)
+                    break;
+            }
+
+            quest = cat->quests[i];
+            elem = (quest_map_elem_t *)quest->user_data;
+
+            /* Skip quests we should have already covered if we're on the second
+               pass through */
+            if(k && elem->qptr[ver][lang])
+                continue;
+
+            /* Skip quests that aren't for the current event */
+            if(!(quest->event & (1 << l->event)))
+                continue;
+
+            /* Skip quests where the number of players isn't in range. */
+            if(quest->max_players < l->num_clients ||
+               quest->min_players > l->num_clients)
+                continue;
+
+            /* Look through to make sure that all clients in the lobby can play
+               the quest */
+            for(j = 0; j < l->max_clients; ++j) {
+                if(!(tmp = l->clients[j]))
+                    continue;
+
+                v = tmp->version;
+
+                if(v == CLIENT_VERSION_XBOX)
+                    v = CLIENT_VERSION_GC;
+
+                if(!k && !elem->qptr[v][tmp->q_lang] &&
+                   !elem->qptr[v][tmp->language_code] &&
+                   !elem->qptr[v][CLIENT_LANG_ENGLISH] &&
+                   !elem->qptr[v][lang])
+                    break;
+            }
+
+            /* Skip quests where we can't play them due to restrictions by
+               users' versions or language codes */
+            if(j != l->max_clients)
+                continue;
+
+            /* Make sure the user's privilege level is good enough. */
+            if((quest->privileges & c->privilege) != quest->privileges &&
+               !LOCAL_GM(c))
+                continue;
+
+            /* Check the availability time against the current time. */
+            if(quest->start_time && quest->start_time > (uint64_t)now)
+                continue;
+            else if(quest->end_time && quest->end_time < (uint64_t)now)
+                continue;
+
+            /* Check the hidden flag */
+            if((quest->flags & SYLVERANT_QUEST_HIDDEN))
+                continue;
+
+            /* Clear the entry */
+            memset(pkt->entries + entries, 0, 0x98);
+
+            /* Copy the category's information over to the packet */
+            pkt->entries[entries].menu_id = LE32(((MENU_ID_QUEST) |
+                                                  (quest->episode << 8) |
+                                                  (lang << 24)));
+            pkt->entries[entries].item_id = LE32(quest->qid);
+
+            /* Convert the name and the description to the appropriate
+               encoding */
+            in = 32;
+            out = 30;
+            inptr = quest->name;
+            outptr = &pkt->entries[entries].name[2];
+
+            if(lang == CLIENT_LANG_JAPANESE && !k) {
+                iconv(ic_utf8_to_sjis, &inptr, &in, &outptr, &out);
+                pkt->entries[entries].name[0] = '\t';
+                pkt->entries[entries].name[1] = 'J';
+            }
+            else {
+                iconv(ic_utf8_to_8859, &inptr, &in, &outptr, &out);
+                pkt->entries[entries].name[0] = '\t';
+                pkt->entries[entries].name[1] = 'E';
+            }
+
+            in = 112;
+            out = 126;
+            inptr = quest->desc;
+            outptr = &pkt->entries[entries].desc[2];
+
+            if(lang == CLIENT_LANG_JAPANESE && !k) {
+                iconv(ic_utf8_to_sjis, &inptr, &in, &outptr, &out);
+                pkt->entries[entries].desc[0] = '\t';
+                pkt->entries[entries].desc[1] = 'J';
+            }
+            else {
+                iconv(ic_utf8_to_8859, &inptr, &in, &outptr, &out);
+                pkt->entries[entries].desc[0] = '\t';
+                pkt->entries[entries].desc[1] = 'E';
+            }
+
+            ++entries;
+            len += 0xA8;
         }
 
         /* If we already did English, then we're done. */
@@ -6027,8 +6234,10 @@ int send_quest_list(ship_client_t *c, int cat, int lang) {
 
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3: /* XXXX? */
-        case CLIENT_VERSION_XBOX:
             return send_gc_quest_list(c, cat, lang);
+
+        case CLIENT_VERSION_XBOX:
+            return send_xbox_quest_list(c, cat, lang);
 
         case CLIENT_VERSION_BB:
             return send_bb_quest_list(c, cat, lang);
@@ -6146,7 +6355,7 @@ int send_quest_info(lobby_t *l, uint32_t qid, int lang) {
     int i;
     quest_map_elem_t *elem;
     sylverant_quest_t *q;
-    int sel_lang;
+    int sel_lang, v;
 
     /* Grab the mapped entry */
     c = l->clients[l->leader_id];
@@ -6159,33 +6368,38 @@ int send_quest_info(lobby_t *l, uint32_t qid, int lang) {
 
     for(i = 0; i < l->max_clients; ++i) {
         if((c = l->clients[i])) {
-            q = elem->qptr[c->version][c->q_lang];
+            v = c->version;
+
+            if(v == CLIENT_VERSION_XBOX)
+                v = CLIENT_VERSION_GC;
+
+            q = elem->qptr[v][c->q_lang];
             sel_lang = c->q_lang;
 
             /* If we didn't find it on the quest language code, try the language
                code set in the character data. */
             if(!q) {
-                q = elem->qptr[c->version][c->language_code];
+                q = elem->qptr[v][c->language_code];
                 sel_lang = c->language_code;
             }
 
             /* Try English next, so as to have a reasonably sane fallback. */
             if(!q) {
-                q = elem->qptr[c->version][CLIENT_LANG_ENGLISH];
+                q = elem->qptr[v][CLIENT_LANG_ENGLISH];
                 sel_lang = CLIENT_LANG_ENGLISH;
             }
 
             /* If all else fails, go with the language the quest was selected by
                the leader in, since that has to be there! */
             if(!q) {
-                q = elem->qptr[c->version][lang];
+                q = elem->qptr[v][lang];
                 sel_lang = lang;
 
                 /* If we still didn't find it, we've got trouble elsewhere... */
                 if(!q) {
                     debug(DBG_WARN, "Couldn't find quest to send info!\n"
                           "ID: %d, Ver: %d, Language: %d, Fallback: %d, "
-                          "Fallback 2: %d\n", qid, c->version, c->q_lang,
+                          "Fallback 2: %d\n", qid, v, c->q_lang,
                           c->language_code, lang);
                     continue;
                 }
@@ -6722,10 +6936,15 @@ static int send_gc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     dc_quest_chunk_pkt *chunk = (dc_quest_chunk_pkt *)sendbuf;
     FILE *bin, *dat;
     uint32_t binlen, datlen;
-    int bindone = 0, datdone = 0, chunknum = 0;
+    int bindone = 0, datdone = 0, chunknum = 0, v = c->version;
     char fn_base[256], filename[256];
     size_t amt;
-    sylverant_quest_t *q = qm->qptr[c->version][lang];
+    sylverant_quest_t *q;
+
+    if(v == CLIENT_VERSION_XBOX)
+        v = CLIENT_VERSION_GC;
+
+    q = qm->qptr[v][lang];
 
     /* Verify we got the sendbuf. */
     if(!sendbuf || !q) {
@@ -6736,11 +6955,11 @@ static int send_gc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
        for each of them. */
     if(!v1 || (q->versions & SYLVERANT_QUEST_V1)) {
         sprintf(fn_base, "%s/%s-%s/%s", ship->cfg->quests_dir,
-                version_codes[c->version], language_codes[lang], q->prefix);
+                version_codes[v], language_codes[lang], q->prefix);
     }
     else {
         sprintf(fn_base, "%s/%s-%s/%sv1", ship->cfg->quests_dir,
-                version_codes[c->version], language_codes[lang], q->prefix);
+                version_codes[v], language_codes[lang], q->prefix);
     }
 
     sprintf(filename, "%s.bin", fn_base);
@@ -6899,8 +7118,13 @@ static int send_qst_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
 
     /* Figure out what file we're going to send. */
     if(!v1 || (q->versions & SYLVERANT_QUEST_V1)) {
-        sprintf(filename, "%s/%s-%s/%s.qst", ship->cfg->quests_dir,
-                version_codes[c->version], language_codes[lang], q->prefix);
+        if(c->version != CLIENT_VERSION_XBOX)
+            sprintf(filename, "%s/%s-%s/%s.qst", ship->cfg->quests_dir,
+                    version_codes[c->version], language_codes[lang], q->prefix);
+        else
+            sprintf(filename, "%s/%s-%s/%s.qst", ship->cfg->quests_dir,
+                    version_codes[CLIENT_VERSION_GC], language_codes[lang],
+                    q->prefix);
     }
     else {
         switch(c->version) {
@@ -6999,6 +7223,8 @@ int send_quest(lobby_t *l, uint32_t qid, int lc) {
             /* What type of quest file are we sending? */
             if(v1 && c->version == CLIENT_VERSION_DCV2)
                 ver = CLIENT_VERSION_DCV1;
+            else if(c->version == CLIENT_VERSION_XBOX)
+                ver = CLIENT_VERSION_GC;
             else
                 ver = c->version;
 
@@ -7107,6 +7333,8 @@ int send_quest_one(lobby_t *l, ship_client_t *c, uint32_t qid, int lc) {
     /* What type of quest file are we sending? */
     if(v1 && c->version == CLIENT_VERSION_DCV2)
         ver = CLIENT_VERSION_DCV1;
+    else if(c->version == CLIENT_VERSION_XBOX)
+        ver = CLIENT_VERSION_GC;
     else
         ver = c->version;
 
