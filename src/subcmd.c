@@ -66,7 +66,6 @@ int handle_dc_gcsend(ship_client_t *s, ship_client_t *d,
 
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
-        case CLIENT_VERSION_XBOX:
         {
             subcmd_gc_gcsend_t gc;
 
@@ -92,6 +91,35 @@ int handle_dc_gcsend(ship_client_t *s, ship_client_t *d,
             gc.char_class = pkt->char_class;
 
             return send_pkt_dc(d, (dc_pkt_hdr_t *)&gc);
+        }
+
+        case CLIENT_VERSION_XBOX:
+        {
+            subcmd_xb_gcsend_t xb;
+            uint32_t guildcard = LE32(pkt->guildcard);
+
+            memset(&xb, 0, sizeof(xb));
+
+            /* Copy the name and text over. */
+            memcpy(xb.name, pkt->name, 24);
+            memcpy(xb.text, pkt->text, 88);
+
+            /* Copy the rest over. */
+            xb.hdr.pkt_type = pkt->hdr.pkt_type;
+            xb.hdr.flags = pkt->hdr.flags;
+            xb.hdr.pkt_len = LE16(0x0234);
+            xb.type = pkt->type;
+            xb.size = 0x8C;
+            xb.unk = LE16(0xFB0D);
+            xb.tag = pkt->tag;
+            xb.guildcard = pkt->guildcard;
+            xb.xbl_userid = LE64(guildcard);
+            xb.one = 1;
+            xb.language = pkt->language;
+            xb.section = pkt->section;
+            xb.char_class = pkt->char_class;
+
+            return send_pkt_dc(d, (dc_pkt_hdr_t *)&xb);
         }
 
         case CLIENT_VERSION_PC:
@@ -265,7 +293,6 @@ static int handle_pc_gcsend(ship_client_t *s, ship_client_t *d,
 
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
-        case CLIENT_VERSION_XBOX:
         {
             subcmd_gc_gcsend_t gc;
             size_t in, out;
@@ -312,6 +339,54 @@ static int handle_pc_gcsend(ship_client_t *s, ship_client_t *d,
             return send_pkt_dc(d, (dc_pkt_hdr_t *)&gc);
         }
 
+        case CLIENT_VERSION_XBOX:
+        {
+            subcmd_xb_gcsend_t xb;
+            uint32_t guildcard = LE32(pkt->guildcard);
+            size_t in, out;
+            ICONV_CONST char *inptr;
+            char *outptr;
+
+            memset(&xb, 0, sizeof(xb));
+
+            /* Convert the name (UTF-16 -> ASCII). */
+            in = 48;
+            out = 24;
+            inptr = (char *)pkt->name;
+            outptr = xb.name;
+            iconv(ic_utf16_to_ascii, &inptr, &in, &outptr, &out);
+
+            /* Convert the text (UTF-16 -> ISO-8859-1 or SHIFT-JIS). */
+            in = 176;
+            out = 512;
+            inptr = (char *)pkt->text;
+            outptr = xb.text;
+
+            if(pkt->text[1] == LE16('J')) {
+                iconv(ic_utf16_to_sjis, &inptr, &in, &outptr, &out);
+            }
+            else {
+                iconv(ic_utf16_to_8859, &inptr, &in, &outptr, &out);
+            }
+
+            /* Copy the rest over. */
+            xb.hdr.pkt_type = pkt->hdr.pkt_type;
+            xb.hdr.flags = pkt->hdr.flags;
+            xb.hdr.pkt_len = LE16(0x0234);
+            xb.type = pkt->type;
+            xb.size = 0x8C;
+            xb.unk = LE16(0xFB0D);
+            xb.tag = pkt->tag;
+            xb.guildcard = pkt->guildcard;
+            xb.xbl_userid = LE64(guildcard);
+            xb.one = 1;
+            xb.language = pkt->language;
+            xb.section = pkt->section;
+            xb.char_class = pkt->char_class;
+
+            return send_pkt_dc(d, (dc_pkt_hdr_t *)&xb);
+        }
+
         case CLIENT_VERSION_BB:
         {
             subcmd_bb_gcsend_t bb;
@@ -346,6 +421,174 @@ static int handle_gc_gcsend(ship_client_t *s, ship_client_t *d,
     switch(d->version) {
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
+            return send_pkt_dc(d, (dc_pkt_hdr_t *)pkt);
+
+        case CLIENT_VERSION_DCV1:
+        case CLIENT_VERSION_DCV2:
+        {
+            subcmd_dc_gcsend_t dc;
+
+            memset(&dc, 0, sizeof(dc));
+
+            /* Copy the name and text over. */
+            memcpy(dc.name, pkt->name, 24);
+            memcpy(dc.text, pkt->text, 88);
+
+            /* Copy the rest over. */
+            dc.hdr.pkt_type = pkt->hdr.pkt_type;
+            dc.hdr.flags = pkt->hdr.flags;
+            dc.hdr.pkt_len = LE16(0x0088);
+            dc.type = pkt->type;
+            dc.size = 0x21;
+            dc.unused = 0;
+            dc.tag = pkt->tag;
+            dc.guildcard = pkt->guildcard;
+            dc.unused2 = 0;
+            dc.one = 1;
+            dc.language = pkt->language;
+            dc.section = pkt->section;
+            dc.char_class = pkt->char_class;
+            dc.padding[0] = dc.padding[1] = dc.padding[2] = 0;
+
+            return send_pkt_dc(d, (dc_pkt_hdr_t *)&dc);
+        }
+
+        case CLIENT_VERSION_XBOX:
+        {
+            subcmd_xb_gcsend_t xb;
+            uint32_t guildcard = LE32(pkt->guildcard);
+
+            memset(&xb, 0, sizeof(xb));
+
+            /* Copy the name and text over. */
+            memcpy(xb.name, pkt->name, 24);
+            memcpy(xb.text, pkt->text, 104);
+
+            /* Copy the rest over. */
+            xb.hdr.pkt_type = pkt->hdr.pkt_type;
+            xb.hdr.flags = pkt->hdr.flags;
+            xb.hdr.pkt_len = LE16(0x0234);
+            xb.type = pkt->type;
+            xb.size = 0x8C;
+            xb.unk = LE16(0xFB0D);
+            xb.tag = pkt->tag;
+            xb.guildcard = pkt->guildcard;
+            xb.xbl_userid = LE64(guildcard);
+            xb.one = 1;
+            xb.language = pkt->language;
+            xb.section = pkt->section;
+            xb.char_class = pkt->char_class;
+
+            return send_pkt_dc(d, (dc_pkt_hdr_t *)&xb);
+        }
+
+        case CLIENT_VERSION_PC:
+        {
+            subcmd_pc_gcsend_t pc;
+            size_t in, out;
+            ICONV_CONST char *inptr;
+            char *outptr;
+
+            /* Don't allow guild cards to be sent to PC NTE, as it doesn't
+               support them. */
+            if((d->flags & CLIENT_FLAG_IS_NTE))
+                return send_txt(s, "%s", __(s, "\tE\tC7Cannot send Guild\n"
+                                               "Card to that user."));
+
+            memset(&pc, 0, sizeof(pc));
+
+            /* Convert the name (ASCII -> UTF-16). */
+            in = 24;
+            out = 48;
+            inptr = pkt->name;
+            outptr = (char *)pc.name;
+            iconv(ic_8859_to_utf16, &inptr, &in, &outptr, &out);
+
+            /* Convert the text (ISO-8859-1 or SHIFT-JIS -> UTF-16). */
+            in = 88;
+            out = 176;
+            inptr = pkt->text;
+            outptr = (char *)pc.text;
+
+            if(pkt->text[1] == 'J') {
+                iconv(ic_sjis_to_utf16, &inptr, &in, &outptr, &out);
+            }
+            else {
+                iconv(ic_8859_to_utf16, &inptr, &in, &outptr, &out);
+            }
+
+            /* Copy the rest over. */
+            pc.hdr.pkt_type = pkt->hdr.pkt_type;
+            pc.hdr.flags = pkt->hdr.flags;
+            pc.hdr.pkt_len = LE16(0x00F8);
+            pc.type = pkt->type;
+            pc.size = 0x3D;
+            pc.unused = 0;
+            pc.tag = pkt->tag;
+            pc.guildcard = pkt->guildcard;
+            pc.padding = 0;
+            pc.one = 1;
+            pc.language = pkt->language;
+            pc.section = pkt->section;
+            pc.char_class = pkt->char_class;
+
+            return send_pkt_dc(d, (dc_pkt_hdr_t *)&pc);
+        }
+
+        case CLIENT_VERSION_BB:
+        {
+            subcmd_bb_gcsend_t bb;
+            size_t in, out;
+            ICONV_CONST char *inptr;
+            char *outptr;
+
+            memset(&bb, 0, sizeof(subcmd_bb_gcsend_t));
+
+            /* Convert the name (ASCII -> UTF-16). */
+            bb.name[0] = LE16('\t');
+            bb.name[1] = LE16('E');
+            in = 24;
+            out = 44;
+            inptr = pkt->name;
+            outptr = (char *)&bb.name[2];
+            iconv(ic_8859_to_utf16, &inptr, &in, &outptr, &out);
+
+            /* Convert the text (ISO-8859-1 or SHIFT-JIS -> UTF-16). */
+            in = 88;
+            out = 176;
+            inptr = pkt->text;
+            outptr = (char *)bb.text;
+
+            if(pkt->text[1] == 'J') {
+                iconv(ic_sjis_to_utf16, &inptr, &in, &outptr, &out);
+            }
+            else {
+                iconv(ic_8859_to_utf16, &inptr, &in, &outptr, &out);
+            }
+
+            /* Copy the rest over. */
+            bb.hdr.pkt_len = LE16(0x0114);
+            bb.hdr.pkt_type = LE16(GAME_COMMAND2_TYPE);
+            bb.hdr.flags = LE32(d->client_id);
+            bb.type = SUBCMD_GUILDCARD;
+            bb.size = 0x43;
+            bb.guildcard = pkt->guildcard;
+            bb.one = 1;
+            bb.language = pkt->language;
+            bb.section = pkt->section;
+            bb.char_class = pkt->char_class;
+
+            return send_pkt_bb(d, (bb_pkt_hdr_t *)&bb);
+        }
+    }
+
+    return 0;
+}
+
+int handle_xb_gcsend(ship_client_t *s, ship_client_t *d,
+                     subcmd_xb_gcsend_t *pkt) {
+    /* This differs based on the destination client's version. */
+    switch(d->version) {
         case CLIENT_VERSION_XBOX:
             return send_pkt_dc(d, (dc_pkt_hdr_t *)pkt);
 
@@ -379,6 +622,35 @@ static int handle_gc_gcsend(ship_client_t *s, ship_client_t *d,
             return send_pkt_dc(d, (dc_pkt_hdr_t *)&dc);
         }
 
+        case CLIENT_VERSION_GC:
+        case CLIENT_VERSION_EP3:
+        {
+            subcmd_gc_gcsend_t gc;
+
+            memset(&gc, 0, sizeof(gc));
+
+            /* Copy the name and text over. */
+            memcpy(gc.name, pkt->name, 24);
+            memcpy(gc.text, pkt->text, 88);
+
+            /* Copy the rest over. */
+            gc.hdr.pkt_type = pkt->hdr.pkt_type;
+            gc.hdr.flags = pkt->hdr.flags;
+            gc.hdr.pkt_len = LE16(0x0098);
+            gc.type = pkt->type;
+            gc.size = 0x25;
+            gc.unused = 0;
+            gc.tag = pkt->tag;
+            gc.guildcard = pkt->guildcard;
+            gc.padding = 0;
+            gc.one = 1;
+            gc.language = pkt->language;
+            gc.section = pkt->section;
+            gc.char_class = pkt->char_class;
+
+            return send_pkt_dc(d, (dc_pkt_hdr_t *)&gc);
+        }
+
         case CLIENT_VERSION_PC:
         {
             subcmd_pc_gcsend_t pc;
@@ -388,9 +660,13 @@ static int handle_gc_gcsend(ship_client_t *s, ship_client_t *d,
 
             /* Don't allow guild cards to be sent to PC NTE, as it doesn't
                support them. */
-            if((d->flags & CLIENT_FLAG_IS_NTE))
-                return send_txt(s, "%s", __(s, "\tE\tC7Cannot send Guild\n"
-                                               "Card to that user."));
+            if((d->flags & CLIENT_FLAG_IS_NTE)) {
+                if(s)
+                    return send_txt(s, "%s", __(s, "\tE\tC7Cannot send Guild\n"
+                                                   "Card to that user."));
+                else
+                    return 0;
+            }
 
             memset(&pc, 0, sizeof(pc));
 
@@ -572,7 +848,6 @@ static int handle_bb_gcsend(ship_client_t *s, ship_client_t *d) {
 
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
-        case CLIENT_VERSION_XBOX:
         {
             subcmd_gc_gcsend_t gc;
 
@@ -615,6 +890,54 @@ static int handle_bb_gcsend(ship_client_t *s, ship_client_t *d) {
             gc.char_class = s->pl->bb.character.ch_class;
 
             return send_pkt_dc(d, (dc_pkt_hdr_t *)&gc);
+        }
+
+        case CLIENT_VERSION_XBOX:
+        {
+            subcmd_xb_gcsend_t xb;
+            size_t in, out;
+            ICONV_CONST char *inptr;
+            char *outptr;
+
+            memset(&xb, 0, sizeof(xb));
+
+            /* Convert the name (UTF-16 -> ASCII). */
+            memset(&xb.name, '-', 16);
+            in = 48;
+            out = 24;
+            inptr = (char *)&s->pl->bb.character.name[2];
+            outptr = xb.name;
+            iconv(ic_utf16_to_ascii, &inptr, &in, &outptr, &out);
+
+            /* Convert the text (UTF-16 -> ISO-8859-1 or SHIFT-JIS). */
+            in = 176;
+            out = 512;
+            inptr = (char *)s->bb_pl->guildcard_desc;
+            outptr = xb.text;
+
+            if(s->bb_pl->guildcard_desc[1] == LE16('J')) {
+                iconv(ic_utf16_to_sjis, &inptr, &in, &outptr, &out);
+            }
+            else {
+                iconv(ic_utf16_to_8859, &inptr, &in, &outptr, &out);
+            }
+
+            /* Copy the rest over. */
+            xb.hdr.pkt_type = GAME_COMMAND2_TYPE;
+            xb.hdr.flags = (uint8_t)d->client_id;
+            xb.hdr.pkt_len = LE16(0x0234);
+            xb.type = SUBCMD_GUILDCARD;
+            xb.size = 0x8C;
+            xb.unk = LE16(0xFB0D);
+            xb.tag = LE32(0x00010000);
+            xb.guildcard = LE32(s->guildcard);
+            xb.xbl_userid = LE64(s->guildcard);
+            xb.one = 1;
+            xb.language = s->language_code;
+            xb.section = s->pl->bb.character.section;
+            xb.char_class = s->pl->bb.character.ch_class;
+
+            return send_pkt_dc(d, (dc_pkt_hdr_t *)&xb);
         }
 
         case CLIENT_VERSION_BB:
@@ -3091,8 +3414,11 @@ int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
 
                 case CLIENT_VERSION_GC:
                 case CLIENT_VERSION_EP3:
-                case CLIENT_VERSION_XBOX:
                     rv = handle_gc_gcsend(c, dest, (subcmd_gc_gcsend_t *)pkt);
+                    break;
+
+                case CLIENT_VERSION_XBOX:
+                    rv = handle_xb_gcsend(c, dest, (subcmd_xb_gcsend_t *)pkt);
                     break;
 
                 case CLIENT_VERSION_PC:

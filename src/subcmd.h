@@ -98,6 +98,23 @@ typedef struct subcmd_gc_gcsend {
     uint8_t char_class;
 } PACKED subcmd_gc_gcsend_t;
 
+/* Guild card send packet (Xbox). */
+typedef struct subcmd_xb_gcsend {
+    dc_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint16_t unk;                       /* 0x0D 0xFB */
+    uint32_t tag;
+    uint32_t guildcard;
+    uint64_t xbl_userid;
+    char name[24];
+    char text[512];                     /* Why so long? */
+    uint8_t one;
+    uint8_t language;
+    uint8_t section;
+    uint8_t char_class;
+} PACKED subcmd_xb_gcsend_t;
+
 /* Guild card send packet (Blue Burst) */
 typedef struct subcmd_bb_gc_send {
     bb_pkt_hdr_t hdr;
