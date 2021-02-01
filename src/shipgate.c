@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2014, 2015, 2016, 2018,
-                  2019 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2014, 2015, 2016, 2018, 2019,
+                  2021 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -3238,7 +3238,8 @@ int shipgate_send_sdata(shipgate_conn_t *c, ship_client_t *sc, uint32_t event,
 
 /* Send a quest flag request or update */
 int shipgate_send_qflag(shipgate_conn_t *c, ship_client_t *sc, int set,
-                        uint32_t fid, uint32_t qid, uint32_t value) {
+                        uint32_t fid, uint32_t qid, uint32_t value,
+                        uint32_t ctl) {
     uint8_t *sendbuf = get_sendbuf();
     shipgate_qflag_pkt *pkt = (shipgate_qflag_pkt *)sendbuf;
 
@@ -3255,8 +3256,9 @@ int shipgate_send_qflag(shipgate_conn_t *c, ship_client_t *sc, int set,
         pkt->hdr.pkt_type = htons(SHDR_TYPE_QFLAG_GET);
     pkt->guildcard = htonl(sc->guildcard);
     pkt->block = htonl(sc->cur_block->b);
-    pkt->flag_id = htonl(fid);
+    pkt->flag_id = htonl((fid & 0xFFFF) | (ctl & 0xFFFF0000));
     pkt->quest_id = htonl(qid);
+    pkt->flag_id_hi = htons(fid >> 16);
     pkt->value = htonl(value);
 
     /* Send it away. */

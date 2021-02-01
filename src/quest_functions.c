@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2019, 2020 Lawrence Sebald
+    Copyright (C) 2019, 2020, 2021 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -575,7 +575,7 @@ static uint32_t get_quest_sflag(ship_client_t *c, lobby_t *l) {
         return QUEST_FUNC_RET_INVALID_REGISTER;
 
     /* Send the request to the shipgate... */
-    if(shipgate_send_qflag(&ship->sg, c, 0, c->q_stack[3], l->qid, 0))
+    if(shipgate_send_qflag(&ship->sg, c, 0, c->q_stack[3], l->qid, 0, 0))
         return QUEST_FUNC_RET_SHIPGATE_ERR;
 
     /* Set the lock and make sure that we don't return to the client yet. */
@@ -601,7 +601,7 @@ static uint32_t set_quest_sflag(ship_client_t *c, lobby_t *l) {
 
     /* Send the request to the shipgate... */
     if(shipgate_send_qflag(&ship->sg, c, 1, c->q_stack[3], l->qid,
-                           c->q_stack[4]))
+                           c->q_stack[4], 0))
         return QUEST_FUNC_RET_SHIPGATE_ERR;
 
     /* Set the lock and make sure that we don't return to the client yet. */
@@ -623,8 +623,8 @@ static uint32_t get_quest_lflag(ship_client_t *c, lobby_t *l) {
         return QUEST_FUNC_RET_INVALID_REGISTER;
 
     /* Send the request to the shipgate... */
-    if(shipgate_send_qflag(&ship->sg, c, 0, c->q_stack[3] | 0x80000000, l->qid,
-                           0))
+    if(shipgate_send_qflag(&ship->sg, c, 0, c->q_stack[3], l->qid, 0,
+                           QFLAG_LONG_FLAG))
         return QUEST_FUNC_RET_SHIPGATE_ERR;
 
     /* Set the lock and make sure that we don't return to the client yet. */
@@ -646,8 +646,8 @@ static uint32_t set_quest_lflag(ship_client_t *c, lobby_t *l) {
         return QUEST_FUNC_RET_INVALID_REGISTER;
 
     /* Send the request to the shipgate... */
-    if(shipgate_send_qflag(&ship->sg, c, 1, c->q_stack[3] | 0x80000000, l->qid,
-                           c->q_stack[4]))
+    if(shipgate_send_qflag(&ship->sg, c, 1, c->q_stack[3], l->qid,
+                           c->q_stack[4], QFLAG_LONG_FLAG))
         return QUEST_FUNC_RET_SHIPGATE_ERR;
 
     /* Set the lock and make sure that we don't return to the client yet. */
@@ -669,8 +669,8 @@ static uint32_t del_quest_sflag(ship_client_t *c, lobby_t *l) {
         return QUEST_FUNC_RET_INVALID_REGISTER;
 
     /* Send the request to the shipgate... */
-    if(shipgate_send_qflag(&ship->sg, c, 1, c->q_stack[3] | QFLAG_DELETE_FLAG,
-                           l->qid, c->q_stack[4]))
+    if(shipgate_send_qflag(&ship->sg, c, 1, c->q_stack[3], l->qid,
+                           c->q_stack[4], QFLAG_DELETE_FLAG))
         return QUEST_FUNC_RET_SHIPGATE_ERR;
 
     /* Set the lock and make sure that we don't return to the client yet. */
@@ -692,9 +692,8 @@ static uint32_t del_quest_lflag(ship_client_t *c, lobby_t *l) {
         return QUEST_FUNC_RET_INVALID_REGISTER;
 
     /* Send the request to the shipgate... */
-    if(shipgate_send_qflag(&ship->sg, c, 1,
-                           c->q_stack[3] | QFLAG_LONG_FLAG | QFLAG_DELETE_FLAG,
-                           l->qid, c->q_stack[4]))
+    if(shipgate_send_qflag(&ship->sg, c, 1, c->q_stack[3], l->qid,
+                           c->q_stack[4], QFLAG_LONG_FLAG | QFLAG_DELETE_FLAG))
         return QUEST_FUNC_RET_SHIPGATE_ERR;
 
     /* Set the lock and make sure that we don't return to the client yet. */

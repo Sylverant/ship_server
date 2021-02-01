@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2015, 2016, 2018, 2019,
-                  2020 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2015, 2016, 2018, 2019, 2020,
+                  2021 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -3252,14 +3252,13 @@ static int handle_sync_reg(ship_client_t *c, subcmd_sync_reg_t *pkt) {
         }
         else if((val & 0x08000000) && !done) {
             /* Delete the flag... */
-            shipgate_send_qflag(&ship->sg, c, 1,
-                                ((val >> 16) & 0xFF) | QFLAG_DELETE_FLAG,
-                                c->cur_lobby->qid, 0);
+            shipgate_send_qflag(&ship->sg, c, 1, ((val >> 16) & 0xFF),
+                                c->cur_lobby->qid, 0, QFLAG_DELETE_FLAG);
         }
         else {
             /* Send the request to the shipgate... */
             shipgate_send_qflag(&ship->sg, c, ctl & 0x01, (val >> 16) & 0xFF,
-                                c->cur_lobby->qid, val & 0xFFFF);
+                                c->cur_lobby->qid, val & 0xFFFF, 0);
         }
         done = 1;
     }
