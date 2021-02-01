@@ -1478,8 +1478,6 @@ static int send_xbox_lobby_join(ship_client_t *c, lobby_t *l) {
     int i, pls = 0;
     uint16_t pkt_size = 0x28;
     uint8_t event = l->event;
-    uint16_t costume;
-    uint8_t ch_class;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -5173,9 +5171,9 @@ static int send_xbox_quest_categories(ship_client_t *c, int lang) {
     if(!sendbuf)
         return -1;
 
-    if(c->cur_lobby->battle)
+    if(l->battle)
         type = SYLVERANT_QUEST_BATTLE;
-    else if(c->cur_lobby->challenge)
+    else if(l->challenge)
         type = SYLVERANT_QUEST_CHALLENGE;
 
     /* Clear out the header */
