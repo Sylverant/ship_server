@@ -204,7 +204,7 @@ if [ "x$git_repo_dir" != "x" ] && [ "x${abs_repo_dir}" = "x${abs_srcdir}/.git" ]
             git_dirty=no
         fi
         # Grab the origin url, stripping out any credentials that might be in it
-        git_remote_url=`$GIT config --get remote.origin.url | $SED -n 's/^\(.*:\/\/\).*\@\(.*\)$/\1\2/p'`
+        git_remote_url=`$GIT config --get remote.origin.url | $SED -n 's/^\(.*:\/\/\)\(.*\@\)\?\(.*\)$/\3/p'`
         if [ "x$git_remote_url" = "x" ]; then
             git_remote_url="(no remote)"
         fi
@@ -217,6 +217,11 @@ if [ "x$git_repo_dir" != "x" ] && [ "x${abs_repo_dir}" = "x${abs_srcdir}/.git" ]
         git_pretty_rev=`$GIT describe --dirty --broken --always --abbrev=8`
         if [ "x$git_shaid" = "x" ]; then
             git_errors="${git_errors+${git_errors}; }error running '$GIT describe'"
+        fi
+        # Grab the commit timestamp
+        git_timestamp=`$GIT show -s --format=%ct`
+        if [ "x$git_timestamp" = "x" ]; then
+            git_errors="${git_errors+${git_errors}; }error running '$GIT show -s --format=%ct'"
         fi
     fi
 fi
@@ -286,6 +291,10 @@ else
 
         echo "/* Pretty git revision string for presenting to the user */"
         echo "#define GIT_PRETTY_REV \"$git_pretty_rev\""
+        echo ""
+
+        echo "/* Timestamp of the current commit */"
+        echo "#define GIT_TIMESTAMP \"$git_timestamp\""
         echo ""
 
         # Any uncommitted changes we should know about?

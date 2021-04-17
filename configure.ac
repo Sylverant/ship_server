@@ -35,8 +35,7 @@ AC_CHECK_FILE([.git/index], [git_build=yes], [git_build=no])
 AS_IF([test "x$git_build" != xno],
 [
     AC_CHECK_PROG([GIT], [git], [yes], [no])
-    AM_CONDITIONAL([FOUND_GIT], [test "x$GIT" = xyes])
-    AM_COND_IF([FOUND_GIT], , [AC_MSG_ERROR([required program 'git' not found.])])
+    AS_IF([test "x$GIT" != xyes], [AC_MSG_ERROR([required program 'git' not found.])])
 ],
     AC_CHECK_FILE([src/version.h], , [AC_MSG_ERROR([program source appears to be incomplete])])
 )

@@ -31,7 +31,7 @@ git_version.stamp:
 	fi
 
 dist-hook: git_version.stamp
-	if test -f "src/version.h"; then \
+	if test -f "$(srcdir)/version.h"; then \
 		$(SED) -e 's|^#undef GIT_IS_DIST.*|#define GIT_IS_DIST 1|' \
 			"$(srcdir)/version.h" > "$(distdir)/version.h"; \
 	fi
