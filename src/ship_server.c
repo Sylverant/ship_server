@@ -63,6 +63,7 @@ int pidfile_fileno(struct pidfh *pfh);
 #include "rtdata.h"
 #include "admin.h"
 #include "smutdata.h"
+#include "version.h"
 
 #ifndef PID_DIR
 #define PID_DIR "/var/run"
@@ -95,7 +96,7 @@ static const char *runas_user = RUNAS_DEFAULT;
 /* Print information about this program to stdout. */
 static void print_program_info(void) {
     printf("Sylverant Ship Server version %s\n", VERSION);
-    printf("Git Build: %s (Changeset: %s)\n", GIT_BUILD, GIT_CHANGESET);
+    printf("Git Build: %s (Changeset: %s)\n", GIT_BUILD, GIT_SHAID_SHORT);
     printf("Copyright (C) 2009-2021 Lawrence Sebald\n\n");
     printf("This program is free software: you can redistribute it and/or\n"
            "modify it under the terms of the GNU Affero General Public\n"

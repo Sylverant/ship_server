@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
     Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018,
-                  2019, 2020 Lawrence Sebald
+                  2019, 2020, 2021 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -43,6 +43,7 @@
 #include "mapdata.h"
 #include "rtdata.h"
 #include "scripts.h"
+#include "version.h"
 
 int handle_dc_gcsend(ship_client_t *s, ship_client_t *d,
                      subcmd_dc_gcsend_t *pkt);
@@ -2421,7 +2422,7 @@ static int handle_override(ship_client_t *c, const char *params) {
 /* Usage: /ver */
 static int handle_ver(ship_client_t *c, const char *params) {
     return send_txt(c, "%s: %s\n%s: %s", __(c, "\tE\tC7Git Build"),
-                    GIT_BUILD, __(c, "Changeset"), GIT_CHANGESET);
+                    GIT_BUILD, __(c, "Changeset"), GIT_SHAID_SHORT);
 }
 
 /* Usage: /restart minutes */

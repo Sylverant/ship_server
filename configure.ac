@@ -1,7 +1,7 @@
 dnl
 dnl This file is part of Sylverant PSO Server.
 dnl
-dnl Copyright (C) 2009, 2011, 2013, 2015, 2016, 2018, 2020 Lawrence Sebald
+dnl Copyright (C) 2009, 2011, 2013, 2015, 2016, 2018, 2020, 2021 Lawrence Sebald
 dnl
 dnl This program is free software: you can redistribute it and/or modify
 dnl it under the terms of the GNU Affero General Public License version 3
@@ -116,8 +116,7 @@ AC_CHECK_SIZEOF([double])
 # Checks for library functions.
 AC_CHECK_FUNCS([malloc realloc gethostname gettimeofday inet_ntoa memmove memset select socket strtoul getgrouplist])
 
-CFLAGS="$CFLAGS -Wall -DGIT_BUILD=\"\\\"\`git log --oneline | wc -l | tr -d \'[[:space:]]\'\`\\\"\""
-CFLAGS="$CFLAGS -DGIT_CHANGESET=\"\\\"\`git show -s --pretty=format:%h\`\\\"\""
+CFLAGS="$CFLAGS -Wall"
 
 AC_ARG_ENABLE([debug], [AS_HELP_STRING([--enable-debug],
               [enable debugging symbols in the binary])],
