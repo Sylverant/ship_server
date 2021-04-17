@@ -15,9 +15,9 @@ dnl
 dnl You should have received a copy of the GNU Affero General Public License
 dnl along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-AC_PREREQ([2.61])
+AC_PREREQ([2.67])
 
-AC_INIT([ship_server], [0.1.0])
+AC_INIT([Sylverant Ship Server], [0.1.0], [https://sf.net/p/sylverant], [ship_server], [https://sylverant.net/])
 AC_CONFIG_MACRO_DIR([m4])
 
 AC_CANONICAL_HOST
@@ -27,6 +27,19 @@ AM_INIT_AUTOMAKE([subdir-objects])
 AC_PROG_INSTALL
 AC_PROG_LIBTOOL
 AC_PROG_GREP
+AC_PROG_SED
+
+AC_CHECK_FILE([.git/index], [git_build=yes], [git_build=no])
+
+# We need these for the git_version.sh script...
+AS_IF([test "x$git_build" != xno],
+[
+    AC_CHECK_PROG([GIT], [git], [yes], [no])
+    AM_CONDITIONAL([FOUND_GIT], [test "x$GIT" = xyes])
+    AM_COND_IF([FOUND_GIT], , [AC_MSG_ERROR([required program 'git' not found.])])
+],
+    AC_CHECK_FILE([src/version.h], , [AC_MSG_ERROR([program source appears to be incomplete])])
+)
 
 echo $host_os | $GREP darwin > /dev/null && IS_OSX=yes
 
@@ -52,11 +65,11 @@ PKG_CHECK_MODULES([gnutls], [gnutls >= 2.0])
 CFLAGS="$CFLAGS $gnutls_CFLAGS"
 LIBS="$LIBS $gnutls_LIBS"
 
-AC_CHECK_LIB([sylverant], [sylverant_read_config], , AC_MSG_ERROR([libsylverant is required!]))
-AC_CHECK_LIB([mini18n], [mini18n_get], , AC_MSG_WARN([Internationalization support requires mini18n]))
-AC_CHECK_LIB([psoarchive], [pso_gsl_read_open], , AC_MSG_ERROR([libpsoarchive is required!]))
-AC_CHECK_LIB([m], [sqrt], , AC_MSG_ERROR([libm is required!]))
+AC_CHECK_LIB([sylverant], [sylverant_read_config], , [AC_MSG_ERROR([libsylverant is required!])])
+AC_CHECK_LIB([mini18n], [mini18n_get], , [AC_MSG_WARN([Internationalization support requires mini18n])])
+AC_CHECK_LIB([psoarchive], [pso_gsl_read_open], , [AC_MSG_ERROR([libpsoarchive is required!])])
 
+AC_SEARCH_LIBS([sqrt], [m], , [AC_MSG_ERROR([unable to find the sqrt function])])
 AC_SEARCH_LIBS([pidfile_fileno], [util bsd], [NEED_PIDFILE=0], [NEED_PIDFILE=1])
 
 AC_ARG_ENABLE([scripting], [AS_HELP_STRING([--enable-scripting],
@@ -124,6 +137,7 @@ AS_IF([test "x$enable_debug" != xno],
        CFLAGS="$CFLAGS -g -DSYLVERANT_DEBUG"])
 
 AC_CONFIG_FILES([Makefile]
+                [src/Makefile]
                 [l10n/Makefile])
 
 AC_OUTPUT

@@ -34,3 +34,4 @@ lt~obsolete.m4
 missing
 .deps
 .dirstamp
+src/version.h
