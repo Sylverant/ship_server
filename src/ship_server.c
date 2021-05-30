@@ -447,7 +447,7 @@ static void install_signal_handlers() {
         }
     }
 
-    /* Set up a SIGTERM handler to somewhat gracefully shutdown. */
+    /* Set up a SIGTERM and SIGINT handlers to somewhat gracefully shutdown. */
     sigemptyset(&sa.sa_mask);
     sa.sa_handler = NULL;
     sa.sa_sigaction = &sigterm_hnd;
@@ -456,6 +456,16 @@ static void install_signal_handlers() {
     if(sigaction(SIGTERM, &sa, NULL) < 0) {
         perror("sigaction");
         fprintf(stderr, "Can't set SIGTERM handler.\n");
+    }
+
+    sigemptyset(&sa.sa_mask);
+    sa.sa_handler = NULL;
+    sa.sa_sigaction = &sigterm_hnd;
+    sa.sa_flags = SA_SIGINFO | SA_RESTART;
+
+    if(sigaction(SIGINT, &sa, NULL) < 0) {
+        perror("sigaction");
+        fprintf(stderr, "Can't set SIGINT handler.\n");
     }
 
     /* Set up a SIGUSR1 handler to restart... */
