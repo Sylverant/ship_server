@@ -3932,7 +3932,7 @@ static int send_xbox_game_join(ship_client_t *c, lobby_t *l) {
     }
 
     /* Clear it out first. */
-    memset(pkt, 0, GC_GAME_JOIN_LENGTH);
+    memset(pkt, 0, sizeof(xb_game_join_pkt));
 
     /* Fill in the basics. */
     pkt->hdr.pkt_type = GAME_JOIN_TYPE;
