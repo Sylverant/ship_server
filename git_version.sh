@@ -151,6 +151,8 @@ cat<<EOF
 #ifndef ${ifndef_symbol}
 #define ${ifndef_symbol} 1
 
+#include <stdint.h>
+
 /* whether this is a dist tarball or not */
 #undef GIT_IS_DIST
 
@@ -294,7 +296,7 @@ else
         echo ""
 
         echo "/* Timestamp of the current commit */"
-        echo "#define GIT_TIMESTAMP \"$git_timestamp\""
+        echo "#define GIT_TIMESTAMP UINT64_C($git_timestamp)"
         echo ""
 
         # Any uncommitted changes we should know about?
