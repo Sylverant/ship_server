@@ -1678,6 +1678,7 @@ void ship_free_limits_ex(struct limits_queue *l) {
         tmp = TAILQ_NEXT(it, qentry);
         sylverant_free_limits(it->limits);
         free(it->name);
+        free(it);
         it = tmp;
     }
 
