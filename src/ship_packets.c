@@ -5395,6 +5395,10 @@ static int send_dc_quest_list(ship_client_t *c, int cn, int lang) {
             return -1;
     }
 
+    /* Sanity check. */
+    if(!qlist->cats)
+        return -1;
+
     /* Grab the category... This implicitly assumes that the categories are in
        the same order, regardless of language. At some point, I'll work this out
        a better way, but for now, this will work. */
@@ -5570,6 +5574,10 @@ static int send_pc_quest_list(ship_client_t *c, int cn, int lang) {
             return -1;
     }
 
+    /* Sanity check. */
+    if(!qlist->cats)
+        return -1;
+
     /* Grab the category... This implicitly assumes that the categories are in
        the same order, regardless of language. At some point, I'll work this out
        a better way, but for now, this will work. */
@@ -5728,6 +5736,10 @@ static int send_gc_quest_list(ship_client_t *c, int cn, int lang) {
         if(qlist->cat_count <= cn)
             return -1;
     }
+
+    /* Sanity check. */
+    if(!qlist->cats)
+        return -1;
 
     /* Grab the category... This implicitly assumes that the categories are in
        the same order, regardless of language. At some point, I'll work this out
@@ -5921,6 +5933,10 @@ static int send_xbox_quest_list(ship_client_t *c, int cn, int lang) {
             return -1;
     }
 
+    /* Sanity check. */
+    if(!qlist->cats)
+        return -1;
+
     /* Grab the category... This implicitly assumes that the categories are in
        the same order, regardless of language. At some point, I'll work this out
        a better way, but for now, this will work. */
@@ -6099,6 +6115,10 @@ static int send_bb_quest_list(ship_client_t *c, int cn, int lang) {
         if(qlist->cat_count <= cn)
             return -1;
     }
+
+    /* Sanity check. */
+    if(!qlist->cats)
+        return -1;
 
     /* Grab the category... This implicitly assumes that the categories are in
        the same order, regardless of language. At some point, I'll work this out

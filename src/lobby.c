@@ -94,6 +94,11 @@ lobby_t *lobby_create_default(block_t *block, uint32_t lobby_id, uint8_t ev) {
     /* Initialize the script table */
     lua_newtable(block->ship->lstate);
     l->script_ref = luaL_ref(block->ship->lstate, LUA_REGISTRYINDEX);
+
+    if(!(l->script_ids = (int *)malloc(sizeof(int) * ScriptActionCount)))
+        debug(DBG_WARN, "Couldn't allocate lobby script list!\n");
+    else
+        memset(l->script_ids, 0, sizeof(int) * ScriptActionCount);
 #endif
 
     /* Initialize the lobby mutex. */
