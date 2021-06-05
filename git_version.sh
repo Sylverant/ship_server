@@ -211,7 +211,7 @@ if [ "x$git_repo_dir" != "x" ] && [ "x${abs_repo_dir}" = "x${abs_srcdir}/.git" ]
             git_remote_url="(no remote)"
         fi
         # Grab the linear git revision number
-        git_build=`$GIT log --oneline | wc -l`
+        git_build=`$GIT log --oneline | wc -l | $SED 's/^[ \t]*//'`
         if [ "x$git_shaid" = "x" ]; then
             git_errors="${git_errors+${git_errors}; }error running '$GIT log --oneline'"
         fi
