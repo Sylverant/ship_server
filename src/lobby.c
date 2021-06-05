@@ -618,13 +618,15 @@ static void lobby_destroy_locked(lobby_t *l, int remove) {
 
 #ifdef ENABLE_LUA
     /* Clean up any scripts. */
-    for(j = 0; j < ScriptActionCount; ++j) {
-        if(l->script_ids[j])
-            luaL_unref(l->block->ship->lstate, LUA_REGISTRYINDEX,
-                       l->script_ids[j]);
-    }
+    if(l->script_ids) {
+        for(j = 0; j < ScriptActionCount; ++j) {
+            if(l->script_ids[j])
+                luaL_unref(l->block->ship->lstate, LUA_REGISTRYINDEX,
+                           l->script_ids[j]);
+        }
 
-    free(l->script_ids);
+        free(l->script_ids);
+    }
 
     /* Remove the table from the registry */
     luaL_unref(l->block->ship->lstate, LUA_REGISTRYINDEX, l->script_ref);
