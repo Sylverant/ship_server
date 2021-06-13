@@ -911,6 +911,8 @@ static int read_bb_map_set(int solo, int i, int j) {
             /* Save it into the struct */
             tmp2[k * nvars + l].count = sz / 0x44;
             tmp2[k * nvars + l].objs = gobj;
+
+            free(obj);
         }
     }
 
@@ -1123,6 +1125,8 @@ static int read_v2_map_set(int j, int gcep) {
             /* Save it into the struct */
             tmp2[k * nvars + l].count = sz / 0x44;
             tmp2[k * nvars + l].objs = gobj;
+
+            free(obj);
         }
     }
 
