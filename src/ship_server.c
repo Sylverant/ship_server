@@ -970,6 +970,7 @@ restart:
     bb_free_params();
     v2_free_params();
     gc_free_params();
+    pmt_cleanup();
 
     if(restart_on_shutdown) {
         cfg = load_config();
