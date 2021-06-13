@@ -958,6 +958,7 @@ restart:
         ship_check_cfg(cfg);
     }
 
+    smutdata_cleanup();
     cleanup_i18n();
     cleanup_iconv();
 
