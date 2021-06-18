@@ -1408,20 +1408,26 @@ void bb_free_params(void) {
     int i, j, k;
     uint32_t l, nmaps;
     parsed_map_t *m;
+    parsed_objs_t *o;
 
     for(i = 0; i < 2; ++i) {
         for(j = 0; j < 3; ++j) {
             for(k = 0; k < 0x10; ++k) {
                 m = &bb_parsed_maps[i][j][k];
+                o = &bb_parsed_objs[i][j][k];
                 nmaps = m->map_count * m->variation_count;
 
                 for(l = 0; l < nmaps; ++l) {
                     free(m->data[l].enemies);
+                    free(o->data[l].objs);
                 }
 
                 free(m->data);
+                free(o->data);
                 m->data = NULL;
                 m->map_count = m->variation_count = 0;
+                o->data = NULL;
+                o->map_count = o->variation_count = 0;
             }
         }
     }
@@ -1431,18 +1437,24 @@ void v2_free_params(void) {
     int k;
     uint32_t l, nmaps;
     parsed_map_t *m;
+    parsed_objs_t *o;
 
     for(k = 0; k < 0x10; ++k) {
         m = &v2_parsed_maps[k];
+        o = &v2_parsed_objs[k];
         nmaps = m->map_count * m->variation_count;
 
         for(l = 0; l < nmaps; ++l) {
             free(m->data[l].enemies);
+            free(o->data[l].objs);
         }
 
         free(m->data);
+        free(o->data);
         m->data = NULL;
         m->map_count = m->variation_count = 0;
+        o->data = NULL;
+        o->map_count = o->variation_count = 0;
     }
 }
 
@@ -1450,19 +1462,25 @@ void gc_free_params(void) {
     int k, j;
     uint32_t l, nmaps;
     parsed_map_t *m;
+    parsed_objs_t *o;
 
     for(j = 0; j < 2; ++j) {
         for(k = 0; k < 0x10; ++k) {
             m = &gc_parsed_maps[j][k];
+            o = &gc_parsed_objs[j][k];
             nmaps = m->map_count * m->variation_count;
 
             for(l = 0; l < nmaps; ++l) {
                 free(m->data[l].enemies);
+                free(o->data[l].objs);
             }
 
             free(m->data);
+            free(o->data);
             m->data = NULL;
             m->map_count = m->variation_count = 0;
+            o->data = NULL;
+            o->map_count = o->variation_count = 0;
         }
     }
 }
