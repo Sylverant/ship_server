@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2018, 2020 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2018, 2020, 2021 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -840,6 +840,11 @@ uint64_t get_ms_time(void) {
 
     gettimeofday(&tv, NULL);
     return (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
+}
+
+void memcpy_str(void * restrict d, const char * restrict s, size_t sz) {
+    size_t l = strlen(s);
+    memcpy(d, s, sz < l ? sz : l);
 }
 
 int init_iconv(void) {
