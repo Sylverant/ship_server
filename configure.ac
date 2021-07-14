@@ -19,6 +19,7 @@ AC_PREREQ([2.67])
 
 AC_INIT([Sylverant Ship Server], [0.1.0], [https://sf.net/p/sylverant], [ship_server], [https://sylverant.net/])
 AC_CONFIG_MACRO_DIR([m4])
+AC_CONFIG_HEADERS([config.h])
 
 AC_CANONICAL_HOST
 AC_CANONICAL_TARGET
@@ -48,6 +49,10 @@ AC_CONFIG_SRCDIR([src/block.c])
 
 # Checks for programs.
 AC_PROG_CC
+AC_PROG_CC_C99
+AC_C_INLINE
+AC_C_CONST
+AC_C_RESTRICT
 
 # Checks for libraries.
 if test $IS_OSX; then
@@ -97,7 +102,7 @@ AX_PTHREAD
 
 # Checks for header files.
 AC_CHECK_HEADERS([arpa/inet.h inttypes.h netdb.h netinet/in.h stdlib.h string.h sys/socket.h sys/time.h unistd.h pwd.h grp.h])
-AC_CHECK_HEADERS([libutil.h bsd/libutil.h math.h])
+AC_CHECK_HEADERS([libutil.h bsd/libutil.h math.h sys/utsname.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_TYPE_SIZE_T

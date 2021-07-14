@@ -21,6 +21,7 @@ include $(top_srcdir)/git_version.am
 
 LIBS += $(PTHREAD_LIBS) $(LIBICONV)
 AM_CFLAGS = $(PTHREAD_CFLAGS)
+AM_CPPFLAGS = -include config.h
 
 bin_PROGRAMS = ship_server
 ship_server_SOURCES = block.c block.h clients.c clients.h \
