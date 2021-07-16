@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
     Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2017, 2018,
-                  2019, 2020 Lawrence Sebald
+                  2019, 2020, 2021 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -3081,6 +3081,9 @@ static int process_qload_done(ship_client_t *c) {
     ship_client_t *c2;
     int i;
 
+    if(!l || l->type != LOBBY_TYPE_GAME)
+        return -1;
+
     c->flags |= CLIENT_FLAG_QLOAD_DONE;
 
     /* See if everyone's done now. */
@@ -3100,6 +3103,45 @@ static int process_qload_done(ship_client_t *c) {
                 c2->flags |= CLIENT_FLAG_DISCONNECTED;
         }
     }
+
+    return 0;
+}
+
+static int process_qlist(ship_client_t *c) {
+    lobby_t *l = c->cur_lobby;
+    int rv;
+
+    if(!l || l->type != LOBBY_TYPE_GAME)
+        return -1;
+
+    pthread_rwlock_rdlock(&ship->qlock);
+    pthread_mutex_lock(&l->mutex);
+
+    /* Do we have quests configured? */
+    if(!TAILQ_EMPTY(&ship->qmap)) {
+        l->flags |= LOBBY_FLAG_QUESTSEL;
+        rv = send_quest_categories(c, c->q_lang);
+    }
+    else {
+        rv = send_message1(c, "%s", __(c, "\tE\tC4Quests not\n"
+                                       "configured."));
+    }
+
+    pthread_mutex_unlock(&l->mutex);
+    pthread_rwlock_unlock(&ship->qlock);
+
+    return rv;
+}
+
+static int process_qlist_end(ship_client_t *c) {
+    lobby_t *l = c->cur_lobby;
+
+    if(!l || l->type != LOBBY_TYPE_GAME)
+        return -1;
+
+    pthread_mutex_lock(&l->mutex);
+    c->cur_lobby->flags &= ~LOBBY_FLAG_QUESTSEL;
+    pthread_mutex_unlock(&l->mutex);
 
     return 0;
 }
@@ -3278,6 +3320,9 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             if(c->flags & CLIENT_FLAG_WAIT_QPING) {
                 lobby_t *l = c->cur_lobby;
 
+                if(!l)
+                    return -1;
+
                 pthread_mutex_lock(&l->mutex);
                 l->flags &= ~LOBBY_FLAG_BURSTING;
                 c->flags &= ~(CLIENT_FLAG_BURSTING | CLIENT_FLAG_WAIT_QPING);
@@ -3361,28 +3406,10 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return dc_process_info_req(c, (dc_select_pkt *)pkt);
 
         case QUEST_LIST_TYPE:
-            pthread_rwlock_rdlock(&ship->qlock);
-            pthread_mutex_lock(&c->cur_lobby->mutex);
-
-            /* Do we have quests configured? */
-            if(!TAILQ_EMPTY(&ship->qmap)) {
-                c->cur_lobby->flags |= LOBBY_FLAG_QUESTSEL;
-                rv = send_quest_categories(c, c->q_lang);
-            }
-            else {
-                rv = send_message1(c, "%s", __(c, "\tE\tC4Quests not\n"
-                                               "configured."));
-            }
-
-            pthread_mutex_unlock(&c->cur_lobby->mutex);
-            pthread_rwlock_unlock(&ship->qlock);
-            return rv;
+            return process_qlist(c);
 
         case QUEST_END_LIST_TYPE:
-            pthread_mutex_lock(&c->cur_lobby->mutex);
-            c->cur_lobby->flags &= ~LOBBY_FLAG_QUESTSEL;
-            pthread_mutex_unlock(&c->cur_lobby->mutex);
-            return 0;
+            return process_qlist_end(c);
 
         case LOGIN_9D_TYPE:
             return dcv2_process_login(c, (dcv2_login_9d_pkt *)pkt);
@@ -3493,7 +3520,6 @@ static int bb_process_pkt(ship_client_t *c, uint8_t *pkt) {
     uint16_t type = LE16(hdr->pkt_type);
     uint16_t len = LE16(hdr->pkt_len);
     uint32_t flags = LE32(hdr->flags);
-    int rv;
 
     switch(type) {
         case PING_TYPE:
@@ -3611,28 +3637,10 @@ static int bb_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return send_lobby_name(c, c->cur_lobby);
 
         case QUEST_LIST_TYPE:
-            pthread_rwlock_rdlock(&ship->qlock);
-            pthread_mutex_lock(&c->cur_lobby->mutex);
-
-            /* Do we have quests configured? */
-            if(!TAILQ_EMPTY(&ship->qmap)) {
-                c->cur_lobby->flags |= LOBBY_FLAG_QUESTSEL;
-                rv = send_quest_categories(c, c->q_lang);
-            }
-            else {
-                rv = send_message1(c, "%s", __(c, "\tE\tC4Quests not\n"
-                                               "configured."));
-            }
-
-            pthread_mutex_unlock(&c->cur_lobby->mutex);
-            pthread_rwlock_unlock(&ship->qlock);
-            return rv;
+            return process_qlist(c);
 
         case QUEST_END_LIST_TYPE:
-            pthread_mutex_lock(&c->cur_lobby->mutex);
-            c->cur_lobby->flags &= ~LOBBY_FLAG_QUESTSEL;
-            pthread_mutex_unlock(&c->cur_lobby->mutex);
-            return 0;
+            return process_qlist_end(c);
 
         case QUEST_CHUNK_TYPE:
         case QUEST_FILE_TYPE:

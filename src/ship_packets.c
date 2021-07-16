@@ -9441,6 +9441,9 @@ next:
 }
 
 int send_infoboard(ship_client_t *c, lobby_t *l) {
+    if(!l)
+        return -1;
+
     switch(c->version) {
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
