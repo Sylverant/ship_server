@@ -2205,7 +2205,7 @@ static int handle_sctl_uname(shipgate_conn_t *c, shipgate_shipctl_pkt *pkt) {
         return -1;
 
     memset(r, 0, sizeof(shipgate_sctl_uname_reply_pkt));
-    r->hdr.pkt_len = htons(sizeof(shipgate_sctl_ver_reply_pkt));
+    r->hdr.pkt_len = htons(sizeof(shipgate_sctl_uname_reply_pkt));
     r->hdr.pkt_type = htons(SHDR_TYPE_SHIP_CTL);
     r->hdr.flags = htons(SHDR_RESPONSE);
     r->ctl = htonl(SCTL_TYPE_UNAME);
