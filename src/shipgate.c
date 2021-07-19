@@ -26,11 +26,13 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <sys/utsname.h>
 
 #include <sylverant/config.h>
 #include <sylverant/debug.h>
 #include <sylverant/checksum.h>
 
+#include "admin.h"
 #include "ship.h"
 #include "utils.h"
 #include "clients.h"
@@ -38,6 +40,7 @@
 #include "ship_packets.h"
 #include "scripts.h"
 #include "quest_functions.h"
+#include "version.h"
 
 /* TLS stuff -- from ship_server.c */
 extern gnutls_certificate_credentials_t tls_cred;
@@ -2122,6 +2125,137 @@ static int handle_qflag_err(shipgate_conn_t *c, shipgate_qflag_err_pkt *pkt) {
     return 0;
 }
 
+static int handle_sctl_sd(shipgate_conn_t *c, shipgate_sctl_shutdown_pkt *pkt,
+                          int restart) {
+    uint32_t when = ntohl(pkt->when);
+    uint8_t *sendbuf = get_sendbuf();
+    shipgate_sctl_err_pkt *err = (shipgate_sctl_err_pkt *)sendbuf;
+
+    debug(DBG_LOG, "shipgate requested %s in %" PRIu32 " minutes\n",
+          restart ? "restart" : "shutdown", when);
+    schedule_shutdown(NULL, when, restart, NULL);
+
+    if(!sendbuf)
+        return -1;
+
+    memset(err, 0, sizeof(shipgate_sctl_err_pkt));
+    err->base.hdr.pkt_len = htons(sizeof(shipgate_sctl_err_pkt));
+    err->base.hdr.pkt_type = htons(SHDR_TYPE_SHIP_CTL);
+    err->base.hdr.flags = htons(SHDR_RESPONSE);
+    err->base.error_code = 0;
+    err->ctl = pkt->ctl;
+    err->acc = pkt->acc;
+    err->reserved1 = pkt->reserved1;
+    err->reserved2 = pkt->reserved2;
+    return send_crypt(c, sizeof(shipgate_sctl_err_pkt), sendbuf);
+}
+
+static void conv_shaid(uint8_t out[20], const char *shaid) {
+    int i;
+    #define NTI(ch) ((ch <= '9') ? (ch - '0') : (ch - 'a' + 0x0a))
+
+    for(i = 0; i < 20; ++i) {
+        out[i] = (NTI(shaid[i << 1]) << 4) | (NTI(shaid[(i << 1) + 1]));
+    }
+
+    #undef NTI
+}
+
+static int handle_sctl_ver(shipgate_conn_t *c, shipgate_shipctl_pkt *pkt) {
+    uint8_t *sendbuf = get_sendbuf();
+    shipgate_sctl_ver_reply_pkt *rep = (shipgate_sctl_ver_reply_pkt *)sendbuf;
+    uint16_t reflen = strlen(GIT_REMOTE_URL) + strlen(GIT_BRANCH) + 3, len;
+    char remote_ref[reflen];
+
+    if(!sendbuf)
+        return -1;
+
+    sprintf(remote_ref, "%s::%s", GIT_REMOTE_URL, GIT_BRANCH);
+    len = (reflen + 7 + sizeof(shipgate_sctl_ver_reply_pkt)) & 0xfff8;
+
+    memset(rep, 0, len);
+    rep->hdr.pkt_len = htons(len);
+    rep->hdr.pkt_type = htons(SHDR_TYPE_SHIP_CTL);
+    rep->hdr.flags = htons(SHDR_RESPONSE);
+    rep->ctl = htonl(SCTL_TYPE_VERSION);
+    rep->unused = pkt->acc;
+    rep->reserved1 = pkt->reserved1;
+    rep->reserved2 = pkt->reserved2;
+    rep->ver_major = 0;
+    rep->ver_minor = 0;
+    rep->ver_micro = 0;
+    rep->flags = GIT_VERSION ? 1 : 0;
+    rep->flags |= GIT_DIRTY ? 2 : 0;
+    conv_shaid(rep->commithash, GIT_SHAID);
+    rep->committime = BE64(GIT_TIMESTAMP);
+    memcpy(rep->remoteref, remote_ref, reflen);
+
+    return send_crypt(c, len, sendbuf);
+}
+
+static int handle_sctl_uname(shipgate_conn_t *c, shipgate_shipctl_pkt *pkt) {
+    uint8_t *sendbuf = get_sendbuf();
+    shipgate_sctl_uname_reply_pkt *r = (shipgate_sctl_uname_reply_pkt *)sendbuf;
+    struct utsname un;
+
+    if(!sendbuf)
+        return -1;
+
+    if(uname(&un))
+        return -1;
+
+    memset(r, 0, sizeof(shipgate_sctl_uname_reply_pkt));
+    r->hdr.pkt_len = htons(sizeof(shipgate_sctl_ver_reply_pkt));
+    r->hdr.pkt_type = htons(SHDR_TYPE_SHIP_CTL);
+    r->hdr.flags = htons(SHDR_RESPONSE);
+    r->ctl = htonl(SCTL_TYPE_UNAME);
+    r->unused = pkt->acc;
+    r->reserved1 = pkt->reserved1;
+    r->reserved2 = pkt->reserved2;
+    memcpy_str(r->name, un.sysname, 64);
+    memcpy_str(r->node, un.nodename, 64);
+    memcpy_str(r->release, un.release, 64);
+    memcpy_str(r->version, un.version, 64);
+    memcpy_str(r->machine, un.machine, 64);
+
+    return send_crypt(c, sizeof(shipgate_sctl_uname_reply_pkt), sendbuf);
+}
+
+static int handle_sctl(shipgate_conn_t *c, shipgate_shipctl_pkt *pkt) {
+    uint32_t type = ntohl(pkt->ctl);
+    uint8_t *sendbuf = get_sendbuf();
+    shipgate_sctl_err_pkt *err = (shipgate_sctl_err_pkt *)sendbuf;
+
+    switch(type) {
+        case SCTL_TYPE_RESTART:
+            return handle_sctl_sd(c, (shipgate_sctl_shutdown_pkt *)pkt, 1);
+
+        case SCTL_TYPE_SHUTDOWN:
+            return handle_sctl_sd(c, (shipgate_sctl_shutdown_pkt *)pkt, 0);
+
+        case SCTL_TYPE_VERSION:
+            return handle_sctl_ver(c, (shipgate_shipctl_pkt *)pkt);
+
+        case SCTL_TYPE_UNAME:
+            return handle_sctl_uname(c, (shipgate_shipctl_pkt *)pkt);
+    }
+
+    /* If we get this far, then we don't know what the ctl is, send an error */
+    if(!sendbuf)
+        return -1;
+
+    memset(err, 0, sizeof(shipgate_sctl_err_pkt));
+    err->base.hdr.pkt_len = htons(sizeof(shipgate_sctl_err_pkt));
+    err->base.hdr.pkt_type = htons(SHDR_TYPE_SHIP_CTL);
+    err->base.hdr.flags = htons(SHDR_RESPONSE | SHDR_FAILURE);
+    err->base.error_code = htonl(ERR_SCTL_UNKNOWN_CTL);
+    err->ctl = pkt->ctl;
+    err->acc = pkt->acc;
+    err->reserved1 = pkt->reserved1;
+    err->reserved2 = pkt->reserved2;
+    return send_crypt(c, sizeof(shipgate_sctl_err_pkt), sendbuf);
+}
+
 static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
     uint16_t type = ntohs(pkt->pkt_type);
     uint16_t flags = ntohs(pkt->flags);
@@ -2276,6 +2410,13 @@ static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
             case SHDR_TYPE_QFLAG_SET:
             case SHDR_TYPE_QFLAG_GET:
                 return handle_qflag(conn, (shipgate_qflag_pkt *)pkt);
+
+            case SHDR_TYPE_SHIP_CTL:
+                return handle_sctl(conn, (shipgate_shipctl_pkt *)pkt);
+
+            case SHDR_TYPE_UBLOCKS:
+                /* XXXX */
+                return 0;
         }
     }
 

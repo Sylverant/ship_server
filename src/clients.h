@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
     Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018,
-                  2019, 2020 Lawrence Sebald
+                  2019, 2020, 2021 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -75,6 +75,11 @@ typedef struct bb_security_data {
 
 #undef PACKED
 
+typedef struct client_blocklist_entry {
+    uint32_t gc;
+    uint32_t flags;
+} client_blocklist_t;
+
 /* Ship server client structure. */
 struct ship_client {
     TAILQ_ENTRY(ship_client) qentry;
@@ -116,6 +121,9 @@ struct ship_client {
 
     uint32_t next_item[4];
     uint32_t ignore_list[CLIENT_IGNORE_LIST_SIZE];
+
+    int blocklist_size;
+    client_blocklist_t *blocklist;
 
     uint32_t last_info_req;
 
