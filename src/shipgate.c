@@ -2161,10 +2161,23 @@ static void conv_shaid(uint8_t out[20], const char *shaid) {
     #undef NTI
 }
 
+static void parse_version(uint8_t *maj, uint8_t *min, uint8_t *mic,
+                          const char *ver) {
+    int v1, v2, v3;
+
+    sscanf(ver, "%d.%d.%d", &v1, &v2, &v3);
+    *maj = (uint8_t)v1;
+    *min = (uint8_t)v2;
+    *mic = (uint8_t)v3;
+}
+
 static int handle_sctl_ver(shipgate_conn_t *c, shipgate_shipctl_pkt *pkt) {
     uint8_t *sendbuf = get_sendbuf();
     shipgate_sctl_ver_reply_pkt *rep = (shipgate_sctl_ver_reply_pkt *)sendbuf;
-    uint16_t reflen = strlen(GIT_REMOTE_URL) + strlen(GIT_BRANCH) + 3, len;
+    uint16_t len;
+
+#ifndef GIT_IS_DIST
+    uint16_t reflen = strlen(GIT_REMOTE_URL) + strlen(GIT_BRANCH) + 3;
     char remote_ref[reflen];
 
     if(!sendbuf)
@@ -2181,16 +2194,31 @@ static int handle_sctl_ver(shipgate_conn_t *c, shipgate_shipctl_pkt *pkt) {
     rep->unused = pkt->acc;
     rep->reserved1 = pkt->reserved1;
     rep->reserved2 = pkt->reserved2;
-    rep->ver_major = 0;
-    rep->ver_minor = 0;
-    rep->ver_micro = 0;
-    rep->flags = GIT_VERSION ? 1 : 0;
+    parse_version(&rep->ver_major, &rep->ver_minor, &rep->ver_micro, VERSION);
+    rep->flags = 1;
 #ifdef GIT_DIRTY
     rep->flags |= GIT_DIRTY ? 2 : 0;
 #endif
     conv_shaid(rep->commithash, GIT_SHAID);
     rep->committime = BE64(GIT_TIMESTAMP);
     memcpy(rep->remoteref, remote_ref, reflen);
+#else
+
+    if(!sendbuf)
+        return -1;
+
+    len = sizeof(shipgate_sctl_ver_reply_pkt);
+    memset(rep, 0, len);
+    rep->hdr.pkt_len = htons(len);
+    rep->hdr.pkt_type = htons(SHDR_TYPE_SHIP_CTL);
+    rep->hdr.flags = htons(SHDR_RESPONSE);
+    rep->ctl = htonl(SCTL_TYPE_VERSION);
+    rep->unused = pkt->acc;
+    rep->reserved1 = pkt->reserved1;
+    rep->reserved2 = pkt->reserved2;
+    parse_version(&rep->ver_major, &rep->ver_minor, &rep->ver_micro, VERSION);
+    rep->flags = 0;
+#endif
 
     return send_crypt(c, len, sendbuf);
 }
