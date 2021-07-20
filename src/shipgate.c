@@ -2325,6 +2325,8 @@ static int handle_ubl(shipgate_conn_t *c, shipgate_user_blocklist_pkt *pkt) {
             if(!list) {
                 debug(DBG_ERROR, "%s: out of memory processing client block "
                                  "list from shipgate\n");
+                pthread_mutex_unlock(&i->mutex);
+                pthread_rwlock_unlock(&b->lock);
                 return -1;
             }
 
@@ -2340,6 +2342,7 @@ static int handle_ubl(shipgate_conn_t *c, shipgate_user_blocklist_pkt *pkt) {
             i->blocklist = list;
 
             pthread_mutex_unlock(&i->mutex);
+            break;
         }
     }
 
