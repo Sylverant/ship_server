@@ -118,11 +118,11 @@ struct ship_client {
     uint32_t guildcard;
     uint32_t flags;
     uint32_t arrow;
+    uint32_t blocklist_size;
 
     uint32_t next_item[4];
     uint32_t ignore_list[CLIENT_IGNORE_LIST_SIZE];
 
-    int blocklist_size;
     client_blocklist_t *blocklist;
 
     uint32_t last_info_req;

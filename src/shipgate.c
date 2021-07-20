@@ -2286,6 +2286,67 @@ static int handle_sctl(shipgate_conn_t *c, shipgate_shipctl_pkt *pkt) {
     return send_crypt(c, sizeof(shipgate_sctl_err_pkt), sendbuf);
 }
 
+static int handle_ubl(shipgate_conn_t *c, shipgate_user_blocklist_pkt *pkt) {
+    ship_t *s = c->ship;
+    block_t *b;
+    ship_client_t *i;
+    uint32_t gc, block, count, j;
+    client_blocklist_t *list;
+    uint16_t len = ntohs(pkt->hdr.pkt_len);
+
+    /* Make sure the packet is one we understand and of a valid size. */
+    if(len < sizeof(shipgate_user_blocklist_pkt))
+        return -1;
+
+    if(pkt->hdr.version != 0)
+        return -1;
+
+    gc = ntohl(pkt->guildcard);
+    block = ntohl(pkt->block);
+    count = ntohl(pkt->count);
+
+    /* Sanity check */
+    if(len < sizeof(shipgate_user_blocklist_pkt) + 8 * count)
+        return -1;
+
+    if(block > s->cfg->blocks)
+        return 0;
+
+    b = s->blocks[block - 1];
+    pthread_rwlock_rdlock(&b->lock);
+
+    /* Find the requested client and copy the data over. */
+    TAILQ_FOREACH(i, b->clients, qentry) {
+        if(i->guildcard == gc) {
+            pthread_mutex_lock(&i->mutex);
+
+            list = (client_blocklist_t *)malloc(sizeof(client_blocklist_t) *
+                                                count);
+            if(!list) {
+                debug(DBG_ERROR, "%s: out of memory processing client block "
+                                 "list from shipgate\n");
+                return -1;
+            }
+
+            for(j = 0; j < count; ++j) {
+                list[j].gc = ntohl(pkt->entries[j].gc);
+                list[j].flags = ntohl(pkt->entries[j].flags);
+            }
+
+            if(i->blocklist)
+                free(i->blocklist);
+
+            i->blocklist_size = count;
+            i->blocklist = list;
+
+            pthread_mutex_unlock(&i->mutex);
+        }
+    }
+
+    pthread_rwlock_unlock(&b->lock);
+    return 0;
+}
+
 static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
     uint16_t type = ntohs(pkt->pkt_type);
     uint16_t flags = ntohs(pkt->flags);
@@ -2445,8 +2506,7 @@ static int handle_pkt(shipgate_conn_t *conn, shipgate_hdr_t *pkt) {
                 return handle_sctl(conn, (shipgate_shipctl_pkt *)pkt);
 
             case SHDR_TYPE_UBLOCKS:
-                /* XXXX */
-                return 0;
+                return handle_ubl(conn, (shipgate_user_blocklist_pkt *)pkt);
         }
     }
 
