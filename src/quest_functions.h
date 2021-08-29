@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2019, 2020 Lawrence Sebald
+    Copyright (C) 2019, 2020, 2021 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -183,21 +183,41 @@
    Returns:      1 value: The random seed chosen when the team was created. */
 #define QUEST_FUNC_GET_TEAM_SEED        20
 
-/* Function 21:   get_pos_updates
-   Arguments:     1: int id -- Set to the id to subscribe to updates for or
-                               -1 to get them for all clients in the team.
-   Returns:       1 or 4 values for storing the client(s) positions.
+/* Function 21:  get_pos_updates
+   Arguments:    1: int id -- Set to the id to subscribe to updates for or
+                              -1 to get them for all clients in the team.
+   Returns:      1 or 4 values for storing the client(s) positions.
    Note: Each return takes up 4 registers (x,y,z,f). Only the first of these are
          specified. Additionally, 0 is not a supported value. All values are
          truncated to integers. The registers specified will be updated
          periodically with new values. */
 #define QUEST_FUNC_POS_UPDATES          21
 
-/* Function 22:   get_level
+/* Function 22:  get_level
    Arguments:    1: int id -- Set to a client id from 0-3 for one player.
                               Set to -1 for all players in the team.
    Returns:      1 or 4 values of the requested levels. */
 #define QUEST_FUNC_GET_LEVEL            22
+
+/* Function 23:  get_ship_name
+   Arguments:    None
+   Returns:      1 value: The ship's name as a series of 3 sequential registers
+                 as ASCII character values. */
+#define QUEST_FUNC_GET_SHIP_NAME        23
+
+/* Function 24:  get_ship_name_utf16
+   Arguments:    None
+   Returns:      1 value: The ship's name as a series of 6 sequential registers
+                 as UTF-16LE character values. */
+#define QUEST_FUNC_GET_SHIP_NAME_UTF16  24
+
+/* Function 25:  get_max_function
+   Arguments:    None
+   Returns:      1 value: The number of the newest quest function added. */
+#define QUEST_FUNC_GET_MAX_FUNCTION     25
+
+/* The number of the newest function added. */
+#define QUEST_FUNC_MAX                  25
 
 extern uint32_t quest_function_dispatch(ship_client_t *c, lobby_t *l);
 

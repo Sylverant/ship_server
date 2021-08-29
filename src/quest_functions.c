@@ -17,6 +17,7 @@
 
 #include <time.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "clients.h"
 #include "lobby.h"
@@ -747,7 +748,7 @@ static uint32_t word_censor_check(ship_client_t *c, lobby_t *l, int sr) {
     return QUEST_FUNC_RET_NO_ERROR;
 }
 
-uint32_t get_team_seed(ship_client_t *c, lobby_t *l) {
+static uint32_t get_team_seed(ship_client_t *c, lobby_t *l) {
     if(c->q_stack[1] != 0)
         return QUEST_FUNC_RET_BAD_ARG_COUNT;
 
@@ -942,6 +943,94 @@ static uint32_t get_level(ship_client_t *c, lobby_t *l) {
     }
 }
 
+static uint32_t get_ship_name(ship_client_t *c, lobby_t *l) {
+    uint32_t tmp;
+    uint8_t tmpname[12] = { 0 };
+
+    if(c->q_stack[1] != 0)
+        return QUEST_FUNC_RET_BAD_ARG_COUNT;
+
+    if(c->q_stack[2] != 1)
+        return QUEST_FUNC_RET_BAD_RET_COUNT;
+
+    if(c->q_stack[3] > 253)
+        return QUEST_FUNC_RET_INVALID_REGISTER;
+
+    if(strlen(ship->cfg->name) < 12)
+        strcpy((char *)tmpname, ship->cfg->name);
+    else
+        memcpy(tmpname, ship->cfg->name, 12);
+
+    /* Send the ship's name in 3 registers... */
+    tmp = tmpname[0] | ((tmpname[1]) << 8) | (tmpname[2] << 16) |
+          (tmpname[3] << 24);
+    send_sync_register(c, c->q_stack[3], LE32(tmp));
+
+    tmp = tmpname[4] | (tmpname[5] << 8) | (tmpname[6] << 16) |
+          (tmpname[7] << 24);
+    send_sync_register(c, c->q_stack[3] + 1, LE32(tmp));
+
+    tmp = tmpname[8] | (tmpname[9] << 8) | (tmpname[10] << 16) |
+          (tmpname[11] << 24);
+    send_sync_register(c, c->q_stack[3] + 2, LE32(tmp));
+
+    return QUEST_FUNC_RET_NO_ERROR;
+}
+
+static uint32_t get_ship_name_utf16(ship_client_t *c, lobby_t *l) {
+    uint32_t tmp;
+    uint8_t tmpname[12] = { 0 };
+
+    if(c->q_stack[1] != 0)
+        return QUEST_FUNC_RET_BAD_ARG_COUNT;
+
+    if(c->q_stack[2] != 1)
+        return QUEST_FUNC_RET_BAD_RET_COUNT;
+
+    if(c->q_stack[3] > 250)
+        return QUEST_FUNC_RET_INVALID_REGISTER;
+
+    if(strlen(ship->cfg->name) < 12)
+        strcpy((char *)tmpname, ship->cfg->name);
+    else
+        memcpy(tmpname, ship->cfg->name, 12);
+
+    /* Send the ship's name in 6 registers... */
+    tmp = tmpname[0] | (tmpname[1] << 16);
+    send_sync_register(c, c->q_stack[3], LE32(tmp));
+
+    tmp = tmpname[2] | (tmpname[3] << 16);
+    send_sync_register(c, c->q_stack[3] + 1, LE32(tmp));
+
+    tmp = tmpname[4] | (tmpname[5] << 16);
+    send_sync_register(c, c->q_stack[3] + 2, LE32(tmp));
+
+    tmp = tmpname[6] | (tmpname[7] << 16);
+    send_sync_register(c, c->q_stack[3] + 3, LE32(tmp));
+
+    tmp = tmpname[8] | (tmpname[9] << 16);
+    send_sync_register(c, c->q_stack[3] + 4, LE32(tmp));
+
+    tmp = tmpname[10] | (tmpname[11] << 16);
+    send_sync_register(c, c->q_stack[3] + 5, LE32(tmp));
+
+    return QUEST_FUNC_RET_NO_ERROR;
+}
+
+static uint32_t get_max_function(ship_client_t *c, lobby_t *l) {
+    if(c->q_stack[1] != 0)
+        return QUEST_FUNC_RET_BAD_ARG_COUNT;
+
+    if(c->q_stack[2] != 1)
+        return QUEST_FUNC_RET_BAD_RET_COUNT;
+
+    if(c->q_stack[3] > 255)
+        return QUEST_FUNC_RET_INVALID_REGISTER;
+
+    send_sync_register(c, c->q_stack[3], QUEST_FUNC_MAX);
+    return QUEST_FUNC_RET_NO_ERROR;
+}
+
 uint32_t quest_function_dispatch(ship_client_t *c, lobby_t *l) {
     /* Call the requested function... */
     switch(c->q_stack[0]) {
@@ -1013,6 +1102,15 @@ uint32_t quest_function_dispatch(ship_client_t *c, lobby_t *l) {
 
         case QUEST_FUNC_GET_LEVEL:
             return get_level(c, l);
+
+        case QUEST_FUNC_GET_SHIP_NAME:
+            return get_ship_name(c, l);
+
+        case QUEST_FUNC_GET_SHIP_NAME_UTF16:
+            return get_ship_name_utf16(c, l);
+
+        case QUEST_FUNC_GET_MAX_FUNCTION:
+            return get_max_function(c, l);
 
         default:
             return QUEST_FUNC_RET_INVALID_FUNC;
