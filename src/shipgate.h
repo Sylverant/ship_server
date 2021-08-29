@@ -80,8 +80,6 @@ struct shipgate_conn {
 
     gnutls_session_t session;
 
-    uint16_t key_idx;
-
     unsigned char *recvbuf;
     int recvbuf_cur;
     int recvbuf_size;
