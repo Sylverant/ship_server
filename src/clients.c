@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2016, 2017, 2018, 2019,
-                  2020 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2016, 2017, 2018, 2019, 2020
+                  2021 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -1729,6 +1729,32 @@ err:
     return 1;
 }
 
+static int client_language_lua(lua_State *l) {
+    ship_client_t *c;
+
+    if(lua_islightuserdata(l, 1)) {
+        c = (ship_client_t *)lua_touserdata(l, 1);
+        lua_pushnumber(l, c->language_code);
+        return 1;
+    }
+
+    lua_pushnumber(l, -1);
+    return 1;
+}
+
+static int client_qlang_lua(lua_State *l) {
+    ship_client_t *c;
+
+    if(lua_islightuserdata(l, 1)) {
+        c = (ship_client_t *)lua_touserdata(l, 1);
+        lua_pushnumber(l, c->q_lang);
+        return 1;
+    }
+
+    lua_pushnumber(l, -1);
+    return 1;
+}
+
 static const luaL_Reg clientlib[] = {
     { "guildcard", client_guildcard_lua },
     { "isOnBlock", client_isOnBlock_lua },
@@ -1759,6 +1785,8 @@ static const luaL_Reg clientlib[] = {
     { "legitCheckItem", client_legitCheckItem_lua },
     { "coords", client_coords_lua },
     { "distance", client_distance_lua },
+    { "language", client_language_lua },
+    { "qlang", client_qlang_lua },
     { NULL, NULL }
 };
 
