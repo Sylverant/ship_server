@@ -569,9 +569,6 @@ static uint32_t get_quest_sflag(ship_client_t *c, lobby_t *l) {
     if(c->q_stack[2] != 1)
         return QUEST_FUNC_RET_BAD_RET_COUNT;
 
-    if(c->q_stack[3] > 255)
-        return QUEST_FUNC_RET_INVALID_ARG;
-
     if(c->q_stack[4] > 255)
         return QUEST_FUNC_RET_INVALID_REGISTER;
 
@@ -590,9 +587,6 @@ static uint32_t set_quest_sflag(ship_client_t *c, lobby_t *l) {
 
     if(c->q_stack[2] != 1)
         return QUEST_FUNC_RET_BAD_RET_COUNT;
-
-    if(c->q_stack[3] > 255)
-        return QUEST_FUNC_RET_INVALID_ARG;
 
     if(c->q_stack[4] & 0xFFFF0000)
         return QUEST_FUNC_RET_INVALID_ARG;
@@ -617,9 +611,6 @@ static uint32_t get_quest_lflag(ship_client_t *c, lobby_t *l) {
     if(c->q_stack[2] != 1)
         return QUEST_FUNC_RET_BAD_RET_COUNT;
 
-    if(c->q_stack[3] > 255)
-        return QUEST_FUNC_RET_INVALID_ARG;
-
     if(c->q_stack[4] > 255)
         return QUEST_FUNC_RET_INVALID_REGISTER;
 
@@ -639,9 +630,6 @@ static uint32_t set_quest_lflag(ship_client_t *c, lobby_t *l) {
 
     if(c->q_stack[2] != 1)
         return QUEST_FUNC_RET_BAD_RET_COUNT;
-
-    if(c->q_stack[3] > 255)
-        return QUEST_FUNC_RET_INVALID_ARG;
 
     if(c->q_stack[5] > 255)
         return QUEST_FUNC_RET_INVALID_REGISTER;
