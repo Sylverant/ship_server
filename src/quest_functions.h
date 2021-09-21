@@ -33,6 +33,7 @@
 #define QUEST_FUNC_RET_INVALID_REGISTER 0x8000FFFA
 #define QUEST_FUNC_RET_STACK_LOCKED     0x8000FFF9
 #define QUEST_FUNC_RET_SHIPGATE_ERR     0x8000FFF8
+#define QUEST_FUNC_RET_RETVAL_ERROR     0x8000FFF7
 
 #define QUEST_FUNC_RET_NOT_YET          0xDEADBEEF
 
@@ -113,7 +114,8 @@
 /* Function 12:  get_short_qflag
    Arguments:    1: int flag -- The flag number to request from the server.
    Returns:      1 value: The value of the specified flag on the shipgate.
-                 On error, this will be negative.
+                 On error, this will be negative and the data register will be
+                 set to QUEST_FUNC_RET_RETVAL_ERROR.
    Error Values: -1: Invalid flag number.
                  -2: Shipgate has disappeared.
                  -3: Flag is currently unset. */
@@ -123,7 +125,8 @@
    Arguments:    1: int flag -- The flag number to request from the server.
                  2: uint16_t val -- The value to set in the flag.
    Returns:      1 value: 0 on success.
-                 On error, this will be negative.
+                 On error, this will be negative and the data register will be
+                 set to QUEST_FUNC_RET_RETVAL_ERROR.
    Error Values: -1: Invalid flag number.
                  -2: Shipgate has disappeared. */
 #define QUEST_FUNC_SET_SHORTFLAG        13
@@ -131,7 +134,8 @@
 /* Function 14:  get_long_qflag
    Arguments:    1: int flag -- The flag number to request from the server.
    Returns:      1 value: The value of the specified flag on the shipgate.
-                 On error, this will be negative.
+                 On error, this will be negative and the data register will be
+                 set to QUEST_FUNC_RET_RETVAL_ERROR.
    Error Values: -1: Invalid flag number.
                  -2: Shipgate has disappeared.
                  -3: Flag is currently unset. */
@@ -141,7 +145,8 @@
    Arguments:    1: int flag -- The flag number to request from the server.
                  2: uint32_t val -- The value to set in the flag.
    Returns:      1 value: 0 on success.
-                 On error, this will be negative.
+                 On error, this will be negative and the data register will be
+                 set to QUEST_FUNC_RET_RETVAL_ERROR.
    Error Values: -1: Invalid flag number.
                  -2: Shipgate has disappeared. */
 #define QUEST_FUNC_SET_LONGFLAG        15

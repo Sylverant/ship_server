@@ -1129,7 +1129,12 @@ int quest_flag_reply(ship_client_t *c, uint32_t reason, uint32_t value) {
     send_sync_register(c, regnum, value);
 
     pthread_mutex_lock(&l->mutex);
-    send_sync_register(c, l->q_data_reg, QUEST_FUNC_RET_NO_ERROR);
+
+    if(!(reason & QFLAG_REPLY_ERROR))
+        send_sync_register(c, l->q_data_reg, QUEST_FUNC_RET_NO_ERROR);
+    else
+        send_sync_register(c, l->q_data_reg, QUEST_FUNC_RET_RETVAL_ERROR);
+
     pthread_mutex_unlock(&l->mutex);
 
     /* Reset the stack and release the lock. */
