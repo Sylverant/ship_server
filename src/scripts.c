@@ -478,6 +478,7 @@ static lua_Integer exec_pkt(int scr, script_action_t event, ship_client_t *c,
                             const void *pkt, uint16_t len) {
     lua_Integer rv = 0;
     int err;
+    const char *errmsg;
 
     /* There is an script defined, grab it from the table. */
     lua_rawgeti(lstate, -1, scr);
@@ -490,8 +491,14 @@ static lua_Integer exec_pkt(int scr, script_action_t event, ship_client_t *c,
     lua_pushlstring(lstate, (const char *)pkt, (size_t)len);
 
     /* Done with that, call the function. */
-    if(lua_pcall(lstate, 2, 1, 0) != LUA_OK) {
-        debug(DBG_ERROR, "Error running Lua script for event %d\n", (int)event);
+    if((err = lua_pcall(lstate, 2, 1, 0)) != LUA_OK) {
+        debug(DBG_ERROR, "Error running Lua script for event %d (%d)\n",
+              (int)event, err);
+
+        if((errmsg = lua_tostring(lstate, -1))) {
+            debug(DBG_ERROR, "Error message:\n%s\n", errmsg);
+        }
+
         lua_pop(lstate, 1);
         goto out;
     }
@@ -543,6 +550,7 @@ static lua_Integer push_args_and_exec(int scr, script_action_t event,
                                       va_list ap) {
     lua_Integer rv = 0;
     int err = 0, argtype, argcount = 0;
+    const char *errmsg;
 
     /* Push the script that we're looking at onto the stack. */
     lua_rawgeti(lstate, -1, scr);
@@ -624,8 +632,14 @@ static lua_Integer push_args_and_exec(int scr, script_action_t event,
     }
 
     /* Done with that, call the function. */
-    if(lua_pcall(lstate, argcount, 1, 0) != LUA_OK) {
-        debug(DBG_ERROR, "Error running Lua script for event %d\n", (int)event);
+    if((err = lua_pcall(lstate, argcount, 1, 0)) != LUA_OK) {
+        debug(DBG_ERROR, "Error running Lua script for event %d (%d)\n",
+              (int)event, err);
+
+        if((errmsg = lua_tostring(lstate, -1))) {
+            debug(DBG_ERROR, "Error message:\n%s\n", errmsg);
+        }
+
         lua_pop(lstate, 1);
         goto out;
     }
