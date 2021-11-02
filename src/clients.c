@@ -1734,11 +1734,11 @@ static int client_language_lua(lua_State *l) {
 
     if(lua_islightuserdata(l, 1)) {
         c = (ship_client_t *)lua_touserdata(l, 1);
-        lua_pushnumber(l, c->language_code);
+        lua_pushinteger(l, c->language_code);
         return 1;
     }
 
-    lua_pushnumber(l, -1);
+    lua_pushinteger(l, -1);
     return 1;
 }
 
@@ -1747,11 +1747,11 @@ static int client_qlang_lua(lua_State *l) {
 
     if(lua_islightuserdata(l, 1)) {
         c = (ship_client_t *)lua_touserdata(l, 1);
-        lua_pushnumber(l, c->q_lang);
+        lua_pushinteger(l, c->q_lang);
         return 1;
     }
 
-    lua_pushnumber(l, -1);
+    lua_pushinteger(l, -1);
     return 1;
 }
 
