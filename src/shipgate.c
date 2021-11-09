@@ -2045,14 +2045,6 @@ static int handle_qflag_err(shipgate_conn_t *c, shipgate_qflag_err_pkt *pkt) {
     lobby_t *l;
     uint8_t flag_reg;
 
-    /* Catch attempts to sync invalid flag ids (just in case we support
-       extra stuff here later ;-) ). */
-    if((flag_id & 0x3FFFFF00)) {
-        debug(DBG_WARN, "Shipgate attempted to sync bad flag id: %" PRIu32 "\n",
-              flag_id);
-        return -1;
-    }
-
     /* Grab the block first */
     if(block > s->cfg->blocks || !(b = s->blocks[block - 1])) {
         return 0;
