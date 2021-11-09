@@ -1952,21 +1952,16 @@ static int handle_qflag(shipgate_conn_t *c, shipgate_qflag_pkt *pkt) {
     ship_client_t *i;
     lobby_t *l;
     uint32_t gc = ntohl(pkt->guildcard), block = ntohl(pkt->block);
-    uint32_t flag_id = ntohl(pkt->flag_id), value = ntohl(pkt->value);
+    uint32_t flag_id = ntohl(pkt->flag_id), value = ntohl(pkt->value), ctl;
     uint16_t flags = ntohs(pkt->hdr.flags), type = ntohs(pkt->hdr.pkt_type);
     uint8_t flag_reg;
+
+    ctl = flag_id & 0xFFFF0000;
+    flag_id = (flag_id & 0x0000FFFF) | (ntohs(pkt->flag_id_hi) << 16);
 
     /* Make sure the packet looks sane... */
     if(!(flags & SHDR_RESPONSE) || (flags & SHDR_FAILURE)) {
         debug(DBG_WARN, "Shipgate sent bad qflag packet!\n");
-        return -1;
-    }
-
-    /* Catch attempts to sync invalid flag ids (just in case we support
-       extra stuff here later ;-) ). */
-    if((flag_id & 0x3FFFFF00)) {
-        debug(DBG_WARN, "Shipgate attempted to sync bad flag id: %" PRIu32 "\n",
-              flag_id);
         return -1;
     }
 
@@ -1995,7 +1990,7 @@ static int handle_qflag(shipgate_conn_t *c, shipgate_qflag_pkt *pkt) {
             if(!(i->flags & CLIENT_FLAG_QSTACK_LOCK)) {
                 /* Sanity check... If we got this far, we should not have a long
                    flag. */
-                if((flag_id & 0x80000000)) {
+                if((ctl & 0x80000000)) {
                     /* Drop the sync, because it either wasn't requested or
                        something else like that... */
                     debug(DBG_WARN, "Shipgate attempted to sync long flag when "
@@ -2009,7 +2004,11 @@ static int handle_qflag(shipgate_conn_t *c, shipgate_qflag_pkt *pkt) {
                 pthread_mutex_unlock(&l->mutex);
 
                 /* Make the value that the quest is expecting... */
-                flag_id &= 0xFF;
+                if(flag_id > 0xFF) {
+                    debug(DBG_WARN, "Shipgate attempted to sync incorrect flag "
+                          "for quest (id %" PRIu32 ") flag request\n", flag_id);
+                    return 0;
+                }
 
                 if(type == SHDR_TYPE_QFLAG_GET)
                     value = (value & 0xFFFF) | 0x40000000 | (flag_id << 16);
