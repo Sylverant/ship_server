@@ -3235,7 +3235,8 @@ static int handle_sync_reg(ship_client_t *c, subcmd_sync_reg_t *pkt) {
     }
 
     /* Does this quest use global flags? If so, then deal with them... */
-    if((l->q_flags & LOBBY_QFLAG_SHORT) && pkt->reg_num == l->q_shortflag_reg) {
+    if((l->q_flags & LOBBY_QFLAG_SHORT) && pkt->reg_num == l->q_shortflag_reg &&
+       !done) {
         /* Check the control bits for sensibility... */
         ctl = (val >> 29) & 0x07;
 
@@ -3246,11 +3247,11 @@ static int handle_sync_reg(ship_client_t *c, subcmd_sync_reg_t *pkt) {
         }
         /* Make sure we don't have anything with any reserved ctl bits set
            (unless a script has already handled the sync). */
-        else if((val & 0x17000000) && !done) {
+        else if((val & 0x17000000)) {
             debug(DBG_LOG, "Quest set flag register with reserved ctl!\n");
             send_sync_register(c, pkt->reg_num, 0x8000FFFE);
         }
-        else if((val & 0x08000000) && !done) {
+        else if((val & 0x08000000)) {
             /* Delete the flag... */
             shipgate_send_qflag(&ship->sg, c, 1, ((val >> 16) & 0xFF),
                                 c->cur_lobby->qid, 0, QFLAG_DELETE_FLAG);
@@ -3260,11 +3261,12 @@ static int handle_sync_reg(ship_client_t *c, subcmd_sync_reg_t *pkt) {
             shipgate_send_qflag(&ship->sg, c, ctl & 0x01, (val >> 16) & 0xFF,
                                 c->cur_lobby->qid, val & 0xFFFF, 0);
         }
+
         done = 1;
     }
 
     /* Does this quest use server data calls? If so, deal with it... */
-    if((l->q_flags & LOBBY_QFLAG_DATA)) {
+    if((l->q_flags & LOBBY_QFLAG_DATA) && !done) {
         if(pkt->reg_num == l->q_data_reg) {
             if(c->q_stack_top < CLIENT_MAX_QSTACK) {
                 if(!(c->flags & CLIENT_FLAG_QSTACK_LOCK)) {
