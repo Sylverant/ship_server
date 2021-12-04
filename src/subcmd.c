@@ -1099,6 +1099,14 @@ static int handle_take_item(ship_client_t *c, subcmd_take_item_t *pkt) {
     if(l->num_clients != 1 && pkt->client_id != c->client_id)
         return -1;
 
+    /* Outside of quests, we shouldn't be able to get these unless the shopping
+       flag is set... Log any we get. */
+    if(!(l->flags & LOBBY_FLAG_QUESTING) &&
+       !(c->flags & CLIENT_FLAG_SHOPPING)) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " attempting to take item from "
+              "bank when bank not opened!\n", c->guildcard);
+    }
+
     /* Run the bank action script, if any. */
     if(script_execute(ScriptActionBankAction, c, SCRIPT_ARG_PTR, c,
                       SCRIPT_ARG_INT, 1, SCRIPT_ARG_UINT32, pkt->data_l[0],
