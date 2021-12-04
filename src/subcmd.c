@@ -1515,6 +1515,7 @@ static int handle_bb_move(ship_client_t *c, subcmd_bb_move_t *pkt) {
 static int handle_delete_inv(ship_client_t *c, subcmd_destroy_item_t *pkt) {
     lobby_t *l = c->cur_lobby;
     int num;
+    uint32_t i, item_id;
 
     /* We can't get these in default lobbies without someone messing with
        something that they shouldn't be... Disconnect anyone that tries. */
@@ -1525,6 +1526,20 @@ static int handle_delete_inv(ship_client_t *c, subcmd_destroy_item_t *pkt) {
        match with what we expect. Disconnect the client if not. */
     if(pkt->size != 0x03)
         return -1;
+
+    /* Ignore meseta */
+    if(pkt->item_id != 0xFFFFFFFF) {
+        /* Has the user recently dropped this item without picking it up? If so,
+           they can't possibly have it in their inventory. */
+        item_id = LE32(pkt->item_id);
+
+        for(i = 0; i < c->p2_drops_max; ++i) {
+            if(c->p2_drops[i] == item_id) {
+                debug(DBG_WARN, "Guildcard %" PRIu32 " appears to be duping "
+                      "item with id %" PRIu32 "!\n", c->guildcard, item_id);
+            }
+        }
+    }
 
     if(!(c->flags & CLIENT_FLAG_TRACK_INVENTORY))
         goto send_pkt;
@@ -3497,7 +3512,6 @@ static int handle_done_npc(ship_client_t *c, subcmd_pkt_t *pkt) {
 static int handle_pick_up(ship_client_t *c, ship_client_t *d,
                           subcmd_pick_up_t *pkt) {
     lobby_t *l = c->cur_lobby;
-    uint32_t i;
 
     /* We can't get these in lobbies without someone messing with something
        that they shouldn't be... Disconnect anyone that tries. */
