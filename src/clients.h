@@ -173,6 +173,9 @@ struct ship_client {
     uint32_t q_stack[CLIENT_MAX_QSTACK];
     int q_stack_top;
 
+    uint32_t p2_drops[30];
+    uint32_t p2_drops_max;
+
 #ifdef DEBUG
     uint8_t sdrops_ver;
     uint8_t sdrops_ep;

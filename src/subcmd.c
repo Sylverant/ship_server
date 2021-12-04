@@ -1407,6 +1407,13 @@ static int handle_set_area(ship_client_t *c, subcmd_set_area_t *pkt) {
         script_execute(ScriptActionChangeArea, c, SCRIPT_ARG_PTR, c,
                        SCRIPT_ARG_INT, (int)pkt->area, SCRIPT_ARG_INT,
                        c->cur_area, SCRIPT_ARG_END);
+
+        /* Clear the list of dropped items. */
+        if(c->cur_area == 0) {
+            memset(c->p2_drops, 0, sizeof(c->p2_drops));
+            c->p2_drops_max = 0;
+        }
+
         c->cur_area = pkt->area;
 
         if((l->flags & LOBBY_FLAG_QUESTING))
@@ -3366,6 +3373,12 @@ static int handle_talk_shop(ship_client_t *c, subcmd_pkt_t *pkt) {
         return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
     }
 
+    /* Clear the list of dropped items. */
+    if(c->cur_area == 0) {
+        memset(c->p2_drops, 0, sizeof(c->p2_drops));
+        c->p2_drops_max = 0;
+    }
+
     /* Flip the shopping flag, since this packet is sent both for talking to the
        shop in the first place and when the client exits the shop. */
     c->flags ^= CLIENT_FLAG_SHOPPING;
@@ -3390,6 +3403,22 @@ static int handle_drop_item(ship_client_t *c, subcmd_drop_item_t *pkt) {
               c->guildcard);
     }
 
+    /* Sanity check... Make sure the size of the subcommand matches with what we
+       expect. Disconnect the client if not. */
+    if(pkt->size != 0x06)
+        return -1;
+
+    /* Are we on Pioneer 2? If so, record the item they just dropped. */
+    if(c->cur_area == 0) {
+        if(c->p2_drops_max < 30) {
+            c->p2_drops[c->p2_drops_max++] = LE32(pkt->item_id);
+        }
+        else {
+            debug(DBG_WARN, "Guildcard %" PRIu32 " dropped too many items!"
+                  "This is possibly a bug in the server!\n");
+        }
+    }
+
     /* Perhaps do more with this at some point when we do inventory tracking? */
     return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
 }
@@ -3405,6 +3434,11 @@ static int handle_drop_stack(ship_client_t *c, subcmd_drop_stack_t *pkt) {
         return -1;
     }
 
+    /* Sanity check... Make sure the size of the subcommand matches with what we
+       expect. Disconnect the client if not. */
+    if(pkt->size != 0x0A)
+        return -1;
+
     /* If a shop menu is open, someone is probably doing something nefarious.
        Log it for now... */
     if((c->flags & CLIENT_FLAG_SHOPPING)) {
@@ -3414,6 +3448,83 @@ static int handle_drop_stack(ship_client_t *c, subcmd_drop_stack_t *pkt) {
 
     /* Perhaps do more with this at some point when we do inventory tracking? */
     return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
+}
+
+static int handle_talk_npc(ship_client_t *c, subcmd_talk_npc_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+
+    /* We can't get these in lobbies without someone messing with something
+       that they shouldn't be... Disconnect anyone that tries. */
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " talked to NPC in lobby!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* Sanity check... Make sure the size of the subcommand matches with what we
+       expect. Disconnect the client if not. */
+    if(pkt->size != 0x05)
+        return -1;
+
+    /* Clear the list of dropped items. */
+    if(pkt->unk == 0xFFFF && c->cur_area == 0) {
+        memset(c->p2_drops, 0, sizeof(c->p2_drops));
+        c->p2_drops_max = 0;
+    }
+
+    return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
+}
+
+static int handle_done_npc(ship_client_t *c, subcmd_pkt_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+
+    /* We can't get these in lobbies without someone messing with something
+       that they shouldn't be... Disconnect anyone that tries. */
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " finished NPC talk in lobby!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* Sanity check... Make sure the size of the subcommand matches with what we
+       expect. Disconnect the client if not. */
+    if(pkt->size != 0x01)
+        return -1;
+
+    return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
+}
+
+static int handle_pick_up(ship_client_t *c, ship_client_t *d,
+                          subcmd_pick_up_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+    uint32_t i;
+
+    /* We can't get these in lobbies without someone messing with something
+       that they shouldn't be... Disconnect anyone that tries. */
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " picked up item in lobby!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* Sanity check... Make sure the size of the subcommand matches with what we
+       expect. Disconnect the client if not. */
+    if(pkt->size != 0x03)
+        return -1;
+
+    if(c->cur_area != pkt->area) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " picked up item in area they are "
+              "not currently in!\n", c->guildcard);
+    }
+
+    /* Clear the list of dropped items. */
+    if(c->cur_area == 0) {
+        memset(c->p2_drops, 0, sizeof(c->p2_drops));
+        c->p2_drops_max = 0;
+    }
+
+    /* Maybe do more in the future with inventory tracking? */
+    return send_pkt_dc(d, (dc_pkt_hdr_t *)pkt);
 }
 
 /* Handle a 0x62/0x6D packet. */
@@ -3513,6 +3624,10 @@ int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
             else {
                 rv = send_pkt_dc(dest, (dc_pkt_hdr_t *)pkt);
             }
+            break;
+
+        case SUBCMD_PICK_UP:
+            rv = handle_pick_up(c, dest, (subcmd_pick_up_t *)pkt);
             break;
 
         default:
@@ -3770,6 +3885,14 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
             rv = handle_drop_stack(c, (subcmd_drop_stack_t *)pkt);
             break;
 
+        case SUBCMD_TALK_NPC:
+            rv = handle_talk_npc(c, (subcmd_talk_npc_t *)pkt);
+            break;
+
+        case SUBCMD_DONE_NPC:
+            rv = handle_done_npc(c, (subcmd_pkt_t *)pkt);
+            break;
+
         default:
 #ifdef LOG_UNKNOWN_SUBS
             debug(DBG_LOG, "Unknown 0x60: 0x%02X\n", type);
@@ -3790,8 +3913,6 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
             }
 
         case SUBCMD_LOAD_22:
-        case SUBCMD_TALK_NPC:
-        case SUBCMD_DONE_NPC:
         case SUBCMD_LOAD_3B:
         case SUBCMD_WARP_55:
         case SUBCMD_LOBBY_ACTION:

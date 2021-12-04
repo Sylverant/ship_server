@@ -353,6 +353,17 @@ typedef struct subcmd_bb_destroy_item {
     uint32_t amount;
 } PACKED subcmd_bb_destroy_item_t;
 
+typedef struct subcmd_pick_up {
+    dc_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint8_t client_id;
+    uint8_t unused;
+    uint32_t item_id;
+    uint8_t area;
+    uint8_t unused2[3];
+} PACKED subcmd_pick_up_t;
+
 typedef struct subcmd_bb_pick_up {
     bb_pkt_hdr_t hdr;
     uint8_t type;
@@ -860,6 +871,20 @@ typedef struct subcmd_sync_reg {
     uint16_t unk2;          /* Probably unused junk again. */
     uint32_t value;
 } PACKED subcmd_sync_reg_t;
+
+/* Packet sent when talking to an NPC on Pioneer 2 (and other purposes). */
+typedef struct subcmd_talk_npc {
+    dc_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint8_t client_id;
+    uint8_t unused;
+    uint16_t unk;           /* Always 0xFFFF for NPCs? */
+    uint16_t zero;          /* Always 0? */
+    float x;
+    float z;
+    uint32_t unused2;       /* Always zero? */
+} PACKED subcmd_talk_npc_t;
 
 #undef PACKED
 
