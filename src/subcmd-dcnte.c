@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2013, 2020 Lawrence Sebald
+    Copyright (C) 2013, 2020, 2021 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -150,8 +150,8 @@ int subcmd_translate_dc_to_nte(ship_client_t *c, subcmd_pkt_t *pkt) {
             newtype = SUBCMD_DCNTE_MOVE_FAST;
             break;
 
-        case SUBCMD_TALK_DESK:
-            newtype = SUBCMD_DCNTE_TALK_DESK;
+        case SUBCMD_TALK_SHOP:
+            newtype = SUBCMD_DCNTE_TALK_SHOP;
             break;
 
         default:
@@ -201,8 +201,8 @@ int subcmd_translate_bb_to_nte(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
             newtype = SUBCMD_DCNTE_MOVE_FAST;
             break;
 
-        case SUBCMD_TALK_DESK:
-            newtype = SUBCMD_DCNTE_TALK_DESK;
+        case SUBCMD_TALK_SHOP:
+            newtype = SUBCMD_DCNTE_TALK_SHOP;
             break;
 
         default:
@@ -252,8 +252,8 @@ int subcmd_translate_nte_to_dc(ship_client_t *c, subcmd_pkt_t *pkt) {
             newtype = SUBCMD_MOVE_FAST;
             break;
 
-        case SUBCMD_DCNTE_TALK_DESK:
-            newtype = SUBCMD_TALK_DESK;
+        case SUBCMD_DCNTE_TALK_SHOP:
+            newtype = SUBCMD_TALK_SHOP;
             break;
 
         default:

@@ -1,6 +1,7 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2015, 2018, 2019 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2015, 2018, 2019,
+                  2021 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -901,7 +902,7 @@ typedef struct subcmd_sync_reg {
 #define SUBCMD_USED_TECH    0x48
 #define SUBCMD_TAKE_DAMAGE1 0x4B
 #define SUBCMD_TAKE_DAMAGE2 0x4C
-#define SUBCMD_TALK_DESK    0x52    /* Talking to someone at a desk, maybe? */
+#define SUBCMD_TALK_SHOP    0x52    /* Talking to someone at a shop */
 #define SUBCMD_WARP_55      0x55    /* Something with the principal's warp? */
 #define SUBCMD_LOBBY_ACTION 0x58
 #define SUBCMD_DEL_MAP_ITEM 0x59    /* Sent by leader when item picked up */
@@ -938,7 +939,7 @@ typedef struct subcmd_sync_reg {
 #define SUBCMD_DCNTE_SET_POS        0x36    /* 0x3F */
 #define SUBCMD_DCNTE_MOVE_SLOW      0x37    /* 0x40 */
 #define SUBCMD_DCNTE_MOVE_FAST      0x39    /* 0x42 */
-#define SUBCMD_DCNTE_TALK_DESK      0x46    /* 0x52 */
+#define SUBCMD_DCNTE_TALK_SHOP      0x46    /* 0x52 */
 
 /* The commands OK to send during bursting (0x62/0x6D). These are named for the
    order in which they're sent, hence why the names are out of order... */

@@ -3350,6 +3350,47 @@ static int handle_set_pos24(ship_client_t *c, subcmd_pkt_t *pkt) {
     return subcmd_send_lobby_dc(l, c, pkt, 0);
 }
 
+static int handle_talk_shop(ship_client_t *c, subcmd_pkt_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+
+    /* We don't care about these in lobbies. */
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
+    }
+
+    return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
+}
+
+static int handle_drop_item(ship_client_t *c, subcmd_drop_item_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+
+    /* We can't get these in lobbies without someone messing with something
+       that they shouldn't be... Disconnect anyone that tries. */
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " dropped item in lobby!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* Perhaps do more with this at some point when we do inventory tracking? */
+    return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
+}
+
+static int handle_drop_stack(ship_client_t *c, subcmd_drop_stack_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+
+    /* We can't get these in lobbies without someone messing with something
+       that they shouldn't be... Disconnect anyone that tries. */
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " dropped stack in lobby!\n",
+              c->guildcard);
+        return -1;
+    }
+
+    /* Perhaps do more with this at some point when we do inventory tracking? */
+    return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
+}
+
 /* Handle a 0x62/0x6D packet. */
 int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
     lobby_t *l = c->cur_lobby;
@@ -3692,6 +3733,18 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
             rv = handle_set_pos24(c, pkt);
             break;
 
+        case SUBCMD_TALK_SHOP:
+            rv = handle_talk_shop(c, pkt);
+            break;
+
+        case SUBCMD_DROP_ITEM:
+            rv = handle_drop_item(c, (subcmd_drop_item_t *)pkt);
+            break;
+
+        case SUBCMD_DROP_STACK:
+            rv = handle_drop_stack(c, (subcmd_drop_stack_t *)pkt);
+            break;
+
         default:
 #ifdef LOG_UNKNOWN_SUBS
             debug(DBG_LOG, "Unknown 0x60: 0x%02X\n", type);
@@ -3715,7 +3768,6 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
         case SUBCMD_TALK_NPC:
         case SUBCMD_DONE_NPC:
         case SUBCMD_LOAD_3B:
-        case SUBCMD_TALK_DESK:
         case SUBCMD_WARP_55:
         case SUBCMD_LOBBY_ACTION:
         case SUBCMD_GOGO_BALL:
@@ -3840,7 +3892,7 @@ int subcmd_bb_handle_bcast(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
         case SUBCMD_TALK_NPC:
         case SUBCMD_DONE_NPC:
         case SUBCMD_LOAD_3B:
-        case SUBCMD_TALK_DESK:
+        case SUBCMD_TALK_SHOP:
         case SUBCMD_WARP_55:
         case SUBCMD_LOBBY_ACTION:
         case SUBCMD_GOGO_BALL:
