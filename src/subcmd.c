@@ -3358,6 +3358,9 @@ static int handle_talk_shop(ship_client_t *c, subcmd_pkt_t *pkt) {
         return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
     }
 
+    /* Flip the shopping flag, since this packet is sent both for talking to the
+       shop in the first place and when the client exits the shop. */
+    c->flags ^= CLIENT_FLAG_SHOPPING;
     return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
 }
 
@@ -3370,6 +3373,13 @@ static int handle_drop_item(ship_client_t *c, subcmd_drop_item_t *pkt) {
         debug(DBG_WARN, "Guildcard %" PRIu32 " dropped item in lobby!\n",
               c->guildcard);
         return -1;
+    }
+
+    /* If a shop menu is open, someone is probably doing something nefarious.
+       Log it for now... */
+    if((c->flags & CLIENT_FLAG_SHOPPING)) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " dropped item while shopping!\n",
+              c->guildcard);
     }
 
     /* Perhaps do more with this at some point when we do inventory tracking? */
@@ -3385,6 +3395,13 @@ static int handle_drop_stack(ship_client_t *c, subcmd_drop_stack_t *pkt) {
         debug(DBG_WARN, "Guildcard %" PRIu32 " dropped stack in lobby!\n",
               c->guildcard);
         return -1;
+    }
+
+    /* If a shop menu is open, someone is probably doing something nefarious.
+       Log it for now... */
+    if((c->flags & CLIENT_FLAG_SHOPPING)) {
+        debug(DBG_WARN, "Guildcard %" PRIu32 " dropped stack while shopping!\n",
+              c->guildcard);
     }
 
     /* Perhaps do more with this at some point when we do inventory tracking? */
