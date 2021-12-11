@@ -7859,7 +7859,7 @@ static int send_dc_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
     /* Fill in the menu codes */
     for(j = 0; j < s->mccount; ++j) {
         if(s->menu_codes[j] != menu_code) {
-            if(is_ship_menu_empty(c, s, menu_code))
+            if(is_ship_menu_empty(c, s, s->menu_codes[j]))
                 continue;
 
             tmp[0] = (char)(s->menu_codes[j]);
@@ -7970,7 +7970,7 @@ static int send_pc_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
     /* Fill in the menu codes */
     for(j = 0; j < s->mccount; ++j) {
         if(s->menu_codes[j] != menu_code) {
-            if(is_ship_menu_empty(c, s, menu_code))
+            if(is_ship_menu_empty(c, s, s->menu_codes[j]))
                 continue;
 
             tmp2[0] = (char)(s->menu_codes[j]);
@@ -8082,7 +8082,7 @@ static int send_bb_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
     /* Fill in the menu codes */
     for(j = 0; j < s->mccount; ++j) {
         if(s->menu_codes[j] != menu_code) {
-            if(is_ship_menu_empty(c, s, menu_code))
+            if(is_ship_menu_empty(c, s, s->menu_codes[j]))
                 continue;
 
             tmp2[0] = (char)(s->menu_codes[j]);
