@@ -7731,6 +7731,63 @@ int send_arrows(ship_client_t *c, lobby_t *l) {
     return -1;
 }
 
+static int is_ship_menu_empty(ship_client_t *c, ship_t *s, uint16_t menu_code) {
+    int isgm = GLOBAL_GM(c);
+    int ver;
+    miniship_t *i;
+
+    switch(c->version) {
+        case CLIENT_VERSION_DCV1:
+            if((c->flags & CLIENT_FLAG_IS_NTE))
+                ver = LOGIN_FLAG_NODCNTE;
+            else
+                ver = LOGIN_FLAG_NOV1;
+            break;
+
+        case CLIENT_VERSION_DCV2:
+        case CLIENT_VERSION_GC:
+        case CLIENT_VERSION_EP3:
+        case CLIENT_VERSION_BB:
+            ver = LOGIN_FLAG_NOV1 << c->version;
+            break;
+
+        case CLIENT_VERSION_XBOX:
+            ver = LOGIN_FLAG_NOXBOX;
+            break;
+
+        case CLIENT_VERSION_PC:
+            if((c->flags & CLIENT_FLAG_IS_NTE))
+                ver = LOGIN_FLAG_NOPCNTE;
+            else
+                ver = LOGIN_FLAG_NOPC;
+            break;
+
+        default:
+            return -1;
+    }
+
+    /* Look through the list of ships for one that is in that menu that the user
+       can actually see... */
+    TAILQ_FOREACH(i, &s->ships, qentry) {
+        if(i->ship_id && i->menu_code == menu_code) {
+            if((i->flags & LOGIN_FLAG_GMONLY) && !isgm)
+                continue;
+            else if((i->flags & ver))
+                continue;
+            else if((i->privileges & c->privilege) != i->privileges && !isgm)
+                continue;
+
+            /* If we get here, then we found a ship the user can see, so the
+               menu isn't empty. */
+            return 0;
+        }
+    }
+
+    /* If we didn't find anything above, we've got an empty menu from the user's
+       point of view. */
+    return 1;
+}
+
 /* Send a ship list packet to the client. */
 static int send_dc_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
     uint8_t *sendbuf = get_sendbuf();
@@ -7740,9 +7797,8 @@ static int send_dc_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
     char tmp[3];
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Clear the packet's header. */
     memset(pkt, 0, 0x20);
@@ -7803,14 +7859,16 @@ static int send_dc_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
     /* Fill in the menu codes */
     for(j = 0; j < s->mccount; ++j) {
         if(s->menu_codes[j] != menu_code) {
+            if(is_ship_menu_empty(c, s, menu_code))
+                continue;
+
             tmp[0] = (char)(s->menu_codes[j]);
             tmp[1] = (char)(s->menu_codes[j] >> 8);
             tmp[2] = '\0';
 
             /* Make sure the values are in-bounds */
-            if((tmp[0] || tmp[1]) && (!isalpha(tmp[0]) || !isalpha(tmp[1]))) {
+            if((tmp[0] || tmp[1]) && (!isalpha(tmp[0]) || !isalpha(tmp[1])))
                 continue;
-            }
 
             /* Clear out the ship information */
             memset(&pkt->entries[entries], 0, 0x1C);
@@ -7822,12 +7880,10 @@ static int send_dc_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
             pkt->entries[entries].flags = LE16(0x0000);
 
             /* Create the name string */
-            if(tmp[0] && tmp[1]) {
+            if(tmp[0] && tmp[1])
                 sprintf(pkt->entries[entries].name, "SHIP/%s", tmp);
-            }
-            else {
+            else
                 strcpy(pkt->entries[entries].name, "SHIP/Main");
-            }
 
             /* We're done with this ship, increment the counter */
             ++entries;
@@ -7852,9 +7908,8 @@ static int send_pc_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
     char tmp[18], tmp2[3];
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Clear the packet's header. */
     memset(pkt, 0, 0x30);
@@ -7879,6 +7934,10 @@ static int send_pc_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
             if((i->flags & LOGIN_FLAG_GMONLY) &&
                !(c->privilege & CLIENT_PRIV_GLOBAL_GM)) {
                 continue;
+            }
+            else if(c->flags & CLIENT_FLAG_IS_NTE) {
+                if(i->flags & LOGIN_FLAG_NOPCNTE)
+                    continue;
             }
             else if((i->flags & (LOGIN_FLAG_NOV1 << c->version))) {
                 continue;
@@ -7911,15 +7970,17 @@ static int send_pc_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
     /* Fill in the menu codes */
     for(j = 0; j < s->mccount; ++j) {
         if(s->menu_codes[j] != menu_code) {
+            if(is_ship_menu_empty(c, s, menu_code))
+                continue;
+
             tmp2[0] = (char)(s->menu_codes[j]);
             tmp2[1] = (char)(s->menu_codes[j] >> 8);
             tmp2[2] = '\0';
 
             /* Make sure the values are in-bounds */
             if((tmp2[0] || tmp2[1]) &&
-               (!isalpha(tmp2[0]) || !isalpha(tmp2[1]))) {
+               (!isalpha(tmp2[0]) || !isalpha(tmp2[1])))
                 continue;
-            }
 
             /* Clear out the ship information */
             memset(&pkt->entries[entries], 0, 0x2C);
@@ -7931,12 +7992,10 @@ static int send_pc_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
             pkt->entries[entries].flags = LE16(0x0000);
 
             /* Create the name string (UTF-8) */
-            if(tmp2[0] && tmp2[1]) {
+            if(tmp2[0] && tmp2[1])
                 sprintf(tmp, "SHIP/%s", tmp2);
-            }
-            else {
+            else
                 strcpy(tmp, "SHIP/Main");
-            }
 
             /* And convert to UTF-16 */
             istrncpy(ic_8859_to_utf16, (char *)pkt->entries[entries].name, tmp,
@@ -7965,9 +8024,8 @@ static int send_bb_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
     char tmp[18], tmp2[3];
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Clear the packet's header. */
     memset(pkt, 0, 0x30);
@@ -8024,6 +8082,9 @@ static int send_bb_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
     /* Fill in the menu codes */
     for(j = 0; j < s->mccount; ++j) {
         if(s->menu_codes[j] != menu_code) {
+            if(is_ship_menu_empty(c, s, menu_code))
+                continue;
+
             tmp2[0] = (char)(s->menu_codes[j]);
             tmp2[1] = (char)(s->menu_codes[j] >> 8);
             tmp2[2] = '\0';
@@ -8044,12 +8105,10 @@ static int send_bb_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
             pkt->entries[entries].flags = LE16(0x0000);
 
             /* Create the name string (UTF-8) */
-            if(tmp2[0] && tmp2[1]) {
+            if(tmp2[0] && tmp2[1])
                 sprintf(tmp, "SHIP/%s", tmp2);
-            }
-            else {
+            else
                 strcpy(tmp, "SHIP/Main");
-            }
 
             /* And convert to UTF-16 */
             istrncpy(ic_8859_to_utf16, (char *)pkt->entries[entries].name, tmp,

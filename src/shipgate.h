@@ -642,7 +642,7 @@ static const char shipgate_login_msg[] =
 #define LOGIN_FLAG_NOBB     0x00000200  /* Do not allow PSOBB clients */
 #define LOGIN_FLAG_NODCNTE  0x00000400  /* Do not allow DC NTE clients */
 #define LOGIN_FLAG_NOXBOX   0x00000800  /* Do not allow Xbox clients */
-/* 0x00010000 reserved. */
+#define LOGIN_FLAG_NOPCNTE  0x00001000  /* Do not allow PC NTE clients */
 #define LOGIN_FLAG_LUA      0x00020000  /* Ship supports Lua scripting */
 #define LOGIN_FLAG_32BIT    0x00040000  /* Ship is running on a 32-bit cpu */
 #define LOGIN_FLAG_BE       0x00080000  /* Ship is big endian */
