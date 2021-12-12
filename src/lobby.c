@@ -1937,6 +1937,11 @@ int lobby_setup_quest(lobby_t *l, ship_client_t *c, uint32_t qid, int lang) {
         }
 
         rv = send_quest(l, qid, lang);
+
+        /* Run the quest loaded script, if one exists. */
+        script_execute(ScriptActionQuestLoad, c, SCRIPT_ARG_PTR, c,
+                       SCRIPT_ARG_PTR, l, SCRIPT_ARG_UINT32, qid,
+                       SCRIPT_ARG_INT, lang, SCRIPT_ARG_END);
     }
     else {
         /* This really shouldn't happen... */
