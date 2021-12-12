@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2011, 2016, 2018, 2019, 2020 Lawrence Sebald
+    Copyright (C) 2011, 2016, 2018, 2019, 2020, 2021 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -76,6 +76,7 @@ static const xmlChar *script_action_text[] = {
     XC"BANK_ACTION",
     XC"CHANGE_AREA",
     XC"QUEST_SYNCREG",
+    XC"QUEST_LOAD",
 };
 
 /* Figure out what index a given script action sits at */

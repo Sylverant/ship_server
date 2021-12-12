@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2011, 2016, 2018, 2019, 2020 Lawrence Sebald
+    Copyright (C) 2011, 2016, 2018, 2019, 2020, 2021 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -50,6 +50,7 @@ typedef enum script_action {
     ScriptActionBankAction,
     ScriptActionChangeArea,
     ScriptActionQuestSyncRegister,
+    ScriptActionQuestLoad,
     ScriptActionCount
 } script_action_t;
 
