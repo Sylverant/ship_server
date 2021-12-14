@@ -24,6 +24,7 @@
 #include "quest_functions.h"
 #include "ship_packets.h"
 #include "smutdata.h"
+#include "scripts.h"
 
 static uint32_t get_section_id(ship_client_t *c, lobby_t *l) {
     if(c->q_stack[1] != 1)
@@ -1020,6 +1021,10 @@ static uint32_t get_max_function(ship_client_t *c, lobby_t *l) {
 }
 
 uint32_t quest_function_dispatch(ship_client_t *c, lobby_t *l) {
+    if(c->q_stack[0] > QUEST_SCRIPT_START) {
+        return script_execute_qfunc(c, l);
+    }
+
     /* Call the requested function... */
     switch(c->q_stack[0]) {
         case QUEST_FUNC_GET_SECTION:

@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <unistd.h>
+#include <errno.h>
 #include <sys/queue.h>
 
 #include <sylverant/debug.h>
@@ -29,6 +30,8 @@
 #include "scripts.h"
 #include "utils.h"
 #include "clients.h"
+#include "lobby.h"
+#include "quest_functions.h"
 
 #ifdef ENABLE_LUA
 #include <lua.h>
@@ -158,8 +161,61 @@ int script_add_lobby_locked(lobby_t *l, script_action_t action) {
 
     /* Add the script to the Lua table. */
     l->script_ids[action] = luaL_ref(lstate, -2);
-    debug(DBG_LOG, "Lobby callback for type %d added as ID %d\n", (int)action,
-          l->script_ids[action]);
+    debug(DBG_LOG, "Lobby %" PRIu32 " callback for type %d added as Lua ID "
+          "%d\n", l->lobby_id, (int)action, l->script_ids[action]);
+
+    /* Pop off the scripts table and the function to clean up. */
+    lua_pop(lstate, 2);
+
+    return 0;
+}
+
+int script_add_lobby_qfunc_locked(lobby_t *l, uint32_t id, int args, int rvs) {
+    lobby_qfunc_t *i;
+    int found = 0;
+
+    /* Can't do anything if we don't have any scripts loaded. */
+    if(!scripts_ref)
+        return 0;
+
+    /* Pull the scripts table out to the top of the stack. */
+    lua_rawgeti(lstate, LUA_REGISTRYINDEX, scripts_ref);
+
+    /* Check if the entry is already in the list and issue a warning that we're
+       going to redefine it. */
+    SLIST_FOREACH(i, &l->qfunc_list, entry) {
+        if(i->func_id == id) {
+            debug(DBG_WARN, "Redefining lobby quest function %" PRIu32
+                  " for lobby %" PRIu32 "\n", id, l->lobby_id);
+            luaL_unref(lstate, -1, i->script_id);
+            found = 1;
+        }
+    }
+
+    if(!found) {
+        if(!(i = (lobby_qfunc_t *)malloc(sizeof(lobby_qfunc_t)))) {
+            debug(DBG_WARN, "Cannot allocate memory for lobby quest function: "
+                  "%s\n", strerror(errno));
+            return -1;
+        }
+    }
+
+    /* Pull the function out to the top of the stack. */
+    lua_pushvalue(lstate, -2);
+
+    /* Fill in the structure and add the script reference to the Lua table. */
+    i->func_id = id;
+    i->script_id = luaL_ref(lstate, -2);
+    i->nargs = args;
+    i->nretvals = rvs;
+
+    /* Add to the list if it wasn't already there. */
+    if(!found) {
+        SLIST_INSERT_HEAD(&l->qfunc_list, i, entry);
+    }
+
+    debug(DBG_LOG, "Lobby %" PRIu32 " callback for quest function %" PRIu32
+          " added as Lua ID %d\n", l->lobby_id, id, i->script_id);
 
     /* Pop off the scripts table and the function to clean up. */
     lua_pop(lstate, 2);
@@ -219,6 +275,39 @@ int script_remove_lobby_locked(lobby_t *l, script_action_t action) {
     l->script_ids[action] = 0;
 
     return 0;
+}
+
+int script_remove_lobby_qfunc_locked(lobby_t *l, uint32_t id) {
+    lobby_qfunc_t *i;
+
+    /* Can't do anything if we don't have any scripts loaded. */
+    if(!scripts_ref)
+        return 0;
+
+    /* Look for the requested function. Note that we do not need the _SAFE
+       variant here even though we're removing items from the list because the
+       loop does not iterate after removing from the list. */
+    SLIST_FOREACH(i, &l->qfunc_list, entry) {
+        if(i->func_id == id) {
+            /* Pull the scripts table out to the top of the stack and remove the
+               script reference from it, then pop the script table. */
+            lua_rawgeti(lstate, LUA_REGISTRYINDEX, scripts_ref);
+            luaL_unref(lstate, -2, i->script_id);
+            lua_pop(lstate, 1);
+
+            /* Now remove it from the list and clean up. */
+            SLIST_REMOVE(&l->qfunc_list, i, lobby_qfunc, entry);
+            free(i);
+
+            return 0;
+        }
+    }
+
+    /* If we get here, there wasn't actually anything registered on this
+       lobby. */
+    debug(DBG_WARN, "Attempt to unregister lobby %" PRIu32 " script for "
+          "quest function %" PRIu32 " that does not exist.\n", l->lobby_id, id);
+    return -1;
 }
 
 int script_update_module(const char *filename) {
@@ -702,6 +791,101 @@ int script_execute(script_action_t event, ship_client_t *c, ...) {
     return (int)(llrv | lrv | grv);
 }
 
+uint32_t script_execute_qfunc(ship_client_t *c, lobby_t *l) {
+    lobby_qfunc_t *i;
+    int j, err;
+    lua_Integer rv;
+    const char *errmsg;
+
+    /* Can't do anything if we don't have any scripts loaded. */
+    if(!scripts_ref)
+        return QUEST_FUNC_RET_INVALID_FUNC;
+
+    /* Look for the requested function. */
+    SLIST_FOREACH(i, &l->qfunc_list, entry) {
+        if(i->func_id == c->q_stack[0]) {
+            /* Check that the argument count and return value count match */
+            if(c->q_stack[1] != i->nargs)
+                return QUEST_FUNC_RET_BAD_ARG_COUNT;
+
+            if(c->q_stack[2] != i->nretvals)
+                return QUEST_FUNC_RET_BAD_RET_COUNT;
+
+            /* Check all return value registers for validity */
+            for(j = 3 + i->nargs; j < 3 + i->nargs + i->nretvals; ++j) {
+                if(c->q_stack[j] > 255)
+                    return QUEST_FUNC_RET_INVALID_REGISTER;
+            }
+
+            /* We're gonna do a script if we get here, so... lock the mutex */
+            pthread_mutex_lock(&script_mutex);
+
+            /* Pull the scripts table out to the top of the stack. */
+            lua_rawgeti(lstate, LUA_REGISTRYINDEX, scripts_ref);
+
+            /* Push the script that we're looking at onto the stack. */
+            lua_rawgeti(lstate, -1, i->script_id);
+
+            /* Push the client and lobby structures */
+            lua_pushlightuserdata(lstate, c);
+            lua_pushlightuserdata(lstate, l);
+
+            /* Build a table for the arguments */
+            lua_createtable(lstate, i->nargs, 0);
+
+            for(j = 0; j < i->nargs; ++j) {
+                lua_pushinteger(lstate, j + 1);
+                lua_pushinteger(lstate, c->q_stack[j + 3]);
+                lua_settable(lstate, -3);
+            }
+
+            /* Do the same for the returns */
+            lua_createtable(lstate, i->nretvals, 0);
+
+            for(j = 0; j < i->nretvals; ++j) {
+                lua_pushinteger(lstate, j + 1);
+                lua_pushinteger(lstate, c->q_stack[j + i->nargs + 3]);
+                lua_settable(lstate, -3);
+            }
+
+            /* Done with that, call the function. */
+            if((err = lua_pcall(lstate, 4, 1, 0)) != LUA_OK) {
+                debug(DBG_ERROR, "Error running Lua script for qfunc %" PRIu32
+                      " (%d)\n", i->func_id, err);
+
+                if((errmsg = lua_tostring(lstate, -1))) {
+                    debug(DBG_ERROR, "Error message:\n%s\n", errmsg);
+                }
+
+                lua_pop(lstate, 1);
+                rv = QUEST_FUNC_RET_SCRIPT_ERROR;
+            }
+            else {
+                /* Grab the return value from the lua function (it should be of
+                   type integer). */
+                rv = lua_tointegerx(lstate, -1, &err);
+                if(!err) {
+                    debug(DBG_ERROR, "Script for qfunc %" PRIu32 " didn't "
+                          "return an integer!\n", i->func_id);
+                    rv = QUEST_FUNC_RET_SCRIPT_ERROR;
+                }
+
+                /* Pop off the return value. */
+                lua_pop(lstate, 1);
+            }
+
+            /* Pop off the table reference that we pushed up above. */
+            lua_pop(lstate, 1);
+            pthread_mutex_unlock(&script_mutex);
+
+            return (uint32_t)rv;
+        }
+    }
+
+    /* If we get here, the function doesn't exist. */
+    return QUEST_FUNC_RET_INVALID_FUNC;
+}
+
 int script_execute_file(const char *fn, lobby_t *l) {
     lua_Integer rv;
     int err;
@@ -767,6 +951,12 @@ int script_execute(script_action_t event, ship_client_t *c, ...) {
     return 0;
 }
 
+uint32_t script_execute_qfunc(ship_client_t *c, lobby_t *l) {
+    (void)c;
+    (void)l;
+    return QUEST_FUNC_RET_INVALID_FUNC;
+}
+
 int script_add(script_action_t event, const char *filename) {
     (void)event;
     (void)filename;
@@ -789,9 +979,23 @@ int script_add_lobby_locked(lobby_t *l, script_action_t action) {
     return 0;
 }
 
+int script_add_lobby_qfunc_locked(lobby_t *l, uint32_t id, int args, int rvs) {
+    (void)l;
+    (void)id;
+    (void)args;
+    (void)rvs;
+    return 0;
+}
+
 int script_remove_lobby_locked(lobby_t *l, script_action_t action) {
     (void)l;
     (void)action;
+    return 0;
+}
+
+int script_remove_lobby_qfunc_locked(lobby_t *l, uint32_t id) {
+    (void)l;
+    (void)id;
     return 0;
 }
 

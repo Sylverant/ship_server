@@ -34,6 +34,7 @@
 #define QUEST_FUNC_RET_STACK_LOCKED     0x8000FFF9
 #define QUEST_FUNC_RET_SHIPGATE_ERR     0x8000FFF8
 #define QUEST_FUNC_RET_RETVAL_ERROR     0x8000FFF7
+#define QUEST_FUNC_RET_SCRIPT_ERROR     0x8000FFF6
 
 #define QUEST_FUNC_RET_NOT_YET          0xDEADBEEF
 
@@ -223,6 +224,9 @@
 
 /* The number of the newest function added. */
 #define QUEST_FUNC_MAX                  25
+
+/* The first function number that can be used by scripts */
+#define QUEST_SCRIPT_START              0x80000000
 
 extern uint32_t quest_function_dispatch(ship_client_t *c, lobby_t *l);
 

@@ -40,6 +40,7 @@
 #include "pmtdata.h"
 #include "rtdata.h"
 #include "scripts.h"
+#include "quest_functions.h"
 
 #ifdef ENABLE_LUA
 #include <lua.h>
@@ -2376,6 +2377,80 @@ static int lobby_clearEventCallback_lua(lua_State *l) {
     return 1;
 }
 
+static int lobby_setQuestFunction_lua(lua_State *l) {
+    lobby_t *lb;
+    lua_Integer fnum, argcnt, rvcnt;
+    int rv;
+
+    if(lua_islightuserdata(l, 1) && lua_isinteger(l, 2) &&
+       lua_isfunction(l, 3) && lua_isinteger(l, 4) && lua_isinteger(l, 5)) {
+        lb = (lobby_t *)lua_touserdata(l, 1);
+        fnum = lua_tointeger(l, 2);
+        argcnt = lua_tointeger(l, 4);
+        rvcnt = lua_tointeger(l, 5);
+
+        if(fnum < QUEST_SCRIPT_START) {
+            debug(DBG_WARN, "Script setting invalid quest function: %d\n",
+                  (int)fnum);
+            lua_pushboolean(l, 0);
+            return 1;
+        }
+
+        pthread_mutex_lock(&lb->mutex);
+
+        /* Push the function to the top of the Lua stack. */
+        lua_pushvalue(l, 3);
+
+        /* Attempt to add the callback. */
+        rv = script_add_lobby_qfunc_locked(lb, (uint32_t)fnum, (int)argcnt,
+                                           (int)rvcnt);
+
+        /* Pop the function off of the stack. */
+        lua_pop(l, 1);
+
+        /* Push the result of adding the callback to the stack. */
+        lua_pushboolean(l, 0);
+        pthread_mutex_unlock(&lb->mutex);
+    }
+    else {
+        lua_pushboolean(l, 0);
+    }
+
+    return 1;
+}
+
+static int lobby_clearQuestFunction_lua(lua_State *l) {
+    lobby_t *lb;
+    lua_Integer fnum;
+    int rv;
+
+    if(lua_islightuserdata(l, 1) && lua_isinteger(l, 2)) {
+        lb = (lobby_t *)lua_touserdata(l, 1);
+        fnum = lua_tointeger(l, 2);
+
+        if(fnum < QUEST_SCRIPT_START) {
+            debug(DBG_WARN, "Script clearing invalid quest function: %d\n",
+                  (int)fnum);
+            lua_pushboolean(l, 0);
+            return 1;
+        }
+
+        pthread_mutex_lock(&lb->mutex);
+
+        /* Attempt to add the callback. */
+        rv = script_remove_lobby_qfunc_locked(lb, (uint32_t)fnum);
+
+        /* Push the result of removing the callback to the stack. */
+        lua_pushboolean(l, 0);
+        pthread_mutex_unlock(&lb->mutex);
+    }
+    else {
+        lua_pushboolean(l, 0);
+    }
+
+    return 1;
+}
+
 static const luaL_Reg lobbylib[] = {
     { "id", lobby_id_lua },
     { "type", lobby_type_lua },
@@ -2402,6 +2477,8 @@ static const luaL_Reg lobbylib[] = {
     { "setSinglePlayer", lobby_setSinglePlayer_lua },
     { "setEventCallback", lobby_setEventCallback_lua },
     { "clearEventCallback", lobby_clearEventCallback_lua },
+    { "setQuestFunction", lobby_setQuestFunction_lua },
+    { "clearQuestFunction", lobby_clearQuestFunction_lua },
     { NULL, NULL }
 };
 

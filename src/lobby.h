@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
     Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018,
-                  2019, 2020 Lawrence Sebald
+                  2019, 2020, 2021 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -78,6 +78,17 @@ typedef struct lobby_item {
 } lobby_item_t;
 
 TAILQ_HEAD(lobby_item_queue, lobby_item);
+
+typedef struct lobby_qfunc {
+    SLIST_ENTRY(lobby_qfunc) entry;
+
+    uint32_t func_id;
+    int script_id;
+    int nargs;
+    int nretvals;
+} lobby_qfunc_t;
+
+SLIST_HEAD(lobby_qfunc_list, lobby_qfunc);
 
 struct lobby {
     TAILQ_ENTRY(lobby) qentry;
@@ -160,6 +171,8 @@ struct lobby {
     int script_ref;
     int *script_ids;
     FILE *logfp;
+
+    struct lobby_qfunc_list qfunc_list;
 };
 
 #ifndef LOBBY_DEFINED

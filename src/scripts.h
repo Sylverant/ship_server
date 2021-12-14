@@ -73,13 +73,18 @@ int script_execute(script_action_t event, ship_client_t *c, ...);
 int script_execute_pkt(script_action_t event, ship_client_t *c, const void *pkt,
                        uint16_t len);
 
+/* Call the script function for the called quest function, if it exists */
+uint32_t script_execute_qfunc(ship_client_t *c, lobby_t *l);
+
 void init_scripts(ship_t *s);
 void cleanup_scripts(ship_t *s);
 
 int script_add(script_action_t action, const char *filename);
 int script_add_lobby_locked(lobby_t *l, script_action_t action);
+int script_add_lobby_qfunc_locked(lobby_t *l, uint32_t id, int args, int rvs);
 int script_remove(script_action_t action);
 int script_remove_lobby_locked(lobby_t *l, script_action_t action);
+int script_remove_lobby_qfunc_locked(lobby_t *l, uint32_t id);
 int script_update_module(const char *modname);
 
 int script_execute_file(const char *fn, lobby_t *l);
