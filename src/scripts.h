@@ -85,6 +85,7 @@ int script_add_lobby_qfunc_locked(lobby_t *l, uint32_t id, int args, int rvs);
 int script_remove(script_action_t action);
 int script_remove_lobby_locked(lobby_t *l, script_action_t action);
 int script_remove_lobby_qfunc_locked(lobby_t *l, uint32_t id);
+int script_cleanup_lobby_locked(lobby_t *l);
 int script_update_module(const char *modname);
 
 int script_execute_file(const char *fn, lobby_t *l);

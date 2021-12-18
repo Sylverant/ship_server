@@ -169,6 +169,7 @@ struct lobby {
 #endif
 
     int script_ref;
+    int script_table;
     int *script_ids;
     FILE *logfp;
 

@@ -147,7 +147,7 @@ int script_add_lobby_locked(lobby_t *l, script_action_t action) {
         return 0;
 
     /* Pull the scripts table out to the top of the stack. */
-    lua_rawgeti(lstate, LUA_REGISTRYINDEX, scripts_ref);
+    lua_rawgeti(lstate, LUA_REGISTRYINDEX, l->script_table);
 
     /* Issue a warning if we're redefining something before doing it. */
     if(l->script_ids[action]) {
@@ -179,7 +179,7 @@ int script_add_lobby_qfunc_locked(lobby_t *l, uint32_t id, int args, int rvs) {
         return 0;
 
     /* Pull the scripts table out to the top of the stack. */
-    lua_rawgeti(lstate, LUA_REGISTRYINDEX, scripts_ref);
+    lua_rawgeti(lstate, LUA_REGISTRYINDEX, l->script_table);
 
     /* Check if the entry is already in the list and issue a warning that we're
        going to redefine it. */
@@ -266,7 +266,7 @@ int script_remove_lobby_locked(lobby_t *l, script_action_t action) {
 
     /* Pull the scripts table out to the top of the stack and remove the
        script reference from it. */
-    lua_rawgeti(lstate, LUA_REGISTRYINDEX, scripts_ref);
+    lua_rawgeti(lstate, LUA_REGISTRYINDEX, l->script_table);
     luaL_unref(lstate, -2, l->script_ids[action]);
 
     /* Pop off the scripts table and clear out the id stored in the lobby's
@@ -291,7 +291,7 @@ int script_remove_lobby_qfunc_locked(lobby_t *l, uint32_t id) {
         if(i->func_id == id) {
             /* Pull the scripts table out to the top of the stack and remove the
                script reference from it, then pop the script table. */
-            lua_rawgeti(lstate, LUA_REGISTRYINDEX, scripts_ref);
+            lua_rawgeti(lstate, LUA_REGISTRYINDEX, l->script_table);
             luaL_unref(lstate, -2, i->script_id);
             lua_pop(lstate, 1);
 
@@ -308,6 +308,29 @@ int script_remove_lobby_qfunc_locked(lobby_t *l, uint32_t id) {
     debug(DBG_WARN, "Attempt to unregister lobby %" PRIu32 " script for "
           "quest function %" PRIu32 " that does not exist.\n", l->lobby_id, id);
     return -1;
+}
+
+int script_cleanup_lobby_locked(lobby_t *l) {
+    lobby_qfunc_t *j, *tmp;
+
+    /* Can't do anything if we don't have any scripts loaded. */
+    if(!scripts_ref)
+        return 0;
+
+    /* Unreference the script table for the lobby/team. This will cause all the
+       elements in the table to be marked for collection. */
+    luaL_unref(lstate, LUA_REGISTRYINDEX, l->script_table);
+
+    /* Clean up the linked list of quest functions, if any were allocated. */
+    j = SLIST_FIRST(&l->qfunc_list);
+    while(j) {
+        tmp = SLIST_NEXT(j, entry);
+        SLIST_REMOVE_HEAD(&l->qfunc_list, entry);
+        free(j);
+        j = tmp;
+    }
+
+    return 0;
 }
 
 int script_update_module(const char *filename) {
@@ -996,6 +1019,11 @@ int script_remove_lobby_locked(lobby_t *l, script_action_t action) {
 int script_remove_lobby_qfunc_locked(lobby_t *l, uint32_t id) {
     (void)l;
     (void)id;
+    return 0;
+}
+
+int script_cleanup_lobby_locked(lobby_t *l) {
+    (void)l;
     return 0;
 }
 
