@@ -1994,6 +1994,7 @@ int load_quest_enemies(lobby_t *l, uint32_t qid, int ver) {
     uint32_t flags = l->flags;
     game_enemies_t *newen;
     game_objs_t *newob;
+    ssize_t amt;
 
     /* Cowardly refuse to do this on challenge or battle mode. */
     if(l->challenge || l->battle)
@@ -2058,10 +2059,18 @@ int load_quest_enemies(lobby_t *l, uint32_t qid, int ver) {
 
     /* Read the objects in from the cache file. */
     for(i = 0; i < cnt; ++i) {
-        if(fread(&newob->objs[i].data, 1, sizeof(map_object_t),
-                 fp) != sizeof(map_object_t)) {
-            debug(DBG_WARN, "Cannot read cached map objects: %s\n",
-                  strerror(errno));
+        if((amt = fread(&newob->objs[i].data, 1, sizeof(map_object_t),
+                        fp)) != sizeof(map_object_t)) {
+            if(amt < 0) {
+                debug(DBG_WARN, "Cannot read cached map objects at object id "
+                      "%" PRIu32 ": %s\n", i, strerror(errno));
+            }
+            else {
+                debug(DBG_WARN, "Cannot read cached map objects at object id "
+                      "%" PRIu32 ": needed %zu, got %z\n", i,
+                      sizeof(map_object_t), amt);
+            }
+
             debug(DBG_WARN, "Quest ID: %" PRIu32 " Version: %d\n", qid, ver);
             debug(DBG_WARN, "Object count: %" PRIu32 "\n", cnt);
             free(newob->objs);
