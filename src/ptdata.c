@@ -39,6 +39,38 @@
 
 #define PACKED __attribute__((packed))
 
+/* Entry in one of the ItemPT files. Mostly adapted from Tethealla... In the
+   file itself, each of these fields is stored in big-endian byter order.
+   Some of this data also comes from a post by Lee on the PSOBB Eden forums:
+   http://edenserv.net/forum/viewtopic.php?p=19305#p19305 */
+typedef struct fpt_v3_entry {
+    int8_t weapon_ratio[12];                /* 0x0000 */
+    int8_t weapon_minrank[12];              /* 0x000C */
+    int8_t weapon_upgfloor[12];             /* 0x0018 */
+    int8_t power_pattern[9][4];             /* 0x0024 */
+    uint16_t percent_pattern[23][6];        /* 0x0048 */
+    int8_t area_pattern[3][10];             /* 0x015C */
+    int8_t percent_attachment[6][10];       /* 0x017A */
+    int8_t element_ranking[10];             /* 0x01B6 */
+    int8_t element_probability[10];         /* 0x01C0 */
+    int8_t armor_ranking[5];                /* 0x01CA */
+    int8_t slot_ranking[5];                 /* 0x01CF */
+    int8_t unit_level[10];                  /* 0x01D4 */
+    uint16_t tool_frequency[28][10];        /* 0x01DE */
+    uint8_t tech_frequency[19][10];         /* 0x040E */
+    int8_t tech_levels[19][20];             /* 0x04CC */
+    int8_t enemy_dar[100];                  /* 0x0648 */
+    uint16_t enemy_meseta[100][2];          /* 0x06AC */
+    int8_t enemy_drop[100];                 /* 0x083C */
+    uint16_t box_meseta[10][2];             /* 0x08A0 */
+    uint8_t box_drop[7][10];                /* 0x08C8 */
+    uint16_t padding;                       /* 0x090E */
+    uint32_t pointers[18];                  /* 0x0910 */
+    int32_t armor_level;                    /* 0x0958 */
+    /* There is a bit more data here... Dunno what it is. No reason to store it
+       if I don't know how to use it. */
+} PACKED fpt_v3_entry_t;
+
 /* Entry in one of the ItemPT files. This version corresponds to the files that
    were used in PSOv2. The names of the fields were taken from the above
    structure. In the file itself, each of these fields is stored in
@@ -264,16 +296,21 @@ int pt_read_v3(const char *fn, int bb) {
     const char *episodes[2] = { "", "l" };
     char filename[32];
     uint32_t hnd;
-    const size_t sz = sizeof(pt_v3_entry_t);
+    const size_t sz = sizeof(fpt_v3_entry_t);
     pso_error_t err;
-    int rv = 0, i, j, k;
-#if !defined(__BIG_ENDIAN__) && !defined(WORDS_BIGENDIAN)
-    int l, m;
-#endif
+    int rv = 0, i, j, k, l, m;
+    fpt_v3_entry_t *buf;
+    pt_v3_entry_t *ent;
+
+    if(!(buf = (fpt_v3_entry_t *)malloc(sizeof(fpt_v3_entry_t)))) {
+        debug(DBG_ERROR, "Cannot allocate space for pt entry!\n");
+        return -6;
+    }
 
     /* Open up the file and make sure it looks sane enough... */
     if(!(a = pso_gsl_read_open(fn, 0, &err))) {
         debug(DBG_ERROR, "Cannot read %s: %s\n", fn, pso_strerror(err));
+        free(buf);
         return -1;
     }
 
@@ -290,8 +327,8 @@ int pt_read_v3(const char *fn, int bb) {
             for(k = 0; k < 10; ++k) {
                 /* Figure out the name of the file in the archive that we're
                    looking for... */
-                sprintf(filename, "ItemPT%s%c%d.rel", episodes[i],
-                        difficulties[j], k);
+                snprintf(filename, 32, "ItemPT%s%c%d.rel", episodes[i],
+                         difficulties[j], k);
 
                 /* Grab a handle to that file. */
                 hnd = pso_gsl_file_lookup(a, filename);
@@ -309,106 +346,75 @@ int pt_read_v3(const char *fn, int bb) {
                     goto out;
                 }
 
-                if(bb) {
-                    if(pso_gsl_file_read(a, hnd, (uint8_t *)&bb_ptdata[i][j][k],
-                                         sz) != sz) {
-                        debug(DBG_ERROR, "Error reading %s from %s!\n",
-                              filename, fn);
-                        rv = -5;
-                        goto out;
-                    }
-
-                    /* Swap entries, if we need to */
-#if !defined(__BIG_ENDIAN__) && !defined(WORDS_BIGENDIAN)
-                    for(l = 0; l < 28; ++l) {
-                        for(m = 0; m < 10; ++m) {
-                            bb_ptdata[i][j][k].tool_frequency[l][m] =
-                                ntohs(bb_ptdata[i][j][k].tool_frequency[l][m]);
-                        }
-                    }
-
-                    for(l = 0; l < 23; ++l) {
-                        for(m = 0; m < 6; ++m) {
-                            bb_ptdata[i][j][k].percent_pattern[l][m] =
-                                ntohs(bb_ptdata[i][j][k].percent_pattern[l][m]);
-                        }
-                    }
-
-                    for(l = 0; l < 100; ++l) {
-                        for(m = 0; m < 2; ++m) {
-                            bb_ptdata[i][j][k].enemy_meseta[l][m] =
-                                ntohs(bb_ptdata[i][j][k].enemy_meseta[l][m]);
-                        }
-                    }
-
-                    for(l = 0; l < 10; ++l) {
-                        for(m = 0; m < 2; ++m) {
-                            bb_ptdata[i][j][k].box_meseta[l][m] =
-                                ntohs(bb_ptdata[i][j][k].box_meseta[l][m]);
-                        }
-                    }
-
-                    for(l = 0; l < 18; ++l) {
-                        bb_ptdata[i][j][k].pointers[l] =
-                            ntohl(bb_ptdata[i][j][k].pointers[l]);
-                    }
-
-                    bb_ptdata[i][j][k].armor_level =
-                        ntohl(bb_ptdata[i][j][k].armor_level);
-#endif
+                if(pso_gsl_file_read(a, hnd, (uint8_t *)buf, sz) != sz) {
+                    debug(DBG_ERROR, "Error reading %s from %s!\n",
+                          filename, fn);
+                    rv = -5;
+                    goto out;
                 }
-                else {
-                    if(pso_gsl_file_read(a, hnd, (uint8_t *)&gc_ptdata[i][j][k],
-                                         sz) != sz) {
-                        debug(DBG_ERROR, "Error reading %s from %s!\n",
-                              filename, fn);
-                        rv = -5;
-                        goto out;
+
+                /* Dump it into our nicer (not packed) structure. */
+                if(bb)
+                    ent = &bb_ptdata[i][j][k];
+                else
+                    ent = &gc_ptdata[i][j][k];
+
+                memcpy(ent->weapon_ratio, buf->weapon_ratio, 12);
+                memcpy(ent->weapon_minrank, buf->weapon_minrank, 12);
+                memcpy(ent->weapon_upgfloor, buf->weapon_upgfloor, 12);
+                memcpy(ent->element_ranking, buf->element_ranking, 10);
+                memcpy(ent->element_probability, buf->element_probability, 10);
+                memcpy(ent->armor_ranking, buf->armor_ranking, 5);
+                memcpy(ent->slot_ranking, buf->slot_ranking, 5);
+                memcpy(ent->unit_level, buf->unit_level, 10);
+                memcpy(ent->enemy_dar, buf->enemy_dar, 100);
+                memcpy(ent->enemy_drop, buf->enemy_drop, 100);
+                ent->armor_level = ntohl(buf->armor_level);
+
+                for(l = 0; l < 9; ++l) {
+                    memcpy(ent->power_pattern[l], buf->power_pattern[l], 4);
+                }
+
+                for(l = 0; l < 3; ++l) {
+                    memcpy(ent->area_pattern[l], buf->area_pattern[l], 10);
+                }
+
+                for(l = 0; l < 6; ++l) {
+                    memcpy(ent->percent_attachment[l],
+                           buf->percent_attachment[l], 10);
+                }
+
+                for(l = 0; l < 7; ++l) {
+                    memcpy(ent->box_drop[l], buf->box_drop[l], 10);
+                }
+
+                for(l = 0; l < 19; ++l) {
+                    memcpy(ent->tech_frequency[l], buf->tech_frequency[l], 10);
+                    memcpy(ent->tech_levels[l], buf->tech_levels[l], 20);
+                }
+
+                for(l = 0; l < 23; ++l) {
+                    for(m = 0; m < 6; ++m) {
+                        ent->percent_pattern[l][m] =
+                            ntohs(buf->percent_pattern[l][m]);
                     }
+                }
 
-#ifdef DEBUG
-                    debug(DBG_LOG, "PSOGC ItemPT.gsl pointer for file %s: %p\n",
-                          filename, &gc_ptdata[i][j][k]);
-#endif
-
-                    /* Swap entries, if we need to */
-#if !defined(__BIG_ENDIAN__) && !defined(WORDS_BIGENDIAN)
-                    for(l = 0; l < 28; ++l) {
-                        for(m = 0; m < 10; ++m) {
-                            gc_ptdata[i][j][k].tool_frequency[l][m] =
-                                ntohs(gc_ptdata[i][j][k].tool_frequency[l][m]);
-                        }
+                for(l = 0; l < 28; ++l) {
+                    for(m = 0; m < 10; ++m) {
+                        ent->tool_frequency[l][m] =
+                            ntohs(buf->tool_frequency[l][m]);
                     }
+                }
 
-                    for(l = 0; l < 23; ++l) {
-                        for(m = 0; m < 6; ++m) {
-                            gc_ptdata[i][j][k].percent_pattern[l][m] =
-                                ntohs(gc_ptdata[i][j][k].percent_pattern[l][m]);
-                        }
-                    }
+                for(l = 0; l < 100; ++l) {
+                    ent->enemy_meseta[l][0] = ntohs(buf->enemy_meseta[l][0]);
+                    ent->enemy_meseta[l][1] = ntohs(buf->enemy_meseta[l][1]);
+                }
 
-                    for(l = 0; l < 100; ++l) {
-                        for(m = 0; m < 2; ++m) {
-                            gc_ptdata[i][j][k].enemy_meseta[l][m] =
-                                ntohs(gc_ptdata[i][j][k].enemy_meseta[l][m]);
-                        }
-                    }
-
-                    for(l = 0; l < 10; ++l) {
-                        for(m = 0; m < 2; ++m) {
-                            gc_ptdata[i][j][k].box_meseta[l][m] =
-                                ntohs(gc_ptdata[i][j][k].box_meseta[l][m]);
-                        }
-                    }
-
-                    for(l = 0; l < 18; ++l) {
-                        gc_ptdata[i][j][k].pointers[l] =
-                            ntohl(gc_ptdata[i][j][k].pointers[l]);
-                    }
-
-                    gc_ptdata[i][j][k].armor_level =
-                        ntohl(gc_ptdata[i][j][k].armor_level);
-#endif
+                for(l = 0; l < 10; ++l) {
+                    ent->box_meseta[l][0] = ntohs(buf->box_meseta[l][0]);
+                    ent->box_meseta[l][1] = ntohs(buf->box_meseta[l][1]);
                 }
             }
         }
@@ -421,6 +427,7 @@ int pt_read_v3(const char *fn, int bb) {
 
 out:
     pso_gsl_read_close(a);
+    free(buf);
     return rv;
 }
 

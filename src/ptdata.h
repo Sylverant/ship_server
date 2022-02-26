@@ -26,8 +26,6 @@
 #undef PACKED
 #endif
 
-#define PACKED __attribute__((packed))
-
 #define BOX_TYPE_WEAPON     0
 #define BOX_TYPE_ARMOR      1
 #define BOX_TYPE_SHIELD     2
@@ -36,10 +34,7 @@
 #define BOX_TYPE_MESETA     5
 #define BOX_TYPE_NOTHING    6
 
-/* Entry in one of the ItemPT files. Mostly adapted from Tethealla... In the
-   file itself, each of these fields is stored in big-endian byter order.
-   Some of this data also comes from a post by Lee on the PSOBB Eden forums:
-   http://edenserv.net/forum/viewtopic.php?p=19305#p19305 */
+/* Clean (non-packed) version of the v3 ItemPT entry structure. */
 typedef struct pt_v3_entry {
     int8_t weapon_ratio[12];                /* 0x0000 */
     int8_t weapon_minrank[12];              /* 0x000C */
@@ -61,14 +56,8 @@ typedef struct pt_v3_entry {
     int8_t enemy_drop[100];                 /* 0x083C */
     uint16_t box_meseta[10][2];             /* 0x08A0 */
     uint8_t box_drop[7][10];                /* 0x08C8 */
-    uint16_t padding;                       /* 0x090E */
-    uint32_t pointers[18];                  /* 0x0910 */
     int32_t armor_level;                    /* 0x0958 */
-    /* There is a bit more data here... Dunno what it is. No reason to store it
-       if I don't know how to use it. */
-} PACKED pt_v3_entry_t;
-
-#undef PACKED
+} pt_v3_entry_t;
 
 /* Clean (non-packed) version of the v2 ItemPT entry structure. */
 typedef struct pt_v2_entry {
