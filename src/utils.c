@@ -264,7 +264,8 @@ int bb_bug_report(ship_client_t *c, bb_simple_mail_pkt *pkt) {
 
     text[0x1FF] = '\0';
 
-    istrncpy16(ic_utf16_to_ascii, name, &c->pl->bb.character.name[2], 0x40);
+    istrncpy16_raw(ic_utf16_to_utf8, name, &c->pl->bb.character.name[2], 0x40,
+                   14);
 
     /* Attempt to open up the file. */
     fp = fopen(filename, "w");
@@ -802,7 +803,7 @@ static void convert_bb_to_dcpcgc(ship_client_t *s, uint8_t *buf) {
     memcpy(c->techniques, sp->techniques, 0x14);
 
     /* Copy the name over */
-    istrncpy16(ic_utf16_to_ascii, c->name, &sp->name[2], 16);
+    istrncpy16_raw(ic_utf16_to_ascii, c->name, &sp->name[2], 16, 16);
 }
 
 void make_disp_data(ship_client_t *s, ship_client_t *d, void *buf) {
