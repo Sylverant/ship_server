@@ -1460,7 +1460,7 @@ static void dumpinv_internal(ship_client_t *c) {
     }
     else {
         istrncpy16_raw(ic_utf16_to_utf8, name, &c->bb_pl->character.name[2], 64,
-                       16);
+                       14);
         debug(DBG_LOG, "Inventory dump for %s (%d)\n", name, c->guildcard);
 
         for(i = 0; i < c->bb_pl->inv.item_count; ++i) {
