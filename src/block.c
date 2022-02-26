@@ -1291,13 +1291,11 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
         memcpy(c->pl, &pkt->data, sizeof(v1_player_t));
         c->infoboard = NULL;
         c->c_rank = NULL;
-        c->blacklist = NULL;
     }
     else if(version == 2 && c->version == CLIENT_VERSION_DCV2) {
         memcpy(c->pl, &pkt->data, sizeof(v2_player_t));
         c->infoboard = NULL;
         c->c_rank = c->pl->v2.c_rank.all;
-        c->blacklist = NULL;
     }
     else if(version == 2 && c->version == CLIENT_VERSION_PC) {
         if(pkt->data.pc.autoreply[0]) {
@@ -1309,7 +1307,7 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
         memcpy(c->pl, &pkt->data, sizeof(pc_player_t));
         c->infoboard = NULL;
         c->c_rank = c->pl->pc.c_rank.all;
-        c->blacklist = c->pl->pc.blacklist;
+        memcpy(c->blacklist, c->pl->pc.blacklist, 30 * sizeof(uint32_t));
     }
     else if(version == 3) {
         if(pkt->data.v3.autoreply[0]) {
@@ -1321,14 +1319,14 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
         memcpy(c->pl, &pkt->data, sizeof(v3_player_t));
         c->infoboard = c->pl->v3.infoboard;
         c->c_rank = c->pl->v3.c_rank.all;
-        c->blacklist = c->pl->v3.blacklist;
+        memcpy(c->blacklist, c->pl->v3.blacklist, 30 * sizeof(uint32_t));
     }
     else if(version == 4) {
         /* XXXX: Not right, but work with it for now. */
         memcpy(c->pl, &pkt->data, sizeof(v3_player_t));
         c->infoboard = c->pl->v3.infoboard;
         c->c_rank = c->pl->v3.c_rank.all;
-        c->blacklist = c->pl->v3.blacklist;
+        memcpy(c->blacklist, c->pl->v3.blacklist, 30 * sizeof(uint32_t));
     }
 
     /* Copy out the inventory data */
@@ -1422,7 +1420,7 @@ static int bb_process_char(ship_client_t *c, bb_char_data_pkt *pkt) {
     memcpy(c->pl, &pkt->data, sizeof(sylverant_bb_player_t));
     c->infoboard = (char *)c->pl->bb.infoboard;
     c->c_rank = c->pl->bb.c_rank;
-    c->blacklist = c->pl->bb.blacklist;
+    memcpy(c->blacklist, c->pl->bb.blacklist, 30 * sizeof(uint32_t));
 
     /* Copy out the inventory data */
     memcpy(c->items, c->pl->bb.inv.items, sizeof(item_t) * 30);
@@ -1555,9 +1553,8 @@ static int dc_process_chat(ship_client_t *c, dc_chat_pkt *pkt) {
     size_t len;
 
     /* Sanity check... this shouldn't happen. */
-    if(!l) {
+    if(!l)
         return -1;
-    }
 
     len = strlen(pkt->msg);
 
@@ -1617,9 +1614,8 @@ static int pc_process_chat(ship_client_t *c, dc_chat_pkt *pkt) {
     char *u8msg, *cmsg;
 
     /* Sanity check... this shouldn't happen. */
-    if(!l) {
+    if(!l)
         return -1;
-    }
 
     /* Fill in escapes for the color chat stuff */
     if(c->cc_char) {
@@ -1670,9 +1666,8 @@ static int bb_process_chat(ship_client_t *c, bb_chat_pkt *pkt) {
     int i;
 
     /* Sanity check... this shouldn't happen. */
-    if(!l) {
+    if(!l)
         return -1;
-    }
 
     /* Fill in escapes for the color chat stuff */
     if(c->cc_char) {
@@ -2916,6 +2911,7 @@ static int gc_process_blacklist(ship_client_t *c,
 static int bb_process_blacklist(ship_client_t *c,
                                 bb_blacklist_update_pkt *pkt) {
     memcpy(c->blacklist, pkt->list, 28 * sizeof(uint32_t));
+    memcpy(c->pl->bb.blacklist, pkt->list, 28 * sizeof(uint32_t));
     memcpy(c->bb_opts->blocked, pkt->list, 28 * sizeof(uint32_t));
     return send_txt(c, "%s", __(c, "\tE\tC7Updated blacklist."));
 }

@@ -633,9 +633,8 @@ int client_has_blacklisted(ship_client_t *c, uint32_t gc) {
     int i;
 
     /* If the user doesn't have a blacklist, this is easy. */
-    if(!c->blacklist) {
+    if(c->version < CLIENT_VERSION_PC)
         return 0;
-    }
 
     /* Look through each blacklist entry. */
     for(i = 0; i < 30; ++i) {
