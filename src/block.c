@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
     Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2017, 2018,
-                  2019, 2020, 2021 Lawrence Sebald
+                  2019, 2020, 2021, 2022 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -92,8 +92,8 @@ static void *block_thd(void *d) {
                probably dead. Disconnect it. */
             if(now > it->last_message + 90) {
                 if(it->bb_pl) {
-                    istrncpy16(ic_utf16_to_utf8, nm,
-                               &it->pl->bb.character.name[2], 64);
+                    istrncpy16_raw(ic_utf16_to_utf8, nm,
+                                   &it->pl->bb.character.name[2], 64, 14);
                     debug(DBG_LOG, "Ping Timeout: %s(%d)\n", nm, it->guildcard);
                 }
                 else if(it->pl) {
@@ -331,8 +331,8 @@ static void *block_thd(void *d) {
 
             if(it->flags & CLIENT_FLAG_DISCONNECTED) {
                 if(it->bb_pl) {
-                    istrncpy16(ic_utf16_to_utf8, nm,
-                               &it->pl->bb.character.name[2], 64);
+                    istrncpy16_raw(ic_utf16_to_utf8, nm,
+                                   &it->pl->bb.character.name[2], 64, 14);
                     debug(DBG_LOG, "Disconnecting %s(%d)\n", nm, it->guildcard);
                 }
                 else if(it->pl) {
@@ -1463,10 +1463,14 @@ static int bb_process_char(ship_client_t *c, bb_char_data_pkt *pkt) {
 
         /* Do a few things that should only be done once per session... */
         if(!(c->flags & CLIENT_FLAG_SENT_MOTD)) {
+            uint16_t bbname[17];
+
+            memcpy(bbname, c->bb_pl->character.name, 16);
+            bbname[16] = 0;
+
             /* Notify the shipgate */
             shipgate_send_block_login_bb(&ship->sg, 1, c->guildcard,
-                                         c->cur_block->b,
-                                         c->bb_pl->character.name);
+                                         c->cur_block->b, bbname);
             shipgate_send_lobby_chg(&ship->sg, c->guildcard,
                                     c->cur_lobby->lobby_id, c->cur_lobby->name);
 
@@ -2194,8 +2198,8 @@ static int pc_process_game_create(ship_client_t *c, pc_game_create_pkt *pkt) {
     char name[32], password[16];
 
     /* Convert the name/password to the appropriate encoding. */
-    istrncpy16(ic_utf16_to_utf8, name, pkt->name, 32);
-    istrncpy16(ic_utf16_to_ascii, password, pkt->password, 16);
+    istrncpy16_raw(ic_utf16_to_utf8, name, pkt->name, 32, 16);
+    istrncpy16_raw(ic_utf16_to_ascii, password, pkt->password, 16, 16);
 
     /* Check the user's ability to create a game of that difficulty. */
     if(!(c->flags & CLIENT_FLAG_OVERRIDE_GAME)) {
@@ -2354,8 +2358,8 @@ static int bb_process_game_create(ship_client_t *c, bb_game_create_pkt *pkt) {
     }
 
     /* Convert the team name/password to UTF-8 */
-    istrncpy16(ic_utf16_to_utf8, name, pkt->name, 64);
-    istrncpy16(ic_utf16_to_utf8, passwd, pkt->password, 64);
+    istrncpy16_raw(ic_utf16_to_utf8, name, pkt->name, 64, 16);
+    istrncpy16_raw(ic_utf16_to_utf8, passwd, pkt->password, 64, 16);
 
     /* Create the lobby structure. */
     l = lobby_create_game(c->cur_block, name, passwd, pkt->difficulty,
