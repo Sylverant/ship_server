@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2012, 2013, 2014, 2015, 2016, 2020 Lawrence Sebald
+    Copyright (C) 2012, 2013, 2014, 2015, 2016, 2020, 2022 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include <arpa/inet.h>
 
@@ -35,6 +36,43 @@
 #include "items.h"
 #include "utils.h"
 #include "quests.h"
+
+#define PACKED __attribute__((packed))
+
+/* Entry in one of the ItemPT files. This version corresponds to the files that
+   were used in PSOv2. The names of the fields were taken from the above
+   structure. In the file itself, each of these fields is stored in
+   little-endian byte order. */
+typedef struct fpt_v2_entry {
+    int8_t weapon_ratio[12];                /* 0x0000 */
+    int8_t weapon_minrank[12];              /* 0x000C */
+    int8_t weapon_upgfloor[12];             /* 0x0018 */
+    int8_t power_pattern[9][4];             /* 0x0024 */
+    uint8_t percent_pattern[23][5];         /* 0x0048 */
+    int8_t area_pattern[3][10];             /* 0x00BB */
+    int8_t percent_attachment[6][10];       /* 0x00D9 */
+    int8_t element_ranking[10];             /* 0x0115 */
+    int8_t element_probability[10];         /* 0x011F */
+    int8_t armor_ranking[5];                /* 0x0129 */
+    int8_t slot_ranking[5];                 /* 0x012E */
+    int8_t unit_level[10];                  /* 0x0133 */
+    uint8_t padding;                        /* 0x013D */
+    uint16_t tool_frequency[28][10];        /* 0x013E */
+    uint8_t tech_frequency[19][10];         /* 0x036E */
+    int8_t tech_levels[19][20];             /* 0x042C */
+    int8_t enemy_dar[100];                  /* 0x05A8 */
+    uint16_t enemy_meseta[100][2];          /* 0x060C */
+    int8_t enemy_drop[100];                 /* 0x079C */
+    uint16_t box_meseta[10][2];             /* 0x0800 */
+    uint8_t box_drop[7][10];                /* 0x0828 */
+    uint16_t padding2;                      /* 0x086E */
+    uint32_t pointers[18];                  /* 0x0870 */
+    int32_t armor_level;                    /* 0x08B8 */
+    /* There is a bit more data here... Dunno what it is. No reason to store it
+       if I don't know how to use it. */
+} PACKED fpt_v2_entry_t;
+
+#undef PACKED
 
 #define LOG(team, ...) team_log_write(team, TLOG_DROPS, __VA_ARGS__)
 #define LOGV(team, ...) team_log_write(team, TLOG_DROPSV, __VA_ARGS__)
@@ -100,10 +138,17 @@ int pt_read_v2(const char *fn) {
     pso_afs_read_t *a;
     pso_error_t err;
     ssize_t sz;
-    int rv = 0, i, j;
+    int rv = 0, i, j, k;
 #if defined(__BIG_ENDIAN__) || defined(WORDS_BIGENDIAN)
-    int k, l;
+    int l;
 #endif
+    fpt_v2_entry_t *buf;
+    pt_v2_entry_t *ent;
+
+    if(!(buf = (fpt_v2_entry_t *)malloc(sizeof(fpt_v2_entry_t)))) {
+        debug(DBG_ERROR, "Cannot allocate space for pt entry!\n");
+        return -5;
+    }
 
     /* Open up the file and make sure it looks sane enough... */
     if(!(a = pso_afs_read_open(fn, 0, &err))) {
@@ -128,44 +173,79 @@ int pt_read_v2(const char *fn) {
                 goto out;
             }
 
-            /* Only grab the data we care about... */
-            sz = sizeof(pt_v2_entry_t);
-            if(pso_afs_file_read(a, i * 10 + j, (uint8_t *)&v2_ptdata[i][j],
+            /* Grab the data... */
+            sz = sizeof(fpt_v2_entry_t);
+            if(pso_afs_file_read(a, i * 10 + j, (uint8_t *)buf,
                                  (size_t)sz) != sz) {
-                debug(DBG_ERROR, "Cannot read data from %s!\n", i * 10 + j, fn);
+                debug(DBG_ERROR, "Cannot read data from %s!\n", fn);
                 rv = -4;
                 goto out;
             }
 
-            /* Swap entries, if we need to */
-#if defined(__BIG_ENDIAN__) || defined(WORDS_BIGENDIAN)
+            /* Dump it into our nicer (not packed) structure. */
+            ent = &v2_ptdata[i][j];
+            memcpy(ent->weapon_ratio, buf->weapon_ratio, 12);
+            memcpy(ent->weapon_minrank, buf->weapon_minrank, 12);
+            memcpy(ent->weapon_upgfloor, buf->weapon_upgfloor, 12);
+            memcpy(ent->element_ranking, buf->element_ranking, 10);
+            memcpy(ent->element_probability, buf->element_probability, 10);
+            memcpy(ent->armor_ranking, buf->armor_ranking, 5);
+            memcpy(ent->slot_ranking, buf->slot_ranking, 5);
+            memcpy(ent->unit_level, buf->unit_level, 10);
+            memcpy(ent->enemy_dar, buf->enemy_dar, 100);
+            memcpy(ent->enemy_drop, buf->enemy_drop, 100);
+            ent->armor_level = LE32(buf->armor_level);
+
+            for(k = 0; k < 9; ++k) {
+                memcpy(ent->power_pattern[k], buf->power_pattern[k], 4);
+            }
+
+            for(k = 0; k < 23; ++k) {
+                memcpy(ent->percent_pattern[k], buf->percent_pattern[k], 5);
+            }
+
+            for(k = 0; k < 3; ++k) {
+                memcpy(ent->area_pattern[k], buf->area_pattern[k], 10);
+            }
+
+            for(k = 0; k < 6; ++k) {
+                memcpy(ent->percent_attachment[k], buf->percent_attachment[k],
+                       10);
+            }
+
+            for(k = 0; k < 7; ++k) {
+                memcpy(ent->box_drop[k], buf->box_drop[k], 10);
+            }
+
             for(k = 0; k < 28; ++k) {
+                memcpy(ent->tool_frequency[k], buf->tool_frequency[k], 20);
+#if defined(__BIG_ENDIAN__) || defined(WORDS_BIGENDIAN)
                 for(l = 0; l < 10; ++l) {
-                    v2_ptdata[i][j].tool_frequency[k][l] =
-                        LE16(v2_ptdata[i][j].tool_frequency[k][l]);
+                    ent->tool_frequency[k][l] = LE16(ent->tool_frequency[k][l]);
                 }
+#endif
+            }
+
+            for(k = 0; k < 19; ++k) {
+                memcpy(ent->tech_frequency[k], buf->tech_frequency[k], 10);
+                memcpy(ent->tech_levels[k], buf->tech_levels[k], 20);
             }
 
             for(k = 0; k < 100; ++k) {
-                for(l = 0; l < 2; ++l) {
-                    v2_ptdata[i][j].enemy_meseta[k][l] =
-                        LE16(v2_ptdata[i][j].enemy_meseta[k][l]);
-                }
+                memcpy(ent->enemy_meseta[k], buf->enemy_meseta[k], 4);
+#if defined(__BIG_ENDIAN__) || defined(WORDS_BIGENDIAN)
+                ent->enemy_meseta[k][0] = LE16(ent->enemy_meseta[k][0]);
+                ent->enemy_meseta[k][1] = LE16(ent->enemy_meseta[k][1]);
+#endif
             }
 
             for(k = 0; k < 10; ++k) {
-                for(l = 0; l < 2; ++l) {
-                    v2_ptdata[i][j].box_meseta[k][l] =
-                        LE16(v2_ptdata[i][j].box_meseta[k][l]);
-                }
-            }
-
-            for(k = 0; k < 18; ++k) {
-                v2_ptdata[i][j].pointers[k] = LE32(v2_ptdata[i][j].pointers[k]);
-            }
-
-            v2_ptdata[i][j].armor_level = LE32(v2_ptdata[i][j].armor_level);
+                memcpy(ent->box_meseta[k], buf->box_meseta[k], 4);
+#if defined(__BIG_ENDIAN__) || defined(WORDS_BIGENDIAN)
+                ent->box_meseta[k][0] = LE16(ent->box_meseta[k][0]);
+                ent->box_meseta[k][1] = LE16(ent->box_meseta[k][1]);
 #endif
+            }
         }
     }
 
@@ -173,6 +253,7 @@ int pt_read_v2(const char *fn) {
 
 out:
     pso_afs_read_close(a);
+    free(buf);
     return rv;
 }
 
