@@ -153,6 +153,7 @@ int pt_read_v2(const char *fn) {
     /* Open up the file and make sure it looks sane enough... */
     if(!(a = pso_afs_read_open(fn, 0, &err))) {
         debug(DBG_ERROR, "Cannot read %s: %s\n", fn, pso_strerror(err));
+        free(buf);
         return -1;
     }
 
