@@ -1885,6 +1885,7 @@ static int handle_bb_pick_up(ship_client_t *c, subcmd_bb_pick_up_t *pkt) {
     int found;
     uint32_t item, tmp;
     item_t item_data;
+    uint32_t ic[3];
 
     /* We can't get these in default lobbies without someone messing with
        something that they shouldn't be... Disconnect anyone that tries. */
@@ -1947,8 +1948,8 @@ static int handle_bb_pick_up(ship_client_t *c, subcmd_bb_pick_up_t *pkt) {
 
     /* Let everybody know that the client picked it up, and remove it from the
        view. */
-    subcmd_send_picked_up(c, item_data.data_l, item_data.item_id,
-                          item_data.data2_l, 1);
+    memcpy(ic, item_data.data_l, 3 * sizeof(uint32_t));
+    subcmd_send_picked_up(c, ic, item_data.item_id, item_data.data2_l, 1);
 
     return subcmd_send_destroy_map_item(c, pkt->area, item_data.item_id);
 }
@@ -2236,6 +2237,7 @@ static int handle_bb_bank_action(ship_client_t *c, subcmd_bb_bank_act_t *pkt) {
     int found = -1, stack, isframe = 0;
     item_t item;
     sylverant_bitem_t bitem;
+    uint32_t ic[3];
 
     /* We can't get these in default lobbies without someone messing with
        something that they shouldn't be... Disconnect anyone that tries. */
@@ -2414,9 +2416,9 @@ static int handle_bb_bank_action(ship_client_t *c, subcmd_bb_bank_act_t *pkt) {
                 item.equipped = LE16(0x0001);
                 item.tech = LE16(0x0000);
                 item.flags = 0;
-                item.data_l[0] = bitem.data_l[0];
-                item.data_l[1] = bitem.data_l[1];
-                item.data_l[2] = bitem.data_l[2];
+                ic[0] = item.data_l[0] = bitem.data_l[0];
+                ic[1] = item.data_l[1] = bitem.data_l[1];
+                ic[2] = item.data_l[2] = bitem.data_l[2];
                 item.item_id = LE32(l->item_id);
                 item.data2_l = bitem.data2_l;
                 ++l->item_id;
@@ -2433,8 +2435,8 @@ static int handle_bb_bank_action(ship_client_t *c, subcmd_bb_bank_act_t *pkt) {
                 c->bb_pl->inv.item_count += found;
 
                 /* Let everyone know about it. */
-                return subcmd_send_picked_up(c, item.data_l, item.item_id,
-                                             item.data2_l, 1);
+                return subcmd_send_picked_up(c, ic, item.item_id, item.data2_l,
+                                             1);
             }
 
         default:
