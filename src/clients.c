@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2016, 2017, 2018, 2019, 2020
-                  2021 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2016, 2017, 2018, 2019, 2020, 2021
+                  2022 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -323,9 +323,12 @@ void client_destroy_connection(ship_client_t *c,
                                   c->cur_block->b, c->pl->v1.name);
     }
     else if(c->version == CLIENT_VERSION_BB && c->bb_pl) {
+        uint16_t bbname[17];
+
+        memcpy(bbname, c->bb_pl->character.name, 16);
+        bbname[16] = 0;
         shipgate_send_block_login_bb(&ship->sg, 0, c->guildcard,
-                                     c->cur_block->b,
-                                     c->bb_pl->character.name);
+                                     c->cur_block->b, bbname);
     }
 
     ship_dec_clients(ship);
