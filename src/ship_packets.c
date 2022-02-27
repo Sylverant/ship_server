@@ -6469,7 +6469,7 @@ static int send_dcv1_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     FILE *bin, *dat;
     uint32_t binlen, datlen;
     int bindone = 0, datdone = 0, chunknum = 0;
-    char fn_base[256], filename[256];
+    char fn_base[256], filename[260];
     size_t amt;
     sylverant_quest_t *q = qm->qptr[c->version][lang];
 
@@ -6480,11 +6480,11 @@ static int send_dcv1_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
 
     /* Each quest has two files: a .dat file and a .bin file, send a file packet
        for each of them. */
-    sprintf(fn_base, "%s/%s-%s/%s", ship->cfg->quests_dir,
-            version_codes[CLIENT_VERSION_DCV1], language_codes[lang],
-            q->prefix);
+    snprintf(fn_base, 256, "%s/%s-%s/%s", ship->cfg->quests_dir,
+             version_codes[CLIENT_VERSION_DCV1], language_codes[lang],
+             q->prefix);
 
-    sprintf(filename, "%s.bin", fn_base);
+    snprintf(filename, 260, "%s.bin", fn_base);
     bin = fopen(filename, "rb");
 
     if(!bin) {
@@ -6493,7 +6493,7 @@ static int send_dcv1_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
         return -1;
     }
 
-    sprintf(filename, "%s.dat", fn_base);
+    snprintf(filename, 260, "%s.dat", fn_base);
     dat = fopen(filename, "rb");
 
     if(!dat) {
@@ -6516,12 +6516,12 @@ static int send_dcv1_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     /* Start with the .dat file. */
     memset(file, 0, sizeof(dc_quest_file_pkt));
 
-    sprintf(file->name, "PSO/%s", q->name);
+    snprintf(file->name, 32, "PSO/%-.27s", q->name);
 
     file->hdr.pkt_type = QUEST_FILE_TYPE;
     file->hdr.flags = 0x02; /* ??? */
     file->hdr.pkt_len = LE16(DC_QUEST_FILE_LENGTH);
-    sprintf(file->filename, "%s.dat", q->prefix);
+    snprintf(file->filename, 16, "%-.11s.dat", q->prefix);
     file->length = LE32(datlen);
 
     if(crypt_send(c, DC_QUEST_FILE_LENGTH, sendbuf)) {
@@ -6535,12 +6535,12 @@ static int send_dcv1_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     /* Now the .bin file. */
     memset(file, 0, sizeof(dc_quest_file_pkt));
 
-    sprintf(file->name, "PSO/%s", q->name);
+    snprintf(file->name, 32, "PSO/%-.27s", q->name);
 
     file->hdr.pkt_type = QUEST_FILE_TYPE;
     file->hdr.flags = 0x02; /* ??? */
     file->hdr.pkt_len = LE16(DC_QUEST_FILE_LENGTH);
-    sprintf(file->filename, "%s.bin", q->prefix);
+    snprintf(file->filename, 16, "%-.11s.bin", q->prefix);
     file->length = LE32(binlen);
 
     if(crypt_send(c, DC_QUEST_FILE_LENGTH, sendbuf)) {
@@ -6564,7 +6564,7 @@ static int send_dcv1_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
             chunk->hdr.dc.pkt_len = LE16(DC_QUEST_CHUNK_LENGTH);
 
             /* Fill in the rest */
-            sprintf(chunk->filename, "%s.dat", q->prefix);
+            snprintf(chunk->filename, 16, "%-.11s.dat", q->prefix);
             amt = fread(chunk->data, 1, 0x400, dat);
             chunk->length = LE32(((uint32_t)amt));
 
@@ -6594,7 +6594,7 @@ static int send_dcv1_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
             chunk->hdr.dc.pkt_len = LE16(DC_QUEST_CHUNK_LENGTH);
 
             /* Fill in the rest */
-            sprintf(chunk->filename, "%s.bin", q->prefix);
+            snprintf(chunk->filename, 16, "%-.11s.bin", q->prefix);
             amt = fread(chunk->data, 1, 0x400, bin);
             chunk->length = LE32(((uint32_t)amt));
 
@@ -6631,7 +6631,7 @@ static int send_dcv2_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     FILE *bin, *dat;
     uint32_t binlen, datlen;
     int bindone = 0, datdone = 0, chunknum = 0;
-    char fn_base[256], filename[256];
+    char fn_base[256], filename[260];
     size_t amt;
     sylverant_quest_t *q = qm->qptr[c->version][lang];
 
@@ -6643,16 +6643,16 @@ static int send_dcv2_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     /* Each quest has two files: a .dat file and a .bin file, send a file packet
        for each of them. */
     if(!v1 || (q->versions & SYLVERANT_QUEST_V1)) {
-        sprintf(fn_base, "%s/%s-%s/%s", ship->cfg->quests_dir,
-                version_codes[c->version], language_codes[lang], q->prefix);
+        snprintf(fn_base, 256, "%s/%s-%s/%s", ship->cfg->quests_dir,
+                 version_codes[c->version], language_codes[lang], q->prefix);
     }
     else {
-        sprintf(fn_base, "%s/%s-%s/%s", ship->cfg->quests_dir,
-                version_codes[CLIENT_VERSION_DCV1], language_codes[lang],
-                q->prefix);
+        snprintf(fn_base, 256, "%s/%s-%s/%s", ship->cfg->quests_dir,
+                 version_codes[CLIENT_VERSION_DCV1], language_codes[lang],
+                 q->prefix);
     }
 
-    sprintf(filename, "%s.bin", fn_base);
+    snprintf(filename, 260, "%s.bin", fn_base);
     bin = fopen(filename, "rb");
 
     if(!bin) {
@@ -6661,7 +6661,7 @@ static int send_dcv2_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
         return -1;
     }
 
-    sprintf(filename, "%s.dat", fn_base);
+    snprintf(filename, 260, "%s.dat", fn_base);
     dat = fopen(filename, "rb");
 
     if(!dat) {
@@ -6684,12 +6684,12 @@ static int send_dcv2_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     /* Start with the .dat file. */
     memset(file, 0, sizeof(dc_quest_file_pkt));
 
-    sprintf(file->name, "PSO/%s", q->name);
+    snprintf(file->name, 32, "PSO/%-.27s", q->name);
 
     file->hdr.pkt_type = QUEST_FILE_TYPE;
     file->hdr.flags = 0x02; /* ??? */
     file->hdr.pkt_len = LE16(DC_QUEST_FILE_LENGTH);
-    sprintf(file->filename, "%s.dat", q->prefix);
+    snprintf(file->filename, 16, "%-.11s.dat", q->prefix);
     file->length = LE32(datlen);
 
     if(crypt_send(c, DC_QUEST_FILE_LENGTH, sendbuf)) {
@@ -6703,12 +6703,12 @@ static int send_dcv2_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     /* Now the .bin file. */
     memset(file, 0, sizeof(dc_quest_file_pkt));
 
-    sprintf(file->name, "PSO/%s", q->name);
+    snprintf(file->name, 32, "PSO/%-.27s", q->name);
 
     file->hdr.pkt_type = QUEST_FILE_TYPE;
     file->hdr.flags = 0x02; /* ??? */
     file->hdr.pkt_len = LE16(DC_QUEST_FILE_LENGTH);
-    sprintf(file->filename, "%s.bin", q->prefix);
+    snprintf(file->filename, 16, "%-.11s.bin", q->prefix);
     file->length = LE32(binlen);
 
     if(crypt_send(c, DC_QUEST_FILE_LENGTH, sendbuf)) {
@@ -6732,7 +6732,7 @@ static int send_dcv2_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
             chunk->hdr.dc.pkt_len = LE16(DC_QUEST_CHUNK_LENGTH);
 
             /* Fill in the rest */
-            sprintf(chunk->filename, "%s.dat", q->prefix);
+            snprintf(chunk->filename, 16, "%-.11s.dat", q->prefix);
             amt = fread(chunk->data, 1, 0x400, dat);
             chunk->length = LE32(((uint32_t)amt));
 
@@ -6762,7 +6762,7 @@ static int send_dcv2_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
             chunk->hdr.dc.pkt_len = LE16(DC_QUEST_CHUNK_LENGTH);
 
             /* Fill in the rest */
-            sprintf(chunk->filename, "%s.bin", q->prefix);
+            snprintf(chunk->filename, 16, "%-.11s.bin", q->prefix);
             amt = fread(chunk->data, 1, 0x400, bin);
             chunk->length = LE32(((uint32_t)amt));
 
@@ -6799,7 +6799,7 @@ static int send_pc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     FILE *bin, *dat;
     uint32_t binlen, datlen;
     int bindone = 0, datdone = 0, chunknum = 0;
-    char fn_base[256], filename[256];
+    char fn_base[256], filename[260];
     size_t amt;
     sylverant_quest_t *q = qm->qptr[c->version][lang];
 
@@ -6811,15 +6811,15 @@ static int send_pc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     /* Each quest has two files: a .dat file and a .bin file, send a file packet
        for each of them. */
     if(!v1 || (q->versions & SYLVERANT_QUEST_V1)) {
-        sprintf(fn_base, "%s/%s-%s/%s", ship->cfg->quests_dir,
-                version_codes[c->version], language_codes[lang], q->prefix);
+        snprintf(fn_base, 256, "%s/%s-%s/%s", ship->cfg->quests_dir,
+                 version_codes[c->version], language_codes[lang], q->prefix);
     }
     else {
-        sprintf(fn_base, "%s/%s-%s/%sv1", ship->cfg->quests_dir,
-                version_codes[c->version], language_codes[lang], q->prefix);
+        snprintf(fn_base, 256, "%s/%s-%s/%sv1", ship->cfg->quests_dir,
+                 version_codes[c->version], language_codes[lang], q->prefix);
     }
 
-    sprintf(filename, "%s.bin", fn_base);
+    snprintf(filename, 260, "%s.bin", fn_base);
     bin = fopen(filename, "rb");
 
     if(!bin) {
@@ -6828,7 +6828,7 @@ static int send_pc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
         return -1;
     }
 
-    sprintf(filename, "%s.dat", fn_base);
+    snprintf(filename, 260, "%s.dat", fn_base);
     dat = fopen(filename, "rb");
 
     if(!dat) {
@@ -6851,12 +6851,12 @@ static int send_pc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     /* Start with the .dat file. */
     memset(file, 0, sizeof(pc_quest_file_pkt));
 
-    sprintf(file->name, "PSO/%s", q->name);
+    snprintf(file->name, 32, "PSO/%-.27s", q->name);
 
     file->hdr.pkt_type = QUEST_FILE_TYPE;
     file->hdr.flags = 0x00;
     file->hdr.pkt_len = LE16(DC_QUEST_FILE_LENGTH);
-    sprintf(file->filename, "%s.dat", q->prefix);
+    snprintf(file->filename, 16, "%-.11s.dat", q->prefix);
     file->length = LE32(datlen);
     file->flags = 0x0002;
 
@@ -6871,12 +6871,12 @@ static int send_pc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     /* Now the .bin file. */
     memset(file, 0, sizeof(pc_quest_file_pkt));
 
-    sprintf(file->name, "PSO/%s", q->name);
+    snprintf(file->name, 32, "PSO/%-.27s", q->name);
 
     file->hdr.pkt_type = QUEST_FILE_TYPE;
     file->hdr.flags = 0x00;
     file->hdr.pkt_len = LE16(DC_QUEST_FILE_LENGTH);
-    sprintf(file->filename, "%s.bin", q->prefix);
+    snprintf(file->filename, 16, "%-.11s.bin", q->prefix);
     file->length = LE32(binlen);
     file->flags = 0x0002;
 
@@ -6901,7 +6901,7 @@ static int send_pc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
             chunk->hdr.pc.pkt_len = LE16(DC_QUEST_CHUNK_LENGTH);
 
             /* Fill in the rest */
-            sprintf(chunk->filename, "%s.dat", q->prefix);
+            snprintf(chunk->filename, 16, "%-.11s.dat", q->prefix);
             amt = fread(chunk->data, 1, 0x400, dat);
             chunk->length = LE32(((uint32_t)amt));
 
@@ -6931,7 +6931,7 @@ static int send_pc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
             chunk->hdr.pc.pkt_len = LE16(DC_QUEST_CHUNK_LENGTH);
 
             /* Fill in the rest */
-            sprintf(chunk->filename, "%s.bin", q->prefix);
+            snprintf(chunk->filename, 16, "%-.11s.bin", q->prefix);
             amt = fread(chunk->data, 1, 0x400, bin);
             chunk->length = LE32(((uint32_t)amt));
 
@@ -6968,7 +6968,7 @@ static int send_gc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     FILE *bin, *dat;
     uint32_t binlen, datlen;
     int bindone = 0, datdone = 0, chunknum = 0, v = c->version;
-    char fn_base[256], filename[256];
+    char fn_base[256], filename[260];
     size_t amt;
     sylverant_quest_t *q;
 
@@ -6985,15 +6985,15 @@ static int send_gc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     /* Each quest has two files: a .dat file and a .bin file, send a file packet
        for each of them. */
     if(!v1 || (q->versions & SYLVERANT_QUEST_V1)) {
-        sprintf(fn_base, "%s/%s-%s/%s", ship->cfg->quests_dir,
-                version_codes[v], language_codes[lang], q->prefix);
+        snprintf(fn_base, 256, "%s/%s-%s/%s", ship->cfg->quests_dir,
+                 version_codes[v], language_codes[lang], q->prefix);
     }
     else {
-        sprintf(fn_base, "%s/%s-%s/%sv1", ship->cfg->quests_dir,
-                version_codes[v], language_codes[lang], q->prefix);
+        snprintf(fn_base, 256, "%s/%s-%s/%sv1", ship->cfg->quests_dir,
+                 version_codes[v], language_codes[lang], q->prefix);
     }
 
-    sprintf(filename, "%s.bin", fn_base);
+    snprintf(filename, 260, "%s.bin", fn_base);
     bin = fopen(filename, "rb");
 
     if(!bin) {
@@ -7002,7 +7002,7 @@ static int send_gc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
         return -1;
     }
 
-    sprintf(filename, "%s.dat", fn_base);
+    snprintf(filename, 260, "%s.dat", fn_base);
     dat = fopen(filename, "rb");
 
     if(!dat) {
@@ -7025,12 +7025,12 @@ static int send_gc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     /* Start with the .dat file. */
     memset(file, 0, sizeof(gc_quest_file_pkt));
 
-    sprintf(file->name, "PSO/%s", q->name);
+    snprintf(file->name, 32, "PSO/%-.27s", q->name);
 
     file->hdr.pkt_type = QUEST_FILE_TYPE;
     file->hdr.flags = 0x00;
     file->hdr.pkt_len = LE16(DC_QUEST_FILE_LENGTH);
-    sprintf(file->filename, "%s.dat", q->prefix);
+    snprintf(file->filename, 16, "%-.11s.dat", q->prefix);
     file->length = LE32(datlen);
     file->flags = 0x0002;
 
@@ -7045,12 +7045,12 @@ static int send_gc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     /* Now the .bin file. */
     memset(file, 0, sizeof(gc_quest_file_pkt));
 
-    sprintf(file->name, "PSO/%s", q->name);
+    snprintf(file->name, 32, "PSO/%-.27s", q->name);
 
     file->hdr.pkt_type = QUEST_FILE_TYPE;
     file->hdr.flags = 0x00;
     file->hdr.pkt_len = LE16(DC_QUEST_FILE_LENGTH);
-    sprintf(file->filename, "%s.bin", q->prefix);
+    snprintf(file->filename, 16, "%-.11s.bin", q->prefix);
     file->length = LE32(binlen);
     file->flags = 0x0002;
 
@@ -7075,7 +7075,7 @@ static int send_gc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
             chunk->hdr.dc.pkt_len = LE16(DC_QUEST_CHUNK_LENGTH);
 
             /* Fill in the rest */
-            sprintf(chunk->filename, "%s.dat", q->prefix);
+            snprintf(chunk->filename, 16, "%-.11s.dat", q->prefix);
             amt = fread(chunk->data, 1, 0x400, dat);
             chunk->length = LE32(((uint32_t)amt));
 
@@ -7105,7 +7105,7 @@ static int send_gc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
             chunk->hdr.dc.pkt_len = LE16(DC_QUEST_CHUNK_LENGTH);
 
             /* Fill in the rest */
-            sprintf(chunk->filename, "%s.bin", q->prefix);
+            snprintf(chunk->filename, 16, "%-.11s.bin", q->prefix);
             amt = fread(chunk->data, 1, 0x400, bin);
             chunk->length = LE32(((uint32_t)amt));
 
@@ -7150,33 +7150,35 @@ static int send_qst_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     /* Figure out what file we're going to send. */
     if(!v1 || (q->versions & SYLVERANT_QUEST_V1)) {
         if(c->version != CLIENT_VERSION_XBOX)
-            sprintf(filename, "%s/%s-%s/%s.qst", ship->cfg->quests_dir,
-                    version_codes[c->version], language_codes[lang], q->prefix);
+            snprintf(filename, 256, "%s/%s-%s/%s.qst", ship->cfg->quests_dir,
+                     version_codes[c->version], language_codes[lang], q->prefix);
         else
-            sprintf(filename, "%s/%s-%s/%s.qst", ship->cfg->quests_dir,
-                    version_codes[CLIENT_VERSION_GC], language_codes[lang],
-                    q->prefix);
+            snprintf(filename, 256, "%s/%s-%s/%s.qst", ship->cfg->quests_dir,
+                     version_codes[CLIENT_VERSION_GC], language_codes[lang],
+                     q->prefix);
     }
     else {
         switch(c->version) {
             case CLIENT_VERSION_DCV1:
             case CLIENT_VERSION_DCV2:
-                sprintf(filename, "%s/%s-%s/%s.qst", ship->cfg->quests_dir,
-                        version_codes[CLIENT_VERSION_DCV1],
-                        language_codes[lang], q->prefix);
+                snprintf(filename, 256, "%s/%s-%s/%s.qst",
+                         ship->cfg->quests_dir,
+                         version_codes[CLIENT_VERSION_DCV1],
+                         language_codes[lang], q->prefix);
                 break;
 
             case CLIENT_VERSION_PC:
             case CLIENT_VERSION_GC:
-                sprintf(filename, "%s/%s-%s/%sv1.qst", ship->cfg->quests_dir,
-                        version_codes[c->version], language_codes[lang],
-                        q->prefix);
+                snprintf(filename, 256, "%s/%s-%s/%sv1.qst",
+                         ship->cfg->quests_dir, version_codes[c->version],
+                         language_codes[lang], q->prefix);
                 break;
 
             case CLIENT_VERSION_XBOX:
-                sprintf(filename, "%s/%s-%s/%sv1.qst", ship->cfg->quests_dir,
-                        version_codes[CLIENT_VERSION_GC], language_codes[lang],
-                        q->prefix);
+                snprintf(filename, 256, "%s/%s-%s/%sv1.qst",
+                         ship->cfg->quests_dir,
+                         version_codes[CLIENT_VERSION_GC], language_codes[lang],
+                         q->prefix);
                 break;
         }
     }
