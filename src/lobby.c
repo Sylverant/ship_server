@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
     Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018,
-                  2019, 2020, 2021 Lawrence Sebald
+                  2019, 2020, 2021, 2022 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -1372,13 +1372,14 @@ int lobby_info_reply(ship_client_t *c, uint32_t lobby) {
     int legit, questing, drops;
     quest_map_elem_t *qelem;
     sylverant_quest_t *quest;
+    size_t len = 0;
 
-    if(!l) {
+    if(!l)
         return send_info_reply(c, __(c, "\tEThis team is no\nlonger active."));
-    }
 
     /* Lock the lobby */
     pthread_mutex_lock(&l->mutex);
+    msg[511] = 0;
 
     /* Check if we should be on page 2 of the info or on the first page. */
     if(c->last_info_req == lobby) {
@@ -1391,57 +1392,66 @@ int lobby_info_reply(ship_client_t *c, uint32_t lobby) {
         questing = l->flags & LOBBY_FLAG_QUESTING;
         drops = l->flags & LOBBY_FLAG_SERVER_DROPS;
 
-        sprintf(msg, "%s: %d:%02d:%02d\n"   /* Game time */
-                "%s: %s\n"                  /* Legit/normal mode */
-                "%s: %d-%d\n"               /* Levels allowed */
-                "%s: %s\n"                  /* Client/Server Drops */
-                "%s:\n",                    /* Versions allowed */
-                __(c, "\tETime"), h, m, s,
-                __(c, "Mode"), legit ? __(c, "Legit") : __(c, "Normal"),
-                __(c, "Levels"), l->min_level, l->max_level,
-                __(c, "Drops"), drops ? __(c, "Server") : __(c, "Client"),
-                __(c, "Versions Allowed"));
+        len = snprintf(msg, 511, "%s: %d:%02d:%02d\n"   /* Game time */
+                      "%s: %s\n"                        /* Legit/normal mode */
+                      "%s: %d-%d\n"                     /* Levels allowed */
+                      "%s: %s\n"                        /* Drop mode */
+                      "%s:\n",                          /* Versions allowed */
+                      __(c, "\tETime"), h, m, s,
+                      __(c, "Mode"), legit ? __(c, "Legit") : __(c, "Normal"),
+                      __(c, "Levels"), l->min_level, l->max_level,
+                      __(c, "Drops"), drops ? __(c, "Server") : __(c, "Client"),
+                      __(c, "Versions Allowed"));
 
         /* Figure out what versions are allowed. */
         if(l->version == CLIENT_VERSION_BB) {
             /* Blue Burst is easy... */
-            strcat(msg, " Blue Burst");
+            strncat(msg, " Blue Burst", 511 - len);
+            len += 11;
         }
         else if(l->version == CLIENT_VERSION_GC) {
             /* Easy one here, GC games can only have GC chars */
-            strcat(msg, " GC");
+            strncat(msg, " GC", 511 - len);
+            len += 3;
         }
         else if(l->version == CLIENT_VERSION_EP3) {
             /* Also easy, since Episode 3 games are completely different */
-            strcat(msg, " Episode 3");
+            strncat(msg, " Episode 3", 511 - len);
+            len += 10;
         }
         else {
             /* Slightly more interesting here... */
             if((l->flags & LOBBY_FLAG_NTE)) {
                 if(l->v2)
-                    strcat(msg, " PC-NTE");
+                    strncat(msg, " PC-NTE", 511 - len);
                 else
-                    strcat(msg, " DC-NTE");
+                    strncat(msg, " DC-NTE", 511 - len);
+                len += 7;
             }
             else if(l->v2) {
                 if(!(l->flags & LOBBY_FLAG_PCONLY)) {
-                    strcat(msg, " V2");
+                    strncat(msg, " V2", 511 - len);
+                    len += 3;
                 }
                 if(!(l->flags & LOBBY_FLAG_DCONLY)) {
-                    strcat(msg, " PC");
+                    strncat(msg, " PC", 511 - len);
+                    len += 3;
                 }
             }
             else {
                 if(!(l->flags & LOBBY_FLAG_PCONLY)) {
-                    strcat(msg, " V1");
+                    strncat(msg, " V1", 511 - len);
+                    len += 3;
 
                     if(!(l->flags & LOBBY_FLAG_V1ONLY)) {
-                        strcat(msg, " V2");
+                        strncat(msg, " V2", 511 - len);
+                        len += 3;
                     }
                 }
                 if(!(l->flags & LOBBY_FLAG_DCONLY) &&
                    !(l->flags & LOBBY_FLAG_V1ONLY)) {
-                    strcat(msg, " PC");
+                    strncat(msg, " PC", 511 - len);
+                    len += 3;
                 }
             }
 
@@ -1450,7 +1460,8 @@ int lobby_info_reply(ship_client_t *c, uint32_t lobby) {
                !(l->flags & LOBBY_FLAG_PCONLY) &&
                !(l->flags & LOBBY_FLAG_V1ONLY) &&
                !(l->flags & LOBBY_FLAG_NTE)) {
-                strcat(msg, " GC");
+                strncat(msg, " GC", 511 - len);
+                len += 3;
             }
         }
 
@@ -1477,18 +1488,21 @@ int lobby_info_reply(ship_client_t *c, uint32_t lobby) {
 
             /* We definitely should have it now... */
             if(quest) {
-                sprintf(msg, "%s\n%s: %s", msg, __(c, "Quest"), quest->name);
+                len += snprintf(msg + len, 511 - len, "\n%s: %s",
+                                __(c, "Quest"), quest->name);
+                /* Make sure the language code is set to Japanese if we've got
+                   a Japanese quest name. */
                 if(lang == CLIENT_LANG_JAPANESE)
-                    sprintf(msg, "\tJ%s", msg);
-                else
-                    sprintf(msg, "\tE%s", msg);
+                    msg[1] = 'J';
             }
             else {
-                sprintf(msg, "%s\n%s", msg, __(c, "Questing"));
+                len += snprintf(msg + len, 511 - len, "\n%s",
+                                __(c, "Questing"));
             }
         }
         else {
-            sprintf(msg, "%s\n%s", msg, __(c, "Free Adventure"));
+            len += snprintf(msg + len, 511 - len, "\n%s",
+                            __(c, "Free Adventure"));
         }
 
         /* We might have a third page... */
@@ -1498,9 +1512,8 @@ int lobby_info_reply(ship_client_t *c, uint32_t lobby) {
             c->last_info_req = 0;
     }
     else if(c->last_info_req == (lobby | 0x80000000)) {
-        sprintf(msg, "%s:\n%s",
-                __(c, "\tELegit Mode"),
-                l->limits_list->name ? l->limits_list->name : "Default");
+        snprintf(msg, 511, "%s:\n%s", __(c, "\tELegit Mode"),
+                 l->limits_list->name ? l->limits_list->name : "Default");
         c->last_info_req = 0;
     }
     else {
@@ -1509,16 +1522,16 @@ int lobby_info_reply(ship_client_t *c, uint32_t lobby) {
         /* Build up the information string */
         for(i = 0; i < l->max_clients; ++i) {
             /* Ignore blank clients */
-            if(!l->clients[i]) {
+            if(!l->clients[i])
                 continue;
-            }
 
             /* Grab the player data and fill in the string */
             pl = l->clients[i]->pl;
 
-            sprintf(msg, "%s%s L%d\n  %s    %s\n", msg, pl->v1.name,
-                    pl->v1.level + 1, classes[pl->v1.ch_class],
-                    mini_language_codes[pl->v1.inv.language]);
+            len += snprintf(msg + len, 511 - len, "%s L%d\n  %s    %s\n",
+                            pl->v1.name, pl->v1.level + 1,
+                            classes[pl->v1.ch_class],
+                            mini_language_codes[pl->v1.inv.language]);
         }
     }
 
