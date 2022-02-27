@@ -635,13 +635,12 @@ int send_timestamp(ship_client_t *c) {
 static int send_dc_block_list(ship_client_t *c, ship_t *s) {
     uint8_t *sendbuf = get_sendbuf();
     dc_block_list_pkt *pkt = (dc_block_list_pkt *)sendbuf;
-    char tmp[18];
+    char tmp[10];
     int i, len = 0x20, entries = 1;
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Clear the base packet */
     memset(pkt, 0, sizeof(dc_block_list_pkt));
@@ -655,12 +654,12 @@ static int send_dc_block_list(ship_client_t *c, ship_t *s) {
     pkt->entries[0].item_id = 0;
     pkt->entries[0].flags = 0;
 
-    /* Copy the ship's name to the packet. The ship names are forced to be
+    /* Copy the ship's name to the packet. The ship names are required to be
        ASCII, and I believe this part is in ISO-8859-1 (which is the same thing
        for all ASCII characters (< 0x80)). */
     strncpy(pkt->entries[0].name, s->cfg->name, 0x10);
 
-    /* Add what's needed at the end */
+    /* Add what's needed (?) at the end */
     pkt->entries[0].name[0x0F] = 0x00;
     pkt->entries[0].name[0x10] = 0x08;
     pkt->entries[0].name[0x11] = 0x00;
@@ -677,9 +676,8 @@ static int send_dc_block_list(ship_client_t *c, ship_t *s) {
             pkt->entries[entries].flags = LE16(0x0000);
 
             /* Create the name string */
-            sprintf(tmp, "BLOCK%02d", i);
-            strncpy(pkt->entries[entries].name, tmp, 0x11);
-            pkt->entries[entries].name[0x11] = 0;
+            snprintf(tmp, 10, "BLOCK%02d", i);
+            strncpy(pkt->entries[entries].name, tmp, 16);
 
             len += 0x1C;
             ++entries;
@@ -715,9 +713,8 @@ static int send_pc_block_list(ship_client_t *c, ship_t *s) {
     int i, j, len = 0x30, entries = 1;
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Clear the base packet */
     memset(pkt, 0, sizeof(pc_block_list_pkt));
@@ -10745,22 +10742,24 @@ int send_lobby_sync_register(lobby_t *l, uint8_t n, uint32_t v) {
 }
 
 int send_ban_msg(ship_client_t *c, time_t until, const char *reason) {
-    char string[512];
+    char string[1024];
     struct tm cooked;
+    size_t len = 0;
 
     /* Create the ban string. */
-    sprintf(string, "%s\n%s\n%s\tC7\n\n%s\n",
-            __(c, "\tEYou have been banned from this ship."), __(c, "Reason:"),
-            reason, __(c, "Your ban expires:"));
+    string[1023] = 0;
+    len = snprintf(string, 1023, "%s\n%s\n%s\tC7\n\n%s\n",
+                   __(c, "\tEYou have been banned from this ship."),
+                   __(c, "Reason:"), reason, __(c, "Your ban expires:"));
 
     if(until == (time_t)-1) {
-        strcat(string, __(c, "Never"));
+        strncat(string, __(c, "Never"), 1023 - len);
     }
     else {
         gmtime_r(&until, &cooked);
-        sprintf(string, "%s%02u:%02u UTC %u.%02u.%02u", string, cooked.tm_hour,
-                cooked.tm_min, cooked.tm_year + 1900, cooked.tm_mon + 1,
-                cooked.tm_mday);
+        snprintf(string + len, 1023 - len, "%02u:%02u UTC %u.%02u.%02u",
+                 cooked.tm_hour, cooked.tm_min, cooked.tm_year + 1900,
+                 cooked.tm_mon + 1, cooked.tm_mday);
     }
 
     return send_message_box(c, "%s", string);
