@@ -1696,7 +1696,7 @@ static int bb_process_chat(ship_client_t *c, bb_chat_pkt *pkt) {
     }
 
     /* Send the message to the lobby. */
-    return send_lobby_bbchat(l, c, (uint16_t *)pkt->msg, len);
+    return send_lobby_bbchat(l, c, pkt->msg, len);
 }
 
 /* Process a Guild Search request. */

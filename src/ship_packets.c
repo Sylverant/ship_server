@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
     Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018,
-                  2019, 2020, 2021 Lawrence Sebald
+                  2019, 2020, 2021, 2022 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -2455,7 +2455,7 @@ static int send_bb_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
     iconv(ic_utf8_to_utf16, &inptr, &in, &outptr, &out);
 
     /* Figure out how long the new string is. */
-    len = (strlen16(pkt->msg) << 1) + 0x10;
+    len = (strlen16_raw(pkt->msg) << 1) + 0x10;
 
     /* Add any padding needed */
     while(len & 0x07) {
@@ -2535,7 +2535,7 @@ int send_lobby_chat(lobby_t *l, ship_client_t *sender, const char *msg,
 }
 
 static int send_dc_lobby_bbchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
-                                const uint16_t *msg, size_t len) {
+                                const uint8_t *msg, size_t len) {
     uint8_t *sendbuf = get_sendbuf();
     dc_chat_pkt *pkt = (dc_chat_pkt *)sendbuf;
     size_t in, out;
@@ -2543,9 +2543,8 @@ static int send_dc_lobby_bbchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
     char *outptr;
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Clear the packet header */
     memset(pkt, 0, sizeof(dc_chat_pkt));
@@ -2554,12 +2553,12 @@ static int send_dc_lobby_bbchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
     pkt->guildcard = LE32(s->guildcard);
     pkt->padding = LE32(0x00010000);
 
-        /* Convert the name string first. */
-        in = strlen16(&s->pl->bb.character.name[2]) * 2;
-        out = 65520;
-        inptr = (char *)&s->pl->bb.character.name[2];
-        outptr = pkt->msg;
-        iconv(ic_utf16_to_ascii, &inptr, &in, &outptr, &out);
+    /* Convert the name string first. */
+    in = strlen16_raw(&s->pl->bb.character.name[2]) * 2;
+    out = 65520;
+    inptr = (char *)&s->pl->bb.character.name[2];
+    outptr = pkt->msg;
+    iconv(ic_utf16_to_ascii, &inptr, &in, &outptr, &out);
 
     if(!(c->flags & CLIENT_FLAG_IS_NTE)) {
         /* Add the separator */
@@ -2608,15 +2607,14 @@ static int send_dc_lobby_bbchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
 }
 
 static int send_pc_lobby_bbchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
-                                const uint16_t *msg, size_t len) {
+                                const uint8_t *msg, size_t len) {
     uint8_t *sendbuf = get_sendbuf();
     dc_chat_pkt *pkt = (dc_chat_pkt *)sendbuf;
     uint16_t tmp[2] = { LE16('\t'), 0 };
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Clear the packet header */
     memset(pkt, 0, sizeof(dc_chat_pkt));
@@ -2625,10 +2623,10 @@ static int send_pc_lobby_bbchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
     pkt->guildcard = LE32(s->guildcard);
     pkt->padding = LE32(0x00010000);
 
-    strcpy16((uint16_t *)pkt->msg, &s->pl->bb.character.name[2]);
-    strcat16((uint16_t *)pkt->msg, tmp);
-    strcat16((uint16_t *)pkt->msg, msg);
-    len = (strlen16((uint16_t *)pkt->msg) << 1) + 0x0E;
+    strcpy16_raw(pkt->msg, &s->pl->bb.character.name[2]);
+    strcat16_raw(pkt->msg, tmp);
+    strcat16_raw(pkt->msg, msg);
+    len = (strlen16_raw(pkt->msg) << 1) + 0x0E;
 
     /* Add any padding needed */
     while(len & 0x03) {
@@ -2645,15 +2643,14 @@ static int send_pc_lobby_bbchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
 }
 
 static int send_bb_lobby_bbchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
-                                const uint16_t *msg, size_t len) {
+                                const uint8_t *msg, size_t len) {
     uint8_t *sendbuf = get_sendbuf();
     bb_chat_pkt *pkt = (bb_chat_pkt *)sendbuf;
     uint16_t tmp[2] = { LE16('\t'), 0 };
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Clear the packet header */
     memset(pkt, 0, sizeof(bb_chat_pkt));
@@ -2662,10 +2659,10 @@ static int send_bb_lobby_bbchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
     pkt->guildcard = LE32(s->guildcard);
     pkt->padding = LE32(0x00010000);
 
-    strcpy16(pkt->msg, s->pl->bb.character.name);
-    strcat16(pkt->msg, tmp);
-    strcat16(pkt->msg, msg);
-    len = (strlen16(pkt->msg) << 1) + 0x12;
+    strcpy16_raw(pkt->msg, s->pl->bb.character.name);
+    strcat16_raw(pkt->msg, tmp);
+    strcat16_raw(pkt->msg, msg);
+    len = (strlen16_raw(pkt->msg) << 1) + 0x12;
 
     /* Add any padding needed */
     while(len & 0x07) {
@@ -2682,7 +2679,7 @@ static int send_bb_lobby_bbchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
 }
 
 /* Send a talk packet to the specified lobby (UTF-16 - Blue Burst). */
-int send_lobby_bbchat(lobby_t *l, ship_client_t *sender, const uint16_t *msg,
+int send_lobby_bbchat(lobby_t *l, ship_client_t *sender, const uint8_t *msg,
                       size_t len) {
     int i;
 

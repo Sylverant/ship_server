@@ -1,6 +1,7 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2015, 2018, 2019, 2020 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2015, 2018, 2019, 2020,
+                  2022 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -156,7 +157,7 @@ int send_lobby_chat(lobby_t *l, ship_client_t *sender, const char *msg,
                     const char *cmsg);
 
 /* Send a talk packet to the specified lobby (UTF-16 - Blue Burst). */
-int send_lobby_bbchat(lobby_t *l, ship_client_t *sender, const uint16_t *msg,
+int send_lobby_bbchat(lobby_t *l, ship_client_t *sender, const uint8_t *msg,
                       size_t len);
 
 /* Send a guild card search reply to the specified client. */

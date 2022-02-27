@@ -528,6 +528,8 @@ size_t strlen16_raw(const void *str) {
     while(tmp) {
         str8 += 2;
         ++sz;
+        /* Note: We don't care about endianness here, as we're looking for 0.
+           That said, we should always be dealing with little endian UTF-16. */
         tmp = *str8 | *(str8 + 1) << 8;
     }
 
@@ -556,6 +558,34 @@ char *istrncpy16_raw(iconv_t ic, char *outs, const void *ins,
     else {
         return NULL;
     }
+}
+
+void *strcpy16_raw(void *d, const void *s) {
+    uint8_t *dst = (uint8_t *)d;
+    const uint8_t *src = (const uint8_t *)s;
+
+    while(*src || *(src + 1)) {
+        *dst++ = *src++;
+        *dst++ = *src++ << 8;
+    }
+
+    return d;
+}
+
+void *strcat16_raw(void *d, const void *s) {
+    uint8_t *dst = (uint8_t *)d;
+    const uint8_t *src = (const uint8_t *)s;
+
+    /* Move to the end of the string */
+    while(*dst || *(dst + 1)) dst += 2;
+
+    /* Tack on the new part */
+    while(*src || *(src + 1)) {
+        *dst++ = *src++;
+        *dst++ = *src++ << 8;
+    }
+
+    return d;
 }
 
 void *xmalloc(size_t size) {

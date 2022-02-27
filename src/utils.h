@@ -49,6 +49,8 @@ uint16_t *strcat16(uint16_t *d, const uint16_t *s);
 size_t strlen16_raw(const void *ins);
 char *istrncpy16_raw(iconv_t ic, char *outs, const void *ins, int out_len,
                      int max_src);
+void *strcpy16_raw(void *d, const void *s);
+void *strcat16_raw(void *d, const void *s);
 
 void *xmalloc(size_t size);
 const void *my_ntop(struct sockaddr_storage *addr, char str[INET6_ADDRSTRLEN]);
