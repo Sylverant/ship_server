@@ -635,7 +635,6 @@ int send_timestamp(ship_client_t *c) {
 static int send_dc_block_list(ship_client_t *c, ship_t *s) {
     uint8_t *sendbuf = get_sendbuf();
     dc_block_list_pkt *pkt = (dc_block_list_pkt *)sendbuf;
-    char tmp[10];
     int i, len = 0x20, entries = 1;
 
     /* Verify we got the sendbuf. */
@@ -676,8 +675,11 @@ static int send_dc_block_list(ship_client_t *c, ship_t *s) {
             pkt->entries[entries].flags = LE16(0x0000);
 
             /* Create the name string */
-            snprintf(tmp, 10, "BLOCK%02d", i);
-            strncpy(pkt->entries[entries].name, tmp, 16);
+            memcpy(pkt->entries[entries].name, "BLOCK", 5);
+            pkt->entries[entries].name[5] = (i / 10) + '0';
+            pkt->entries[entries].name[6] = (i % 10) + '0';
+            /* We don't need to terminate this string because we did the memset
+               above to clear the entry to all zero bytes. */
 
             len += 0x1C;
             ++entries;
@@ -694,7 +696,6 @@ static int send_dc_block_list(ship_client_t *c, ship_t *s) {
 
     /* Create the name string */
     strncpy(pkt->entries[entries].name, "Ship Select", 0x11);
-    pkt->entries[entries].name[0x11] = 0;
 
     len += 0x1C;
 
@@ -709,8 +710,7 @@ static int send_dc_block_list(ship_client_t *c, ship_t *s) {
 static int send_pc_block_list(ship_client_t *c, ship_t *s) {
     uint8_t *sendbuf = get_sendbuf();
     pc_block_list_pkt *pkt = (pc_block_list_pkt *)sendbuf;
-    char tmp[18];
-    int i, j, len = 0x30, entries = 1;
+    int i, len = 0x30, entries = 1;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf)
@@ -746,12 +746,15 @@ static int send_pc_block_list(ship_client_t *c, ship_t *s) {
             pkt->entries[entries].flags = LE16(0x0000);
 
             /* Create the name string */
-            sprintf(tmp, "BLOCK%02d", i);
-
-            /* This works here since the block name is always ASCII. */
-            for(j = 0; j < 0x10 && tmp[j]; ++j) {
-                pkt->entries[entries].name[j] = LE16(tmp[j]);
-            }
+            pkt->entries[entries].name[0] = LE16('B');
+            pkt->entries[entries].name[1] = LE16('L');
+            pkt->entries[entries].name[2] = LE16('O');
+            pkt->entries[entries].name[3] = LE16('C');
+            pkt->entries[entries].name[4] = LE16('K');
+            pkt->entries[entries].name[5] = LE16((i / 10) + '0');
+            pkt->entries[entries].name[6] = LE16((i % 10) + '0');
+            /* We don't need to terminate this string because we did the memset
+               above to clear the entry to all zero bytes. */
 
             len += 0x2C;
             ++entries;
@@ -767,12 +770,19 @@ static int send_pc_block_list(ship_client_t *c, ship_t *s) {
     pkt->entries[entries].flags = LE16(0x0000);
 
     /* Create the name string */
-    sprintf(tmp, "Ship Select");
-
-    /* This works here since its ASCII */
-    for(j = 0; j < 0x10 && tmp[j]; ++j) {
-        pkt->entries[entries].name[j] = LE16(tmp[j]);
-    }
+    pkt->entries[entries].name[0]  = LE16('S');
+    pkt->entries[entries].name[1]  = LE16('h');
+    pkt->entries[entries].name[2]  = LE16('i');
+    pkt->entries[entries].name[3]  = LE16('p');
+    pkt->entries[entries].name[4]  = LE16(' ');
+    pkt->entries[entries].name[5]  = LE16('S');
+    pkt->entries[entries].name[6]  = LE16('e');
+    pkt->entries[entries].name[7]  = LE16('l');
+    pkt->entries[entries].name[8]  = LE16('e');
+    pkt->entries[entries].name[9]  = LE16('c');
+    pkt->entries[entries].name[10] = LE16('t');
+    /* We don't need to terminate this string because we did the memset above to
+       clear the entry to all zero bytes. */
 
     len += 0x2C;
 
@@ -787,8 +797,7 @@ static int send_pc_block_list(ship_client_t *c, ship_t *s) {
 static int send_bb_block_list(ship_client_t *c, ship_t *s) {
     uint8_t *sendbuf = get_sendbuf();
     bb_block_list_pkt *pkt = (bb_block_list_pkt *)sendbuf;
-    char tmp[18];
-    int i, j, len = 0x34, entries = 1;
+    int i, len = 0x34, entries = 1;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -825,12 +834,15 @@ static int send_bb_block_list(ship_client_t *c, ship_t *s) {
             pkt->entries[entries].flags = LE16(0x0000);
 
             /* Create the name string */
-            sprintf(tmp, "BLOCK%02d", i);
-
-            /* This works here since the block name is always ASCII. */
-            for(j = 0; j < 0x10 && tmp[j]; ++j) {
-                pkt->entries[entries].name[j] = LE16(tmp[j]);
-            }
+            pkt->entries[entries].name[0] = LE16('B');
+            pkt->entries[entries].name[1] = LE16('L');
+            pkt->entries[entries].name[2] = LE16('O');
+            pkt->entries[entries].name[3] = LE16('C');
+            pkt->entries[entries].name[4] = LE16('K');
+            pkt->entries[entries].name[5] = LE16((i / 10) + '0');
+            pkt->entries[entries].name[6] = LE16((i % 10) + '0');
+            /* We don't need to terminate this string because we did the memset
+               above to clear the entry to all zero bytes. */
 
             len += 0x2C;
             ++entries;
@@ -846,12 +858,19 @@ static int send_bb_block_list(ship_client_t *c, ship_t *s) {
     pkt->entries[entries].flags = LE16(0x0000);
 
     /* Create the name string */
-    sprintf(tmp, "Ship Select");
-
-    /* This works here since its ASCII */
-    for(j = 0; j < 0x10 && tmp[j]; ++j) {
-        pkt->entries[entries].name[j] = LE16(tmp[j]);
-    }
+    pkt->entries[entries].name[0]  = LE16('S');
+    pkt->entries[entries].name[1]  = LE16('h');
+    pkt->entries[entries].name[2]  = LE16('i');
+    pkt->entries[entries].name[3]  = LE16('p');
+    pkt->entries[entries].name[4]  = LE16(' ');
+    pkt->entries[entries].name[5]  = LE16('S');
+    pkt->entries[entries].name[6]  = LE16('e');
+    pkt->entries[entries].name[7]  = LE16('l');
+    pkt->entries[entries].name[8]  = LE16('e');
+    pkt->entries[entries].name[9]  = LE16('c');
+    pkt->entries[entries].name[10] = LE16('t');
+    /* We don't need to terminate this string because we did the memset above to
+       clear the entry to all zero bytes. */
 
     len += 0x2C;
 
