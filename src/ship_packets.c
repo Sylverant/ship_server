@@ -2908,7 +2908,7 @@ static int send_pc_guild_reply(ship_client_t *c, ship_client_t *s) {
 static int send_bb_guild_reply(ship_client_t *c, ship_client_t *s) {
     uint8_t *sendbuf = get_sendbuf();
     bb_guild_reply_pkt *pkt = (bb_guild_reply_pkt *)sendbuf;
-    char tmp[0x44], lobby_name[32];
+    char tmp[256], lobby_name[32];
     lobby_t *l = s->cur_lobby;
     block_t *b = s->cur_block;
 
@@ -3155,7 +3155,7 @@ static int send_pc_guild_reply6(ship_client_t *c, ship_client_t *s) {
 static int send_bb_guild_reply6(ship_client_t *c, ship_client_t *s) {
     uint8_t *sendbuf = get_sendbuf();
     bb_guild_reply6_pkt *pkt = (bb_guild_reply6_pkt *)sendbuf;
-    char tmp[0x44], lobby_name[32];
+    char tmp[256], lobby_name[32];
     lobby_t *l = s->cur_lobby;
     block_t *b = s->cur_block;
 
