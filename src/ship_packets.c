@@ -1228,8 +1228,8 @@ static int send_dcnte_lobby_join(ship_client_t *c, lobby_t *l) {
 
         /* If its a Blue Burst client, iconv it. */
         if(l->clients[i]->version == CLIENT_VERSION_BB) {
-            istrncpy16(ic_utf16_to_ascii, pkt->entries[pls].hdr.name,
-                       l->clients[i]->pl->bb.character.name, 16);
+            istrncpy16_raw(ic_utf16_to_ascii, pkt->entries[pls].hdr.name,
+                           l->clients[i]->pl->bb.character.name, 16, 16);
         }
         else {
             memcpy(pkt->entries[pls].hdr.name, l->clients[i]->pl->v1.name, 16);
@@ -1331,8 +1331,8 @@ static int send_dc_lobby_join(ship_client_t *c, lobby_t *l) {
 
         /* If its a Blue Burst client, iconv it. */
         if(l->clients[i]->version == CLIENT_VERSION_BB) {
-            istrncpy16(ic_utf16_to_ascii, pkt->entries[pls].hdr.name,
-                       l->clients[i]->pl->bb.character.name, 16);
+            istrncpy16_raw(ic_utf16_to_ascii, pkt->entries[pls].hdr.name,
+                           l->clients[i]->pl->bb.character.name, 16, 16);
         }
         else {
             memcpy(pkt->entries[pls].hdr.name, l->clients[i]->pl->v1.name, 16);
@@ -1524,8 +1524,8 @@ static int send_xbox_lobby_join(ship_client_t *c, lobby_t *l) {
 
         /* If its a Blue Burst client, iconv it. */
         if(l->clients[i]->version == CLIENT_VERSION_BB) {
-            istrncpy16(ic_utf16_to_ascii, pkt->entries[pls].hdr.name,
-                       l->clients[i]->pl->bb.character.name, 16);
+            istrncpy16_raw(ic_utf16_to_ascii, pkt->entries[pls].hdr.name,
+                           l->clients[i]->pl->bb.character.name, 16, 16);
         }
         else {
             memcpy(pkt->entries[pls].hdr.name, l->clients[i]->pl->v1.name, 16);
@@ -1786,8 +1786,8 @@ static int send_dcnte_lobby_add_player(lobby_t *l, ship_client_t *c,
 
     /* If its a Blue Burst client, iconv it. */
     if(nc->version == CLIENT_VERSION_BB) {
-        istrncpy16(ic_utf16_to_ascii, pkt->entries[0].hdr.name,
-                   &nc->pl->bb.character.name[2], 16);
+        istrncpy16_raw(ic_utf16_to_ascii, pkt->entries[0].hdr.name,
+                       &nc->pl->bb.character.name[2], 16, 16);
     }
     else {
         memcpy(pkt->entries[0].hdr.name, nc->pl->v1.name, 16);
@@ -1877,8 +1877,8 @@ static int send_dc_lobby_add_player(lobby_t *l, ship_client_t *c,
 
     /* If its a Blue Burst client, iconv it. */
     if(nc->version == CLIENT_VERSION_BB) {
-        istrncpy16(ic_utf16_to_ascii, pkt->entries[0].hdr.name,
-                   &nc->pl->bb.character.name[2], 16);
+        istrncpy16_raw(ic_utf16_to_ascii, pkt->entries[0].hdr.name,
+                       &nc->pl->bb.character.name[2], 16, 16);
     }
     else {
         memcpy(pkt->entries[0].hdr.name, nc->pl->v1.name, 16);
@@ -2058,8 +2058,8 @@ static int send_xbox_lobby_add_player(lobby_t *l, ship_client_t *c,
 
     /* If its a Blue Burst client, iconv it. */
     if(nc->version == CLIENT_VERSION_BB) {
-        istrncpy16(ic_utf16_to_ascii, pkt->entries[0].hdr.name,
-                   &nc->pl->bb.character.name[2], 16);
+        istrncpy16_raw(ic_utf16_to_ascii, pkt->entries[0].hdr.name,
+                       &nc->pl->bb.character.name[2], 16, 16);
     }
     else {
         memcpy(pkt->entries[0].hdr.name, nc->pl->v1.name, 16);
@@ -2783,8 +2783,8 @@ static int send_dc_guild_reply(ship_client_t *c, ship_client_t *s) {
 
     /* iconv the name, if needed... */
     if(s->version == CLIENT_VERSION_BB) {
-        istrncpy16(ic_utf16_to_ascii, pkt->name, &s->bb_pl->character.name[2],
-                   0x20);
+        istrncpy16_raw(ic_utf16_to_ascii, pkt->name,
+                       &s->bb_pl->character.name[2], 0x20, 16);
     }
     else {
         strcpy(pkt->name, s->pl->v1.name);
@@ -2870,7 +2870,7 @@ static int send_pc_guild_reply(ship_client_t *c, ship_client_t *s) {
     else {
         istrncpy(ic_utf8_to_utf16, (char *)pkt->location, l->name, 0x1C);
         pkt->location[14] = pkt->location[15] = 0;
-        len = strlen16(pkt->location);
+        len = strlen16_raw(pkt->location);
 
         sprintf(tmp, ",%s, ,%s", lobby_name, ship->cfg->name);
         istrncpy(ic_utf8_to_utf16, (char *)(pkt->location + len), tmp,
@@ -3028,8 +3028,8 @@ static int send_dc_guild_reply6(ship_client_t *c, ship_client_t *s) {
 
     /* iconv the name, if needed... */
     if(s->version == CLIENT_VERSION_BB) {
-        istrncpy16(ic_utf16_to_ascii, pkt->name, &s->bb_pl->character.name[2],
-                   0x20);
+        istrncpy16_raw(ic_utf16_to_ascii, pkt->name,
+                       &s->bb_pl->character.name[2], 0x20, 16);
     }
     else {
         strcpy(pkt->name, s->pl->v1.name);
@@ -3116,7 +3116,7 @@ static int send_pc_guild_reply6(ship_client_t *c, ship_client_t *s) {
     else {
         istrncpy(ic_utf8_to_utf16, (char *)pkt->location, l->name, 0x1C);
         pkt->location[14] = pkt->location[15] = 0;
-        len = strlen16(pkt->location);
+        len = strlen16_raw(pkt->location);
 
         sprintf(tmp, ",%s, ,%s", lobby_name, ship->cfg->name);
         istrncpy(ic_utf8_to_utf16, (char *)(pkt->location + len), tmp,
@@ -3721,8 +3721,8 @@ static int send_dcnte_game_join(ship_client_t *c, lobby_t *l) {
             pkt->players[i].client_id = LE32(i);
 
             if(l->clients[i]->version == CLIENT_VERSION_BB) {
-                istrncpy16(ic_utf16_to_ascii, pkt->players[i].name,
-                           l->clients[i]->pl->bb.character.name, 16);
+                istrncpy16_raw(ic_utf16_to_ascii, pkt->players[i].name,
+                               l->clients[i]->pl->bb.character.name, 16, 16);
             }
             else {
                 memcpy(pkt->players[i].name, l->clients[i]->pl->v1.name, 16);
@@ -3779,8 +3779,8 @@ static int send_dc_game_join(ship_client_t *c, lobby_t *l) {
             pkt->players[i].client_id = LE32(i);
 
             if(l->clients[i]->version == CLIENT_VERSION_BB) {
-                istrncpy16(ic_utf16_to_ascii, pkt->players[i].name,
-                           l->clients[i]->pl->bb.character.name, 16);
+                istrncpy16_raw(ic_utf16_to_ascii, pkt->players[i].name,
+                               l->clients[i]->pl->bb.character.name, 16, 16);
             }
             else {
                 memcpy(pkt->players[i].name, l->clients[i]->pl->v1.name, 16);
@@ -3900,8 +3900,8 @@ static int send_gc_game_join(ship_client_t *c, lobby_t *l) {
             pkt->players[i].client_id = LE32(i);
 
             if(l->clients[i]->version == CLIENT_VERSION_BB) {
-                istrncpy16(ic_utf16_to_ascii, pkt->players[i].name,
-                           l->clients[i]->pl->bb.character.name, 16);
+                istrncpy16_raw(ic_utf16_to_ascii, pkt->players[i].name,
+                               l->clients[i]->pl->bb.character.name, 16, 16);
             }
             else {
                 memcpy(pkt->players[i].name, l->clients[i]->pl->v1.name, 16);
@@ -3969,8 +3969,8 @@ static int send_xbox_game_join(ship_client_t *c, lobby_t *l) {
             pkt->players[i].client_id = LE32(i);
 
             if(l->clients[i]->version == CLIENT_VERSION_BB) {
-                istrncpy16(ic_utf16_to_ascii, pkt->players[i].name,
-                           l->clients[i]->pl->bb.character.name, 16);
+                istrncpy16_raw(ic_utf16_to_ascii, pkt->players[i].name,
+                               l->clients[i]->pl->bb.character.name, 16, 16);
             }
             else {
                 memcpy(pkt->players[i].name, l->clients[i]->pl->v1.name, 16);
@@ -8374,7 +8374,7 @@ static int fill_one_choice_entry(uint8_t *sendbuf, int version,
                      it->cur_lobby->name, 0x1C);
             pkt->entries[entry].location[14] = 0;
             pkt->entries[entry].location[15] = 0;
-            len = strlen16(pkt->entries[entry].location);
+            len = strlen16_raw(pkt->entries[entry].location);
 
             sprintf(tmp, ",BLOCK%02d,%s", b->b, ship->cfg->name);
             istrncpy(ic_utf8_to_utf16,
@@ -8461,7 +8461,7 @@ static int fill_one_choice6_entry(uint8_t *sendbuf, int version,
                      it->cur_lobby->name, 0x1C);
             pkt->entries[entry].location[14] = 0;
             pkt->entries[entry].location[15] = 0;
-            len = strlen16(pkt->entries[entry].location);
+            len = strlen16_raw(pkt->entries[entry].location);
 
             sprintf(tmp, ",BLOCK%02d,%s", b->b, ship->cfg->name);
             istrncpy(ic_utf8_to_utf16,
