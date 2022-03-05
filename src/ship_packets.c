@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
     Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018,
-                  2019, 2020, 2021 Lawrence Sebald
+                  2019, 2020, 2021, 2022 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -635,13 +635,11 @@ int send_timestamp(ship_client_t *c) {
 static int send_dc_block_list(ship_client_t *c, ship_t *s) {
     uint8_t *sendbuf = get_sendbuf();
     dc_block_list_pkt *pkt = (dc_block_list_pkt *)sendbuf;
-    char tmp[18];
     int i, len = 0x20, entries = 1;
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Clear the base packet */
     memset(pkt, 0, sizeof(dc_block_list_pkt));
@@ -655,12 +653,12 @@ static int send_dc_block_list(ship_client_t *c, ship_t *s) {
     pkt->entries[0].item_id = 0;
     pkt->entries[0].flags = 0;
 
-    /* Copy the ship's name to the packet. The ship names are forced to be
+    /* Copy the ship's name to the packet. The ship names are required to be
        ASCII, and I believe this part is in ISO-8859-1 (which is the same thing
        for all ASCII characters (< 0x80)). */
     strncpy(pkt->entries[0].name, s->cfg->name, 0x10);
 
-    /* Add what's needed at the end */
+    /* Add what's needed (?) at the end */
     pkt->entries[0].name[0x0F] = 0x00;
     pkt->entries[0].name[0x10] = 0x08;
     pkt->entries[0].name[0x11] = 0x00;
@@ -677,9 +675,11 @@ static int send_dc_block_list(ship_client_t *c, ship_t *s) {
             pkt->entries[entries].flags = LE16(0x0000);
 
             /* Create the name string */
-            sprintf(tmp, "BLOCK%02d", i);
-            strncpy(pkt->entries[entries].name, tmp, 0x11);
-            pkt->entries[entries].name[0x11] = 0;
+            memcpy(pkt->entries[entries].name, "BLOCK", 5);
+            pkt->entries[entries].name[5] = (i / 10) + '0';
+            pkt->entries[entries].name[6] = (i % 10) + '0';
+            /* We don't need to terminate this string because we did the memset
+               above to clear the entry to all zero bytes. */
 
             len += 0x1C;
             ++entries;
@@ -696,7 +696,6 @@ static int send_dc_block_list(ship_client_t *c, ship_t *s) {
 
     /* Create the name string */
     strncpy(pkt->entries[entries].name, "Ship Select", 0x11);
-    pkt->entries[entries].name[0x11] = 0;
 
     len += 0x1C;
 
@@ -711,13 +710,11 @@ static int send_dc_block_list(ship_client_t *c, ship_t *s) {
 static int send_pc_block_list(ship_client_t *c, ship_t *s) {
     uint8_t *sendbuf = get_sendbuf();
     pc_block_list_pkt *pkt = (pc_block_list_pkt *)sendbuf;
-    char tmp[18];
-    int i, j, len = 0x30, entries = 1;
+    int i, len = 0x30, entries = 1;
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Clear the base packet */
     memset(pkt, 0, sizeof(pc_block_list_pkt));
@@ -749,12 +746,15 @@ static int send_pc_block_list(ship_client_t *c, ship_t *s) {
             pkt->entries[entries].flags = LE16(0x0000);
 
             /* Create the name string */
-            sprintf(tmp, "BLOCK%02d", i);
-
-            /* This works here since the block name is always ASCII. */
-            for(j = 0; j < 0x10 && tmp[j]; ++j) {
-                pkt->entries[entries].name[j] = LE16(tmp[j]);
-            }
+            pkt->entries[entries].name[0] = LE16('B');
+            pkt->entries[entries].name[1] = LE16('L');
+            pkt->entries[entries].name[2] = LE16('O');
+            pkt->entries[entries].name[3] = LE16('C');
+            pkt->entries[entries].name[4] = LE16('K');
+            pkt->entries[entries].name[5] = LE16((i / 10) + '0');
+            pkt->entries[entries].name[6] = LE16((i % 10) + '0');
+            /* We don't need to terminate this string because we did the memset
+               above to clear the entry to all zero bytes. */
 
             len += 0x2C;
             ++entries;
@@ -770,12 +770,19 @@ static int send_pc_block_list(ship_client_t *c, ship_t *s) {
     pkt->entries[entries].flags = LE16(0x0000);
 
     /* Create the name string */
-    sprintf(tmp, "Ship Select");
-
-    /* This works here since its ASCII */
-    for(j = 0; j < 0x10 && tmp[j]; ++j) {
-        pkt->entries[entries].name[j] = LE16(tmp[j]);
-    }
+    pkt->entries[entries].name[0]  = LE16('S');
+    pkt->entries[entries].name[1]  = LE16('h');
+    pkt->entries[entries].name[2]  = LE16('i');
+    pkt->entries[entries].name[3]  = LE16('p');
+    pkt->entries[entries].name[4]  = LE16(' ');
+    pkt->entries[entries].name[5]  = LE16('S');
+    pkt->entries[entries].name[6]  = LE16('e');
+    pkt->entries[entries].name[7]  = LE16('l');
+    pkt->entries[entries].name[8]  = LE16('e');
+    pkt->entries[entries].name[9]  = LE16('c');
+    pkt->entries[entries].name[10] = LE16('t');
+    /* We don't need to terminate this string because we did the memset above to
+       clear the entry to all zero bytes. */
 
     len += 0x2C;
 
@@ -790,8 +797,7 @@ static int send_pc_block_list(ship_client_t *c, ship_t *s) {
 static int send_bb_block_list(ship_client_t *c, ship_t *s) {
     uint8_t *sendbuf = get_sendbuf();
     bb_block_list_pkt *pkt = (bb_block_list_pkt *)sendbuf;
-    char tmp[18];
-    int i, j, len = 0x34, entries = 1;
+    int i, len = 0x34, entries = 1;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -828,12 +834,15 @@ static int send_bb_block_list(ship_client_t *c, ship_t *s) {
             pkt->entries[entries].flags = LE16(0x0000);
 
             /* Create the name string */
-            sprintf(tmp, "BLOCK%02d", i);
-
-            /* This works here since the block name is always ASCII. */
-            for(j = 0; j < 0x10 && tmp[j]; ++j) {
-                pkt->entries[entries].name[j] = LE16(tmp[j]);
-            }
+            pkt->entries[entries].name[0] = LE16('B');
+            pkt->entries[entries].name[1] = LE16('L');
+            pkt->entries[entries].name[2] = LE16('O');
+            pkt->entries[entries].name[3] = LE16('C');
+            pkt->entries[entries].name[4] = LE16('K');
+            pkt->entries[entries].name[5] = LE16((i / 10) + '0');
+            pkt->entries[entries].name[6] = LE16((i % 10) + '0');
+            /* We don't need to terminate this string because we did the memset
+               above to clear the entry to all zero bytes. */
 
             len += 0x2C;
             ++entries;
@@ -849,12 +858,19 @@ static int send_bb_block_list(ship_client_t *c, ship_t *s) {
     pkt->entries[entries].flags = LE16(0x0000);
 
     /* Create the name string */
-    sprintf(tmp, "Ship Select");
-
-    /* This works here since its ASCII */
-    for(j = 0; j < 0x10 && tmp[j]; ++j) {
-        pkt->entries[entries].name[j] = LE16(tmp[j]);
-    }
+    pkt->entries[entries].name[0]  = LE16('S');
+    pkt->entries[entries].name[1]  = LE16('h');
+    pkt->entries[entries].name[2]  = LE16('i');
+    pkt->entries[entries].name[3]  = LE16('p');
+    pkt->entries[entries].name[4]  = LE16(' ');
+    pkt->entries[entries].name[5]  = LE16('S');
+    pkt->entries[entries].name[6]  = LE16('e');
+    pkt->entries[entries].name[7]  = LE16('l');
+    pkt->entries[entries].name[8]  = LE16('e');
+    pkt->entries[entries].name[9]  = LE16('c');
+    pkt->entries[entries].name[10] = LE16('t');
+    /* We don't need to terminate this string because we did the memset above to
+       clear the entry to all zero bytes. */
 
     len += 0x2C;
 
@@ -1228,8 +1244,8 @@ static int send_dcnte_lobby_join(ship_client_t *c, lobby_t *l) {
 
         /* If its a Blue Burst client, iconv it. */
         if(l->clients[i]->version == CLIENT_VERSION_BB) {
-            istrncpy16(ic_utf16_to_ascii, pkt->entries[pls].hdr.name,
-                       l->clients[i]->pl->bb.character.name, 16);
+            istrncpy16_raw(ic_utf16_to_ascii, pkt->entries[pls].hdr.name,
+                           l->clients[i]->pl->bb.character.name, 16, 16);
         }
         else {
             memcpy(pkt->entries[pls].hdr.name, l->clients[i]->pl->v1.name, 16);
@@ -1331,8 +1347,8 @@ static int send_dc_lobby_join(ship_client_t *c, lobby_t *l) {
 
         /* If its a Blue Burst client, iconv it. */
         if(l->clients[i]->version == CLIENT_VERSION_BB) {
-            istrncpy16(ic_utf16_to_ascii, pkt->entries[pls].hdr.name,
-                       l->clients[i]->pl->bb.character.name, 16);
+            istrncpy16_raw(ic_utf16_to_ascii, pkt->entries[pls].hdr.name,
+                           l->clients[i]->pl->bb.character.name, 16, 16);
         }
         else {
             memcpy(pkt->entries[pls].hdr.name, l->clients[i]->pl->v1.name, 16);
@@ -1524,8 +1540,8 @@ static int send_xbox_lobby_join(ship_client_t *c, lobby_t *l) {
 
         /* If its a Blue Burst client, iconv it. */
         if(l->clients[i]->version == CLIENT_VERSION_BB) {
-            istrncpy16(ic_utf16_to_ascii, pkt->entries[pls].hdr.name,
-                       l->clients[i]->pl->bb.character.name, 16);
+            istrncpy16_raw(ic_utf16_to_ascii, pkt->entries[pls].hdr.name,
+                           l->clients[i]->pl->bb.character.name, 16, 16);
         }
         else {
             memcpy(pkt->entries[pls].hdr.name, l->clients[i]->pl->v1.name, 16);
@@ -1786,8 +1802,8 @@ static int send_dcnte_lobby_add_player(lobby_t *l, ship_client_t *c,
 
     /* If its a Blue Burst client, iconv it. */
     if(nc->version == CLIENT_VERSION_BB) {
-        istrncpy16(ic_utf16_to_ascii, pkt->entries[0].hdr.name,
-                   &nc->pl->bb.character.name[2], 16);
+        istrncpy16_raw(ic_utf16_to_ascii, pkt->entries[0].hdr.name,
+                       &nc->pl->bb.character.name[2], 16, 16);
     }
     else {
         memcpy(pkt->entries[0].hdr.name, nc->pl->v1.name, 16);
@@ -1877,8 +1893,8 @@ static int send_dc_lobby_add_player(lobby_t *l, ship_client_t *c,
 
     /* If its a Blue Burst client, iconv it. */
     if(nc->version == CLIENT_VERSION_BB) {
-        istrncpy16(ic_utf16_to_ascii, pkt->entries[0].hdr.name,
-                   &nc->pl->bb.character.name[2], 16);
+        istrncpy16_raw(ic_utf16_to_ascii, pkt->entries[0].hdr.name,
+                       &nc->pl->bb.character.name[2], 16, 16);
     }
     else {
         memcpy(pkt->entries[0].hdr.name, nc->pl->v1.name, 16);
@@ -2058,8 +2074,8 @@ static int send_xbox_lobby_add_player(lobby_t *l, ship_client_t *c,
 
     /* If its a Blue Burst client, iconv it. */
     if(nc->version == CLIENT_VERSION_BB) {
-        istrncpy16(ic_utf16_to_ascii, pkt->entries[0].hdr.name,
-                   &nc->pl->bb.character.name[2], 16);
+        istrncpy16_raw(ic_utf16_to_ascii, pkt->entries[0].hdr.name,
+                       &nc->pl->bb.character.name[2], 16, 16);
     }
     else {
         memcpy(pkt->entries[0].hdr.name, nc->pl->v1.name, 16);
@@ -2455,7 +2471,7 @@ static int send_bb_lobby_chat(lobby_t *l, ship_client_t *c, ship_client_t *s,
     iconv(ic_utf8_to_utf16, &inptr, &in, &outptr, &out);
 
     /* Figure out how long the new string is. */
-    len = (strlen16(pkt->msg) << 1) + 0x10;
+    len = (strlen16_raw(pkt->msg) << 1) + 0x10;
 
     /* Add any padding needed */
     while(len & 0x07) {
@@ -2535,7 +2551,7 @@ int send_lobby_chat(lobby_t *l, ship_client_t *sender, const char *msg,
 }
 
 static int send_dc_lobby_bbchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
-                                const uint16_t *msg, size_t len) {
+                                const uint8_t *msg, size_t len) {
     uint8_t *sendbuf = get_sendbuf();
     dc_chat_pkt *pkt = (dc_chat_pkt *)sendbuf;
     size_t in, out;
@@ -2543,9 +2559,8 @@ static int send_dc_lobby_bbchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
     char *outptr;
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Clear the packet header */
     memset(pkt, 0, sizeof(dc_chat_pkt));
@@ -2554,12 +2569,12 @@ static int send_dc_lobby_bbchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
     pkt->guildcard = LE32(s->guildcard);
     pkt->padding = LE32(0x00010000);
 
-        /* Convert the name string first. */
-        in = strlen16(&s->pl->bb.character.name[2]) * 2;
-        out = 65520;
-        inptr = (char *)&s->pl->bb.character.name[2];
-        outptr = pkt->msg;
-        iconv(ic_utf16_to_ascii, &inptr, &in, &outptr, &out);
+    /* Convert the name string first. */
+    in = strlen16_raw(&s->pl->bb.character.name[2]) * 2;
+    out = 65520;
+    inptr = (char *)&s->pl->bb.character.name[2];
+    outptr = pkt->msg;
+    iconv(ic_utf16_to_ascii, &inptr, &in, &outptr, &out);
 
     if(!(c->flags & CLIENT_FLAG_IS_NTE)) {
         /* Add the separator */
@@ -2608,15 +2623,14 @@ static int send_dc_lobby_bbchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
 }
 
 static int send_pc_lobby_bbchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
-                                const uint16_t *msg, size_t len) {
+                                const uint8_t *msg, size_t len) {
     uint8_t *sendbuf = get_sendbuf();
     dc_chat_pkt *pkt = (dc_chat_pkt *)sendbuf;
     uint16_t tmp[2] = { LE16('\t'), 0 };
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Clear the packet header */
     memset(pkt, 0, sizeof(dc_chat_pkt));
@@ -2625,10 +2639,10 @@ static int send_pc_lobby_bbchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
     pkt->guildcard = LE32(s->guildcard);
     pkt->padding = LE32(0x00010000);
 
-    strcpy16((uint16_t *)pkt->msg, &s->pl->bb.character.name[2]);
-    strcat16((uint16_t *)pkt->msg, tmp);
-    strcat16((uint16_t *)pkt->msg, msg);
-    len = (strlen16((uint16_t *)pkt->msg) << 1) + 0x0E;
+    strcpy16_raw(pkt->msg, &s->pl->bb.character.name[2]);
+    strcat16_raw(pkt->msg, tmp);
+    strcat16_raw(pkt->msg, msg);
+    len = (strlen16_raw(pkt->msg) << 1) + 0x0E;
 
     /* Add any padding needed */
     while(len & 0x03) {
@@ -2645,15 +2659,14 @@ static int send_pc_lobby_bbchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
 }
 
 static int send_bb_lobby_bbchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
-                                const uint16_t *msg, size_t len) {
+                                const uint8_t *msg, size_t len) {
     uint8_t *sendbuf = get_sendbuf();
     bb_chat_pkt *pkt = (bb_chat_pkt *)sendbuf;
     uint16_t tmp[2] = { LE16('\t'), 0 };
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Clear the packet header */
     memset(pkt, 0, sizeof(bb_chat_pkt));
@@ -2662,10 +2675,10 @@ static int send_bb_lobby_bbchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
     pkt->guildcard = LE32(s->guildcard);
     pkt->padding = LE32(0x00010000);
 
-    strcpy16(pkt->msg, s->pl->bb.character.name);
-    strcat16(pkt->msg, tmp);
-    strcat16(pkt->msg, msg);
-    len = (strlen16(pkt->msg) << 1) + 0x12;
+    strcpy16_raw(pkt->msg, s->pl->bb.character.name);
+    strcat16_raw(pkt->msg, tmp);
+    strcat16_raw(pkt->msg, msg);
+    len = (strlen16_raw(pkt->msg) << 1) + 0x12;
 
     /* Add any padding needed */
     while(len & 0x07) {
@@ -2682,7 +2695,7 @@ static int send_bb_lobby_bbchat(lobby_t *l, ship_client_t *c, ship_client_t *s,
 }
 
 /* Send a talk packet to the specified lobby (UTF-16 - Blue Burst). */
-int send_lobby_bbchat(lobby_t *l, ship_client_t *sender, const uint16_t *msg,
+int send_lobby_bbchat(lobby_t *l, ship_client_t *sender, const uint8_t *msg,
                       size_t len) {
     int i;
 
@@ -2786,8 +2799,8 @@ static int send_dc_guild_reply(ship_client_t *c, ship_client_t *s) {
 
     /* iconv the name, if needed... */
     if(s->version == CLIENT_VERSION_BB) {
-        istrncpy16(ic_utf16_to_ascii, pkt->name, &s->bb_pl->character.name[2],
-                   0x20);
+        istrncpy16_raw(ic_utf16_to_ascii, pkt->name,
+                       &s->bb_pl->character.name[2], 0x20, 16);
     }
     else {
         strcpy(pkt->name, s->pl->v1.name);
@@ -2873,7 +2886,7 @@ static int send_pc_guild_reply(ship_client_t *c, ship_client_t *s) {
     else {
         istrncpy(ic_utf8_to_utf16, (char *)pkt->location, l->name, 0x1C);
         pkt->location[14] = pkt->location[15] = 0;
-        len = strlen16(pkt->location);
+        len = strlen16_raw(pkt->location);
 
         sprintf(tmp, ",%s, ,%s", lobby_name, ship->cfg->name);
         istrncpy(ic_utf8_to_utf16, (char *)(pkt->location + len), tmp,
@@ -2895,7 +2908,7 @@ static int send_pc_guild_reply(ship_client_t *c, ship_client_t *s) {
 static int send_bb_guild_reply(ship_client_t *c, ship_client_t *s) {
     uint8_t *sendbuf = get_sendbuf();
     bb_guild_reply_pkt *pkt = (bb_guild_reply_pkt *)sendbuf;
-    char tmp[0x44], lobby_name[32];
+    char tmp[256], lobby_name[32];
     lobby_t *l = s->cur_lobby;
     block_t *b = s->cur_block;
 
@@ -3031,8 +3044,8 @@ static int send_dc_guild_reply6(ship_client_t *c, ship_client_t *s) {
 
     /* iconv the name, if needed... */
     if(s->version == CLIENT_VERSION_BB) {
-        istrncpy16(ic_utf16_to_ascii, pkt->name, &s->bb_pl->character.name[2],
-                   0x20);
+        istrncpy16_raw(ic_utf16_to_ascii, pkt->name,
+                       &s->bb_pl->character.name[2], 0x20, 16);
     }
     else {
         strcpy(pkt->name, s->pl->v1.name);
@@ -3119,7 +3132,7 @@ static int send_pc_guild_reply6(ship_client_t *c, ship_client_t *s) {
     else {
         istrncpy(ic_utf8_to_utf16, (char *)pkt->location, l->name, 0x1C);
         pkt->location[14] = pkt->location[15] = 0;
-        len = strlen16(pkt->location);
+        len = strlen16_raw(pkt->location);
 
         sprintf(tmp, ",%s, ,%s", lobby_name, ship->cfg->name);
         istrncpy(ic_utf8_to_utf16, (char *)(pkt->location + len), tmp,
@@ -3142,7 +3155,7 @@ static int send_pc_guild_reply6(ship_client_t *c, ship_client_t *s) {
 static int send_bb_guild_reply6(ship_client_t *c, ship_client_t *s) {
     uint8_t *sendbuf = get_sendbuf();
     bb_guild_reply6_pkt *pkt = (bb_guild_reply6_pkt *)sendbuf;
-    char tmp[0x44], lobby_name[32];
+    char tmp[256], lobby_name[32];
     lobby_t *l = s->cur_lobby;
     block_t *b = s->cur_block;
 
@@ -3724,8 +3737,8 @@ static int send_dcnte_game_join(ship_client_t *c, lobby_t *l) {
             pkt->players[i].client_id = LE32(i);
 
             if(l->clients[i]->version == CLIENT_VERSION_BB) {
-                istrncpy16(ic_utf16_to_ascii, pkt->players[i].name,
-                           l->clients[i]->pl->bb.character.name, 16);
+                istrncpy16_raw(ic_utf16_to_ascii, pkt->players[i].name,
+                               l->clients[i]->pl->bb.character.name, 16, 16);
             }
             else {
                 memcpy(pkt->players[i].name, l->clients[i]->pl->v1.name, 16);
@@ -3782,8 +3795,8 @@ static int send_dc_game_join(ship_client_t *c, lobby_t *l) {
             pkt->players[i].client_id = LE32(i);
 
             if(l->clients[i]->version == CLIENT_VERSION_BB) {
-                istrncpy16(ic_utf16_to_ascii, pkt->players[i].name,
-                           l->clients[i]->pl->bb.character.name, 16);
+                istrncpy16_raw(ic_utf16_to_ascii, pkt->players[i].name,
+                               l->clients[i]->pl->bb.character.name, 16, 16);
             }
             else {
                 memcpy(pkt->players[i].name, l->clients[i]->pl->v1.name, 16);
@@ -3903,8 +3916,8 @@ static int send_gc_game_join(ship_client_t *c, lobby_t *l) {
             pkt->players[i].client_id = LE32(i);
 
             if(l->clients[i]->version == CLIENT_VERSION_BB) {
-                istrncpy16(ic_utf16_to_ascii, pkt->players[i].name,
-                           l->clients[i]->pl->bb.character.name, 16);
+                istrncpy16_raw(ic_utf16_to_ascii, pkt->players[i].name,
+                               l->clients[i]->pl->bb.character.name, 16, 16);
             }
             else {
                 memcpy(pkt->players[i].name, l->clients[i]->pl->v1.name, 16);
@@ -3972,8 +3985,8 @@ static int send_xbox_game_join(ship_client_t *c, lobby_t *l) {
             pkt->players[i].client_id = LE32(i);
 
             if(l->clients[i]->version == CLIENT_VERSION_BB) {
-                istrncpy16(ic_utf16_to_ascii, pkt->players[i].name,
-                           l->clients[i]->pl->bb.character.name, 16);
+                istrncpy16_raw(ic_utf16_to_ascii, pkt->players[i].name,
+                               l->clients[i]->pl->bb.character.name, 16, 16);
             }
             else {
                 memcpy(pkt->players[i].name, l->clients[i]->pl->v1.name, 16);
@@ -6456,7 +6469,7 @@ static int send_dcv1_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     FILE *bin, *dat;
     uint32_t binlen, datlen;
     int bindone = 0, datdone = 0, chunknum = 0;
-    char fn_base[256], filename[256];
+    char fn_base[256], filename[260];
     size_t amt;
     sylverant_quest_t *q = qm->qptr[c->version][lang];
 
@@ -6467,11 +6480,11 @@ static int send_dcv1_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
 
     /* Each quest has two files: a .dat file and a .bin file, send a file packet
        for each of them. */
-    sprintf(fn_base, "%s/%s-%s/%s", ship->cfg->quests_dir,
-            version_codes[CLIENT_VERSION_DCV1], language_codes[lang],
-            q->prefix);
+    snprintf(fn_base, 256, "%s/%s-%s/%s", ship->cfg->quests_dir,
+             version_codes[CLIENT_VERSION_DCV1], language_codes[lang],
+             q->prefix);
 
-    sprintf(filename, "%s.bin", fn_base);
+    snprintf(filename, 260, "%s.bin", fn_base);
     bin = fopen(filename, "rb");
 
     if(!bin) {
@@ -6480,7 +6493,7 @@ static int send_dcv1_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
         return -1;
     }
 
-    sprintf(filename, "%s.dat", fn_base);
+    snprintf(filename, 260, "%s.dat", fn_base);
     dat = fopen(filename, "rb");
 
     if(!dat) {
@@ -6503,12 +6516,12 @@ static int send_dcv1_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     /* Start with the .dat file. */
     memset(file, 0, sizeof(dc_quest_file_pkt));
 
-    sprintf(file->name, "PSO/%s", q->name);
+    snprintf(file->name, 32, "PSO/%-.27s", q->name);
 
     file->hdr.pkt_type = QUEST_FILE_TYPE;
     file->hdr.flags = 0x02; /* ??? */
     file->hdr.pkt_len = LE16(DC_QUEST_FILE_LENGTH);
-    sprintf(file->filename, "%s.dat", q->prefix);
+    snprintf(file->filename, 16, "%-.11s.dat", q->prefix);
     file->length = LE32(datlen);
 
     if(crypt_send(c, DC_QUEST_FILE_LENGTH, sendbuf)) {
@@ -6522,12 +6535,12 @@ static int send_dcv1_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     /* Now the .bin file. */
     memset(file, 0, sizeof(dc_quest_file_pkt));
 
-    sprintf(file->name, "PSO/%s", q->name);
+    snprintf(file->name, 32, "PSO/%-.27s", q->name);
 
     file->hdr.pkt_type = QUEST_FILE_TYPE;
     file->hdr.flags = 0x02; /* ??? */
     file->hdr.pkt_len = LE16(DC_QUEST_FILE_LENGTH);
-    sprintf(file->filename, "%s.bin", q->prefix);
+    snprintf(file->filename, 16, "%-.11s.bin", q->prefix);
     file->length = LE32(binlen);
 
     if(crypt_send(c, DC_QUEST_FILE_LENGTH, sendbuf)) {
@@ -6551,7 +6564,7 @@ static int send_dcv1_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
             chunk->hdr.dc.pkt_len = LE16(DC_QUEST_CHUNK_LENGTH);
 
             /* Fill in the rest */
-            sprintf(chunk->filename, "%s.dat", q->prefix);
+            snprintf(chunk->filename, 16, "%-.11s.dat", q->prefix);
             amt = fread(chunk->data, 1, 0x400, dat);
             chunk->length = LE32(((uint32_t)amt));
 
@@ -6581,7 +6594,7 @@ static int send_dcv1_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
             chunk->hdr.dc.pkt_len = LE16(DC_QUEST_CHUNK_LENGTH);
 
             /* Fill in the rest */
-            sprintf(chunk->filename, "%s.bin", q->prefix);
+            snprintf(chunk->filename, 16, "%-.11s.bin", q->prefix);
             amt = fread(chunk->data, 1, 0x400, bin);
             chunk->length = LE32(((uint32_t)amt));
 
@@ -6618,7 +6631,7 @@ static int send_dcv2_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     FILE *bin, *dat;
     uint32_t binlen, datlen;
     int bindone = 0, datdone = 0, chunknum = 0;
-    char fn_base[256], filename[256];
+    char fn_base[256], filename[260];
     size_t amt;
     sylverant_quest_t *q = qm->qptr[c->version][lang];
 
@@ -6630,16 +6643,16 @@ static int send_dcv2_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     /* Each quest has two files: a .dat file and a .bin file, send a file packet
        for each of them. */
     if(!v1 || (q->versions & SYLVERANT_QUEST_V1)) {
-        sprintf(fn_base, "%s/%s-%s/%s", ship->cfg->quests_dir,
-                version_codes[c->version], language_codes[lang], q->prefix);
+        snprintf(fn_base, 256, "%s/%s-%s/%s", ship->cfg->quests_dir,
+                 version_codes[c->version], language_codes[lang], q->prefix);
     }
     else {
-        sprintf(fn_base, "%s/%s-%s/%s", ship->cfg->quests_dir,
-                version_codes[CLIENT_VERSION_DCV1], language_codes[lang],
-                q->prefix);
+        snprintf(fn_base, 256, "%s/%s-%s/%s", ship->cfg->quests_dir,
+                 version_codes[CLIENT_VERSION_DCV1], language_codes[lang],
+                 q->prefix);
     }
 
-    sprintf(filename, "%s.bin", fn_base);
+    snprintf(filename, 260, "%s.bin", fn_base);
     bin = fopen(filename, "rb");
 
     if(!bin) {
@@ -6648,7 +6661,7 @@ static int send_dcv2_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
         return -1;
     }
 
-    sprintf(filename, "%s.dat", fn_base);
+    snprintf(filename, 260, "%s.dat", fn_base);
     dat = fopen(filename, "rb");
 
     if(!dat) {
@@ -6671,12 +6684,12 @@ static int send_dcv2_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     /* Start with the .dat file. */
     memset(file, 0, sizeof(dc_quest_file_pkt));
 
-    sprintf(file->name, "PSO/%s", q->name);
+    snprintf(file->name, 32, "PSO/%-.27s", q->name);
 
     file->hdr.pkt_type = QUEST_FILE_TYPE;
     file->hdr.flags = 0x02; /* ??? */
     file->hdr.pkt_len = LE16(DC_QUEST_FILE_LENGTH);
-    sprintf(file->filename, "%s.dat", q->prefix);
+    snprintf(file->filename, 16, "%-.11s.dat", q->prefix);
     file->length = LE32(datlen);
 
     if(crypt_send(c, DC_QUEST_FILE_LENGTH, sendbuf)) {
@@ -6690,12 +6703,12 @@ static int send_dcv2_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     /* Now the .bin file. */
     memset(file, 0, sizeof(dc_quest_file_pkt));
 
-    sprintf(file->name, "PSO/%s", q->name);
+    snprintf(file->name, 32, "PSO/%-.27s", q->name);
 
     file->hdr.pkt_type = QUEST_FILE_TYPE;
     file->hdr.flags = 0x02; /* ??? */
     file->hdr.pkt_len = LE16(DC_QUEST_FILE_LENGTH);
-    sprintf(file->filename, "%s.bin", q->prefix);
+    snprintf(file->filename, 16, "%-.11s.bin", q->prefix);
     file->length = LE32(binlen);
 
     if(crypt_send(c, DC_QUEST_FILE_LENGTH, sendbuf)) {
@@ -6719,7 +6732,7 @@ static int send_dcv2_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
             chunk->hdr.dc.pkt_len = LE16(DC_QUEST_CHUNK_LENGTH);
 
             /* Fill in the rest */
-            sprintf(chunk->filename, "%s.dat", q->prefix);
+            snprintf(chunk->filename, 16, "%-.11s.dat", q->prefix);
             amt = fread(chunk->data, 1, 0x400, dat);
             chunk->length = LE32(((uint32_t)amt));
 
@@ -6749,7 +6762,7 @@ static int send_dcv2_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
             chunk->hdr.dc.pkt_len = LE16(DC_QUEST_CHUNK_LENGTH);
 
             /* Fill in the rest */
-            sprintf(chunk->filename, "%s.bin", q->prefix);
+            snprintf(chunk->filename, 16, "%-.11s.bin", q->prefix);
             amt = fread(chunk->data, 1, 0x400, bin);
             chunk->length = LE32(((uint32_t)amt));
 
@@ -6786,7 +6799,7 @@ static int send_pc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     FILE *bin, *dat;
     uint32_t binlen, datlen;
     int bindone = 0, datdone = 0, chunknum = 0;
-    char fn_base[256], filename[256];
+    char fn_base[256], filename[260];
     size_t amt;
     sylverant_quest_t *q = qm->qptr[c->version][lang];
 
@@ -6798,15 +6811,15 @@ static int send_pc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     /* Each quest has two files: a .dat file and a .bin file, send a file packet
        for each of them. */
     if(!v1 || (q->versions & SYLVERANT_QUEST_V1)) {
-        sprintf(fn_base, "%s/%s-%s/%s", ship->cfg->quests_dir,
-                version_codes[c->version], language_codes[lang], q->prefix);
+        snprintf(fn_base, 256, "%s/%s-%s/%s", ship->cfg->quests_dir,
+                 version_codes[c->version], language_codes[lang], q->prefix);
     }
     else {
-        sprintf(fn_base, "%s/%s-%s/%sv1", ship->cfg->quests_dir,
-                version_codes[c->version], language_codes[lang], q->prefix);
+        snprintf(fn_base, 256, "%s/%s-%s/%sv1", ship->cfg->quests_dir,
+                 version_codes[c->version], language_codes[lang], q->prefix);
     }
 
-    sprintf(filename, "%s.bin", fn_base);
+    snprintf(filename, 260, "%s.bin", fn_base);
     bin = fopen(filename, "rb");
 
     if(!bin) {
@@ -6815,7 +6828,7 @@ static int send_pc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
         return -1;
     }
 
-    sprintf(filename, "%s.dat", fn_base);
+    snprintf(filename, 260, "%s.dat", fn_base);
     dat = fopen(filename, "rb");
 
     if(!dat) {
@@ -6838,12 +6851,12 @@ static int send_pc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     /* Start with the .dat file. */
     memset(file, 0, sizeof(pc_quest_file_pkt));
 
-    sprintf(file->name, "PSO/%s", q->name);
+    snprintf(file->name, 32, "PSO/%-.27s", q->name);
 
     file->hdr.pkt_type = QUEST_FILE_TYPE;
     file->hdr.flags = 0x00;
     file->hdr.pkt_len = LE16(DC_QUEST_FILE_LENGTH);
-    sprintf(file->filename, "%s.dat", q->prefix);
+    snprintf(file->filename, 16, "%-.11s.dat", q->prefix);
     file->length = LE32(datlen);
     file->flags = 0x0002;
 
@@ -6858,12 +6871,12 @@ static int send_pc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     /* Now the .bin file. */
     memset(file, 0, sizeof(pc_quest_file_pkt));
 
-    sprintf(file->name, "PSO/%s", q->name);
+    snprintf(file->name, 32, "PSO/%-.27s", q->name);
 
     file->hdr.pkt_type = QUEST_FILE_TYPE;
     file->hdr.flags = 0x00;
     file->hdr.pkt_len = LE16(DC_QUEST_FILE_LENGTH);
-    sprintf(file->filename, "%s.bin", q->prefix);
+    snprintf(file->filename, 16, "%-.11s.bin", q->prefix);
     file->length = LE32(binlen);
     file->flags = 0x0002;
 
@@ -6888,7 +6901,7 @@ static int send_pc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
             chunk->hdr.pc.pkt_len = LE16(DC_QUEST_CHUNK_LENGTH);
 
             /* Fill in the rest */
-            sprintf(chunk->filename, "%s.dat", q->prefix);
+            snprintf(chunk->filename, 16, "%-.11s.dat", q->prefix);
             amt = fread(chunk->data, 1, 0x400, dat);
             chunk->length = LE32(((uint32_t)amt));
 
@@ -6918,7 +6931,7 @@ static int send_pc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
             chunk->hdr.pc.pkt_len = LE16(DC_QUEST_CHUNK_LENGTH);
 
             /* Fill in the rest */
-            sprintf(chunk->filename, "%s.bin", q->prefix);
+            snprintf(chunk->filename, 16, "%-.11s.bin", q->prefix);
             amt = fread(chunk->data, 1, 0x400, bin);
             chunk->length = LE32(((uint32_t)amt));
 
@@ -6955,7 +6968,7 @@ static int send_gc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     FILE *bin, *dat;
     uint32_t binlen, datlen;
     int bindone = 0, datdone = 0, chunknum = 0, v = c->version;
-    char fn_base[256], filename[256];
+    char fn_base[256], filename[260];
     size_t amt;
     sylverant_quest_t *q;
 
@@ -6972,15 +6985,15 @@ static int send_gc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     /* Each quest has two files: a .dat file and a .bin file, send a file packet
        for each of them. */
     if(!v1 || (q->versions & SYLVERANT_QUEST_V1)) {
-        sprintf(fn_base, "%s/%s-%s/%s", ship->cfg->quests_dir,
-                version_codes[v], language_codes[lang], q->prefix);
+        snprintf(fn_base, 256, "%s/%s-%s/%s", ship->cfg->quests_dir,
+                 version_codes[v], language_codes[lang], q->prefix);
     }
     else {
-        sprintf(fn_base, "%s/%s-%s/%sv1", ship->cfg->quests_dir,
-                version_codes[v], language_codes[lang], q->prefix);
+        snprintf(fn_base, 256, "%s/%s-%s/%sv1", ship->cfg->quests_dir,
+                 version_codes[v], language_codes[lang], q->prefix);
     }
 
-    sprintf(filename, "%s.bin", fn_base);
+    snprintf(filename, 260, "%s.bin", fn_base);
     bin = fopen(filename, "rb");
 
     if(!bin) {
@@ -6989,7 +7002,7 @@ static int send_gc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
         return -1;
     }
 
-    sprintf(filename, "%s.dat", fn_base);
+    snprintf(filename, 260, "%s.dat", fn_base);
     dat = fopen(filename, "rb");
 
     if(!dat) {
@@ -7012,12 +7025,12 @@ static int send_gc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     /* Start with the .dat file. */
     memset(file, 0, sizeof(gc_quest_file_pkt));
 
-    sprintf(file->name, "PSO/%s", q->name);
+    snprintf(file->name, 32, "PSO/%-.27s", q->name);
 
     file->hdr.pkt_type = QUEST_FILE_TYPE;
     file->hdr.flags = 0x00;
     file->hdr.pkt_len = LE16(DC_QUEST_FILE_LENGTH);
-    sprintf(file->filename, "%s.dat", q->prefix);
+    snprintf(file->filename, 16, "%-.11s.dat", q->prefix);
     file->length = LE32(datlen);
     file->flags = 0x0002;
 
@@ -7032,12 +7045,12 @@ static int send_gc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     /* Now the .bin file. */
     memset(file, 0, sizeof(gc_quest_file_pkt));
 
-    sprintf(file->name, "PSO/%s", q->name);
+    snprintf(file->name, 32, "PSO/%-.27s", q->name);
 
     file->hdr.pkt_type = QUEST_FILE_TYPE;
     file->hdr.flags = 0x00;
     file->hdr.pkt_len = LE16(DC_QUEST_FILE_LENGTH);
-    sprintf(file->filename, "%s.bin", q->prefix);
+    snprintf(file->filename, 16, "%-.11s.bin", q->prefix);
     file->length = LE32(binlen);
     file->flags = 0x0002;
 
@@ -7062,7 +7075,7 @@ static int send_gc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
             chunk->hdr.dc.pkt_len = LE16(DC_QUEST_CHUNK_LENGTH);
 
             /* Fill in the rest */
-            sprintf(chunk->filename, "%s.dat", q->prefix);
+            snprintf(chunk->filename, 16, "%-.11s.dat", q->prefix);
             amt = fread(chunk->data, 1, 0x400, dat);
             chunk->length = LE32(((uint32_t)amt));
 
@@ -7092,7 +7105,7 @@ static int send_gc_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
             chunk->hdr.dc.pkt_len = LE16(DC_QUEST_CHUNK_LENGTH);
 
             /* Fill in the rest */
-            sprintf(chunk->filename, "%s.bin", q->prefix);
+            snprintf(chunk->filename, 16, "%-.11s.bin", q->prefix);
             amt = fread(chunk->data, 1, 0x400, bin);
             chunk->length = LE32(((uint32_t)amt));
 
@@ -7137,33 +7150,35 @@ static int send_qst_quest(ship_client_t *c, quest_map_elem_t *qm, int v1,
     /* Figure out what file we're going to send. */
     if(!v1 || (q->versions & SYLVERANT_QUEST_V1)) {
         if(c->version != CLIENT_VERSION_XBOX)
-            sprintf(filename, "%s/%s-%s/%s.qst", ship->cfg->quests_dir,
-                    version_codes[c->version], language_codes[lang], q->prefix);
+            snprintf(filename, 256, "%s/%s-%s/%s.qst", ship->cfg->quests_dir,
+                     version_codes[c->version], language_codes[lang], q->prefix);
         else
-            sprintf(filename, "%s/%s-%s/%s.qst", ship->cfg->quests_dir,
-                    version_codes[CLIENT_VERSION_GC], language_codes[lang],
-                    q->prefix);
+            snprintf(filename, 256, "%s/%s-%s/%s.qst", ship->cfg->quests_dir,
+                     version_codes[CLIENT_VERSION_GC], language_codes[lang],
+                     q->prefix);
     }
     else {
         switch(c->version) {
             case CLIENT_VERSION_DCV1:
             case CLIENT_VERSION_DCV2:
-                sprintf(filename, "%s/%s-%s/%s.qst", ship->cfg->quests_dir,
-                        version_codes[CLIENT_VERSION_DCV1],
-                        language_codes[lang], q->prefix);
+                snprintf(filename, 256, "%s/%s-%s/%s.qst",
+                         ship->cfg->quests_dir,
+                         version_codes[CLIENT_VERSION_DCV1],
+                         language_codes[lang], q->prefix);
                 break;
 
             case CLIENT_VERSION_PC:
             case CLIENT_VERSION_GC:
-                sprintf(filename, "%s/%s-%s/%sv1.qst", ship->cfg->quests_dir,
-                        version_codes[c->version], language_codes[lang],
-                        q->prefix);
+                snprintf(filename, 256, "%s/%s-%s/%sv1.qst",
+                         ship->cfg->quests_dir, version_codes[c->version],
+                         language_codes[lang], q->prefix);
                 break;
 
             case CLIENT_VERSION_XBOX:
-                sprintf(filename, "%s/%s-%s/%sv1.qst", ship->cfg->quests_dir,
-                        version_codes[CLIENT_VERSION_GC], language_codes[lang],
-                        q->prefix);
+                snprintf(filename, 256, "%s/%s-%s/%sv1.qst",
+                         ship->cfg->quests_dir,
+                         version_codes[CLIENT_VERSION_GC], language_codes[lang],
+                         q->prefix);
                 break;
         }
     }
@@ -8377,7 +8392,7 @@ static int fill_one_choice_entry(uint8_t *sendbuf, int version,
                      it->cur_lobby->name, 0x1C);
             pkt->entries[entry].location[14] = 0;
             pkt->entries[entry].location[15] = 0;
-            len = strlen16(pkt->entries[entry].location);
+            len = strlen16_raw(pkt->entries[entry].location);
 
             sprintf(tmp, ",BLOCK%02d,%s", b->b, ship->cfg->name);
             istrncpy(ic_utf8_to_utf16,
@@ -8464,7 +8479,7 @@ static int fill_one_choice6_entry(uint8_t *sendbuf, int version,
                      it->cur_lobby->name, 0x1C);
             pkt->entries[entry].location[14] = 0;
             pkt->entries[entry].location[15] = 0;
-            len = strlen16(pkt->entries[entry].location);
+            len = strlen16_raw(pkt->entries[entry].location);
 
             sprintf(tmp, ",BLOCK%02d,%s", b->b, ship->cfg->name);
             istrncpy(ic_utf8_to_utf16,
@@ -10748,22 +10763,24 @@ int send_lobby_sync_register(lobby_t *l, uint8_t n, uint32_t v) {
 }
 
 int send_ban_msg(ship_client_t *c, time_t until, const char *reason) {
-    char string[512];
+    char string[1024];
     struct tm cooked;
+    size_t len = 0;
 
     /* Create the ban string. */
-    sprintf(string, "%s\n%s\n%s\tC7\n\n%s\n",
-            __(c, "\tEYou have been banned from this ship."), __(c, "Reason:"),
-            reason, __(c, "Your ban expires:"));
+    string[1023] = 0;
+    len = snprintf(string, 1023, "%s\n%s\n%s\tC7\n\n%s\n",
+                   __(c, "\tEYou have been banned from this ship."),
+                   __(c, "Reason:"), reason, __(c, "Your ban expires:"));
 
     if(until == (time_t)-1) {
-        strcat(string, __(c, "Never"));
+        strncat(string, __(c, "Never"), 1023 - len);
     }
     else {
         gmtime_r(&until, &cooked);
-        sprintf(string, "%s%02u:%02u UTC %u.%02u.%02u", string, cooked.tm_hour,
-                cooked.tm_min, cooked.tm_year + 1900, cooked.tm_mon + 1,
-                cooked.tm_mday);
+        snprintf(string + len, 1023 - len, "%02u:%02u UTC %u.%02u.%02u",
+                 cooked.tm_hour, cooked.tm_min, cooked.tm_year + 1900,
+                 cooked.tm_mon + 1, cooked.tm_mday);
     }
 
     return send_message_box(c, "%s", string);

@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2018, 2020, 2021 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2018, 2020, 2021, 2022 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -45,6 +45,12 @@ size_t strlen16(const uint16_t *str);
 char *istrncpy16(iconv_t ic, char *outs, const uint16_t *ins, int out_len);
 uint16_t *strcpy16(uint16_t *d, const uint16_t *s);
 uint16_t *strcat16(uint16_t *d, const uint16_t *s);
+
+size_t strlen16_raw(const void *ins);
+char *istrncpy16_raw(iconv_t ic, char *outs, const void *ins, int out_len,
+                     int max_src);
+void *strcpy16_raw(void *d, const void *s);
+void *strcat16_raw(void *d, const void *s);
 
 void *xmalloc(size_t size);
 const void *my_ntop(struct sockaddr_storage *addr, char str[INET6_ADDRSTRLEN]);

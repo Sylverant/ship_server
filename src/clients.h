@@ -57,6 +57,7 @@ typedef struct lobby lobby_t;
 #endif
 
 #define CLIENT_IGNORE_LIST_SIZE     10
+#define CLIENT_BLACKLIST_SIZE       30
 #define CLIENT_MAX_QSTACK           32
 
 #ifdef PACKED
@@ -122,6 +123,7 @@ struct ship_client {
 
     uint32_t next_item[4];
     uint32_t ignore_list[CLIENT_IGNORE_LIST_SIZE];
+    uint32_t blacklist[CLIENT_BLACKLIST_SIZE];
 
     client_blocklist_t *blocklist;
 
@@ -152,7 +154,6 @@ struct ship_client {
     char *infoboard;                    /* Points into the player struct. */
     uint8_t *c_rank;                    /* Points into the player struct. */
     lobby_t *create_lobby;
-    uint32_t *blacklist;                /* Points into the player struct. */
 
     uint32_t *next_maps;
     uint32_t *enemy_kills;

@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2016, 2017, 2018, 2019, 2020
-                  2021 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2016, 2017, 2018, 2019, 2020, 2021
+                  2022 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -323,9 +323,12 @@ void client_destroy_connection(ship_client_t *c,
                                   c->cur_block->b, c->pl->v1.name);
     }
     else if(c->version == CLIENT_VERSION_BB && c->bb_pl) {
+        uint16_t bbname[17];
+
+        memcpy(bbname, c->bb_pl->character.name, 16);
+        bbname[16] = 0;
         shipgate_send_block_login_bb(&ship->sg, 0, c->guildcard,
-                                     c->cur_block->b,
-                                     c->bb_pl->character.name);
+                                     c->cur_block->b, bbname);
     }
 
     ship_dec_clients(ship);
@@ -630,9 +633,8 @@ int client_has_blacklisted(ship_client_t *c, uint32_t gc) {
     int i;
 
     /* If the user doesn't have a blacklist, this is easy. */
-    if(!c->blacklist) {
+    if(c->version < CLIENT_VERSION_PC)
         return 0;
-    }
 
     /* Look through each blacklist entry. */
     for(i = 0; i < 30; ++i) {
@@ -1755,6 +1757,78 @@ static int client_qlang_lua(lua_State *l) {
     return 1;
 }
 
+static int client_sendMenu2_lua(lua_State *l) {
+    ship_client_t *c;
+    gen_menu_entry_t *ents;
+    lua_Integer count, i;
+    int tp;
+    const char *str;
+    uint32_t menu_id;
+
+    if(lua_islightuserdata(l, 1) && lua_isinteger(l, 2) &&
+       lua_isinteger(l, 3) && lua_istable(l, 4)) {
+        c = (ship_client_t *)lua_touserdata(l, 1);
+        menu_id = (uint32_t)lua_tointeger(l, 2);
+        count = lua_tointeger(l, 3);
+
+        /* Make sure we've got a sane count for the menu. */
+        if(count <= 0) {
+            lua_pushinteger(l, -1);
+            return 1;
+        }
+
+        ents = (gen_menu_entry_t *)malloc(sizeof(gen_menu_entry_t) * count);
+        if(!ents) {
+            lua_pushinteger(l, -1);
+            return 1;
+        }
+
+        /* Read each element from the tables passed in */
+        for(i = 1; i <= count; ++i) {
+            tp = lua_rawgeti(l, 4, i);
+            if(tp != LUA_TTABLE) {
+                lua_pop(l, 1);
+                free(ents);
+                lua_pushinteger(l, -1);
+                return 1;
+            }
+
+            tp = lua_rawgeti(l, -1, 1);
+            if(tp != LUA_TNUMBER) {
+                lua_pop(l, 2);
+                free(ents);
+                lua_pushinteger(l, -1);
+                return 1;
+            }
+
+            ents[i - 1].item_id = (uint32_t)lua_tointeger(l, -1);
+            lua_pop(l, 1);
+
+            tp = lua_rawgeti(l, -1, 2);
+            if(tp != LUA_TSTRING) {
+                lua_pop(l, 2);
+                free(ents);
+                lua_pushinteger(l, -1);
+                return 1;
+            }
+
+            str = lua_tostring(l, -1);
+            strncpy(ents[i - 1].text, str, 15);
+            ents[i - 1].text[15] = 0;
+            lua_pop(l, 2);
+        }
+
+        tp = send_generic_menu(c, menu_id, (size_t)count, ents);
+        free(ents);
+        lua_pushinteger(l, tp);
+    }
+    else {
+        lua_pushinteger(l, -1);
+    }
+
+    return 1;
+}
+
 static const luaL_Reg clientlib[] = {
     { "guildcard", client_guildcard_lua },
     { "isOnBlock", client_isOnBlock_lua },
@@ -1787,6 +1861,7 @@ static const luaL_Reg clientlib[] = {
     { "distance", client_distance_lua },
     { "language", client_language_lua },
     { "qlang", client_qlang_lua },
+    { "sendMenu2", client_sendMenu2_lua },
     { NULL, NULL }
 };
 

@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2014, 2015, 2016, 2018, 2019,
-                  2021 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2014, 2015, 2016, 2018, 2019, 2021,
+                  2022 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -1459,15 +1459,15 @@ static int handle_frlist(shipgate_conn_t *c, shipgate_friend_list_pkt *pkt) {
     int j, total;
     char msg[1024];
     miniship_t *ms;
+    size_t len = 0;
 
     /* Check the block number first. */
-    if(block > s->cfg->blocks) {
+    if(block > s->cfg->blocks)
         return 0;
-    }
 
     b = s->blocks[block - 1];
     total = ntohs(pkt->hdr.pkt_len) - sizeof(shipgate_friend_list_pkt);
-    msg[0] = '\0';
+    msg[0] = msg[1023] = 0;
     pthread_rwlock_rdlock(&b->lock);
 
     /* Find the requested client. */
@@ -1494,21 +1494,25 @@ static int handle_frlist(shipgate_conn_t *c, shipgate_friend_list_pkt *pkt) {
 
                     /* Fill in the message */
                     if(ms->menu_code) {
-                        sprintf(msg, "%s\tC2%s (%d)\n\tC7%02x:%c%c/%s "
-                                "BLOCK%02d\n", msg, pkt->entries[j].name, gc2,
-                                ms->ship_number, (char)(ms->menu_code),
-                                (char)(ms->menu_code >> 8), ms->name, bl2);
+                        len += snprintf(msg + len, 1023 - len,
+                                        "\tC2%s (%d)\n\tC7%02x:%c%c/%s "
+                                        "BLOCK%02d\n", pkt->entries[j].name,
+                                        gc2, ms->ship_number,
+                                        (char)(ms->menu_code),
+                                        (char)(ms->menu_code >> 8), ms->name,
+                                        bl2);
                     }
                     else {
-                        sprintf(msg, "%s\tC2%s (%d)\n\tC7%02x:%s BLOCK%02d\n",
-                                msg, pkt->entries[j].name, gc2, ms->ship_number,
-                                ms->name, bl2);
+                        len += snprintf(msg + len, 1023 - len,
+                                       "\tC2%s (%d)\n\tC7%02x:%s BLOCK%02d\n",
+                                       pkt->entries[j].name, gc2,
+                                       ms->ship_number, ms->name, bl2);
                     }
                 }
                 else {
                     /* Not online? Much easier to deal with! */
-                    sprintf(msg, "%s\tC4%s (%d)\n", msg, pkt->entries[j].name,
-                            gc2);
+                    len += snprintf(msg + len, 1023 - len, "\tC4%s (%d)\n",
+                                    pkt->entries[j].name, gc2);
                 }
             }
 
@@ -2637,9 +2641,8 @@ int shipgate_send_cdata(shipgate_conn_t *c, uint32_t gc, uint32_t slot,
     shipgate_char_data_pkt *pkt = (shipgate_char_data_pkt *)sendbuf;
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Fill in the header. */
     pkt->hdr.pkt_len = htons(sizeof(shipgate_char_data_pkt) + len);
@@ -2663,9 +2666,8 @@ int shipgate_send_creq(shipgate_conn_t *c, uint32_t gc, uint32_t slot) {
     shipgate_char_req_pkt *pkt = (shipgate_char_req_pkt *)sendbuf;
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Fill in the header and the body. */
     pkt->hdr.pkt_len = htons(sizeof(shipgate_char_req_pkt));
@@ -2685,9 +2687,8 @@ int shipgate_send_ship_info(shipgate_conn_t *c, ship_t *ship) {
     shipgate_login6_reply_pkt *pkt = (shipgate_login6_reply_pkt *)sendbuf;
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Clear the packet first */
     memset(pkt, 0, sizeof(shipgate_login6_reply_pkt));
@@ -2700,7 +2701,8 @@ int shipgate_send_ship_info(shipgate_conn_t *c, ship_t *ship) {
     /* Fill in the packet. */
     pkt->proto_ver = htonl(SHIPGATE_PROTO_VER);
     pkt->flags = htonl(ship->cfg->shipgate_flags);
-    strncpy((char *)pkt->name, ship->cfg->name, 12);
+    strncpy((char *)pkt->name, ship->cfg->name, 11);
+    pkt->name[11] = 0;
     pkt->ship_addr4 = ship_ip4;
 
     if(enable_ipv6) {
@@ -2726,9 +2728,8 @@ int shipgate_send_cnt(shipgate_conn_t *c, uint16_t clients, uint16_t games) {
     shipgate_cnt_pkt *pkt = (shipgate_cnt_pkt *)sendbuf;
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Fill in the header. */
     pkt->hdr.pkt_len = htons(sizeof(shipgate_cnt_pkt));
@@ -2755,9 +2756,8 @@ int shipgate_fw_dc(shipgate_conn_t *c, const void *dcp, uint32_t flags,
     int full_len = sizeof(shipgate_fw_9_pkt) + dc_len;
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Copy the packet, unchanged */
     memmove(pkt->pkt, dc, dc_len);
@@ -2790,9 +2790,8 @@ int shipgate_fw_pc(shipgate_conn_t *c, const void *pcp, uint32_t flags,
     int full_len = sizeof(shipgate_fw_9_pkt) + pc_len;
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Copy the packet, unchanged */
     memmove(pkt->pkt, pc, pc_len);
@@ -2825,9 +2824,8 @@ int shipgate_fw_bb(shipgate_conn_t *c, const void *bbp, uint32_t flags,
     int full_len = sizeof(shipgate_fw_9_pkt) + bb_len;
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Copy the packet, unchanged */
     memmove(pkt->pkt, bb, bb_len);
@@ -2858,9 +2856,8 @@ int shipgate_send_usrlogin(shipgate_conn_t *c, uint32_t gc, uint32_t block,
     shipgate_usrlogin_req_pkt *pkt = (shipgate_usrlogin_req_pkt *)sendbuf;
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Fill in the data. */
     memset(pkt, 0, sizeof(shipgate_usrlogin_req_pkt));
@@ -2877,8 +2874,8 @@ int shipgate_send_usrlogin(shipgate_conn_t *c, uint32_t gc, uint32_t block,
 
     pkt->guildcard = htonl(gc);
     pkt->block = htonl(block);
-    strncpy(pkt->username, username, 32);
-    strncpy(pkt->password, password, 32);
+    strncpy(pkt->username, username, 31);
+    strncpy(pkt->password, password, 31);
 
     /* Send the packet away */
     return send_crypt(c, sizeof(shipgate_usrlogin_req_pkt), sendbuf);
@@ -2891,9 +2888,8 @@ int shipgate_send_ban(shipgate_conn_t *c, uint16_t type, uint32_t requester,
     shipgate_ban_req_pkt *pkt = (shipgate_ban_req_pkt *)sendbuf;
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Make sure we're requesting something valid. */
     switch(type) {
@@ -2929,9 +2925,8 @@ int shipgate_send_friend_del(shipgate_conn_t *c, uint32_t user,
     shipgate_friend_upd_pkt *pkt = (shipgate_friend_upd_pkt *)sendbuf;
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Scrub the buffer */
     memset(pkt, 0, sizeof(shipgate_friend_upd_pkt));
@@ -2955,9 +2950,8 @@ int shipgate_send_friend_add(shipgate_conn_t *c, uint32_t user,
     shipgate_friend_add_pkt *pkt = (shipgate_friend_add_pkt *)sendbuf;
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Scrub the buffer */
     memset(pkt, 0, sizeof(shipgate_friend_add_pkt));
@@ -2985,9 +2979,8 @@ int shipgate_send_block_login(shipgate_conn_t *c, int on, uint32_t user,
     uint16_t type = on ? SHDR_TYPE_BLKLOGIN : SHDR_TYPE_BLKLOGOUT;
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Scrub the buffer */
     memset(pkt, 0, sizeof(shipgate_block_login_pkt));
@@ -3000,7 +2993,7 @@ int shipgate_send_block_login(shipgate_conn_t *c, int on, uint32_t user,
 
     pkt->guildcard = htonl(user);
     pkt->blocknum = htonl(block);
-    strncpy(pkt->ch_name, name, 32);
+    strncpy(pkt->ch_name, name, 31);
 
     /* Send the packet away */
     return send_crypt(c, sizeof(shipgate_block_login_pkt), sendbuf);
@@ -3013,9 +3006,8 @@ int shipgate_send_block_login_bb(shipgate_conn_t *c, int on, uint32_t user,
     uint16_t type = on ? SHDR_TYPE_BLKLOGIN : SHDR_TYPE_BLKLOGOUT;
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Scrub the buffer */
     memset(pkt, 0, sizeof(shipgate_block_login_pkt));
@@ -3041,9 +3033,8 @@ int shipgate_send_lobby_chg(shipgate_conn_t *c, uint32_t user, uint32_t lobby,
     shipgate_lobby_change_pkt *pkt = (shipgate_lobby_change_pkt *)sendbuf;
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Scrub the buffer */
     memset(pkt, 0, sizeof(shipgate_lobby_change_pkt));
@@ -3056,7 +3047,7 @@ int shipgate_send_lobby_chg(shipgate_conn_t *c, uint32_t user, uint32_t lobby,
 
     pkt->guildcard = htonl(user);
     pkt->lobby_id = htonl(lobby);
-    strncpy(pkt->lobby_name, lobby_name, 32);
+    strncpy(pkt->lobby_name, lobby_name, 31);
 
     /* Send the packet away */
     return send_crypt(c, sizeof(shipgate_lobby_change_pkt), sendbuf);
@@ -3075,9 +3066,8 @@ int shipgate_send_clients(shipgate_conn_t *c) {
     ship_client_t *cl;
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Loop through all the blocks looking for clients, sending one packet per
        block */
@@ -3114,7 +3104,8 @@ int shipgate_send_clients(shipgate_conn_t *c) {
 
                     if(l) {
                         pkt->entries[count].lobby = htonl(l->lobby_id);
-                        strncpy(pkt->entries[count].lobby_name, l->name, 32);
+                        memcpy(pkt->entries[count].lobby_name, l->name, 31);
+                        pkt->entries[count].lobby_name[31] = 0;
                     }
                     else {
                         pkt->entries[count].lobby = htonl(0);
@@ -3155,9 +3146,8 @@ int shipgate_send_kick(shipgate_conn_t *c, uint32_t requester, uint32_t user,
     shipgate_kick_pkt *pkt = (shipgate_kick_pkt *)sendbuf;
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Scrub the buffer */
     memset(pkt, 0, sizeof(shipgate_kick_pkt));
@@ -3171,9 +3161,8 @@ int shipgate_send_kick(shipgate_conn_t *c, uint32_t requester, uint32_t user,
     pkt->requester = htonl(requester);
     pkt->guildcard = htonl(user);
 
-    if(reason) {
-        strncpy(pkt->reason, reason, 64);
-    }
+    if(reason)
+        strncpy(pkt->reason, reason, 63);
 
     /* Send the packet away */
     return send_crypt(c, sizeof(shipgate_kick_pkt), sendbuf);

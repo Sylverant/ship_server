@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
     Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2017, 2018,
-                  2019, 2020, 2021 Lawrence Sebald
+                  2019, 2020, 2021, 2022 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -92,8 +92,8 @@ static void *block_thd(void *d) {
                probably dead. Disconnect it. */
             if(now > it->last_message + 90) {
                 if(it->bb_pl) {
-                    istrncpy16(ic_utf16_to_utf8, nm,
-                               &it->pl->bb.character.name[2], 64);
+                    istrncpy16_raw(ic_utf16_to_utf8, nm,
+                                   &it->pl->bb.character.name[2], 64, 14);
                     debug(DBG_LOG, "Ping Timeout: %s(%d)\n", nm, it->guildcard);
                 }
                 else if(it->pl) {
@@ -331,8 +331,8 @@ static void *block_thd(void *d) {
 
             if(it->flags & CLIENT_FLAG_DISCONNECTED) {
                 if(it->bb_pl) {
-                    istrncpy16(ic_utf16_to_utf8, nm,
-                               &it->pl->bb.character.name[2], 64);
+                    istrncpy16_raw(ic_utf16_to_utf8, nm,
+                                   &it->pl->bb.character.name[2], 64, 14);
                     debug(DBG_LOG, "Disconnecting %s(%d)\n", nm, it->guildcard);
                 }
                 else if(it->pl) {
@@ -1291,13 +1291,11 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
         memcpy(c->pl, &pkt->data, sizeof(v1_player_t));
         c->infoboard = NULL;
         c->c_rank = NULL;
-        c->blacklist = NULL;
     }
     else if(version == 2 && c->version == CLIENT_VERSION_DCV2) {
         memcpy(c->pl, &pkt->data, sizeof(v2_player_t));
         c->infoboard = NULL;
         c->c_rank = c->pl->v2.c_rank.all;
-        c->blacklist = NULL;
     }
     else if(version == 2 && c->version == CLIENT_VERSION_PC) {
         if(pkt->data.pc.autoreply[0]) {
@@ -1309,7 +1307,7 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
         memcpy(c->pl, &pkt->data, sizeof(pc_player_t));
         c->infoboard = NULL;
         c->c_rank = c->pl->pc.c_rank.all;
-        c->blacklist = c->pl->pc.blacklist;
+        memcpy(c->blacklist, c->pl->pc.blacklist, 30 * sizeof(uint32_t));
     }
     else if(version == 3) {
         if(pkt->data.v3.autoreply[0]) {
@@ -1321,14 +1319,14 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
         memcpy(c->pl, &pkt->data, sizeof(v3_player_t));
         c->infoboard = c->pl->v3.infoboard;
         c->c_rank = c->pl->v3.c_rank.all;
-        c->blacklist = c->pl->v3.blacklist;
+        memcpy(c->blacklist, c->pl->v3.blacklist, 30 * sizeof(uint32_t));
     }
     else if(version == 4) {
         /* XXXX: Not right, but work with it for now. */
         memcpy(c->pl, &pkt->data, sizeof(v3_player_t));
         c->infoboard = c->pl->v3.infoboard;
         c->c_rank = c->pl->v3.c_rank.all;
-        c->blacklist = c->pl->v3.blacklist;
+        memcpy(c->blacklist, c->pl->v3.blacklist, 30 * sizeof(uint32_t));
     }
 
     /* Copy out the inventory data */
@@ -1422,7 +1420,7 @@ static int bb_process_char(ship_client_t *c, bb_char_data_pkt *pkt) {
     memcpy(c->pl, &pkt->data, sizeof(sylverant_bb_player_t));
     c->infoboard = (char *)c->pl->bb.infoboard;
     c->c_rank = c->pl->bb.c_rank;
-    c->blacklist = c->pl->bb.blacklist;
+    memcpy(c->blacklist, c->pl->bb.blacklist, 30 * sizeof(uint32_t));
 
     /* Copy out the inventory data */
     memcpy(c->items, c->pl->bb.inv.items, sizeof(item_t) * 30);
@@ -1463,10 +1461,14 @@ static int bb_process_char(ship_client_t *c, bb_char_data_pkt *pkt) {
 
         /* Do a few things that should only be done once per session... */
         if(!(c->flags & CLIENT_FLAG_SENT_MOTD)) {
+            uint16_t bbname[17];
+
+            memcpy(bbname, c->bb_pl->character.name, 16);
+            bbname[16] = 0;
+
             /* Notify the shipgate */
             shipgate_send_block_login_bb(&ship->sg, 1, c->guildcard,
-                                         c->cur_block->b,
-                                         c->bb_pl->character.name);
+                                         c->cur_block->b, bbname);
             shipgate_send_lobby_chg(&ship->sg, c->guildcard,
                                     c->cur_lobby->lobby_id, c->cur_lobby->name);
 
@@ -1551,9 +1553,8 @@ static int dc_process_chat(ship_client_t *c, dc_chat_pkt *pkt) {
     size_t len;
 
     /* Sanity check... this shouldn't happen. */
-    if(!l) {
+    if(!l)
         return -1;
-    }
 
     len = strlen(pkt->msg);
 
@@ -1613,9 +1614,8 @@ static int pc_process_chat(ship_client_t *c, dc_chat_pkt *pkt) {
     char *u8msg, *cmsg;
 
     /* Sanity check... this shouldn't happen. */
-    if(!l) {
+    if(!l)
         return -1;
-    }
 
     /* Fill in escapes for the color chat stuff */
     if(c->cc_char) {
@@ -1666,9 +1666,8 @@ static int bb_process_chat(ship_client_t *c, bb_chat_pkt *pkt) {
     int i;
 
     /* Sanity check... this shouldn't happen. */
-    if(!l) {
+    if(!l)
         return -1;
-    }
 
     /* Fill in escapes for the color chat stuff */
     if(c->cc_char) {
@@ -1697,7 +1696,7 @@ static int bb_process_chat(ship_client_t *c, bb_chat_pkt *pkt) {
     }
 
     /* Send the message to the lobby. */
-    return send_lobby_bbchat(l, c, (uint16_t *)pkt->msg, len);
+    return send_lobby_bbchat(l, c, pkt->msg, len);
 }
 
 /* Process a Guild Search request. */
@@ -2194,8 +2193,8 @@ static int pc_process_game_create(ship_client_t *c, pc_game_create_pkt *pkt) {
     char name[32], password[16];
 
     /* Convert the name/password to the appropriate encoding. */
-    istrncpy16(ic_utf16_to_utf8, name, pkt->name, 32);
-    istrncpy16(ic_utf16_to_ascii, password, pkt->password, 16);
+    istrncpy16_raw(ic_utf16_to_utf8, name, pkt->name, 32, 16);
+    istrncpy16_raw(ic_utf16_to_ascii, password, pkt->password, 16, 16);
 
     /* Check the user's ability to create a game of that difficulty. */
     if(!(c->flags & CLIENT_FLAG_OVERRIDE_GAME)) {
@@ -2354,8 +2353,8 @@ static int bb_process_game_create(ship_client_t *c, bb_game_create_pkt *pkt) {
     }
 
     /* Convert the team name/password to UTF-8 */
-    istrncpy16(ic_utf16_to_utf8, name, pkt->name, 64);
-    istrncpy16(ic_utf16_to_utf8, passwd, pkt->password, 64);
+    istrncpy16_raw(ic_utf16_to_utf8, name, pkt->name, 64, 16);
+    istrncpy16_raw(ic_utf16_to_utf8, passwd, pkt->password, 64, 16);
 
     /* Create the lobby structure. */
     l = lobby_create_game(c->cur_block, name, passwd, pkt->difficulty,
@@ -2912,6 +2911,7 @@ static int gc_process_blacklist(ship_client_t *c,
 static int bb_process_blacklist(ship_client_t *c,
                                 bb_blacklist_update_pkt *pkt) {
     memcpy(c->blacklist, pkt->list, 28 * sizeof(uint32_t));
+    memcpy(c->pl->bb.blacklist, pkt->list, 28 * sizeof(uint32_t));
     memcpy(c->bb_opts->blocked, pkt->list, 28 * sizeof(uint32_t));
     return send_txt(c, "%s", __(c, "\tE\tC7Updated blacklist."));
 }

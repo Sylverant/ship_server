@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
     Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018,
-                  2019, 2020, 2021 Lawrence Sebald
+                  2019, 2020, 2021, 2022 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -1459,8 +1459,8 @@ static void dumpinv_internal(ship_client_t *c) {
         }
     }
     else {
-        istrncpy16(ic_utf16_to_utf8, name, &c->bb_pl->character.name[2],
-                   64);
+        istrncpy16_raw(ic_utf16_to_utf8, name, &c->bb_pl->character.name[2], 64,
+                       14);
         debug(DBG_LOG, "Inventory dump for %s (%d)\n", name, c->guildcard);
 
         for(i = 0; i < c->bb_pl->inv.item_count; ++i) {
@@ -1690,6 +1690,7 @@ static int handle_ll(ship_client_t *c, const char *params) {
     lobby_t *l = c->cur_lobby;
     int i;
     ship_client_t *c2;
+    size_t len;
 
     /* Don't allow this if they have the protection flag on. */
     if(c->flags & CLIENT_FLAG_GC_PROTECT) {
@@ -1697,25 +1698,28 @@ static int handle_ll(ship_client_t *c, const char *params) {
                               "you can do that."));
     }
 
-    strcpy(str, "\tE");
+    str[0] = '\t';
+    str[1] = 'E';
+    len = 2;
 
     if(LOCAL_GM(c)) {
         for(i = 0; i < l->max_clients; i += 2) {
             if((c2 = l->clients[i])) {
-                snprintf(str, 511, "%s%d: %s (%d)   ", str, i, c2->pl->v1.name,
-                         c2->guildcard);
+                len += snprintf(str + len, 511 - len, "%d: %s (%" PRIu32 ")   ",
+                                i, c2->pl->v1.name, c2->guildcard);
             }
             else {
-                snprintf(str, 511, "%s%d: None   ", str, i);
+                len += snprintf(str + len, 511 - len, "%d: None   ", i);
             }
 
             if((i + 1) < l->max_clients) {
                 if((c2 = l->clients[i + 1])) {
-                    snprintf(str, 511, "%s%d: %s (%d)\n", str, i + 1,
-                             c2->pl->v1.name, c2->guildcard);
+                    len += snprintf(str + len, 511 - len, "%d: %s (%" PRIu32
+                                    ")\n", i + 1, c2->pl->v1.name,
+                                    c2->guildcard);
                 }
                 else {
-                    snprintf(str, 511, "%s%d: None\n", str, i + 1);
+                    len += snprintf(str + len, 511 - len, "%d: None\n", i + 1);
                 }
             }
         }
@@ -1723,19 +1727,20 @@ static int handle_ll(ship_client_t *c, const char *params) {
     else {
         for(i = 0; i < l->max_clients; i += 2) {
             if((c2 = l->clients[i])) {
-                snprintf(str, 511, "%s%d: %s   ", str, i, c2->pl->v1.name);
+                len += snprintf(str + len, 511 - len, "%d: %s   ", i,
+                                c2->pl->v1.name);
             }
             else {
-                snprintf(str, 511, "%s%d: None   ", str, i);
+                len += snprintf(str + len, 511 - len, "%d: None   ", i);
             }
 
             if((i + 1) < l->max_clients) {
                 if((c2 = l->clients[i + 1])) {
-                    snprintf(str, 511, "%s%d: %s\n", str, i + 1,
-                             c2->pl->v1.name);
+                    len += snprintf(str + len, 511 - len, "%d: %s\n", i + 1,
+                                    c2->pl->v1.name);
                 }
                 else {
-                    snprintf(str, 511, "%s%d: None\n", str, i + 1);
+                    len += snprintf(str + len, 511 - len, "%d: None\n", i + 1);
                 }
             }
         }

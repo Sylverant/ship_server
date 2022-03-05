@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2018, 2020,
-                  2021 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2018, 2020, 2021,
+                  2022 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -634,7 +634,7 @@ typedef struct bb_chat {
     bb_pkt_hdr_t hdr;
     uint32_t padding;
     uint32_t guildcard;
-    uint16_t msg[];
+    uint8_t msg[];
 } PACKED bb_chat_pkt;
 
 /* The packet sent to search for a player */

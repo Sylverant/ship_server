@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2018, 2020, 2021 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2018, 2020, 2021, 2022 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -264,7 +264,8 @@ int bb_bug_report(ship_client_t *c, bb_simple_mail_pkt *pkt) {
 
     text[0x1FF] = '\0';
 
-    istrncpy16(ic_utf16_to_ascii, name, &c->pl->bb.character.name[2], 0x40);
+    istrncpy16_raw(ic_utf16_to_utf8, name, &c->pl->bb.character.name[2], 0x40,
+                   14);
 
     /* Attempt to open up the file. */
     fp = fopen(filename, "w");
@@ -519,6 +520,74 @@ uint16_t *strcat16(uint16_t *d, const uint16_t *s) {
     return rv;
 }
 
+size_t strlen16_raw(const void *str) {
+    size_t sz = 0;
+    const uint8_t *str8 = (const uint8_t *)str;
+    uint16_t tmp = *str8 | *(str8 + 1) << 8;
+
+    while(tmp) {
+        str8 += 2;
+        ++sz;
+        /* Note: We don't care about endianness here, as we're looking for 0.
+           That said, we should always be dealing with little endian UTF-16. */
+        tmp = *str8 | *(str8 + 1) << 8;
+    }
+
+    return sz;
+}
+
+char *istrncpy16_raw(iconv_t ic, char *outs, const void *ins,
+                     int out_len, int max_src) {
+    size_t len = (size_t)max_src;
+
+    if(max_src <= 0) {
+        len = strlen16_raw(ins);
+    }
+
+    if(max_src > 0) {
+        uint16_t src[len + 1];
+
+        memcpy(src, ins, sizeof(uint16_t) * len);
+        src[len] = 0;
+        return istrncpy16(ic, outs, src, out_len);
+    }
+    else if(out_len > 0) {
+        *outs = 0;
+        return outs;
+    }
+    else {
+        return NULL;
+    }
+}
+
+void *strcpy16_raw(void *d, const void *s) {
+    uint8_t *dst = (uint8_t *)d;
+    const uint8_t *src = (const uint8_t *)s;
+
+    while(*src || *(src + 1)) {
+        *dst++ = *src++;
+        *dst++ = *src++ << 8;
+    }
+
+    return d;
+}
+
+void *strcat16_raw(void *d, const void *s) {
+    uint8_t *dst = (uint8_t *)d;
+    const uint8_t *src = (const uint8_t *)s;
+
+    /* Move to the end of the string */
+    while(*dst || *(dst + 1)) dst += 2;
+
+    /* Tack on the new part */
+    while(*src || *(src + 1)) {
+        *dst++ = *src++;
+        *dst++ = *src++ << 8;
+    }
+
+    return d;
+}
+
 void *xmalloc(size_t size) {
     void *rv = malloc(size);
 
@@ -764,7 +833,7 @@ static void convert_bb_to_dcpcgc(ship_client_t *s, uint8_t *buf) {
     memcpy(c->techniques, sp->techniques, 0x14);
 
     /* Copy the name over */
-    istrncpy16(ic_utf16_to_ascii, c->name, &sp->name[2], 16);
+    istrncpy16_raw(ic_utf16_to_ascii, c->name, &sp->name[2], 16, 16);
 }
 
 void make_disp_data(ship_client_t *s, ship_client_t *d, void *buf) {
@@ -956,37 +1025,37 @@ void cleanup_iconv(void) {
 /* Initialize mini18n support. */
 void init_i18n(void) {
 #ifdef HAVE_LIBMINI18N
-	int i;
-	char filename[256];
+    int i;
+    char filename[256];
 
-	for(i = 0; i < CLIENT_LANG_COUNT; ++i) {
-		langs[i] = mini18n_create();
+    for(i = 0; i < CLIENT_LANG_COUNT; ++i) {
+        langs[i] = mini18n_create();
 
-		if(langs[i]) {
-			sprintf(filename, "l10n/ship_server-%s.yts", language_codes[i]);
+        if(langs[i]) {
+            sprintf(filename, "l10n/ship_server-%s.yts", language_codes[i]);
 
-			/* Attempt to load the l10n file. */
-			if(mini18n_load(langs[i], filename)) {
-				/* If we didn't get it, clean up. */
-				mini18n_destroy(langs[i]);
-				langs[i] = NULL;
-			}
-			else {
-				debug(DBG_LOG, "Read l10n file for %s\n", language_codes[i]);
-			}
-		}
-	}
+            /* Attempt to load the l10n file. */
+            if(mini18n_load(langs[i], filename)) {
+                /* If we didn't get it, clean up. */
+                mini18n_destroy(langs[i]);
+                langs[i] = NULL;
+            }
+            else {
+                debug(DBG_LOG, "Read l10n file for %s\n", language_codes[i]);
+            }
+        }
+    }
 #endif
 }
 
 /* Clean up when we're done with mini18n. */
 void cleanup_i18n(void) {
 #ifdef HAVE_LIBMINI18N
-	int i;
+    int i;
 
-	/* Just call the destroy function... It'll handle null values fine. */
-	for(i = 0; i < CLIENT_LANG_COUNT; ++i) {
-		mini18n_destroy(langs[i]);
-	}
+    /* Just call the destroy function... It'll handle null values fine. */
+    for(i = 0; i < CLIENT_LANG_COUNT; ++i) {
+        mini18n_destroy(langs[i]);
+    }
 #endif
 }
