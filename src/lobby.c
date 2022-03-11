@@ -2355,7 +2355,7 @@ static int lobby_setEventCallback_lua(lua_State *l) {
         lua_pop(l, 1);
 
         /* Push the result of adding the callback to the stack. */
-        lua_pushboolean(l, rv);
+        lua_pushboolean(l, !rv);
         pthread_mutex_unlock(&lb->mutex);
     }
     else {
@@ -2387,7 +2387,7 @@ static int lobby_clearEventCallback_lua(lua_State *l) {
         rv = script_remove_lobby_locked(lb, (script_action_t)event);
 
         /* Push the result of removing the callback to the stack. */
-        lua_pushboolean(l, rv);
+        lua_pushboolean(l, !rv);
         pthread_mutex_unlock(&lb->mutex);
     }
     else {
@@ -2429,7 +2429,7 @@ static int lobby_setQuestFunction_lua(lua_State *l) {
         lua_pop(l, 1);
 
         /* Push the result of adding the callback to the stack. */
-        lua_pushboolean(l, 0);
+        lua_pushboolean(l, !rv);
         pthread_mutex_unlock(&lb->mutex);
     }
     else {
@@ -2461,7 +2461,7 @@ static int lobby_clearQuestFunction_lua(lua_State *l) {
         rv = script_remove_lobby_qfunc_locked(lb, (uint32_t)fnum);
 
         /* Push the result of removing the callback to the stack. */
-        lua_pushboolean(l, 0);
+        lua_pushboolean(l, !rv);
         pthread_mutex_unlock(&lb->mutex);
     }
     else {
