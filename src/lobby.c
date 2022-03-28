@@ -1963,6 +1963,11 @@ int lobby_setup_quest(lobby_t *l, ship_client_t *c, uint32_t qid, int lang) {
         script_execute(ScriptActionQuestLoad, c, SCRIPT_ARG_PTR, c,
                        SCRIPT_ARG_PTR, l, SCRIPT_ARG_UINT32, qid,
                        SCRIPT_ARG_INT, lang, SCRIPT_ARG_END);
+
+        /* And run the specific script for this quest, if one exists. */
+        if(q->onload_script_file) {
+            script_execute_file(q->onload_script_file, l);
+        }
     }
     else {
         /* This really shouldn't happen... */
