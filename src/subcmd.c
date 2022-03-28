@@ -3452,8 +3452,9 @@ static int handle_drop_stack(ship_client_t *c, subcmd_drop_stack_t *pkt) {
     }
 
     /* Sanity check... Make sure the size of the subcommand matches with what we
-       expect. Disconnect the client if not. */
-    if(pkt->size != 0x0A)
+       expect. Disconnect the client if not. Note that v1 is missing the stupid
+       extra "two" field from the packet. */
+    if(pkt->size != 0x0A && pkt->size != 0x09)
         return -1;
 
     /* If a shop menu is open, someone is probably doing something nefarious.
