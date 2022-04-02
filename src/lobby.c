@@ -1848,7 +1848,34 @@ int lobby_setup_quest(lobby_t *l, ship_client_t *c, uint32_t qid, int lang) {
 
     /* Do we have quests configured? */
     if(!TAILQ_EMPTY(&ship->qmap)) {
+        /* Run the before quest load script, if one exists. */
+        rv = script_execute(ScriptActionBeforeQuestLoad, c, SCRIPT_ARG_PTR, c,
+                            SCRIPT_ARG_PTR, l, SCRIPT_ARG_UINT32, qid,
+                            SCRIPT_ARG_INT, lang, SCRIPT_ARG_END);
+
+        /* If the script returns a negative number, don't load the quest. */
+        if(rv < 0) {
+            l->flags &= ~LOBBY_FLAG_QUESTSEL;
+            pthread_mutex_unlock(&l->mutex);
+            pthread_rwlock_unlock(&ship->qlock);
+            return 0;
+        }
+        else if(rv > 0) {
+            qid = (uint32_t)rv;
+            rv = 0;
+        }
+
         e = quest_lookup(&ship->qmap, qid);
+        if(!e) {
+            rv = send_message1(c, "%s", __(c, "\tE\tC4Quest info\n"
+                                           "missing.\n\n"
+                                           "Report this to\n"
+                                           "the ship admin."));
+            l->flags &= ~LOBBY_FLAG_QUESTSEL;
+            pthread_mutex_unlock(&l->mutex);
+            pthread_rwlock_unlock(&ship->qlock);
+            return rv;
+        }
 
         /* We have a bit of extra work on GC/BB quests... */
         if(l->version >= CLIENT_VERSION_GC) {
@@ -1864,6 +1891,7 @@ int lobby_setup_quest(lobby_t *l, ship_client_t *c, uint32_t qid, int lang) {
                                                "missing.\n\n"
                                                "Report this to\n"
                                                "the ship admin."));
+                l->flags &= ~LOBBY_FLAG_QUESTSEL;
                 pthread_mutex_unlock(&l->mutex);
                 pthread_rwlock_unlock(&ship->qlock);
                 return rv;
