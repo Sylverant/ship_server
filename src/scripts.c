@@ -845,7 +845,7 @@ uint32_t script_execute_qfunc(ship_client_t *c, lobby_t *l) {
             pthread_mutex_lock(&script_mutex);
 
             /* Pull the scripts table out to the top of the stack. */
-            lua_rawgeti(lstate, LUA_REGISTRYINDEX, scripts_ref);
+            lua_rawgeti(lstate, LUA_REGISTRYINDEX, l->script_table);
 
             /* Push the script that we're looking at onto the stack. */
             lua_rawgeti(lstate, -1, i->script_id);
