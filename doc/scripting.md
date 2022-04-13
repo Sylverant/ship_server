@@ -83,6 +83,10 @@ uint32_t item_id)`
 * `ChangeArea(ship_client_t *c, int new_area, int old_area)`
 * `QuestSyncRegister(ship_client_t *c, lobby_t *l, uint8_t reg_num,
 uint32_t value)`
+* `void QuestLoad(ship_client_t *c, lobby_t *l, uint32_t quest_id,
+int lang_code)`
+* `int BeforeQuestLoad(ship_client_t *c, lobby_t *l, uint32_t quest_id,
+int lang_code)`
 
 ## Scriptable Events in Shipgate
 
@@ -212,6 +216,20 @@ from the lobby/team's random number generator. This value will be between 0 and
 flag on the specified team if it is valid (that is to say if the team only has
 one player in it still). Returns `true` if the call succeeded or `false`
 otherwise.
+* `lua_Boolean lobby.setEventCallback(lobby_t *l, int event, lua_Function f)`:
+Sets a lobby-local event callback for the specified game event to the function
+given. Returns `true` if the call succeeded or `false` otherwise.
+* `lua_Boolean lobby.clearEventCallback(lobby_t *l, int event)`: Clear the
+lobby-local event callback for the specified game event. Returns `true` if the
+call succeeded or `false` otherwise.
+* `lua_Boolean lobby.setQuestFunction(lobby_t *l, int function, lua_Function f,
+int argcnt, int rvcnt)`: Set a quest function that can be called with the
+quest stack in the specified lobby/team. The function ID must be greater than
+0x80000000. Returns `true` if the call succeeded or `false` otherwise.
+* `lua_Boolean lobby.clearQuestFunction(lobby_t *l, int function)`: Clears the
+function on the specified lobby/team that was previously set with the
+`lobby.setQuestFunction` function. Returns `true` if the call succeeded or
+`false` otherwise.
 
 ### Client Lua Library
 
@@ -310,6 +328,13 @@ point values.
 * `lua_Number client.distance(ship_client_t *c1, ship_client_t *c2)`: Calculate
 the Euclidian distance between the specified clients, assuming they are both in
 the same area. Returns -1 if the two clients are not in the same area.
+* `int client.language(ship_client_t *c)`: Get the language code specified in
+the client's character data.
+* `int client.qlang(ship_client_t *c)`: Get the language code set by the client
+with /qlang, if any.
+* `int client.sendMenu2(ship_client_t *c, int menu_id, int count,
+lua_table data)`: Create a menu similar to `client.sendMenu`, but with the data
+arranged differently.
 
 ## Library Support in Shipgate
 
