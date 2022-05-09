@@ -1,7 +1,8 @@
 dnl
 dnl This file is part of Sylverant PSO Server.
 dnl
-dnl Copyright (C) 2009, 2011, 2013, 2015, 2016, 2018, 2020, 2021 Lawrence Sebald
+dnl Copyright (C) 2009, 2011, 2013, 2015, 2016, 2018, 2020, 2021,
+dnl               2022 Lawrence Sebald
 dnl
 dnl This program is free software: you can redistribute it and/or modify
 dnl it under the terms of the GNU Affero General Public License version 3
@@ -101,7 +102,7 @@ AM_CONDITIONAL([NEED_PIDFILE], [test "$NEED_PIDFILE" -eq 1])
 AX_PTHREAD
 
 # Checks for header files.
-AC_CHECK_HEADERS([arpa/inet.h inttypes.h netdb.h netinet/in.h stdlib.h string.h sys/socket.h sys/time.h unistd.h pwd.h grp.h])
+AC_CHECK_HEADERS([arpa/inet.h inttypes.h netdb.h netinet/in.h netinet/tcp.h stdlib.h string.h sys/socket.h sys/time.h unistd.h pwd.h grp.h])
 AC_CHECK_HEADERS([libutil.h bsd/libutil.h math.h sys/utsname.h])
 
 # Checks for typedefs, structures, and compiler characteristics.

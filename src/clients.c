@@ -25,6 +25,7 @@
 #include <errno.h>
 #include <math.h>
 #include <sys/socket.h>
+#include <netinet/tcp.h>
 
 #include <sylverant/encryption.h>
 #include <sylverant/mtwist.h>
@@ -95,6 +96,26 @@ ship_client_t *client_create_connection(int sock, int version, int type,
     int i;
     pthread_mutexattr_t attr;
     struct mt19937_state *rng;
+
+    /* Disable Nagle's algorithm */
+    i = 1;
+    if(setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &i, sizeof(int)) < 0) {
+        perror("setsockopt");
+    }
+
+    /* For the DC versions, set up friendly receive buffers that should ensure
+       that we don't try to negotiate window scaling.
+       XXXX: Should we do this on GC too? It definitely shouldn't be needed on
+             PC/BB, and most likely not on Xbox either. */
+    switch(version) {
+        case CLIENT_VERSION_DCV1:
+        case CLIENT_VERSION_DCV2:
+            i = 32767;
+            if(setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &i, sizeof(int)) < 0) {
+                perror("setsockopt");
+            }
+            break;
+    }
 
     if(!rv) {
         perror("malloc");

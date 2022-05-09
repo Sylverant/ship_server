@@ -377,6 +377,13 @@ block_t *block_server_start(ship_t *s, int b, uint16_t port) {
         return NULL;
     }
 
+    /* Limit receive window size on DC versions to ensure that we don't
+       mistakenly negotiate window scaling. */
+    i = 32767;
+    if(setsockopt(dcsock[0], SOL_SOCKET, SO_RCVBUF, &i, sizeof(int)) < 0) {
+        perror("setsockopt");
+    }
+
     pcsock[0] = open_sock(AF_INET, port + 1);
     if(pcsock[0] < 0) {
         goto err_close_dc;
@@ -407,6 +414,13 @@ block_t *block_server_start(ship_t *s, int b, uint16_t port) {
         dcsock[1] = open_sock(AF_INET6, port);
         if(dcsock[1] < 0) {
             goto err_close_xb;
+        }
+
+        /* Limit receive window size on DC versions to ensure that we don't
+           mistakenly negotiate window scaling. */
+        i = 32767;
+        if(setsockopt(dcsock[1], SOL_SOCKET, SO_RCVBUF, &i, sizeof(int)) < 0) {
+            perror("setsockopt");
         }
 
         pcsock[1] = open_sock(AF_INET6, port + 1);
