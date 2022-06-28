@@ -2851,7 +2851,7 @@ int shipgate_fw_bb(shipgate_conn_t *c, const void *bbp, uint32_t flags,
 /* Send a user login request. */
 int shipgate_send_usrlogin(shipgate_conn_t *c, uint32_t gc, uint32_t block,
                            const char *username, const char *password,
-                           int tok) {
+                           int tok, uint8_t ver) {
     uint8_t *sendbuf = get_sendbuf();
     shipgate_usrlogin_req_pkt *pkt = (shipgate_usrlogin_req_pkt *)sendbuf;
 
@@ -2869,7 +2869,8 @@ int shipgate_send_usrlogin(shipgate_conn_t *c, uint32_t gc, uint32_t block,
     else
         pkt->hdr.pkt_type = htons(SHDR_TYPE_TLOGIN);
 
-    pkt->hdr.version = pkt->hdr.reserved = 0;
+    pkt->hdr.version = ver
+    pkt->hdr.reserved = 0;
     pkt->hdr.flags = 0;
 
     pkt->guildcard = htonl(gc);

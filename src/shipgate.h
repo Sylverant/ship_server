@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
     Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2018, 2019,
-                  2021 Lawrence Sebald
+                  2021, 2022 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -648,6 +648,10 @@ static const char shipgate_login_msg[] =
 #define LOGIN_FLAG_BE       0x00080000  /* Ship is big endian */
 /* All other flags are reserved. */
 
+/* "Version" values for the token login packet. */
+#define TLOGIN_VER_NORMAL   0x00
+#define TLOGIN_VER_XBOX     0x01
+
 /* General error codes */
 #define ERR_NO_ERROR            0x00000000
 #define ERR_BAD_ERROR           0x80000001
@@ -777,7 +781,8 @@ int shipgate_send_creq(shipgate_conn_t *c, uint32_t gc, uint32_t slot);
 
 /* Send a user login request. */
 int shipgate_send_usrlogin(shipgate_conn_t *c, uint32_t gc, uint32_t block,
-                           const char *username, const char *password, int tok);
+                           const char *username, const char *password, int tok,
+                           uint8_t ver);
 
 /* Send a ban request. */
 int shipgate_send_ban(shipgate_conn_t *c, uint16_t type, uint32_t requester,
