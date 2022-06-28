@@ -1841,7 +1841,7 @@ void lobby_send_kill_counts(lobby_t *l) {
 int lobby_setup_quest(lobby_t *l, ship_client_t *c, uint32_t qid, int lang) {
     int rv = 0, flagsset = 0;
     quest_map_elem_t *e;
-    sylverant_quest_t *q;
+    sylverant_quest_t *q, *qs;
 
     pthread_rwlock_rdlock(&ship->qlock);
     pthread_mutex_lock(&l->mutex);
@@ -1880,9 +1880,13 @@ int lobby_setup_quest(lobby_t *l, ship_client_t *c, uint32_t qid, int lang) {
         /* See if the quest we've found has a before quest load script
            defined... */
         for(rv = 0; rv < CLIENT_LANG_COUNT; ++rv) {
-            if((q = e->qptr[l->version][rv])) {
-                if(q->beforeload_script_file) {
-                    rv = script_execute_file(q->onload_script_file, l);
+            if((qs = e->qptr[l->version][rv])) {
+                if(qs->onload_script_file && !qs->beforeload_script_file) {
+                    break;
+                }
+
+                if(qs->beforeload_script_file) {
+                    rv = script_execute_file(qs->onload_script_file, l);
 
                     /* If the script returns a negative number, don't load the
                        quest. */
@@ -2031,8 +2035,8 @@ int lobby_setup_quest(lobby_t *l, ship_client_t *c, uint32_t qid, int lang) {
                        SCRIPT_ARG_INT, lang, SCRIPT_ARG_END);
 
         /* And run the specific script for this quest, if one exists. */
-        if(q->onload_script_file) {
-            script_execute_file(q->onload_script_file, l);
+        if(qs && qs->onload_script_file) {
+            script_execute_file(qs->onload_script_file, l);
         }
     }
     else {
