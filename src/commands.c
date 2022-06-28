@@ -429,7 +429,7 @@ static int handle_login(ship_client_t *c, const char *params) {
 
     /* We'll get success/failure later from the shipgate. */
     return shipgate_send_usrlogin(&ship->sg, c->guildcard, c->cur_block->b,
-                                  username, password, 0);
+                                  username, password, 0, 0);
 }
 
 /* Usage /item item1,item2,item3,item4 */
@@ -2944,7 +2944,7 @@ static int handle_tlogin(ship_client_t *c, const char *params) {
 
     /* We'll get success/failure later from the shipgate. */
     return shipgate_send_usrlogin(&ship->sg, c->guildcard, c->cur_block->b,
-                                  username, token, 1);
+                                  username, token, 1, 0);
 }
 
 /* Usage: /dsdrops version difficulty section episode */
@@ -3430,6 +3430,49 @@ static int handle_ib(ship_client_t *c, const char *params) {
     return send_txt(c, "%s", __(c, "\tE\tC7Successfully set ban."));
 }
 
+/* Usage: /xblogin username token */
+static int handle_xblogin(ship_client_t *c, const char *params) {
+    char username[32], token[32];
+    int len = 0;
+    const char *ch = params;
+
+    if(c->version != CLIENT_VERSION_XBOX)
+        return send_txt(c, "%s", __(c, "\tE\tC7Not valid on this version."));
+
+    /* Make sure the user isn't doing something stupid. */
+    if(!*params) {
+        return send_txt(c, "%s", __(c, "\tE\tC7You must specify\n"
+                                    "your username and\n"
+                                    "website token."));
+    }
+
+    /* Copy over the username/password. */
+    while(*ch != ' ' && len < 32) {
+        username[len++] = *ch++;
+    }
+
+    if(len == 32)
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid username."));
+
+    username[len] = '\0';
+
+    len = 0;
+    ++ch;
+
+    while(*ch != ' ' && *ch != '\0' && len < 32) {
+        token[len++] = *ch++;
+    }
+
+    if(len == 32)
+        return send_txt(c, "%s", __(c, "\tE\tC7Invalid token."));
+
+    token[len] = '\0';
+
+    /* We'll get success/failure later from the shipgate. */
+    return shipgate_send_usrlogin(&ship->sg, c->guildcard, c->cur_block->b,
+                                  username, token, 1, TLOGIN_VER_XBOX);
+}
+
 static command_t cmds[] = {
     { "warp"     , handle_warp      },
     { "kill"     , handle_kill      },
@@ -3525,6 +3568,7 @@ static command_t cmds[] = {
     { "teamlog"  , handle_teamlog   },
     { "eteamlog" , handle_eteamlog  },
     { "ib"       , handle_ib        },
+    { "xblogin"  , handle_xblogin   },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

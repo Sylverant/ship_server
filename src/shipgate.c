@@ -2869,7 +2869,7 @@ int shipgate_send_usrlogin(shipgate_conn_t *c, uint32_t gc, uint32_t block,
     else
         pkt->hdr.pkt_type = htons(SHDR_TYPE_TLOGIN);
 
-    pkt->hdr.version = ver
+    pkt->hdr.version = ver;
     pkt->hdr.reserved = 0;
     pkt->hdr.flags = 0;
 
