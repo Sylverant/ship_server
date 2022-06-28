@@ -1331,6 +1331,8 @@ static int handle_used_tech(ship_client_t *c, subcmd_used_tech_t *pkt) {
     /* We can't get these in default lobbies without someone messing with
        something that they shouldn't be... Disconnect anyone that tries. */
     if(l->type == LOBBY_TYPE_DEFAULT) {
+        debug(DBG_WARN, "Guild card %" PRIu32 " used tech in lobby!\n",
+              c->guildcard);
         return -1;
     }
 
@@ -1351,6 +1353,8 @@ static int handle_bb_used_tech(ship_client_t *c, subcmd_bb_used_tech_t *pkt) {
     /* We can't get these in default lobbies without someone messing with
        something that they shouldn't be... Disconnect anyone that tries. */
     if(l->type == LOBBY_TYPE_DEFAULT) {
+        debug(DBG_WARN, "Guild card %" PRIu32 " hit object in lobby!\n",
+              c->guildcard);
         return -1;
     }
 
@@ -1610,8 +1614,11 @@ static int handle_use_item(ship_client_t *c, subcmd_use_item_t *pkt) {
 
     /* We can't get these in default lobbies without someone messing with
        something that they shouldn't be... Disconnect anyone that tries. */
-    if(l->type == LOBBY_TYPE_DEFAULT)
+    if(l->type == LOBBY_TYPE_DEFAULT) {
+        debug(DBG_WARN, "Guild card %" PRIu32 " used item in lobby!\n",
+              c->guildcard);
         return -1;
+    }
 
     /* Sanity check... Make sure the size of the subcommand and the client id
        match with what we expect. Disconnect the client if not. */
