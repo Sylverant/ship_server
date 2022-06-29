@@ -1512,6 +1512,9 @@ static int send_xbox_lobby_join(ship_client_t *c, lobby_t *l) {
     pkt->block_num = LE16(l->block->b);
     pkt->event = LE16(event);
 
+    /* XXXX: Don't really know what the format of this is... Maybe a KEK? */
+    memset(pkt->unk, 0x42, 0x18);
+
     for(i = 0; i < l->max_clients; ++i) {
         /* Skip blank clients. */
         if(l->clients[i] == NULL) {
@@ -2065,6 +2068,9 @@ static int send_xbox_lobby_add_player(lobby_t *l, ship_client_t *c,
         pkt->block_num = LE16(0x0001);
         pkt->event = LE16(0x0001);
     }
+
+    /* XXXX: Don't really know what the format of this is... Maybe a KEK? */
+    memset(pkt->unk, 0x42, 0x18);
 
     /* Copy the player's data into the packet. */
     pkt->entries[0].hdr.tag = LE32(0x00010000);
