@@ -2693,7 +2693,7 @@ static int handle_mhit(ship_client_t *c, subcmd_mhit_pkt_t *pkt) {
         flags = SWAP32(flags);
 
     /* Bail out now if we don't have any enemy data on the team. */
-    if(!l->map_enemies) {
+    if(!l->map_enemies || l->challenge || l->battle) {
         script_execute(ScriptActionEnemyHit, c, SCRIPT_ARG_PTR, c,
                        SCRIPT_ARG_UINT16, mid, SCRIPT_ARG_END);
 
@@ -3842,12 +3842,6 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
             break;
 
         case SUBCMD_HIT_MONSTER:
-            /* Don't even try to deal with these in battle or challenge mode. */
-            if(l->challenge || l->battle) {
-                sent = 0;
-                break;
-            }
-
             rv = handle_mhit(c, (subcmd_mhit_pkt_t *)pkt);
             break;
 
