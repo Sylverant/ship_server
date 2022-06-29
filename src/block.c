@@ -1171,6 +1171,8 @@ static int xb_process_login(ship_client_t *c, xb_login_9e_pkt *pkt) {
     /* See if this person is a GM. */
     c->privilege = is_gm(c->guildcard, ship);
 
+    memcpy(c->xbl_ip, &pkt->xbl_ip, sizeof(xbox_ip_t));
+
     if(send_dc_security(c, c->guildcard, NULL, 0)) {
         return -1;
     }
