@@ -1494,6 +1494,7 @@ static int send_xbox_lobby_join(ship_client_t *c, lobby_t *l) {
     int i, pls = 0;
     uint16_t pkt_size = 0x28;
     uint8_t event = l->event;
+    ship_client_t *cl;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -1516,38 +1517,47 @@ static int send_xbox_lobby_join(ship_client_t *c, lobby_t *l) {
         if(l->clients[i] == NULL) {
             continue;
         }
-
         /* If this is the client we're sending to, mark their client id. */
         else if(l->clients[i] == c) {
             pkt->client_id = (uint8_t)i;
         }
 
+        cl = l->clients[i];
+
         /* Copy the player's data into the packet. */
-        /* XXXX: Do this more correct. */
         pkt->entries[pls].hdr.tag = LE32(0x00010000);
-        pkt->entries[pls].hdr.guildcard = LE32(l->clients[i]->guildcard);
-        memset(&pkt->entries[pls].hdr.xbox_ip, 0, sizeof(xbox_ip_t));
-        pkt->entries[pls].hdr.xbox_ip.lan_ip = 0x12345678;
-        pkt->entries[pls].hdr.xbox_ip.wan_ip = 0x87654321;
-        pkt->entries[pls].hdr.xbox_ip.port = 1234;
-        memset(&pkt->entries[pls].hdr.xbox_ip.mac_addr, 0x12, 6);
-        pkt->entries[pls].hdr.xbox_ip.sg_addr = 0x90807060;
-        pkt->entries[pls].hdr.xbox_ip.sg_session_id = 0x12345678;
+        pkt->entries[pls].hdr.guildcard = LE32(cl->guildcard);
+
+        if(cl->version == CLIENT_VERSION_XBOX) {
+            memcpy(&pkt->entries[pls].hdr.xbox_ip, cl->xbl_ip,
+                   sizeof(xbox_ip_t));
+        } else {
+            /* TODO: Not sure how we should do this for non-xb clients... */
+            memset(&pkt->entries[pls].hdr.xbox_ip, 0, sizeof(xbox_ip_t));
+            pkt->entries[pls].hdr.xbox_ip.lan_ip = 0x12345678;
+            pkt->entries[pls].hdr.xbox_ip.wan_ip = 0x87654321;
+            pkt->entries[pls].hdr.xbox_ip.port = 1234;
+            memset(&pkt->entries[pls].hdr.xbox_ip.mac_addr, 0x12, 6);
+            pkt->entries[pls].hdr.xbox_ip.sg_addr = 0x90807060;
+            pkt->entries[pls].hdr.xbox_ip.sg_session_id = 0x12345678;
+        }
+
+        /* TODO: I have no idea what these three things are. */
         pkt->entries[pls].hdr.d1 = 123;
         pkt->entries[pls].hdr.d2 = 456;
         pkt->entries[pls].hdr.d3 = 789;
         pkt->entries[pls].hdr.client_id = LE32(i);
 
         /* If its a Blue Burst client, iconv it. */
-        if(l->clients[i]->version == CLIENT_VERSION_BB) {
+        if(cl->version == CLIENT_VERSION_BB) {
             istrncpy16_raw(ic_utf16_to_ascii, pkt->entries[pls].hdr.name,
-                           l->clients[i]->pl->bb.character.name, 16, 16);
+                           cl->pl->bb.character.name, 16, 16);
         }
         else {
-            memcpy(pkt->entries[pls].hdr.name, l->clients[i]->pl->v1.name, 16);
+            memcpy(pkt->entries[pls].hdr.name, cl->pl->v1.name, 16);
         }
 
-        make_disp_data(l->clients[i], c, &pkt->entries[pls].data);
+        make_disp_data(cl, c, &pkt->entries[pls].data);
 
         ++pls;
         pkt_size += 1128;
@@ -2057,19 +2067,29 @@ static int send_xbox_lobby_add_player(lobby_t *l, ship_client_t *c,
     }
 
     /* Copy the player's data into the packet. */
-    /* XXXX: Do this more correct. */
     pkt->entries[0].hdr.tag = LE32(0x00010000);
     pkt->entries[0].hdr.guildcard = LE32(nc->guildcard);
     memset(&pkt->entries[0].hdr.xbox_ip, 0, sizeof(xbox_ip_t));
-    pkt->entries[0].hdr.xbox_ip.lan_ip = 0x12345678;
-    pkt->entries[0].hdr.xbox_ip.wan_ip = 0x87654321;
-    pkt->entries[0].hdr.xbox_ip.port = 1234;
-    memset(&pkt->entries[0].hdr.xbox_ip.mac_addr, 0x12, 6);
-    pkt->entries[0].hdr.xbox_ip.sg_addr = 0x90807060;
-    pkt->entries[0].hdr.xbox_ip.sg_session_id = 0x12345678;
+
+    if(nc->version == CLIENT_VERSION_XBOX) {
+        memcpy(&pkt->entries[0].hdr.xbox_ip, nc->xbl_ip,
+               sizeof(xbox_ip_t));
+    } else {
+        /* TODO: Not sure how we should do this for non-xb clients... */
+        memset(&pkt->entries[0].hdr.xbox_ip, 0, sizeof(xbox_ip_t));
+        pkt->entries[0].hdr.xbox_ip.lan_ip = 0x12345678;
+        pkt->entries[0].hdr.xbox_ip.wan_ip = 0x87654321;
+        pkt->entries[0].hdr.xbox_ip.port = 1234;
+        memset(&pkt->entries[0].hdr.xbox_ip.mac_addr, 0x12, 6);
+        pkt->entries[0].hdr.xbox_ip.sg_addr = 0x90807060;
+        pkt->entries[0].hdr.xbox_ip.sg_session_id = 0x12345678;
+    }
+
+    /* TODO: I have no idea what these three things are. */
     pkt->entries[0].hdr.d1 = 123;
     pkt->entries[0].hdr.d2 = 456;
     pkt->entries[0].hdr.d3 = 789;
+
     pkt->entries[0].hdr.client_id = LE32(nc->client_id);
 
     /* If its a Blue Burst client, iconv it. */
@@ -3938,6 +3958,7 @@ static int send_xbox_game_join(ship_client_t *c, lobby_t *l) {
     uint8_t *sendbuf = get_sendbuf();
     xb_game_join_pkt *pkt = (xb_game_join_pkt *)sendbuf;
     int clients = 0, i;
+    ship_client_t *cl;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
@@ -3969,27 +3990,39 @@ static int send_xbox_game_join(ship_client_t *c, lobby_t *l) {
 
     for(i = 0; i < 4; ++i) {
         if(l->clients[i]) {
+            cl = (ship_client_t *)l->clients[i];
+
             /* Copy the player's data into the packet. */
             pkt->players[i].tag = LE32(0x00010000);
-            pkt->players[i].guildcard = LE32(l->clients[i]->guildcard);
-            memset(&pkt->players[i].xbox_ip, 0, sizeof(xbox_ip_t));
-            pkt->players[i].xbox_ip.lan_ip = 0x12345678;
-            pkt->players[i].xbox_ip.wan_ip = 0x87654321;
-            pkt->players[i].xbox_ip.port = 1234;
-            memset(&pkt->players[i].xbox_ip.mac_addr, 0x12, 6);
-            pkt->players[i].xbox_ip.sg_addr = 0x90807060;
-            pkt->players[i].xbox_ip.sg_session_id = 0x12345678;
+            pkt->players[i].guildcard = LE32(cl->guildcard);
+
+            if(cl->version == CLIENT_VERSION_XBOX) {
+                memcpy(&pkt->players[i].xbox_ip, cl->xbl_ip,
+                       sizeof(xbox_ip_t));
+            } else {
+                /* TODO: Not sure how we should do this for non-xb clients... */
+                memset(&pkt->players[i].xbox_ip, 0, sizeof(xbox_ip_t));
+                pkt->players[i].xbox_ip.lan_ip = 0x12345678;
+                pkt->players[i].xbox_ip.wan_ip = 0x87654321;
+                pkt->players[i].xbox_ip.port = 1234;
+                memset(&pkt->players[i].xbox_ip.mac_addr, 0x12, 6);
+                pkt->players[i].xbox_ip.sg_addr = 0x90807060;
+                pkt->players[i].xbox_ip.sg_session_id = 0x12345678;
+            }
+
+            /* TODO: I have no idea what these three things are. */
             pkt->players[i].d1 = 123;
             pkt->players[i].d2 = 456;
             pkt->players[i].d3 = 789;
+
             pkt->players[i].client_id = LE32(i);
 
             if(l->clients[i]->version == CLIENT_VERSION_BB) {
                 istrncpy16_raw(ic_utf16_to_ascii, pkt->players[i].name,
-                               l->clients[i]->pl->bb.character.name, 16, 16);
+                               cl->pl->bb.character.name, 16, 16);
             }
             else {
-                memcpy(pkt->players[i].name, l->clients[i]->pl->v1.name, 16);
+                memcpy(pkt->players[i].name, cl->pl->v1.name, 16);
             }
 
             ++clients;
