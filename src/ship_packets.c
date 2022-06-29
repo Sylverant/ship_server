@@ -7880,11 +7880,16 @@ static int send_dc_ship_list(ship_client_t *c, ship_t *s, uint16_t menu_code) {
                 if(i->flags & LOGIN_FLAG_NODCNTE)
                     continue;
             }
-            else if((i->flags & (LOGIN_FLAG_NOV1 << c->version))) {
-                continue;
-            }
             else if((i->privileges & c->privilege) != i->privileges &&
                     !GLOBAL_GM(c)) {
+                continue;
+            }
+
+            if(c->version == CLIENT_VERSION_XBOX) {
+                if((i->flags & LOGIN_FLAG_NOXBOX))
+                    continue;
+            }
+            else if((i->flags & (LOGIN_FLAG_NOV1 << c->version))) {
                 continue;
             }
 
