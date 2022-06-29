@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2016, 2017, 2018, 2019, 2020, 2021
+    Copyright (C) 2009, 2010, 2011, 2012, 2016, 2017, 2018, 2019, 2020, 2021,
                   2022 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
@@ -171,6 +171,16 @@ ship_client_t *client_create_connection(int sock, int version, int type,
             memset(rv->bb_pl, 0, sizeof(sylverant_bb_db_char_t));
             memset(rv->bb_opts, 0, sizeof(sylverant_bb_db_opts_t));
         }
+        else if(version == CLIENT_VERSION_XBOX) {
+            if(!(rv->xbl_ip = (xbox_ip_t *)malloc(sizeof(xbox_ip_t)))) {
+                perror("malloc");
+                free(rv->enemy_kills);
+                free(rv->pl);
+                free(rv);
+                close(sock);
+                return NULL;
+            }
+        }
     }
 
     /* Store basic parameters in the client structure. */
@@ -298,6 +308,10 @@ err:
     close(sock);
 
     if(type == CLIENT_TYPE_BLOCK) {
+        if(version == CLIENT_VERSION_XBOX) {
+            free(rv->xbl_ip);
+        }
+
         free(rv->enemy_kills);
         free(rv->pl);
     }
@@ -405,6 +419,10 @@ void client_destroy_connection(ship_client_t *c,
 
     if(c->next_maps) {
         free(c->next_maps);
+    }
+
+    if(c->xbl_ip) {
+        free(c->xbl_ip);
     }
 
     pthread_mutex_destroy(&c->mutex);

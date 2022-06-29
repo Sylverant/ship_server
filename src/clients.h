@@ -158,6 +158,7 @@ struct ship_client {
     uint32_t *next_maps;
     uint32_t *enemy_kills;
     sylverant_limits_t *limits;
+    xbox_ip_t *xbl_ip;
 
     time_t last_message;
     time_t last_sent;

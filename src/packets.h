@@ -276,6 +276,8 @@ typedef struct xb_login_9e {
     uint8_t padding7[32];
     char name[16];
     uint8_t padding8[32];
+    xbox_ip_t xbl_ip;
+    uint8_t unk[32];
     uint8_t sec_data[0];
 } PACKED xb_login_9e_pkt;
 
