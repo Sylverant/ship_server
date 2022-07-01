@@ -8533,7 +8533,7 @@ static int fill_one_choice6_entry(uint8_t *sendbuf, int version,
             memcpy(pkt->entries[entry].ip, ship_ip6, 16);
             pkt->entries[entry].port = LE16(b->dc_port + port_off);
             pkt->entries[entry].menu_id = LE32(MENU_ID_LOBBY);
-            pkt->entries[entry].item_id = LE32(it->cur_lobby->lobby_id);
+            pkt->entries[entry].item_id = LE32(it->lobby_id);
 
             return 0x160;
         }
@@ -8572,7 +8572,7 @@ static int fill_one_choice6_entry(uint8_t *sendbuf, int version,
             memcpy(pkt->entries[entry].ip, ship_ip6, 16);
             pkt->entries[entry].port = LE16(b->dc_port + port_off);
             pkt->entries[entry].menu_id = LE32(MENU_ID_LOBBY);
-            pkt->entries[entry].item_id = LE32(it->cur_lobby->lobby_id);
+            pkt->entries[entry].item_id = LE32(it->lobby_id);
 
             return 0xE0;
         }
@@ -8586,7 +8586,7 @@ static int fill_one_choice6_entry(uint8_t *sendbuf, int version,
 static int fill_choice_entries(ship_client_t *c, uint8_t *sendbuf,
                                dc_choice_set_pkt *search, int minlvl,
                                int maxlvl, int cl, int vmin, int vmax,
-                               int port_off, uint16_t *lenp) {
+                               int port_off, uint16_t *lenp, int valt) {
     int len = 0, entries = 0, i;
     block_t *b;
     ship_client_t *it;
@@ -8616,7 +8616,8 @@ static int fill_choice_entries(ship_client_t *c, uint8_t *sendbuf,
                 else if(it == c) {
                     continue;
                 }
-                else if(it->version > vmax || it->version < vmin) {
+                else if((it->version > vmax || it->version < vmin) &&
+                        it->version != valt) {
                     continue;
                 }
                 else if(it->flags & CLIENT_FLAG_IS_NTE) {
@@ -8672,7 +8673,7 @@ static int send_dc_choice_reply(ship_client_t *c, dc_choice_set_pkt *search,
     /* Fill in the entries on the local ship */
     entries = fill_choice_entries(c, sendbuf, search, minlvl, maxlvl, cl,
                                   CLIENT_VERSION_DCV1, CLIENT_VERSION_PC, 0,
-                                  &len);
+                                  &len, -1);
     len += 4;
 
     /* Put in a blank entry at the end... */
@@ -8716,7 +8717,7 @@ static int send_pc_choice_reply(ship_client_t *c, dc_choice_set_pkt *search,
     /* Fill in the entries on the local ship */
     entries = fill_choice_entries(c, sendbuf, search, minlvl, maxlvl, cl,
                                   CLIENT_VERSION_DCV1, CLIENT_VERSION_PC, 1,
-                                  &len);
+                                  &len, -1);
     len += 4;
 
     /* Put in a blank entry at the end... */
@@ -8750,16 +8751,20 @@ static int send_gc_choice_reply(ship_client_t *c, dc_choice_set_pkt *search,
     dc_choice_reply_pkt *pkt = (dc_choice_reply_pkt *)sendbuf;
     uint16_t len;
     uint8_t entries;
+    int off = 2;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf) {
         return -1;
     }
 
+    if(c->version == CLIENT_VERSION_XBOX)
+        off = 5;
+
     /* Fill in the entries on the local ship */
     entries = fill_choice_entries(c, sendbuf, search, minlvl, maxlvl, cl,
-                                  CLIENT_VERSION_GC, CLIENT_VERSION_GC, 2,
-                                  &len);
+                                  CLIENT_VERSION_GC, CLIENT_VERSION_GC, off,
+                                  &len, CLIENT_VERSION_XBOX);
     len += 4;
 
     /* Put in a blank entry at the end... */
@@ -8803,7 +8808,7 @@ static int send_ep3_choice_reply(ship_client_t *c, dc_choice_set_pkt *search,
     /* Fill in the entries on the local ship */
     entries = fill_choice_entries(c, sendbuf, search, minlvl, maxlvl, cl,
                                   CLIENT_VERSION_EP3, CLIENT_VERSION_EP3, 3,
-                                  &len);
+                                  &len, -1);
     len += 4;
 
     /* Put in a blank entry at the end... */
