@@ -3268,6 +3268,8 @@ static int send_dc_guild_reply_sg(ship_client_t *c, dc_guild_reply_pkt *p) {
     dc_guild_reply_pkt *pkt = (dc_guild_reply_pkt *)sendbuf;
     uint16_t port = LE16(p->port);
 
+    memcpy(pkt, p, sizeof(dc_guild_reply_pkt));
+
     /* Adjust the port properly... */
     switch(c->version) {
         case CLIENT_VERSION_DCV1:
@@ -3286,8 +3288,6 @@ static int send_dc_guild_reply_sg(ship_client_t *c, dc_guild_reply_pkt *p) {
             pkt->port = LE16((port + 5));
             break;
     }
-
-    memcpy(pkt, p, sizeof(dc_guild_reply_pkt));
 
     /* Convert the location string from UTF-8 to the appropriate encoding. */
     if(p->location[0] == '\t' && p->location[1] == 'J') {
