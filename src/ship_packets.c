@@ -8446,7 +8446,7 @@ static int fill_one_choice_entry(uint8_t *sendbuf, int version,
             pkt->entries[entry].ip = ship_ip4;
             pkt->entries[entry].port = LE16(b->dc_port + port_off);
             pkt->entries[entry].menu_id = LE32(MENU_ID_LOBBY);
-            pkt->entries[entry].item_id = LE32(it->cur_lobby->lobby_id);
+            pkt->entries[entry].item_id = LE32(it->lobby_id);
 
             return 0x154;
         }
@@ -8485,7 +8485,7 @@ static int fill_one_choice_entry(uint8_t *sendbuf, int version,
             pkt->entries[entry].ip = ship_ip4;
             pkt->entries[entry].port = LE16(b->dc_port + port_off);
             pkt->entries[entry].menu_id = LE32(MENU_ID_LOBBY);
-            pkt->entries[entry].item_id = LE32(it->cur_lobby->lobby_id);
+            pkt->entries[entry].item_id = LE32(it->lobby_id);
 
             return 0xD4;
         }
