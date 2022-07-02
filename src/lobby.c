@@ -995,6 +995,7 @@ int lobby_add_to_any(ship_client_t *c, lobby_t *req) {
 
     /* If a specific lobby was requested, try that one first. */
     if(req) {
+        c->lobby_req = NULL;
         pthread_mutex_lock(&req->mutex);
 
         if(req->type == LOBBY_TYPE_DEFAULT &&

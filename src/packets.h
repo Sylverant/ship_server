@@ -234,8 +234,24 @@ typedef struct dcv2_login_9d {
     uint8_t padding6[88];
     uint16_t unk2;
     uint8_t padding7[14];
-    uint8_t sec_data[0];
+    uint8_t extra_data[0];
 } PACKED dcv2_login_9d_pkt;
+
+typedef struct dcv2_login_9d_meet {
+    uint32_t lobby_menu;
+    uint32_t lobby_id;
+    uint8_t unk1[60];
+    char meet_name[16];
+    uint8_t unk2[16];
+} PACKED dcv2_login_9d_meet_ext;
+
+typedef struct pc_login_9d_meet {
+    uint32_t lobby_menu;
+    uint32_t lobby_id;
+    uint8_t unk1[60];
+    uint16_t meet_name[16];
+    uint16_t unk2[16];
+} PACKED pc_login_9d_meet_ext;
 
 typedef struct gc_login_9e {
     dc_pkt_hdr_t hdr;
@@ -256,8 +272,16 @@ typedef struct gc_login_9e {
     uint8_t padding7[36];
     char name[16];
     uint8_t padding8[32];
-    uint8_t sec_data[0];
+    uint8_t extra_data[0];
 } PACKED gc_login_9e_pkt;
+
+typedef struct gc_login_9e_meet {
+    uint32_t lobby_menu;
+    uint32_t lobby_id;
+    uint8_t unk1[60];
+    char meet_name[16];
+    uint8_t unk2[16];
+} PACKED gc_login_9e_meet_ext;
 
 typedef struct xb_login_9e {
     dc_pkt_hdr_t hdr;
@@ -278,7 +302,7 @@ typedef struct xb_login_9e {
     uint8_t padding8[32];
     xbox_ip_t xbl_ip;
     uint8_t unk[32];
-    uint8_t sec_data[0];
+    uint8_t extra_data[0];
 } PACKED xb_login_9e_pkt;
 
 typedef struct bb_login_93 {

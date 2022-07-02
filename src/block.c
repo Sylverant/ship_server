@@ -968,6 +968,11 @@ static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
     char ipstr[INET6_ADDRSTRLEN];
     char *ban_reason;
     time_t ban_end;
+    uint16_t len;
+    dcv2_login_9d_meet_ext *extd;
+    pc_login_9d_meet_ext *extp;
+    uint32_t menu;
+    lobby_t *i;
 
     /* Make sure the client's version is allowed on this ship. */
     if(c->version != CLIENT_VERSION_PC) {
@@ -1025,6 +1030,39 @@ static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
     /* See if this person is a GM. */
     c->privilege = is_gm(c->guildcard, ship);
 
+    /* See if it looks like we're here because of a "meet the user". */
+    len = LE16(pkt->hdr.dc.pkt_len);
+    if(c->version == CLIENT_VERSION_DCV2 && len == 0x0140) {
+        extd = (dcv2_login_9d_meet_ext *)pkt->extra_data;
+        menu = LE32(extd->lobby_menu);
+
+        if(menu == MENU_ID_LOBBY) {
+            menu = LE32(extd->lobby_id);
+
+            TAILQ_FOREACH(i, &c->cur_block->lobbies, qentry) {
+                if(i->lobby_id == menu && i->type == LOBBY_TYPE_DEFAULT) {
+                    c->lobby_req = i;
+                    break;
+                }
+            }
+        }
+    }
+    else if(c->version == CLIENT_VERSION_PC && len == 0x0150) {
+        extp = (pc_login_9d_meet_ext *)pkt->extra_data;
+        menu = LE32(extp->lobby_menu);
+
+        if(menu == MENU_ID_LOBBY) {
+            menu = LE32(extp->lobby_id);
+
+            TAILQ_FOREACH(i, &c->cur_block->lobbies, qentry) {
+                if(i->lobby_id == menu && i->type == LOBBY_TYPE_DEFAULT) {
+                    c->lobby_req = i;
+                    break;
+                }
+            }
+        }
+    }
+
     if(send_dc_security(c, c->guildcard, NULL, 0)) {
         return -1;
     }
@@ -1058,6 +1096,10 @@ static int gc_process_login(ship_client_t *c, gc_login_9e_pkt *pkt) {
     char ipstr[INET6_ADDRSTRLEN];
     char *ban_reason;
     time_t ban_end;
+    uint16_t len;
+    gc_login_9e_meet_ext *ext;
+    uint32_t menu;
+    lobby_t *i;
 
     /* Make sure PSOGC is allowed on this ship. */
     if(c->version == CLIENT_VERSION_GC) {
@@ -1112,6 +1154,24 @@ static int gc_process_login(ship_client_t *c, gc_login_9e_pkt *pkt) {
 
     /* See if this person is a GM. */
     c->privilege = is_gm(c->guildcard, ship);
+
+    /* See if it looks like we're here because of a "meet the user". */
+    len = LE16(pkt->hdr.pkt_len);
+    if(len == 0x0150) {
+        ext = (gc_login_9e_meet_ext *)pkt->extra_data;
+        menu = LE32(ext->lobby_menu);
+
+        if(menu == MENU_ID_LOBBY) {
+            menu = LE32(ext->lobby_id);
+
+            TAILQ_FOREACH(i, &c->cur_block->lobbies, qentry) {
+                if(i->lobby_id == menu && i->type == LOBBY_TYPE_DEFAULT) {
+                    c->lobby_req = i;
+                    break;
+                }
+            }
+        }
+    }
 
     if(send_dc_security(c, c->guildcard, NULL, 0)) {
         return -1;
@@ -1369,7 +1429,7 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
     /* If the client isn't in a lobby/team already, then add them to the first
        available lobby. */
     if(!c->cur_lobby) {
-        if(lobby_add_to_any(c, NULL)) {
+        if(lobby_add_to_any(c, c->lobby_req)) {
             pthread_mutex_unlock(&c->mutex);
             return -1;
         }
@@ -1460,7 +1520,7 @@ static int bb_process_char(ship_client_t *c, bb_char_data_pkt *pkt) {
     /* If the client isn't in a lobby already, then add them to the first
        available default lobby. */
     if(!c->cur_lobby) {
-        if(lobby_add_to_any(c, NULL)) {
+        if(lobby_add_to_any(c, c->lobby_req)) {
             pthread_mutex_unlock(&c->mutex);
             return -1;
         }
