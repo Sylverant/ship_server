@@ -900,6 +900,10 @@ static int dc_process_login(ship_client_t *c, dc_login_93_pkt *pkt) {
     char ipstr[INET6_ADDRSTRLEN];
     char *ban_reason;
     time_t ban_end;
+    uint16_t len;
+    dc_login_93_meet_ext *ext;
+    uint32_t menu;
+    lobby_t *i;
 
     /* Make sure v1 is allowed on this ship. */
     if((ship->cfg->shipgate_flags & SHIPGATE_FLAG_NOV1)) {
@@ -930,6 +934,24 @@ static int dc_process_login(ship_client_t *c, dc_login_93_pkt *pkt) {
 
     /* See if this person is a GM. */
     c->privilege = is_gm(c->guildcard, ship);
+
+    /* Is this in response to a "Meet the User" from a guild card search? */
+    len = LE16(pkt->hdr.pkt_len);
+    if(len == 0x0114) {
+        ext = (dc_login_93_meet_ext *)pkt->extra_data;
+        menu = LE32(ext->lobby_menu);
+
+        if(menu == MENU_ID_LOBBY) {
+            menu = LE32(ext->lobby_id);
+
+            TAILQ_FOREACH(i, &c->cur_block->lobbies, qentry) {
+                if(i->lobby_id == menu && i->type == LOBBY_TYPE_DEFAULT) {
+                    c->lobby_req = i;
+                    break;
+                }
+            }
+        }
+    }
 
     if(send_dc_security(c, c->guildcard, NULL, 0)) {
         return -1;
@@ -1032,7 +1054,7 @@ static int dcv2_process_login(ship_client_t *c, dcv2_login_9d_pkt *pkt) {
 
     /* See if it looks like we're here because of a "meet the user". */
     len = LE16(pkt->hdr.dc.pkt_len);
-    if(c->version == CLIENT_VERSION_DCV2 && len == 0x0140) {
+    if(c->version == CLIENT_VERSION_DCV2 && len == 0x0130) {
         extd = (dcv2_login_9d_meet_ext *)pkt->extra_data;
         menu = LE32(extd->lobby_menu);
 

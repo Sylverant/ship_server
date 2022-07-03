@@ -161,10 +161,18 @@ typedef struct dc_login_92_93 {
     uint8_t padding3[88];
     char name[16];
     uint8_t padding4[2];
-    uint8_t sec_data[0];
+    uint8_t extra_data[0];
 } PACKED dc_login_92_pkt;
 
 typedef struct dc_login_92_93 dc_login_93_pkt;
+
+typedef struct dc_login_93_meet {
+    uint32_t lobby_menu;
+    uint32_t lobby_id;
+    uint8_t unk1[60];
+    char meet_name[16];
+    uint8_t unk2[16];
+} PACKED dc_login_93_meet_ext;
 
 typedef struct dcv2_login_9a {
     union {
@@ -225,15 +233,19 @@ typedef struct dcv2_login_9d {
     uint8_t version;
     uint8_t padding2[4];
     uint8_t language_code;
-    uint8_t padding3[34];
-    char serial[8];
+    uint8_t padding3[2];
+    char v1_serial[8];
     uint8_t padding4[8];
+    char v1_access_key[8];
+    char padding5[8];
+    char serial[8];
+    uint8_t padding6[8];
     char access_key[8];
-    uint8_t padding5[8];
+    uint8_t padding7[8];
     char dc_id[8];
-    uint8_t padding6[88];
+    uint8_t padding8[88];
     uint16_t unk2;
-    uint8_t padding7[14];
+    uint8_t padding9[14];
     uint8_t extra_data[0];
 } PACKED dcv2_login_9d_pkt;
 
