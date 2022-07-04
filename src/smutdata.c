@@ -31,8 +31,6 @@
 #include "smutdata.h"
 #include "utils.h"
 
-#define debug(x, ...) printf(__VA_ARGS__)
-
 static uint32_t smutdata_west_count = 0;
 static wchar_t **smutdata_west = NULL;
 
