@@ -3430,8 +3430,8 @@ static int handle_ib(ship_client_t *c, const char *params) {
     return send_txt(c, "%s", __(c, "\tE\tC7Successfully set ban."));
 }
 
-/* Usage: /xblogin username token */
-static int handle_xblogin(ship_client_t *c, const char *params) {
+/* Usage: /xblink username token */
+static int handle_xblink(ship_client_t *c, const char *params) {
     char username[32], token[32];
     int len = 0;
     const char *ch = params;
@@ -3471,6 +3471,33 @@ static int handle_xblogin(ship_client_t *c, const char *params) {
     /* We'll get success/failure later from the shipgate. */
     return shipgate_send_usrlogin(&ship->sg, c->guildcard, c->cur_block->b,
                                   username, token, 1, TLOGIN_VER_XBOX);
+}
+
+/* Usage: /logme [off] */
+static int handle_logme(ship_client_t *c, const char *params) {
+#ifndef DEBUG
+    return send_txt(c, "%s", __(c, "\tE\tC7Invalid command."));
+#else
+    lobby_t *l = c->cur_lobby;
+
+    /* Make sure the requester has permission to do this */
+    if(!IS_TESTER(c))
+        return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
+
+    if(*params) {
+        if(!strcmp(params, "off")) {
+            pkt_log_stop(l);
+            return send_txt(c, "%s", __(c, "\tE\tC7Logging ended."));
+        }
+        else {
+            return send_txt(c, "%s", __(c, "\tE\tC7Unknown parameter."));
+        }
+    }
+    else {
+        pkt_log_start(l);
+        return send_txt(c, "%s", __(c, "\tE\tC7Logging started."));
+    }
+#endif /* DEBUG */
 }
 
 static command_t cmds[] = {
@@ -3568,7 +3595,8 @@ static command_t cmds[] = {
     { "teamlog"  , handle_teamlog   },
     { "eteamlog" , handle_eteamlog  },
     { "ib"       , handle_ib        },
-    { "xblogin"  , handle_xblogin   },
+    { "xblink"   , handle_xblink    },
+    { "logme"    , handle_logme     },
     { ""         , NULL             }     /* End marker -- DO NOT DELETE */
 };
 

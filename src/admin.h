@@ -38,6 +38,10 @@
     ((c->privilege & CLIENT_PRIV_GLOBAL_ROOT) && \
      (c->flags & CLIENT_FLAG_LOGGED_IN))
 
+#define IS_TESTER(c) \
+    ((c->privilege & (CLIENT_PRIV_TESTER | CLIENT_PRIV_LOCAL_GM)) && \
+     (c->flags & CLIENT_FLAG_LOGGED_IN))
+
 typedef int (*msgfunc)(ship_client_t *, const char *, ...);
 
 int kill_guildcard(ship_client_t *c, uint32_t gc, const char *reason);

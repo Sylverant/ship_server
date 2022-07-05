@@ -188,10 +188,11 @@ struct ship_client {
 #endif
 };
 
-#define CLIENT_PRIV_LOCAL_GM    0x01
-#define CLIENT_PRIV_GLOBAL_GM   0x02
-#define CLIENT_PRIV_LOCAL_ROOT  0x04
-#define CLIENT_PRIV_GLOBAL_ROOT 0x08
+#define CLIENT_PRIV_LOCAL_GM    0x00000001
+#define CLIENT_PRIV_GLOBAL_GM   0x00000002
+#define CLIENT_PRIV_LOCAL_ROOT  0x00000004
+#define CLIENT_PRIV_GLOBAL_ROOT 0x00000008
+#define CLIENT_PRIV_TESTER      0x80000000
 
 /* Character classes */
 typedef enum client_classes {
