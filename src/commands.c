@@ -3486,7 +3486,7 @@ static int handle_logme(ship_client_t *c, const char *params) {
 
     if(*params) {
         if(!strcmp(params, "off")) {
-            pkt_log_stop(l);
+            pkt_log_stop(c);
             return send_txt(c, "%s", __(c, "\tE\tC7Logging ended."));
         }
         else {
@@ -3494,7 +3494,7 @@ static int handle_logme(ship_client_t *c, const char *params) {
         }
     }
     else {
-        pkt_log_start(l);
+        pkt_log_start(c);
         return send_txt(c, "%s", __(c, "\tE\tC7Logging started."));
     }
 #endif /* DEBUG */
