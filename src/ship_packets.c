@@ -1513,7 +1513,7 @@ static int send_xbox_lobby_join(ship_client_t *c, lobby_t *l) {
     pkt->event = LE16(event);
 
     /* XXXX: Don't really know what the format of this is... Maybe a KEK? */
-    memset(pkt->unk, 0x42, 0x18);
+    memset(pkt->unk, 0x01, 0x18);
 
     for(i = 0; i < l->max_clients; ++i) {
         /* Skip blank clients. */
@@ -1546,9 +1546,9 @@ static int send_xbox_lobby_join(ship_client_t *c, lobby_t *l) {
         }
 
         /* TODO: I have no idea what these three things are. */
-        pkt->entries[pls].hdr.d1 = 123;
-        pkt->entries[pls].hdr.d2 = 456;
-        pkt->entries[pls].hdr.d3 = 789;
+        pkt->entries[pls].hdr.d1 = 0x01010101;
+        pkt->entries[pls].hdr.d2 = 0x01010101;
+        pkt->entries[pls].hdr.d3 = 0x01010101;
         pkt->entries[pls].hdr.client_id = LE32(i);
 
         /* If its a Blue Burst client, iconv it. */
@@ -2070,12 +2070,11 @@ static int send_xbox_lobby_add_player(lobby_t *l, ship_client_t *c,
     }
 
     /* XXXX: Don't really know what the format of this is... Maybe a KEK? */
-    memset(pkt->unk, 0x42, 0x18);
+    memset(pkt->unk, 0x01, 0x18);
 
     /* Copy the player's data into the packet. */
     pkt->entries[0].hdr.tag = LE32(0x00010000);
     pkt->entries[0].hdr.guildcard = LE32(nc->guildcard);
-    memset(&pkt->entries[0].hdr.xbox_ip, 0, sizeof(xbox_ip_t));
 
     if(nc->version == CLIENT_VERSION_XBOX) {
         memcpy(&pkt->entries[0].hdr.xbox_ip, nc->xbl_ip,
@@ -2092,9 +2091,9 @@ static int send_xbox_lobby_add_player(lobby_t *l, ship_client_t *c,
     }
 
     /* TODO: I have no idea what these three things are. */
-    pkt->entries[0].hdr.d1 = 123;
-    pkt->entries[0].hdr.d2 = 456;
-    pkt->entries[0].hdr.d3 = 789;
+    pkt->entries[0].hdr.d1 = 0x01010101;
+    pkt->entries[0].hdr.d2 = 0x01010101;
+    pkt->entries[0].hdr.d3 = 0x01010101;
 
     pkt->entries[0].hdr.client_id = LE32(nc->client_id);
 
@@ -4017,9 +4016,9 @@ static int send_xbox_game_join(ship_client_t *c, lobby_t *l) {
             }
 
             /* TODO: I have no idea what these three things are. */
-            pkt->players[i].d1 = 123;
-            pkt->players[i].d2 = 456;
-            pkt->players[i].d3 = 789;
+            pkt->players[i].d1 = 0x01010101;
+            pkt->players[i].d2 = 0x01010101;
+            pkt->players[i].d3 = 0x01010101;
 
             pkt->players[i].client_id = LE32(i);
 
