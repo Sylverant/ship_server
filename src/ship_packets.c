@@ -1507,7 +1507,7 @@ static int send_xbox_lobby_join(ship_client_t *c, lobby_t *l) {
     /* Fill in the basics. */
     pkt->hdr.pkt_type = LOBBY_JOIN_TYPE;
     pkt->leader_id = l->leader_id;
-    pkt->one = 1;
+    pkt->one = 0;
     pkt->lobby_num = l->lobby_id - 1;
     pkt->block_num = LE16(l->block->b);
     pkt->event = LE16(event);
@@ -1548,7 +1548,7 @@ static int send_xbox_lobby_join(ship_client_t *c, lobby_t *l) {
         /* TODO: I have no idea what these three things are. */
         pkt->entries[pls].hdr.d1 = 0x01010101;
         pkt->entries[pls].hdr.d2 = 0x01010101;
-        pkt->entries[pls].hdr.d3 = 0x01010101;
+        pkt->entries[pls].hdr.d3 = LE32(1);
         pkt->entries[pls].hdr.client_id = LE32(i);
 
         /* If its a Blue Burst client, iconv it. */
@@ -2058,7 +2058,7 @@ static int send_xbox_lobby_add_player(lobby_t *l, ship_client_t *c,
     pkt->hdr.pkt_len = LE16(0x0490);
     pkt->client_id = c->client_id;
     pkt->leader_id = l->leader_id;
-    pkt->one = 1;
+    pkt->one = 0;
     pkt->lobby_num = (l->type == LOBBY_TYPE_DEFAULT) ? l->lobby_id - 1 : 0xFF;
 
     if(l->type == LOBBY_TYPE_DEFAULT) {
@@ -2093,7 +2093,7 @@ static int send_xbox_lobby_add_player(lobby_t *l, ship_client_t *c,
     /* TODO: I have no idea what these three things are. */
     pkt->entries[0].hdr.d1 = 0x01010101;
     pkt->entries[0].hdr.d2 = 0x01010101;
-    pkt->entries[0].hdr.d3 = 0x01010101;
+    pkt->entries[0].hdr.d3 = LE32(1);
 
     pkt->entries[0].hdr.client_id = LE32(nc->client_id);
 
@@ -3978,7 +3978,7 @@ static int send_xbox_game_join(ship_client_t *c, lobby_t *l) {
     pkt->hdr.pkt_len = LE16(sizeof(xb_game_join_pkt));
     pkt->client_id = c->client_id;
     pkt->leader_id = l->leader_id;
-    pkt->one = 1;
+    pkt->one = 0;
     pkt->difficulty = l->difficulty;
     pkt->battle = l->battle;
     pkt->event = l->event;
@@ -3986,7 +3986,7 @@ static int send_xbox_game_join(ship_client_t *c, lobby_t *l) {
     pkt->challenge = l->challenge;
     pkt->rand_seed = LE32(l->rand_seed);
     pkt->episode = l->episode;
-    pkt->one2 = 1;
+    pkt->one2 = 0;
 
     /* Fill in the variations array. */
     for(i = 0; i < 0x20; ++i) {
@@ -4018,7 +4018,7 @@ static int send_xbox_game_join(ship_client_t *c, lobby_t *l) {
             /* TODO: I have no idea what these three things are. */
             pkt->players[i].d1 = 0x01010101;
             pkt->players[i].d2 = 0x01010101;
-            pkt->players[i].d3 = 0x01010101;
+            pkt->players[i].d3 = LE32(1);
 
             pkt->players[i].client_id = LE32(i);
 
@@ -5419,6 +5419,7 @@ static int send_dc_quest_list(ship_client_t *c, int cn, int lang) {
     quest_map_elem_t *elem;
     ship_client_t *tmp;
     time_t now = time(NULL);
+    int hasdc = 1, haspc = 0, hasgc = 0, hasxb = 0;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf)
@@ -5493,8 +5494,25 @@ static int send_dc_quest_list(ship_client_t *c, int cn, int lang) {
 
                 v = tmp->version;
 
-                if(v == CLIENT_VERSION_XBOX)
-                    v = CLIENT_VERSION_GC;
+                switch(v) {
+                    case CLIENT_VERSION_DCV1:
+                    case CLIENT_VERSION_DCV2:
+                        hasdc = 1;
+                        break;
+
+                    case CLIENT_VERSION_PC:
+                        haspc = 1;
+                        break;
+
+                    case CLIENT_VERSION_GC:
+                        hasgc = 1;
+                        break;
+
+                    case CLIENT_VERSION_XBOX:
+                        v = CLIENT_VERSION_GC;
+                        hasxb = 1;
+                        break;
+                }
 
                 if(!k && !elem->qptr[v][tmp->q_lang] &&
                    !elem->qptr[v][tmp->language_code] &&
@@ -5521,6 +5539,16 @@ static int send_dc_quest_list(ship_client_t *c, int cn, int lang) {
 
             /* Check the hidden flag */
             if((quest->flags & SYLVERANT_QUEST_HIDDEN))
+                continue;
+
+            /* Check the various version-disable flags */
+            if((quest->versions & SYLVERANT_QUEST_NODC) && hasdc)
+                continue;
+            if((quest->versions & SYLVERANT_QUEST_NOPC) && haspc)
+                continue;
+            if((quest->versions & SYLVERANT_QUEST_NOGC) && hasgc)
+                continue;
+            if((quest->versions & SYLVERANT_QUEST_NOXB) && hasxb)
                 continue;
 
             /* Clear the entry */
@@ -5598,6 +5626,7 @@ static int send_pc_quest_list(ship_client_t *c, int cn, int lang) {
     quest_map_elem_t *elem;
     ship_client_t *tmp;
     time_t now = time(NULL);
+    int hasdc = 0, haspc = 0, hasgc = 0, hasxb = 0;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf)
@@ -5672,8 +5701,25 @@ static int send_pc_quest_list(ship_client_t *c, int cn, int lang) {
 
                 v = tmp->version;
 
-                if(v == CLIENT_VERSION_XBOX)
-                    v = CLIENT_VERSION_GC;
+                switch(v) {
+                    case CLIENT_VERSION_DCV1:
+                    case CLIENT_VERSION_DCV2:
+                        hasdc = 1;
+                        break;
+
+                    case CLIENT_VERSION_PC:
+                        haspc = 1;
+                        break;
+
+                    case CLIENT_VERSION_GC:
+                        hasgc = 1;
+                        break;
+
+                    case CLIENT_VERSION_XBOX:
+                        v = CLIENT_VERSION_GC;
+                        hasxb = 1;
+                        break;
+                }
 
                 if(!k && !elem->qptr[v][tmp->q_lang] &&
                    !elem->qptr[v][tmp->language_code] &&
@@ -5700,6 +5746,16 @@ static int send_pc_quest_list(ship_client_t *c, int cn, int lang) {
 
             /* Check the hidden flag */
             if((quest->flags & SYLVERANT_QUEST_HIDDEN))
+                continue;
+
+            /* Check the various version-disable flags */
+            if((quest->versions & SYLVERANT_QUEST_NODC) && hasdc)
+                continue;
+            if((quest->versions & SYLVERANT_QUEST_NOPC) && haspc)
+                continue;
+            if((quest->versions & SYLVERANT_QUEST_NOGC) && hasgc)
+                continue;
+            if((quest->versions & SYLVERANT_QUEST_NOXB) && hasxb)
                 continue;
 
             /* Clear the entry */
@@ -5756,6 +5812,7 @@ static int send_gc_quest_list(ship_client_t *c, int cn, int lang) {
     quest_map_elem_t *elem;
     ship_client_t *tmp;
     time_t now = time(NULL);
+    int hasdc = 0, haspc = 0, hasgc = 0, hasxb = 0;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf)
@@ -5846,8 +5903,25 @@ static int send_gc_quest_list(ship_client_t *c, int cn, int lang) {
 
                 v = tmp->version;
 
-                if(v == CLIENT_VERSION_XBOX)
-                    v = CLIENT_VERSION_GC;
+                switch(v) {
+                    case CLIENT_VERSION_DCV1:
+                    case CLIENT_VERSION_DCV2:
+                        hasdc = 1;
+                        break;
+
+                    case CLIENT_VERSION_PC:
+                        haspc = 1;
+                        break;
+
+                    case CLIENT_VERSION_GC:
+                        hasgc = 1;
+                        break;
+
+                    case CLIENT_VERSION_XBOX:
+                        v = CLIENT_VERSION_GC;
+                        hasxb = 1;
+                        break;
+                }
 
                 if(!k && !elem->qptr[v][tmp->q_lang] &&
                    !elem->qptr[v][tmp->language_code] &&
@@ -5874,6 +5948,16 @@ static int send_gc_quest_list(ship_client_t *c, int cn, int lang) {
 
             /* Check the hidden flag */
             if((quest->flags & SYLVERANT_QUEST_HIDDEN))
+                continue;
+
+            /* Check the various version-disable flags */
+            if((quest->versions & SYLVERANT_QUEST_NODC) && hasdc)
+                continue;
+            if((quest->versions & SYLVERANT_QUEST_NOPC) && haspc)
+                continue;
+            if((quest->versions & SYLVERANT_QUEST_NOGC) && hasgc)
+                continue;
+            if((quest->versions & SYLVERANT_QUEST_NOXB) && hasxb)
                 continue;
 
             /* Clear the entry */
@@ -5952,6 +6036,7 @@ static int send_xbox_quest_list(ship_client_t *c, int cn, int lang) {
     quest_map_elem_t *elem;
     ship_client_t *tmp;
     time_t now = time(NULL);
+    int hasdc = 0, haspc = 0, hasgc = 0, hasxb = 0;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf)
@@ -6042,8 +6127,25 @@ static int send_xbox_quest_list(ship_client_t *c, int cn, int lang) {
 
                 v = tmp->version;
 
-                if(v == CLIENT_VERSION_XBOX)
-                    v = CLIENT_VERSION_GC;
+                switch(v) {
+                    case CLIENT_VERSION_DCV1:
+                    case CLIENT_VERSION_DCV2:
+                        hasdc = 1;
+                        break;
+
+                    case CLIENT_VERSION_PC:
+                        haspc = 1;
+                        break;
+
+                    case CLIENT_VERSION_GC:
+                        hasgc = 1;
+                        break;
+
+                    case CLIENT_VERSION_XBOX:
+                        v = CLIENT_VERSION_GC;
+                        hasxb = 1;
+                        break;
+                }
 
                 if(!k && !elem->qptr[v][tmp->q_lang] &&
                    !elem->qptr[v][tmp->language_code] &&
@@ -6070,6 +6172,16 @@ static int send_xbox_quest_list(ship_client_t *c, int cn, int lang) {
 
             /* Check the hidden flag */
             if((quest->flags & SYLVERANT_QUEST_HIDDEN))
+                continue;
+
+            /* Check the various version-disable flags */
+            if((quest->versions & SYLVERANT_QUEST_NODC) && hasdc)
+                continue;
+            if((quest->versions & SYLVERANT_QUEST_NOPC) && haspc)
+                continue;
+            if((quest->versions & SYLVERANT_QUEST_NOGC) && hasgc)
+                continue;
+            if((quest->versions & SYLVERANT_QUEST_NOXB) && hasxb)
                 continue;
 
             /* Clear the entry */
