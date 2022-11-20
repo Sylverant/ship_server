@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2017, 2018,
-                  2019, 2020, 2021, 2022 Lawrence Sebald
+    Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2017, 2018, 2019,
+                  2020, 2021, 2022 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -1249,6 +1249,7 @@ static int xb_process_login(ship_client_t *c, xb_login_9e_pkt *pkt) {
     c->guildcard = LE32(pkt->guildcard);
     c->language_code = pkt->language_code;
     c->q_lang = pkt->language_code;
+    c->flags |= CLIENT_FLAG_GC_MSG_BOXES;
 
     /* See if this person is a GM. */
     c->privilege = is_gm(c->guildcard, ship);
