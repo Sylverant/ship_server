@@ -3978,7 +3978,7 @@ static int send_xbox_game_join(ship_client_t *c, lobby_t *l) {
     pkt->hdr.pkt_len = LE16(sizeof(xb_game_join_pkt));
     pkt->client_id = c->client_id;
     pkt->leader_id = l->leader_id;
-    pkt->one = 0;
+    pkt->one = 1;
     pkt->difficulty = l->difficulty;
     pkt->battle = l->battle;
     pkt->event = l->event;
