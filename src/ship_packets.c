@@ -1507,7 +1507,7 @@ static int send_xbox_lobby_join(ship_client_t *c, lobby_t *l) {
     /* Fill in the basics. */
     pkt->hdr.pkt_type = LOBBY_JOIN_TYPE;
     pkt->leader_id = l->leader_id;
-    pkt->one = 0;
+    pkt->one = 1;
     pkt->lobby_num = l->lobby_id - 1;
     pkt->block_num = LE16(l->block->b);
     pkt->event = LE16(event);
@@ -2058,7 +2058,7 @@ static int send_xbox_lobby_add_player(lobby_t *l, ship_client_t *c,
     pkt->hdr.pkt_len = LE16(0x0490);
     pkt->client_id = c->client_id;
     pkt->leader_id = l->leader_id;
-    pkt->one = 0;
+    pkt->one = 1;
     pkt->lobby_num = (l->type == LOBBY_TYPE_DEFAULT) ? l->lobby_id - 1 : 0xFF;
 
     if(l->type == LOBBY_TYPE_DEFAULT) {
@@ -2132,7 +2132,7 @@ static int send_bb_lobby_add_player(lobby_t *l, ship_client_t *c,
     pkt->hdr.flags = LE32(1);
     pkt->client_id = c->client_id;
     pkt->leader_id = l->leader_id;
-    pkt->one = 0;
+    pkt->one = 1;
     pkt->lobby_num = (l->type == LOBBY_TYPE_DEFAULT) ? l->lobby_id - 1 : 0xFF;
 
     if(l->type == LOBBY_TYPE_DEFAULT) {
