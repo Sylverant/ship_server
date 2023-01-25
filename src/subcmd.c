@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
     Copyright (C) 2009, 2010, 2011, 2012, 2013, 2015, 2016, 2018, 2019, 2020,
-                  2021, 2022 Lawrence Sebald
+                  2021, 2022, 2023 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -1043,8 +1043,8 @@ static int handle_quest_itemreq(ship_client_t *c, subcmd_itemreq_t *req,
 static int handle_levelup(ship_client_t *c, subcmd_levelup_t *pkt) {
     lobby_t *l = c->cur_lobby;
 
-    /* We can't get these in default lobbies without someone messing with
-       something that they shouldn't be... Disconnect anyone that tries. */
+    /* We can't get these in a lobbies without someone messing with something
+       that they shouldn't be... Disconnect anyone that tries. */
     if(l->type == LOBBY_TYPE_DEFAULT) {
         return -1;
     }
@@ -1072,9 +1072,10 @@ static int handle_take_item(ship_client_t *c, subcmd_take_item_t *pkt) {
     sylverant_iitem_t item;
     uint32_t v;
     int i;
+    subcmd_take_item_t tr;
 
-    /* We can't get these in default lobbies without someone messing with
-       something that they shouldn't be... Disconnect anyone that tries. */
+    /* We can't get these in a lobby without someone messing with something that
+       they shouldn't be... Disconnect anyone that tries. */
     if(l->type == LOBBY_TYPE_DEFAULT)
         return -1;
 
@@ -1155,11 +1156,10 @@ static int handle_take_item(ship_client_t *c, subcmd_take_item_t *pkt) {
        actually legit, so make a note of the ID, add it to the inventory and
        forward the packet on. */
     l->highest_item[c->client_id] = (uint16_t)LE32(pkt->item_id);
+    v = LE32(pkt->data_l[0]);
 
     if(!(c->flags & CLIENT_FLAG_TRACK_INVENTORY))
         goto send_pkt;
-
-    v = LE32(pkt->data_l[0]);
 
     /* See if its a stackable item, since we have to treat them differently. */
     if(item_is_stackable(v)) {
@@ -1177,7 +1177,32 @@ static int handle_take_item(ship_client_t *c, subcmd_take_item_t *pkt) {
            sizeof(uint32_t) * 5);
 
 send_pkt:
-    return subcmd_send_lobby_dc(c->cur_lobby, c, (subcmd_pkt_t *)pkt, 0);
+    /* If the item isn't a mag, or the client isn't Xbox or GC, then just
+       send the packet away now. */
+    if((v & 0xff) != ITEM_TYPE_MAG ||
+       (c->version != CLIENT_VERSION_XBOX && c->version != CLIENT_VERSION_GC)) {
+        return subcmd_send_lobby_dc(c->cur_lobby, c, (subcmd_pkt_t *)pkt, 0);
+    }
+    else {
+        /* If we have a mag and the user is on GC or Xbox, we have to swap the
+           last dword when sending to the other of those two versions to make
+           things work correctly in cross-play teams. */
+        memcpy(&tr, pkt, sizeof(subcmd_take_item_t));
+        tr.data2_l = SWAP32(tr.data2_l);
+
+        for(i = 0; i < l->max_clients; ++i) {
+            if(l->clients[i] && l->clients[i] != c) {
+                if(l->clients[i]->version == c->version) {
+                    send_pkt_dc(l->clients[i], (dc_pkt_hdr_t *)pkt);
+                }
+                else {
+                    send_pkt_dc(l->clients[i], (dc_pkt_hdr_t *)&tr);
+                }
+            }
+        }
+
+        return 0;
+    }
 }
 
 static int handle_itemdrop(ship_client_t *c, subcmd_itemgen_t *pkt) {
@@ -1189,8 +1214,8 @@ static int handle_itemdrop(ship_client_t *c, subcmd_itemgen_t *pkt) {
     const char *name;
     subcmd_destroy_item_t dp;
 
-    /* We can't get these in default lobbies without someone messing with
-       something that they shouldn't be... Disconnect anyone that tries. */
+    /* We can't get these in a lobby without someone messing with something that
+       they shouldn't be... Disconnect anyone that tries. */
     if(l->type == LOBBY_TYPE_DEFAULT) {
         return -1;
     }
@@ -1282,8 +1307,8 @@ static int handle_itemdrop(ship_client_t *c, subcmd_itemgen_t *pkt) {
 static int handle_take_damage(ship_client_t *c, subcmd_take_damage_t *pkt) {
     lobby_t *l = c->cur_lobby;
 
-    /* We can't get these in default lobbies without someone messing with
-       something that they shouldn't be... Disconnect anyone that tries. */
+    /* We can't get these in a lobby without someone messing with something that
+       they shouldn't be... Disconnect anyone that tries. */
     if(l->type == LOBBY_TYPE_DEFAULT) {
         return -1;
     }
@@ -1303,8 +1328,8 @@ static int handle_bb_take_damage(ship_client_t *c,
                                  subcmd_bb_take_damage_t *pkt) {
     lobby_t *l = c->cur_lobby;
 
-    /* We can't get these in default lobbies without someone messing with
-       something that they shouldn't be... Disconnect anyone that tries. */
+    /* We can't get these in a lobby without someone messing with something that
+       they shouldn't be... Disconnect anyone that tries. */
     if(l->type == LOBBY_TYPE_DEFAULT) {
         return -1;
     }
@@ -1323,8 +1348,8 @@ static int handle_bb_take_damage(ship_client_t *c,
 static int handle_used_tech(ship_client_t *c, subcmd_used_tech_t *pkt) {
     lobby_t *l = c->cur_lobby;
 
-    /* We can't get these in default lobbies without someone messing with
-       something that they shouldn't be... Disconnect anyone that tries. */
+    /* We can't get these in a lobby without someone messing with something that
+       they shouldn't be... Disconnect anyone that tries. */
     if(l->type == LOBBY_TYPE_DEFAULT) {
         debug(DBG_WARN, "Guild card %" PRIu32 " used tech in lobby!\n",
               c->guildcard);
@@ -1345,8 +1370,8 @@ static int handle_used_tech(ship_client_t *c, subcmd_used_tech_t *pkt) {
 static int handle_bb_used_tech(ship_client_t *c, subcmd_bb_used_tech_t *pkt) {
     lobby_t *l = c->cur_lobby;
 
-    /* We can't get these in default lobbies without someone messing with
-       something that they shouldn't be... Disconnect anyone that tries. */
+    /* We can't get these in a lobby without someone messing with something that
+       they shouldn't be... Disconnect anyone that tries. */
     if(l->type == LOBBY_TYPE_DEFAULT) {
         debug(DBG_WARN, "Guild card %" PRIu32 " hit object in lobby!\n",
               c->guildcard);
@@ -1516,8 +1541,8 @@ static int handle_delete_inv(ship_client_t *c, subcmd_destroy_item_t *pkt) {
     int num;
     uint32_t i, item_id;
 
-    /* We can't get these in default lobbies without someone messing with
-       something that they shouldn't be... Disconnect anyone that tries. */
+    /* We can't get these in a lobby without someone messing with something that
+       they shouldn't be... Disconnect anyone that tries. */
     if(l->type == LOBBY_TYPE_DEFAULT)
         return -1;
 
@@ -1565,8 +1590,8 @@ static int handle_buy(ship_client_t *c, subcmd_buy_t *pkt) {
     uint32_t ic;
     int i;
 
-    /* We can't get these in default lobbies without someone messing with
-       something that they shouldn't be... Disconnect anyone that tries. */
+    /* We can't get these in a lobby without someone messing with something that
+       they shouldn't be... Disconnect anyone that tries. */
     if(l->type == LOBBY_TYPE_DEFAULT)
         return -1;
 
@@ -1607,8 +1632,8 @@ static int handle_use_item(ship_client_t *c, subcmd_use_item_t *pkt) {
     lobby_t *l = c->cur_lobby;
     int num;
 
-    /* We can't get these in default lobbies without someone messing with
-       something that they shouldn't be... Disconnect anyone that tries. */
+    /* We can't get these in a lobby without someone messing with something that
+       they shouldn't be... Disconnect anyone that tries. */
     if(l->type == LOBBY_TYPE_DEFAULT) {
         debug(DBG_WARN, "Guild card %" PRIu32 " used item in lobby!\n",
               c->guildcard);
@@ -1639,8 +1664,8 @@ static int handle_bb_drop_item(ship_client_t *c, subcmd_bb_drop_item_t *pkt) {
     int found = -1, isframe;
     uint32_t i, inv;
 
-    /* We can't get these in default lobbies without someone messing with
-       something that they shouldn't be... Disconnect anyone that tries. */
+    /* We can't get these in a lobby without someone messing with something that
+       they shouldn't be... Disconnect anyone that tries. */
     if(l->type == LOBBY_TYPE_DEFAULT) {
         debug(DBG_WARN, "Guildcard %" PRIu32 " tried to drop item in lobby!\n",
               c->guildcard);
@@ -1721,8 +1746,8 @@ static int handle_bb_drop_pos(ship_client_t *c, subcmd_bb_drop_pos_t *pkt) {
     int found = -1;
     uint32_t i, meseta, amt;
 
-    /* We can't get these in default lobbies without someone messing with
-       something that they shouldn't be... Disconnect anyone that tries. */
+    /* We can't get these in a lobby without someone messing with something that
+       they shouldn't be... Disconnect anyone that tries. */
     if(l->type == LOBBY_TYPE_DEFAULT) {
         debug(DBG_WARN, "Guildcard %" PRIu32 " set drop pos in lobby!\n",
               c->guildcard);
@@ -1785,8 +1810,8 @@ static int handle_bb_drop_stack(ship_client_t *c,
     item_t item_data;
     item_t *it;
 
-    /* We can't get these in default lobbies without someone messing with
-       something that they shouldn't be... Disconnect anyone that tries. */
+    /* We can't get these in a lobby without someone messing with something that
+       they shouldn't be... Disconnect anyone that tries. */
     if(l->type == LOBBY_TYPE_DEFAULT) {
         debug(DBG_WARN, "Guildcard %" PRIu32 " drop stack in lobby!\n",
               c->guildcard);
@@ -1889,8 +1914,8 @@ static int handle_bb_pick_up(ship_client_t *c, subcmd_bb_pick_up_t *pkt) {
     item_t item_data;
     uint32_t ic[3];
 
-    /* We can't get these in default lobbies without someone messing with
-       something that they shouldn't be... Disconnect anyone that tries. */
+    /* We can't get these in a lobby without someone messing with something that
+       they shouldn't be... Disconnect anyone that tries. */
     if(l->type == LOBBY_TYPE_DEFAULT) {
         debug(DBG_WARN, "Guildcard %" PRIu32 " picked up item in lobby!\n",
               c->guildcard);
@@ -2200,8 +2225,8 @@ static int handle_bb_bank(ship_client_t *c, subcmd_bb_bank_open_t *req) {
         sizeof(sylverant_bitem_t);
     block_t *b = c->cur_block;
 
-    /* We can't get these in default lobbies without someone messing with
-       something that they shouldn't be... Disconnect anyone that tries. */
+    /* We can't get these in a lobby without someone messing with something that
+       they shouldn't be... Disconnect anyone that tries. */
     if(l->type == LOBBY_TYPE_DEFAULT) {
         debug(DBG_WARN, "Guildcard %" PRIu32 " opened bank in lobby!\n",
               c->guildcard);
@@ -2241,8 +2266,8 @@ static int handle_bb_bank_action(ship_client_t *c, subcmd_bb_bank_act_t *pkt) {
     sylverant_bitem_t bitem;
     uint32_t ic[3];
 
-    /* We can't get these in default lobbies without someone messing with
-       something that they shouldn't be... Disconnect anyone that tries. */
+    /* We can't get these in a lobby without someone messing with something that
+       they shouldn't be... Disconnect anyone that tries. */
     if(l->type == LOBBY_TYPE_DEFAULT) {
         debug(DBG_WARN, "Guildcard %" PRIu32 " did bank action in lobby!\n",
               c->guildcard);
@@ -2453,8 +2478,8 @@ static int handle_bb_equip(ship_client_t *c, subcmd_bb_equip_t *pkt) {
     lobby_t *l = c->cur_lobby;
     uint32_t inv, i;
 
-    /* We can't get these in default lobbies without someone messing with
-       something that they shouldn't be... Disconnect anyone that tries. */
+    /* We can't get these in a lobby without someone messing with something that
+       they shouldn't be... Disconnect anyone that tries. */
     if(l->type == LOBBY_TYPE_DEFAULT) {
         debug(DBG_WARN, "Guildcard %" PRIu32 " eqipped in lobby!\n",
               c->guildcard);
@@ -2495,8 +2520,8 @@ static int handle_bb_unequip(ship_client_t *c, subcmd_bb_equip_t *pkt) {
     lobby_t *l = c->cur_lobby;
     uint32_t inv, i, isframe = 0;
 
-    /* We can't get these in default lobbies without someone messing with
-       something that they shouldn't be... Disconnect anyone that tries. */
+    /* We can't get these in a lobby without someone messing with something that
+       they shouldn't be... Disconnect anyone that tries. */
     if(l->type == LOBBY_TYPE_DEFAULT) {
         debug(DBG_WARN, "Guildcard %" PRIu32 " uneqipped in lobby!\n",
               c->guildcard);
@@ -2553,8 +2578,8 @@ static int handle_bb_unequip(ship_client_t *c, subcmd_bb_equip_t *pkt) {
 static int handle_bb_medic(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
     lobby_t *l = c->cur_lobby;
 
-    /* We can't get these in default lobbies without someone messing with
-       something that they shouldn't be... Disconnect anyone that tries. */
+    /* We can't get these in a lobby without someone messing with something that
+       they shouldn't be... Disconnect anyone that tries. */
     if(l->type == LOBBY_TYPE_DEFAULT) {
         debug(DBG_WARN, "Guildcard %" PRIu32 " used medical center in lobby!\n",
               c->guildcard);
@@ -2584,8 +2609,8 @@ static int handle_bb_sort_inv(ship_client_t *c, subcmd_bb_sort_inv_t *pkt) {
     int i, j;
     int item_used[30] = { 0 };
 
-    /* We can't get these in default lobbies without someone messing with
-       something that they shouldn't be... Disconnect anyone that tries. */
+    /* We can't get these in a lobby without someone messing with something that
+       they shouldn't be... Disconnect anyone that tries. */
     if(l->type == LOBBY_TYPE_DEFAULT) {
         debug(DBG_WARN, "Guildcard %" PRIu32 " sorted inventory in lobby!\n",
               c->guildcard);
@@ -2660,8 +2685,8 @@ static int handle_mhit(ship_client_t *c, subcmd_mhit_pkt_t *pkt) {
     game_enemy_t *en;
     uint32_t flags;
 
-    /* We can't get these in default lobbies without someone messing with
-       something that they shouldn't be... Disconnect anyone that tries. */
+    /* We can't get these in a lobby without someone messing with something that
+       they shouldn't be... Disconnect anyone that tries. */
     if(l->type == LOBBY_TYPE_DEFAULT) {
         debug(DBG_WARN, "Guild card %" PRIu32 " hit monster in lobby!\n",
               c->guildcard);
@@ -2810,8 +2835,8 @@ static int handle_bb_mhit(ship_client_t *c, subcmd_bb_mhit_pkt_t *pkt) {
     lobby_t *l = c->cur_lobby;
     uint16_t mid;
 
-    /* We can't get these in default lobbies without someone messing with
-       something that they shouldn't be... Disconnect anyone that tries. */
+    /* We can't get these in a lobby without someone messing with something that
+       they shouldn't be... Disconnect anyone that tries. */
     if(l->type == LOBBY_TYPE_DEFAULT) {
         debug(DBG_WARN, "Guildcard %" PRIu32 " hit monster in lobby!\n",
               c->guildcard);
@@ -2913,7 +2938,7 @@ static int handle_objhit_phys(ship_client_t *c, subcmd_objhit_phys_t *pkt) {
     lobby_t *l = c->cur_lobby;
     uint8_t i;
 
-    /* We can't get these in lobbies without someone messing with something that
+    /* We can't get these in a lobby without someone messing with something that
        they shouldn't be... Disconnect anyone that tries. */
     if(l->type == LOBBY_TYPE_DEFAULT) {
         debug(DBG_WARN, "Guild card %" PRIu32 " hit object in lobby!\n",
@@ -2969,7 +2994,7 @@ static int handle_objhit_tech(ship_client_t *c, subcmd_objhit_tech_t *pkt) {
     lobby_t *l = c->cur_lobby;
     uint8_t tech_level;
 
-    /* We can't get these in lobbies without someone messing with something that
+    /* We can't get these in a lobby without someone messing with something that
        they shouldn't be... Disconnect anyone that tries. */
     if(l->type == LOBBY_TYPE_DEFAULT) {
         debug(DBG_WARN, "Guild card %" PRIu32 " hit object in lobby!\n",
@@ -3082,7 +3107,7 @@ static int handle_objhit(ship_client_t *c, subcmd_bhit_pkt_t *pkt) {
     uint64_t now = get_ms_time();
     lobby_t *l = c->cur_lobby;
 
-    /* We can't get these in lobbies without someone messing with something that
+    /* We can't get these in a lobby without someone messing with something that
        they shouldn't be... Disconnect anyone that tries. */
     if(l->type == LOBBY_TYPE_DEFAULT) {
         debug(DBG_WARN, "Guild card %" PRIu32 " hit object in lobby!\n",
@@ -3111,8 +3136,8 @@ static int handle_bb_req_exp(ship_client_t *c, subcmd_bb_req_exp_pkt_t *pkt) {
     uint32_t bp, exp;
     game_enemy_t *en;
 
-    /* We can't get these in default lobbies without someone messing with
-       something that they shouldn't be... Disconnect anyone that tries. */
+    /* We can't get these in a lobby without someone messing with something that
+       they shouldn't be... Disconnect anyone that tries. */
     if(l->type == LOBBY_TYPE_DEFAULT) {
         debug(DBG_WARN, "Guildcard %" PRIu32 " requested exp in lobby!\n",
               c->guildcard);
@@ -3161,8 +3186,8 @@ static int handle_bb_req_exp(ship_client_t *c, subcmd_bb_req_exp_pkt_t *pkt) {
 static int handle_spawn_npc(ship_client_t *c, subcmd_pkt_t *pkt) {
     lobby_t *l = c->cur_lobby;
 
-    /* We can't get these in default lobbies without someone messing with
-       something that they shouldn't be... Disconnect anyone that tries. */
+    /* We can't get these in a lobby without someone messing with something that
+       they shouldn't be... Disconnect anyone that tries. */
     if(l->type == LOBBY_TYPE_DEFAULT) {
         debug(DBG_WARN, "Attempt by GC %" PRIu32 " to spawn NPC in lobby!\n",
               c->guildcard);
@@ -3187,8 +3212,8 @@ static int handle_spawn_npc(ship_client_t *c, subcmd_pkt_t *pkt) {
 static int handle_bb_spawn_npc(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
     lobby_t *l = c->cur_lobby;
 
-    /* We can't get these in default lobbies without someone messing with
-       something that they shouldn't be... Disconnect anyone that tries. */
+    /* We can't get these in a lobby without someone messing with something that
+       they shouldn't be... Disconnect anyone that tries. */
     if(l->type == LOBBY_TYPE_DEFAULT) {
         debug(DBG_WARN, "Attempt by GC %" PRIu32 " to spawn NPC in lobby!\n",
               c->guildcard);
@@ -3213,8 +3238,8 @@ static int handle_bb_spawn_npc(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
 static int handle_create_pipe(ship_client_t *c, subcmd_pipe_pkt_t *pkt) {
     lobby_t *l = c->cur_lobby;
 
-    /* We can't get these in default lobbies without someone messing with
-       something that they shouldn't be... Disconnect anyone that tries. */
+    /* We can't get these in a lobby without someone messing with something that
+       they shouldn't be... Disconnect anyone that tries. */
     if(l->type == LOBBY_TYPE_DEFAULT) {
         debug(DBG_WARN, "Attempt by GC %" PRIu32 " to spawn pipe in lobby!\n",
               c->guildcard);
@@ -3387,10 +3412,9 @@ static int handle_set_pos24(ship_client_t *c, subcmd_pkt_t *pkt) {
 static int handle_talk_shop(ship_client_t *c, subcmd_pkt_t *pkt) {
     lobby_t *l = c->cur_lobby;
 
-    /* We don't care about these in lobbies. */
-    if(l->type == LOBBY_TYPE_DEFAULT) {
+    /* We don't care about these if we get them in a lobby... */
+    if(l->type == LOBBY_TYPE_DEFAULT)
         return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
-    }
 
     /* Clear the list of dropped items. */
     if(c->cur_area == 0) {
@@ -3407,8 +3431,8 @@ static int handle_talk_shop(ship_client_t *c, subcmd_pkt_t *pkt) {
 static int handle_drop_item(ship_client_t *c, subcmd_drop_item_t *pkt) {
     lobby_t *l = c->cur_lobby;
 
-    /* We can't get these in lobbies without someone messing with something
-       that they shouldn't be... Disconnect anyone that tries. */
+    /* We can't get these in a lobby without someone messing with something that
+       they shouldn't be... Disconnect anyone that tries. */
     if(l->type == LOBBY_TYPE_DEFAULT) {
         debug(DBG_WARN, "Guildcard %" PRIu32 " dropped item in lobby!\n",
               c->guildcard);
@@ -3445,8 +3469,8 @@ static int handle_drop_item(ship_client_t *c, subcmd_drop_item_t *pkt) {
 static int handle_drop_stack(ship_client_t *c, subcmd_drop_stack_t *pkt) {
     lobby_t *l = c->cur_lobby;
 
-    /* We can't get these in lobbies without someone messing with something
-       that they shouldn't be... Disconnect anyone that tries. */
+    /* We can't get these in a lobby without someone messing with something that
+       they shouldn't be... Disconnect anyone that tries. */
     if(l->type == LOBBY_TYPE_DEFAULT) {
         debug(DBG_WARN, "Guildcard %" PRIu32 " dropped stack in lobby!\n",
               c->guildcard);
@@ -3473,8 +3497,8 @@ static int handle_drop_stack(ship_client_t *c, subcmd_drop_stack_t *pkt) {
 static int handle_talk_npc(ship_client_t *c, subcmd_talk_npc_t *pkt) {
     lobby_t *l = c->cur_lobby;
 
-    /* We can't get these in lobbies without someone messing with something
-       that they shouldn't be... Disconnect anyone that tries. */
+    /* We can't get these in a lobby without someone messing with something that
+       they shouldn't be... Disconnect anyone that tries. */
     if(l->type == LOBBY_TYPE_DEFAULT) {
         debug(DBG_WARN, "Guildcard %" PRIu32 " talked to NPC in lobby!\n",
               c->guildcard);
@@ -3518,8 +3542,8 @@ static int handle_pick_up(ship_client_t *c, ship_client_t *d,
                           subcmd_pick_up_t *pkt) {
     lobby_t *l = c->cur_lobby;
 
-    /* We can't get these in lobbies without someone messing with something
-       that they shouldn't be... Disconnect anyone that tries. */
+    /* We can't get these in a lobby without someone messing with something that
+       they shouldn't be... Disconnect anyone that tries. */
     if(l->type == LOBBY_TYPE_DEFAULT) {
         debug(DBG_WARN, "Guildcard %" PRIu32 " picked up item in lobby!\n",
               c->guildcard);
@@ -3553,7 +3577,7 @@ int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
     uint8_t type = pkt->type;
     int rv = -1;
 
-    /* Ignore these if the client isn't in a lobby. */
+    /* Ignore these if the client isn't in a lobby or team. */
     if(!l)
         return 0;
 
@@ -3669,10 +3693,9 @@ int subcmd_bb_handle_one(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
     int rv = -1;
     uint32_t dnum = LE32(pkt->hdr.flags);
 
-    /* Ignore these if the client isn't in a lobby. */
-    if(!l) {
+    /* Ignore these if the client isn't in a lobby or team. */
+    if(!l)
         return 0;
-    }
 
     pthread_mutex_lock(&l->mutex);
 
@@ -3741,7 +3764,7 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
     if(c->version == CLIENT_VERSION_DCV1 && (c->flags & CLIENT_FLAG_IS_NTE))
         return subcmd_dcnte_handle_bcast(c, pkt);
 
-    /* Ignore these if the client isn't in a lobby. */
+    /* Ignore these if the client isn't in a lobby or team. */
     if(!l)
         return 0;
 
@@ -3949,7 +3972,7 @@ int subcmd_bb_handle_bcast(ship_client_t *c, bb_subcmd_pkt_t *pkt) {
     lobby_t *l = c->cur_lobby;
     int rv, sent = 1, i;
 
-    /* Ignore these if the client isn't in a lobby. */
+    /* Ignore these if the client isn't in a lobby or team. */
     if(!l)
         return 0;
 
@@ -4074,10 +4097,9 @@ int subcmd_handle_ep3_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
     lobby_t *l = c->cur_lobby;
     int rv;
 
-    /* Ignore these if the client isn't in a lobby. */
-    if(!l) {
+    /* Ignore these if the client isn't in a lobby or team. */
+    if(!l)
         return 0;
-    }
 
     pthread_mutex_lock(&l->mutex);
 
