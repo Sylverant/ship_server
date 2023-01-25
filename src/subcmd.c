@@ -50,11 +50,6 @@ static int subcmd_send_lobby_mhit(lobby_t *l, ship_client_t *c,
                                   uint16_t enemy_id, uint16_t enemy_id2,
                                   uint16_t damage, uint32_t flags);
 
-#define SWAP32(x) (((x >> 24) & 0x00FF) | \
-                   ((x >>  8) & 0xFF00) | \
-                   ((x & 0xFF00) <<  8) | \
-                   ((x & 0x00FF) << 24))
-
 /* Handle a Guild card send packet. */
 int handle_dc_gcsend(ship_client_t *s, ship_client_t *d,
                      subcmd_dc_gcsend_t *pkt) {

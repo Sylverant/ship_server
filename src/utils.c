@@ -726,12 +726,33 @@ const char *skip_lang_code(const char *input) {
     return input;
 }
 
+static void convert_gcxb_to_xbgc(ship_client_t *s, void *buf) {
+    int i;
+    v1_player_t *d = (v1_player_t *)buf;
+    sylverant_iitem_t *item;
+
+    /* Copy everything over first, then look at the inventory. */
+    memcpy(buf, &s->pl->v1, sizeof(v1_player_t));
+
+    for(i = 0; i < d->inv.item_count; ++i) {
+        item = (sylverant_iitem_t *)&d->inv.items[i];
+
+        /* If the item is a mag, then we have to swap the last dword of the item
+           data. Otherwise colors and stats get messed up. */
+        if(item->data_b[0] == ITEM_TYPE_MAG) {
+            item->data2_l = SWAP32(item->data2_l);
+        }
+    }
+}
+
 static void convert_dcpcgc_to_bb(ship_client_t *s, uint8_t *buf) {
     sylverant_bb_char_t *c;
     v1_player_t *sp = &s->pl->v1;
     int i;
 
-    /* Inventory doesn't change... */
+    /* Technically, if we wanted to allow any sort of cross-play in games, we'd
+       potentially have to do more work here on the inventory. But, for just
+       coexisting in the lobby, this will do. */
     memcpy(buf, &s->pl->v1.inv, sizeof(sylverant_inventory_t));
 
     /* Copy the character data now... */
@@ -790,7 +811,9 @@ static void convert_bb_to_dcpcgc(ship_client_t *s, uint8_t *buf) {
 
     memset(c, 0, sizeof(v1_player_t));
 
-    /* Inventory doesn't change... */
+    /* Technically, if we wanted to allow any sort of cross-play in games, we'd
+       potentially have to do more work here on the inventory. But, for just
+       coexisting in the lobby, this will do. */
     memcpy(buf, &s->pl->bb.inv, sizeof(sylverant_inventory_t));
 
     /* Copy the character data now... */
@@ -838,24 +861,32 @@ static void convert_bb_to_dcpcgc(ship_client_t *s, uint8_t *buf) {
 
 void make_disp_data(ship_client_t *s, ship_client_t *d, void *buf) {
     uint8_t *bp = (uint8_t *)buf;
+    int vs = s->version, vd = d->version;
 
-    if((s->version < CLIENT_VERSION_BB || s->version == CLIENT_VERSION_XBOX) &&
-       (d->version < CLIENT_VERSION_BB || d->version == CLIENT_VERSION_XBOX)) {
-        /* Neither are Blue Burst -- trivial */
-        memcpy(buf, &s->pl->v1, sizeof(v1_player_t));
+    if(vs == vd) {
+        /* Both are the same version... Are they Blue Burst or not? */
+        if(vs != CLIENT_VERSION_BB) {
+            /* Neither are Blue Burst -- trivial */
+            memcpy(buf, &s->pl->v1, sizeof(v1_player_t));
+        }
+        else {
+            /* Both are Blue Burst -- easy */
+            memcpy(bp, &s->pl->bb.inv, sizeof(sylverant_inventory_t));
+            bp += sizeof(sylverant_inventory_t);
+            memcpy(bp, &s->pl->bb.character, sizeof(sylverant_bb_char_t));
+        }
     }
-    else if(s->version == d->version) {
-        /* Both are Blue Burst -- easy */
-        memcpy(bp, &s->pl->bb.inv, sizeof(sylverant_inventory_t));
-        bp += sizeof(sylverant_inventory_t);
-        memcpy(bp, &s->pl->bb.character, sizeof(sylverant_bb_char_t));
+    else if((vs == CLIENT_VERSION_XBOX && vd == CLIENT_VERSION_GC) ||
+            (vs == CLIENT_VERSION_GC && vd == CLIENT_VERSION_XBOX)) {
+        /* One is on Xbox, the other is on GC. Apply inventory fixes. */
+        convert_gcxb_to_xbgc(s, buf);
     }
     else if(s->version != CLIENT_VERSION_BB) {
-        /* The data we're copying is from an earlier version... */
+        /* The data we're copying is from an earlier version to Blue Burst */
         convert_dcpcgc_to_bb(s, bp);
     }
     else if(d->version != CLIENT_VERSION_BB) {
-        /* The data we're copying is from Blue Burst... */
+        /* The data we're copying is from Blue Burst to an earlier version */
         convert_bb_to_dcpcgc(s, bp);
     }
 }

@@ -51,6 +51,11 @@
                  ((x & 0x000000FF) << 56))
 #endif
 
+#define SWAP32(x) (((x >> 24) & 0x00FF) | \
+                   ((x >>  8) & 0xFF00) | \
+                   ((x & 0xFF00) <<  8) | \
+                   ((x & 0x00FF) << 24))
+
 typedef union {
     float f;
     uint32_t b;
