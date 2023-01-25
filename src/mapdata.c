@@ -897,7 +897,6 @@ static int read_bb_map_set(int solo, int i, int j) {
                 debug(DBG_ERROR, "Cannot allocate game objects: %s\n",
                       strerror(errno));
                 free(obj);
-                fclose(fp);
                 return 9;
             }
 
@@ -1111,7 +1110,6 @@ static int read_v2_map_set(int j, int gcep) {
                 debug(DBG_ERROR, "Cannot allocate game objects: %s\n",
                       strerror(errno));
                 free(obj);
-                fclose(fp);
                 return 9;
             }
 
