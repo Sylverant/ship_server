@@ -1213,6 +1213,7 @@ static int handle_itemdrop(ship_client_t *c, subcmd_itemgen_t *pkt) {
     ship_client_t *c2;
     const char *name;
     subcmd_destroy_item_t dp;
+    subcmd_itemgen_t tr;
 
     /* We can't get these in a lobby without someone messing with something that
        they shouldn't be... Disconnect anyone that tries. */
@@ -1299,9 +1300,35 @@ static int handle_itemdrop(ship_client_t *c, subcmd_itemgen_t *pkt) {
         }
     }
 
-    /* If we get here, either the game is not in legit mode, or the item is
-       actually legit, so just forward the packet on. */
-    return subcmd_send_lobby_dc(c->cur_lobby, c, (subcmd_pkt_t *)pkt, 0);
+    /* If we end up here, then the item is legit... */
+    v = LE32(pkt->item[0]) & 0xff;
+
+    /* If the item isn't a mag, or the client isn't Xbox or GC, then just
+       send the packet away now. */
+    if((v & 0xff) != ITEM_TYPE_MAG ||
+       (c->version != CLIENT_VERSION_XBOX && c->version != CLIENT_VERSION_GC)) {
+        return subcmd_send_lobby_dc(c->cur_lobby, c, (subcmd_pkt_t *)pkt, 0);
+    }
+    else {
+        /* If we have a mag and the user is on GC or Xbox, we have to swap the
+           last dword when sending to the other of those two versions to make
+           things work correctly in cross-play teams. */
+        memcpy(&tr, pkt, sizeof(subcmd_itemgen_t));
+        tr.item2[0] = SWAP32(tr.item2[0]);
+
+        for(i = 0; i < l->max_clients; ++i) {
+            if(l->clients[i] && l->clients[i] != c) {
+                if(l->clients[i]->version == c->version) {
+                    send_pkt_dc(l->clients[i], (dc_pkt_hdr_t *)pkt);
+                }
+                else {
+                    send_pkt_dc(l->clients[i], (dc_pkt_hdr_t *)&tr);
+                }
+            }
+        }
+
+        return 0;
+    }
 }
 
 static int handle_take_damage(ship_client_t *c, subcmd_take_damage_t *pkt) {
