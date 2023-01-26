@@ -910,7 +910,7 @@ void update_lobby_event(void) {
             TAILQ_FOREACH(l, &b->lobbies, qentry) {
                 pthread_mutex_lock(&l->mutex);
 
-                if(l->type == LOBBY_TYPE_DEFAULT) {
+                if(l->type == LOBBY_TYPE_LOBBY) {
                     l->event = event;
 
                     for(j = 0; j < l->max_clients; ++j) {

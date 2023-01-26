@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2013, 2020, 2021 Lawrence Sebald
+    Copyright (C) 2013, 2020, 2021, 2023 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -102,7 +102,7 @@ int subcmd_dcnte_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
             break;
 
         case 0x1F:
-            if(l->type == LOBBY_TYPE_DEFAULT) {
+            if(l->type == LOBBY_TYPE_LOBBY) {
                 for(i = 0; i < l->max_clients; ++i) {
                     if(l->clients[i] && l->clients[i] != c &&
                        subcmd_send_pos(c, l->clients[i])) {

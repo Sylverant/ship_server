@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
     Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018,
-                  2019, 2020, 2021, 2022 Lawrence Sebald
+                  2019, 2020, 2021, 2022, 2023 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -153,7 +153,7 @@ static int handle_min_level(ship_client_t *c, const char *params) {
     lobby_t *l = c->cur_lobby;
 
     /* Make sure that the requester is in a team, not a lobby. */
-    if(l->type == LOBBY_TYPE_DEFAULT) {
+    if(l->type == LOBBY_TYPE_LOBBY) {
         return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game."));
     }
 
@@ -198,7 +198,7 @@ static int handle_max_level(ship_client_t *c, const char *params) {
     lobby_t *l = c->cur_lobby;
 
     /* Make sure that the requester is in a team, not a lobby. */
-    if(l->type == LOBBY_TYPE_DEFAULT) {
+    if(l->type == LOBBY_TYPE_LOBBY) {
         return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game."));
     }
 
@@ -268,7 +268,7 @@ static int handle_save(ship_client_t *c, const char *params) {
     }
 
     /* Make sure that the requester is in a lobby, not a team */
-    if(l->type != LOBBY_TYPE_DEFAULT) {
+    if(l->type != LOBBY_TYPE_LOBBY) {
         return send_txt(c, "%s", __(c, "\tE\tC7Not valid in a game."));
     }
 
@@ -313,7 +313,7 @@ static int handle_restore(ship_client_t *c, const char *params) {
     }
 
     /* Make sure that the requester is in a lobby, not a team */
-    if(l->type != LOBBY_TYPE_DEFAULT) {
+    if(l->type != LOBBY_TYPE_LOBBY) {
         return send_txt(c, "%s", __(c, "\tE\tC7Not valid in a game."));
     }
 
@@ -508,7 +508,7 @@ static int handle_passwd(ship_client_t *c, const char *params) {
     int len = strlen(params), i;
 
     /* Make sure that the requester is in a team, not a lobby. */
-    if(l->type == LOBBY_TYPE_DEFAULT) {
+    if(l->type == LOBBY_TYPE_LOBBY) {
         return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game."));
     }
 
@@ -546,7 +546,7 @@ static int handle_lname(ship_client_t *c, const char *params) {
     lobby_t *l = c->cur_lobby;
 
     /* Make sure that the requester is in a team, not a lobby. */
-    if(l->type == LOBBY_TYPE_DEFAULT) {
+    if(l->type == LOBBY_TYPE_LOBBY) {
         return send_txt(c, "%s", __(c, "\tE\tC7Only valid in a game."));
     }
 
@@ -764,7 +764,7 @@ static int handle_legit(ship_client_t *c, const char *params) {
     int j, irv;
 
     /* Make sure the requester is in a lobby, not a team. */
-    if(l->type != LOBBY_TYPE_DEFAULT)
+    if(l->type != LOBBY_TYPE_LOBBY)
         return send_txt(c, "%s", __(c, "\tE\tC7Not valid in a game."));
 
     /* Figure out what version they're on. */
@@ -2414,7 +2414,7 @@ static int handle_override(ship_client_t *c, const char *params) {
     }
 
     /* Make sure that the requester is in a lobby, not a team */
-    if(l->type != LOBBY_TYPE_DEFAULT) {
+    if(l->type != LOBBY_TYPE_LOBBY) {
         return send_txt(c, "%s", __(c, "\tE\tC7Not valid in a game."));
     }
 
@@ -2596,7 +2596,7 @@ static int handle_restorebk(ship_client_t *c, const char *params) {
     }
 
     /* Make sure that the requester is in a lobby, not a team */
-    if(l->type != LOBBY_TYPE_DEFAULT) {
+    if(l->type != LOBBY_TYPE_LOBBY) {
         return send_txt(c, "%s", __(c, "\tE\tC7Not valid in a game."));
     }
 
@@ -2834,7 +2834,7 @@ static int handle_trackinv(ship_client_t *c, const char *params) {
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
 
     /* Make sure that the requester is in a plain old lobby. */
-    if(l->type != LOBBY_TYPE_DEFAULT)
+    if(l->type != LOBBY_TYPE_LOBBY)
         return send_txt(c, "%s", __(c, "\tE\tC7Not valid in a game."));
 
     /* Set the flag... */
@@ -2881,7 +2881,7 @@ static int handle_ep3music(ship_client_t *c, const char *params) {
         return send_txt(c, "%s", __(c, "\tE\tC7Nice try."));
 
     /* Make sure that the requester is in a lobby, not a team */
-    if(l->type != LOBBY_TYPE_DEFAULT)
+    if(l->type != LOBBY_TYPE_LOBBY)
         return send_txt(c, "%s", __(c, "\tE\tC7Not valid in a game."));
 
     /* Figure out the level requested */
@@ -3047,7 +3047,7 @@ static int handle_noevent(ship_client_t *c, const char *params) {
         return send_txt(c, "%s", __(c, "\tE\tC7Not valid on this version."));
 
     /* Make sure that the requester is in a lobby, not a game */
-    if(c->cur_lobby->type != LOBBY_TYPE_DEFAULT)
+    if(c->cur_lobby->type != LOBBY_TYPE_LOBBY)
         return send_txt(c, "%s", __(c, "\tE\tC7Not valid in a game."));
 
     return send_simple(c, LOBBY_EVENT_TYPE, LOBBY_EVENT_NONE);

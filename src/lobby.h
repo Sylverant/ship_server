@@ -184,7 +184,7 @@ typedef struct lobby lobby_t;
 TAILQ_HEAD(lobby_queue, lobby);
 
 /* Possible values for the type parameter. */
-#define LOBBY_TYPE_DEFAULT      0x00000001
+#define LOBBY_TYPE_LOBBY        0x00000001
 #define LOBBY_TYPE_GAME         0x00000002
 #define LOBBY_TYPE_EP3_GAME     0x00000004
 

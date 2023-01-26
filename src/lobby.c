@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
     Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018,
-                  2019, 2020, 2021, 2022 Lawrence Sebald
+                  2019, 2020, 2021, 2022, 2023 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -72,7 +72,7 @@ lobby_t *lobby_create_default(block_t *block, uint32_t lobby_id, uint8_t ev) {
     memset(l, 0, sizeof(lobby_t));
 
     l->lobby_id = lobby_id;
-    l->type = LOBBY_TYPE_DEFAULT;
+    l->type = LOBBY_TYPE_LOBBY;
     l->max_clients = LOBBY_MAX_CLIENTS;
     l->block = block;
     l->min_level = 0;
@@ -651,7 +651,7 @@ static void lobby_destroy_locked(lobby_t *l, int remove) {
         TAILQ_REMOVE(&l->block->lobbies, l, qentry);
 
         /* Decrement the game count if it got incremented for this lobby */
-        if(l->type != LOBBY_TYPE_DEFAULT) {
+        if(l->type != LOBBY_TYPE_LOBBY) {
             --l->block->num_games;
             ship_dec_games(l->block->ship);
         }
@@ -810,7 +810,7 @@ static int lobby_add_client_locked(ship_client_t *c, lobby_t *l) {
         l->flags &= ~LOBBY_FLAG_ONLY_ONE;
 
     /* If this is a team, run the team join script, if it exists. */
-    if(l->type != LOBBY_TYPE_DEFAULT)
+    if(l->type != LOBBY_TYPE_LOBBY)
         script_execute(ScriptActionTeamJoin, c, SCRIPT_ARG_PTR, c,
                        SCRIPT_ARG_PTR, l, SCRIPT_ARG_END);
 
@@ -975,7 +975,7 @@ static int lobby_remove_client_locked(ship_client_t *c, int client_id,
     }
 
     /* If this is a team, run the team leave script, if it exists. */
-    if(l->type != LOBBY_TYPE_DEFAULT) {
+    if(l->type != LOBBY_TYPE_LOBBY) {
         script_execute(ScriptActionTeamLeave, c, SCRIPT_ARG_PTR, c,
                        SCRIPT_ARG_PTR, l, SCRIPT_ARG_END);
         l->qpos_regs[0][client_id] = 0;
@@ -984,7 +984,7 @@ static int lobby_remove_client_locked(ship_client_t *c, int client_id,
         l->qpos_regs[3][client_id] = 0;
     }
 
-    return l->type == LOBBY_TYPE_DEFAULT ? 0 : !l->num_clients;
+    return l->type == LOBBY_TYPE_LOBBY ? 0 : !l->num_clients;
 }
 
 /* Add the client to any available lobby on the current block. */
@@ -998,7 +998,7 @@ int lobby_add_to_any(ship_client_t *c, lobby_t *req) {
         c->lobby_req = NULL;
         pthread_mutex_lock(&req->mutex);
 
-        if(req->type == LOBBY_TYPE_DEFAULT &&
+        if(req->type == LOBBY_TYPE_LOBBY &&
            req->num_clients < req->max_clients) {
             /* They should be OK to join this one... */
             if(!lobby_add_client_locked(c, req)) {
@@ -1020,7 +1020,7 @@ int lobby_add_to_any(ship_client_t *c, lobby_t *req) {
 
         pthread_mutex_lock(&l->mutex);
 
-        if(l->type == LOBBY_TYPE_DEFAULT && l->num_clients < l->max_clients) {
+        if(l->type == LOBBY_TYPE_LOBBY && l->num_clients < l->max_clients) {
             /* We've got a candidate, add away. */
             if(!lobby_add_client_locked(c, l)) {
                 added = 1;
@@ -1186,7 +1186,7 @@ int lobby_change_lobby(ship_client_t *c, lobby_t *req) {
     send_lobby_leave(l, c, old_cid);
 
     /* ...tell the client they've changed lobbies successfully... */
-    if(c->cur_lobby->type == LOBBY_TYPE_DEFAULT) {
+    if(c->cur_lobby->type == LOBBY_TYPE_LOBBY) {
         send_lobby_join(c, c->cur_lobby);
         c->lobby_id = c->cur_lobby->lobby_id;
         c->flags &= ~CLIENT_FLAG_SHOPPING;
