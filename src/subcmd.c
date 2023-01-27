@@ -3597,6 +3597,28 @@ static int handle_pick_up(ship_client_t *c, ship_client_t *d,
     return send_pkt_dc(d, (dc_pkt_hdr_t *)pkt);
 }
 
+int handle_burst_pldata(ship_client_t *c, ship_client_t *d,
+                        subcmd_burst_pldata_t *pkt) {
+    int i;
+    sylverant_iitem_t *item;
+
+    if((c->version == CLIENT_VERSION_XBOX && d->version == CLIENT_VERSION_GC) ||
+       (d->version == CLIENT_VERSION_XBOX && c->version == CLIENT_VERSION_GC)) {
+        /* Scan the inventory and fix any mags before sending it along. */
+        for(i = 0; i < pkt->inv.item_count; ++i) {
+            item = &pkt->inv.items[i];
+
+            /* If the item is a mag, then we have to swap the last dword of the item
+               data. Otherwise colors and stats get messed up. */
+            if(item->data_b[0] == ITEM_TYPE_MAG) {
+                item->data2_l = SWAP32(item->data2_l);
+            }
+        }
+    }
+
+    return send_pkt_dc(d, (dc_pkt_hdr_t *)pkt);
+}
+
 /* Handle a 0x62/0x6D packet. */
 int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
     lobby_t *l = c->cur_lobby;
@@ -3634,8 +3656,11 @@ int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
 
             case SUBCMD_BURST5:
             case SUBCMD_BURST6:
-            case SUBCMD_BURST7:
                 rv |= send_pkt_dc(dest, (dc_pkt_hdr_t *)pkt);
+                break;
+
+            case SUBCMD_BURST_PLDATA:
+                rv = handle_burst_pldata(c, dest, (subcmd_burst_pldata_t *)pkt);
                 break;
 
             default:

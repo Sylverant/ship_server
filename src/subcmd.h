@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
     Copyright (C) 2009, 2010, 2011, 2012, 2013, 2015, 2018, 2019,
-                  2021 Lawrence Sebald
+                  2021, 2023 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -886,6 +886,62 @@ typedef struct subcmd_talk_npc {
     uint32_t unused2;       /* Always zero? */
 } PACKED subcmd_talk_npc_t;
 
+/* Packet used to communicate current state of players in-game while a new
+   player is bursting. */
+typedef struct subcmd_burst_pldata {
+    dc_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t unused1;
+    uint16_t unused2;
+    uint32_t size_minus_4;  /* ??? */
+    uint32_t unk1[2];
+    float x;
+    float y;
+    float z;
+    uint8_t unk2[0x54];
+    uint32_t tag;
+    uint32_t guildcard;
+    uint8_t unk3[0x44];
+    uint8_t techs[20];
+    char name[16];
+    uint32_t c_unk1[2];
+    uint32_t name_color;
+    uint8_t model;
+    uint8_t c_unused[15];
+    uint32_t name_color_checksum;
+    uint8_t section;
+    uint8_t ch_class;
+    uint8_t v2flags;
+    uint8_t version;
+    uint32_t v1flags;
+    uint16_t costume;
+    uint16_t skin;
+    uint16_t face;
+    uint16_t head;
+    uint16_t hair;
+    uint16_t hair_r;
+    uint16_t hair_g;
+    uint16_t hair_b;
+    float prop_x;
+    float prop_y;
+    uint16_t atp;
+    uint16_t mst;
+    uint16_t evp;
+    uint16_t hp;
+    uint16_t dfp;
+    uint16_t ata;
+    uint16_t lck;
+    uint16_t c_unk2;
+    uint32_t c_unk3[2];
+    uint32_t level;
+    uint32_t exp;
+    uint32_t meseta;
+    sylverant_inventory_t inv;
+    uint32_t zero;          /* Unused? */
+    /* Xbox has a little bit more at the end than other versions... Probably
+       safe to just ignore it. */
+} PACKED subcmd_burst_pldata_t;
+
 #undef PACKED
 
 /* Subcommand types we care about (0x62/0x6D). */
@@ -973,7 +1029,7 @@ typedef struct subcmd_talk_npc {
 #define SUBCMD_BURST1       0x6D
 #define SUBCMD_BURST4       0x6E
 #define SUBCMD_BURST5       0x6F
-#define SUBCMD_BURST7       0x70
+#define SUBCMD_BURST_PLDATA 0x70    /* Was SUBCMD_BURST7 */
 #define SUBCMD_BURST6       0x71
 
 /* The commands OK to send during bursting (0x60) */
