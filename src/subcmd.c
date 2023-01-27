@@ -3601,6 +3601,15 @@ int handle_burst_pldata(ship_client_t *c, ship_client_t *d,
                         subcmd_burst_pldata_t *pkt) {
     int i;
     sylverant_iitem_t *item;
+    lobby_t *l = c->cur_lobby;
+
+    /* We can't get these in a lobby without someone messing with something that
+       they shouldn't be... Disconnect anyone that tries. */
+    if(l->type == LOBBY_TYPE_LOBBY) {
+        debug(DBG_WARN, "Guild card %" PRIu32 " sent burst player data in "
+              "lobby!\n", c->guildcard);
+        return -1;
+    }
 
     if((c->version == CLIENT_VERSION_XBOX && d->version == CLIENT_VERSION_GC) ||
        (d->version == CLIENT_VERSION_XBOX && c->version == CLIENT_VERSION_GC)) {
@@ -3608,8 +3617,8 @@ int handle_burst_pldata(ship_client_t *c, ship_client_t *d,
         for(i = 0; i < pkt->inv.item_count; ++i) {
             item = &pkt->inv.items[i];
 
-            /* If the item is a mag, then we have to swap the last dword of the item
-               data. Otherwise colors and stats get messed up. */
+            /* If the item is a mag, then we have to swap the last dword of the
+                data. Otherwise colors and stats get messed up. */
             if(item->data_b[0] == ITEM_TYPE_MAG) {
                 item->data2_l = SWAP32(item->data2_l);
             }
@@ -3617,6 +3626,78 @@ int handle_burst_pldata(ship_client_t *c, ship_client_t *d,
     }
 
     return send_pkt_dc(d, (dc_pkt_hdr_t *)pkt);
+}
+
+int handle_dragon_act(ship_client_t *c, subcmd_dragon_act_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+    int v = c->version, i;
+    subcmd_dragon_act_t tr;
+
+    /* We can't get these in a lobby without someone messing with something that
+       they shouldn't be... Disconnect anyone that tries. */
+    if(l->type == LOBBY_TYPE_LOBBY) {
+        debug(DBG_WARN, "Guild card %" PRIu32 " reported Dragon action in "
+              "lobby!\n", c->guildcard);
+        return -1;
+    }
+
+    if(v != CLIENT_VERSION_XBOX && v != CLIENT_VERSION_GC)
+        return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
+
+    /* Make a version to send to the other version if the client is on GC or
+       Xbox. */
+    memcpy(&tr, pkt, sizeof(subcmd_dragon_act_t));
+    tr.x.b = SWAP32(tr.x.b);
+    tr.z.b = SWAP32(tr.z.b);
+
+    for(i = 0; i < l->max_clients; ++i) {
+        if(l->clients[i] && l->clients[i] != c) {
+            if(l->clients[i]->version == v) {
+                send_pkt_dc(l->clients[i], (dc_pkt_hdr_t *)pkt);
+            }
+            else {
+                send_pkt_dc(l->clients[i], (dc_pkt_hdr_t *)&tr);
+            }
+        }
+    }
+
+    return 0;
+}
+
+int handle_gol_dragon_act(ship_client_t *c, subcmd_gol_dragon_act_t *pkt) {
+    lobby_t *l = c->cur_lobby;
+    int v = c->version, i;
+    subcmd_gol_dragon_act_t tr;
+
+    /* We can't get these in a lobby without someone messing with something that
+       they shouldn't be... Disconnect anyone that tries. */
+    if(l->type == LOBBY_TYPE_LOBBY) {
+        debug(DBG_WARN, "Guild card %" PRIu32 " reported Gol Dragon action in "
+              "lobby!\n", c->guildcard);
+        return -1;
+    }
+
+    if(v != CLIENT_VERSION_XBOX && v != CLIENT_VERSION_GC)
+        return subcmd_send_lobby_dc(l, c, (subcmd_pkt_t *)pkt, 0);
+
+    /* Make a version to send to the other version if the client is on GC or
+       Xbox. */
+    memcpy(&tr, pkt, sizeof(subcmd_gol_dragon_act_t));
+    tr.x.b = SWAP32(tr.x.b);
+    tr.z.b = SWAP32(tr.z.b);
+
+    for(i = 0; i < l->max_clients; ++i) {
+        if(l->clients[i] && l->clients[i] != c) {
+            if(l->clients[i]->version == v) {
+                send_pkt_dc(l->clients[i], (dc_pkt_hdr_t *)pkt);
+            }
+            else {
+                send_pkt_dc(l->clients[i], (dc_pkt_hdr_t *)&tr);
+            }
+        }
+    }
+
+    return 0;
 }
 
 /* Handle a 0x62/0x6D packet. */
@@ -3979,6 +4060,14 @@ int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt) {
 
         case SUBCMD_DONE_NPC:
             rv = handle_done_npc(c, (subcmd_pkt_t *)pkt);
+            break;
+
+        case SUBCMD_DRAGON_ACT:
+            rv = handle_dragon_act(c, (subcmd_dragon_act_t *)pkt);
+            break;
+
+        case SUBCMD_GDRAGON_ACT:
+            rv = handle_gol_dragon_act(c, (subcmd_gol_dragon_act_t *)pkt);
             break;
 
         default:

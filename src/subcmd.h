@@ -886,6 +886,29 @@ typedef struct subcmd_talk_npc {
     uint32_t unused2;       /* Always zero? */
 } PACKED subcmd_talk_npc_t;
 
+/* Packet used by the Dragon boss to deal with its actions. */
+typedef struct subcmd_dragon_act {
+    dc_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint16_t enemy_id;
+    uint32_t unk[2];
+    bitfloat_t x;
+    bitfloat_t z;
+} PACKED subcmd_dragon_act_t;
+
+/* Packet used by the Gol Dragon boss to deal with its actions. */
+typedef struct subcmd_gol_dragon_act {
+    dc_pkt_hdr_t hdr;
+    uint8_t type;
+    uint8_t size;
+    uint16_t enemy_id;
+    uint32_t unk[2];
+    bitfloat_t x;
+    bitfloat_t z;
+    uint32_t unk2;
+} PACKED subcmd_gol_dragon_act_t;
+
 /* Packet used to communicate current state of players in-game while a new
    player is bursting. */
 typedef struct subcmd_burst_pldata {
@@ -959,6 +982,7 @@ typedef struct subcmd_burst_pldata {
 #define SUBCMD_HIT_MONSTER  0x0A
 #define SUBCMD_HIT_OBJ      0x0B
 #define SUBCMD_TELEPORT     0x17
+#define SUBCMD_DRAGON_ACT   0x18    /* Dragon special actions */
 #define SUBCMD_SET_AREA     0x1F
 #define SUBCMD_SET_AREA_21  0x21    /* Seems to match 0x1F */
 #define SUBCMD_LOAD_22      0x22    /* Related to 0x21 and 0x23... */
@@ -1001,6 +1025,7 @@ typedef struct subcmd_burst_pldata {
 #define SUBCMD_CMODE_GRAVE  0x7C
 #define SUBCMD_WARP         0x94
 #define SUBCMD_CHANGE_STAT  0x9A
+#define SUBCMD_GDRAGON_ACT  0xA8    /* Gol Dragon special actions */
 #define SUBCMD_LOBBY_CHAIR  0xAB
 #define SUBCMD_CHAIR_DIR    0xAF
 #define SUBCMD_CHAIR_MOVE   0xB0
