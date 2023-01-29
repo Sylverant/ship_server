@@ -864,7 +864,7 @@ void make_disp_data(ship_client_t *s, ship_client_t *d, void *buf) {
     uint8_t *bp = (uint8_t *)buf;
     int vs = s->version, vd = d->version;
 
-    if(vs < CLIENT_VERSION_GC && vd < CLIENT_VERSION_GC) {
+    if(vs < CLIENT_VERSION_GC || vd < CLIENT_VERSION_GC) {
         /* None of the early versions have anything to worry about */
         memcpy(buf, &s->pl->v1, sizeof(v1_player_t));
     }
