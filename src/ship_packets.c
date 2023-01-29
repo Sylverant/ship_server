@@ -1213,8 +1213,6 @@ static int send_dcnte_lobby_join(ship_client_t *c, lobby_t *l) {
     dcnte_lobby_join_pkt *pkt = (dcnte_lobby_join_pkt *)sendbuf;
     int i, pls = 0;
     uint16_t pkt_size = 8;
-    uint16_t costume;
-    uint8_t ch_class;
 
     /* Verify we got the sendbuf. */
     if(!sendbuf)
@@ -1251,34 +1249,8 @@ static int send_dcnte_lobby_join(ship_client_t *c, lobby_t *l) {
             memcpy(pkt->entries[pls].hdr.name, l->clients[i]->pl->v1.name, 16);
         }
 
+        /* Do any character data conversion we have to deal with... */
         make_disp_data(l->clients[i], c, &pkt->entries[pls].data);
-
-        /* Normalize costumes to the set that PSODC knows about, and make sure
-           the extra classes are taken care of too. */
-        if(l->clients[i]->version >= CLIENT_VERSION_GC) {
-            costume = LE16(pkt->entries[pls].data.costume) % 9;
-            pkt->entries[pls].data.costume = LE16(costume);
-            costume = LE16(pkt->entries[pls].data.skin) % 9;
-            pkt->entries[pls].data.skin = LE16(costume);
-            costume = LE16(pkt->entries[pls].data.hair);
-
-            ch_class = pkt->entries[pls].data.ch_class;
-
-            if(ch_class == HUcaseal)
-                ch_class = HUcast;  /* HUcaseal -> HUcast */
-            else if(ch_class == FOmar)
-                ch_class = FOmarl;  /* FOmar -> FOmarl */
-            else if(ch_class == RAmarl)
-                ch_class = RAmar;   /* RAmarl -> RAmar */
-
-            /* Some classes we have to check the hairstyle on... */
-            if((ch_class == HUmar || ch_class == RAmar || ch_class == FOnewm) &&
-               costume > 6)
-                costume = 0;
-
-            pkt->entries[pls].data.hair = LE16(costume);
-            pkt->entries[pls].data.ch_class = ch_class;
-        }
 
         /* Sigh... I should narrow the problem down a bit more, but this works
            for the time being... */
@@ -1304,21 +1276,17 @@ static int send_dc_lobby_join(ship_client_t *c, lobby_t *l) {
     int i, pls = 0;
     uint16_t pkt_size = 0x10;
     uint8_t event = l->event;
-    uint16_t costume;
-    uint8_t ch_class;
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Clear the packet's header. */
     memset(pkt, 0, sizeof(dc_lobby_join_pkt));
 
     /* Don't send lobby event codes to the Dreamcast version. */
-    if(c->version < CLIENT_VERSION_GC) {
+    if(c->version < CLIENT_VERSION_GC)
         event = 0;
-    }
 
     /* Fill in the basics. */
     pkt->hdr.pkt_type = LOBBY_JOIN_TYPE;
@@ -1354,35 +1322,8 @@ static int send_dc_lobby_join(ship_client_t *c, lobby_t *l) {
             memcpy(pkt->entries[pls].hdr.name, l->clients[i]->pl->v1.name, 16);
         }
 
+        /* Do any character data conversion that we have to deal with... */
         make_disp_data(l->clients[i], c, &pkt->entries[pls].data);
-
-        /* Normalize costumes to the set that PSODC knows about, and make sure
-           the extra classes are taken care of too. */
-        if(c->version < CLIENT_VERSION_GC &&
-           l->clients[i]->version >= CLIENT_VERSION_GC) {
-            costume = LE16(pkt->entries[pls].data.costume) % 9;
-            pkt->entries[pls].data.costume = LE16(costume);
-            costume = LE16(pkt->entries[pls].data.skin) % 9;
-            pkt->entries[pls].data.skin = LE16(costume);
-            costume = LE16(pkt->entries[pls].data.hair);
-
-            ch_class = pkt->entries[pls].data.ch_class;
-
-            if(ch_class == HUcaseal)
-                ch_class = HUcast;  /* HUcaseal -> HUcast */
-            else if(ch_class == FOmar)
-                ch_class = FOmarl;  /* FOmar -> FOmarl */
-            else if(ch_class == RAmarl)
-                ch_class = RAmar;   /* RAmarl -> RAmar */
-
-            /* Some classes we have to check the hairstyle on... */
-            if((ch_class == HUmar || ch_class == RAmar || ch_class == FOnewm) &&
-               costume > 6)
-                costume = 0;
-
-            pkt->entries[pls].data.hair = LE16(costume);
-            pkt->entries[pls].data.ch_class = ch_class;
-        }
 
         ++pls;
         pkt_size += 1084;
@@ -1401,13 +1342,10 @@ static int send_pc_lobby_join(ship_client_t *c, lobby_t *l) {
     pc_lobby_join_pkt *pkt = (pc_lobby_join_pkt *)sendbuf;
     int i, pls = 0;
     uint16_t pkt_size = 0x10;
-    uint16_t costume;
-    uint8_t ch_class;
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Clear the packet's header. */
     memset(pkt, 0, sizeof(pc_lobby_join_pkt));
@@ -1447,34 +1385,8 @@ static int send_pc_lobby_join(ship_client_t *c, lobby_t *l) {
                      l->clients[i]->pl->v1.name, 32);
         }
 
+        /* Do any character data conversion that we have to deal with... */
         make_disp_data(l->clients[i], c, &pkt->entries[pls].data);
-
-        /* Normalize costumes to the set that PSOPC knows about, and make sure
-           the extra classes are taken care of too. */
-        if(l->clients[i]->version >= CLIENT_VERSION_GC) {
-            costume = LE16(pkt->entries[pls].data.costume) % 9;
-            pkt->entries[pls].data.costume = LE16(costume);
-            costume = LE16(pkt->entries[pls].data.skin) % 9;
-            pkt->entries[pls].data.skin = LE16(costume);
-            costume = LE16(pkt->entries[pls].data.hair);
-
-            ch_class = pkt->entries[pls].data.ch_class;
-
-            if(ch_class == HUcaseal)
-                ch_class = HUcast;  /* HUcaseal -> HUcast */
-            else if(ch_class == FOmar)
-                ch_class = FOmarl;  /* FOmar -> FOmarl */
-            else if(ch_class == RAmarl)
-                ch_class = RAmar;   /* RAmarl -> RAmar */
-
-            /* Some classes we have to check the hairstyle on... */
-            if((ch_class == HUmar || ch_class == RAmar || ch_class == FOnewm) &&
-               costume > 6)
-                costume = 0;
-
-            pkt->entries[pls].data.hair = LE16(costume);
-            pkt->entries[pls].data.ch_class = ch_class;
-        }
 
         ++pls;
         pkt_size += 1100;
@@ -1788,13 +1700,10 @@ static int send_dcnte_lobby_add_player(lobby_t *l, ship_client_t *c,
                                        ship_client_t *nc) {
     uint8_t *sendbuf = get_sendbuf();
     dcnte_lobby_join_pkt *pkt = (dcnte_lobby_join_pkt *)sendbuf;
-    uint16_t costume;
-    uint8_t ch_class;
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Clear the packet's header. */
     memset(pkt, 0, sizeof(dcnte_lobby_join_pkt));
@@ -1822,38 +1731,8 @@ static int send_dcnte_lobby_add_player(lobby_t *l, ship_client_t *c,
         memcpy(pkt->entries[0].hdr.name, nc->pl->v1.name, 16);
     }
 
+    /* Do any character data conversion that we have to deal with... */
     make_disp_data(nc, c, &pkt->entries[0].data);
-
-    /* Normalize costumes to the set that PSODC knows about, and make sure the
-       extra classes are taken care of too. */
-    if(nc->version >= CLIENT_VERSION_GC) {
-        costume = LE16(pkt->entries[0].data.costume) % 9;
-        pkt->entries[0].data.costume = LE16(costume);
-        costume = LE16(pkt->entries[0].data.skin) % 9;
-        pkt->entries[0].data.skin = LE16(costume);
-        costume = LE16(pkt->entries[0].data.hair);
-
-        ch_class = pkt->entries[0].data.ch_class;
-
-        /* Only do this on lobby lobbies or if somehow we get here in a v1
-           lobby... */
-        if(l->type == LOBBY_TYPE_LOBBY || l->version == CLIENT_VERSION_DCV1) {
-            if(ch_class == HUcaseal)
-                ch_class = HUcast;  /* HUcaseal -> HUcast */
-            else if(ch_class == FOmar)
-                ch_class = FOmarl;  /* FOmar -> FOmarl */
-            else if(ch_class == RAmarl)
-                ch_class = RAmar;   /* RAmarl -> RAmar */
-        }
-
-        /* Some classes we have to check the hairstyle on... */
-        if((ch_class == HUmar || ch_class == RAmar || ch_class == FOnewm) &&
-           costume > 6)
-            costume = 0;
-
-        pkt->entries[0].data.hair = LE16(costume);
-        pkt->entries[0].data.ch_class = ch_class;
-    }
 
     /* Sigh... I should narrow the problem down a bit more, but this works for
        the time being... */
@@ -1869,13 +1748,10 @@ static int send_dc_lobby_add_player(lobby_t *l, ship_client_t *c,
                                     ship_client_t *nc) {
     uint8_t *sendbuf = get_sendbuf();
     dc_lobby_join_pkt *pkt = (dc_lobby_join_pkt *)sendbuf;
-    uint16_t costume;
-    uint8_t ch_class;
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Clear the packet's header. */
     memset(pkt, 0, sizeof(dc_lobby_join_pkt));
@@ -1913,38 +1789,8 @@ static int send_dc_lobby_add_player(lobby_t *l, ship_client_t *c,
         memcpy(pkt->entries[0].hdr.name, nc->pl->v1.name, 16);
     }
 
+    /* Do any character data conversion that we have to deal with... */
     make_disp_data(nc, c, &pkt->entries[0].data);
-
-    /* Normalize costumes to the set that PSODC knows about, and make sure the
-       extra classes are taken care of too. */
-    if(c->version < CLIENT_VERSION_GC && nc->version >= CLIENT_VERSION_GC) {
-        costume = LE16(pkt->entries[0].data.costume) % 9;
-        pkt->entries[0].data.costume = LE16(costume);
-        costume = LE16(pkt->entries[0].data.skin) % 9;
-        pkt->entries[0].data.skin = LE16(costume);
-        costume = LE16(pkt->entries[0].data.hair);
-
-        ch_class = pkt->entries[0].data.ch_class;
-
-        /* Only do this on lobby lobbies or if somehow we get here in a v1
-           lobby... */
-        if(l->type == LOBBY_TYPE_LOBBY || l->version == CLIENT_VERSION_DCV1) {
-            if(ch_class == HUcaseal)
-                ch_class = HUcast;  /* HUcaseal -> HUcast */
-            else if(ch_class == FOmar)
-                ch_class = FOmarl;  /* FOmar -> FOmarl */
-            else if(ch_class == RAmarl)
-                ch_class = RAmar;   /* RAmarl -> RAmar */
-        }
-
-        /* Some classes we have to check the hairstyle on... */
-        if((ch_class == HUmar || ch_class == RAmar || ch_class == FOnewm) &&
-           costume > 6)
-            costume = 0;
-
-        pkt->entries[0].data.hair = LE16(costume);
-        pkt->entries[0].data.ch_class = ch_class;
-    }
 
     /* Send it away */
     return crypt_send(c, 0x044C, sendbuf);
@@ -1954,13 +1800,10 @@ static int send_pc_lobby_add_player(lobby_t *l, ship_client_t *c,
                                     ship_client_t *nc) {
     uint8_t *sendbuf = get_sendbuf();
     pc_lobby_join_pkt *pkt = (pc_lobby_join_pkt *)sendbuf;
-    uint16_t costume;
-    uint8_t ch_class;
 
     /* Verify we got the sendbuf. */
-    if(!sendbuf) {
+    if(!sendbuf)
         return -1;
-    }
 
     /* Clear the packet's header. */
     memset(pkt, 0, sizeof(pc_lobby_join_pkt));
@@ -2001,38 +1844,8 @@ static int send_pc_lobby_add_player(lobby_t *l, ship_client_t *c,
                  nc->pl->v1.name, 32);
     }
 
+    /* Do any character data conversion that we have to deal with... */
     make_disp_data(nc, c, &pkt->entries[0].data);
-
-    /* Normalize costumes to the set that PSOPC knows about, and make sure
-       the extra classes are taken care of too. */
-    if(nc->version >= CLIENT_VERSION_GC) {
-        costume = LE16(pkt->entries[0].data.costume) % 9;
-        pkt->entries[0].data.costume = LE16(costume);
-        costume = LE16(pkt->entries[0].data.skin) % 9;
-        pkt->entries[0].data.skin = LE16(costume);
-        costume = LE16(pkt->entries[0].data.hair);
-
-        ch_class = pkt->entries[0].data.ch_class;
-
-        /* Only do this on lobby lobbies or if somehow we get here in a v1
-           lobby... */
-        if(l->type == LOBBY_TYPE_LOBBY || l->version == CLIENT_VERSION_DCV1) {
-            if(ch_class == HUcaseal)
-                ch_class = HUcast;  /* HUcaseal -> HUcast */
-            else if(ch_class == FOmar)
-                ch_class = FOmarl;  /* FOmar -> FOmarl */
-            else if(ch_class == RAmarl)
-                ch_class = RAmar;   /* RAmarl -> RAmar */
-        }
-
-        /* Some classes we have to check the hairstyle on... */
-        if((ch_class == HUmar || ch_class == RAmar || ch_class == FOnewm) &&
-           costume > 6)
-            costume = 0;
-
-        pkt->entries[0].data.hair = LE16(costume);
-        pkt->entries[0].data.ch_class = ch_class;
-    }
 
     /* Send it away */
     return crypt_send(c, 0x045C, sendbuf);
