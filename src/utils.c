@@ -909,73 +909,106 @@ void make_disp_data(ship_client_t *s, ship_client_t *d, void *buf) {
         case CLIENT_VERSION_DCV1:
         case CLIENT_VERSION_DCV2:
         case CLIENT_VERSION_PC:
-            if(vd != CLIENT_VERSION_BB) {
-                /* As long as the destination isn't a BB player, just copy the
-                   data over as-is. Technically if we ever allowed cross-play,
-                   we would need to deal with the differences in Mags on
-                   Gamecube and Xbox here... */
-                memcpy(buf, &s->pl->v1, sizeof(v1_player_t));
-            }
-            else {
-                /* Going to Blue Burst, so, convert. */
-                convert_dcpcgc_to_bb(s, (uint8_t *)buf);
+            switch(vd) {
+                case CLIENT_VERSION_DCV1:
+                case CLIENT_VERSION_DCV2:
+                case CLIENT_VERSION_PC:
+                case CLIENT_VERSION_GC:
+                case CLIENT_VERSION_EP3:
+                case CLIENT_VERSION_XBOX:
+                    /* As long as the destination isn't a BB player, just copy
+                       the data over as-is. Technically if we ever allowed
+                       cross-play, we would need to deal with the differences in
+                       Mags on Gamecube and Xbox here, at least. */
+                    memcpy(buf, &s->pl->v1, sizeof(v1_player_t));
+                    break;
+
+                case CLIENT_VERSION_BB:
+                    /* Going to Blue Burst, so, convert. */
+                    convert_dcpcgc_to_bb(s, (uint8_t *)buf);
+                    break;
             }
 
             break;
 
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
-            if(vd < CLIENT_VERSION_GC) {
-                /* We're going to an earlier version. Apply a few fixups for
-                   things like missing costumes and character classes. */
-                convert_gc_to_dcpc(s, buf);
-            }
-            else if(vd == CLIENT_VERSION_GC || vd == CLIENT_VERSION_EP3) {
-                /* We're dealing with the "same" version, so just copy. */
-                memcpy(buf, &s->pl->v1, sizeof(v1_player_t));
-            }
-            else if(vd == CLIENT_VERSION_XBOX) {
-                /* Apply Mag fixups... */
-                convert_gcxb_to_xbgc(s, buf);
-            }
-            else {
-                /* Going to Blue Burst, so, convert. */
-                convert_dcpcgc_to_bb(s, (uint8_t *)buf);
+            switch(vd) {
+                case CLIENT_VERSION_DCV1:
+                case CLIENT_VERSION_DCV2:
+                case CLIENT_VERSION_PC:
+                    /* We're going to an earlier version. Apply a few fixups for
+                       things like missing costumes and character classes. */
+                    convert_gc_to_dcpc(s, buf);
+                    break;
+
+                case CLIENT_VERSION_GC:
+                case CLIENT_VERSION_EP3:
+                    /* We're dealing with the "same" version, so just copy. */
+                    memcpy(buf, &s->pl->v1, sizeof(v1_player_t));
+                    break;
+
+                case CLIENT_VERSION_XBOX:
+                    /* Apply Mag fixups... */
+                    convert_gcxb_to_xbgc(s, buf);
+                    break;
+
+                case CLIENT_VERSION_BB:
+                    /* Going to Blue Burst, so, convert. */
+                    convert_dcpcgc_to_bb(s, (uint8_t *)buf);
+                    break;
             }
 
             break;
 
         case CLIENT_VERSION_XBOX:
-            if(vd < CLIENT_VERSION_GC) {
-                /* We're going to an earlier version. Apply a few fixups for
-                   things like missing costumes and character classes. */
-                convert_xb_to_dcpc(s, buf);
-            }
-            else if(vd == CLIENT_VERSION_XBOX) {
-                /* We're dealing with the "same" version, so just copy. */
-                memcpy(buf, &s->pl->v1, sizeof(v1_player_t));
-            }
-            else if(vd == CLIENT_VERSION_GC || vd == CLIENT_VERSION_EP3) {
-                /* Apply Mag fixups... */
-                convert_gcxb_to_xbgc(s, buf);
-            }
-            else {
-                /* Going to Blue Burst, so, convert. */
-                convert_dcpcgc_to_bb(s, (uint8_t *)buf);
+            switch(vd) {
+                case CLIENT_VERSION_DCV1:
+                case CLIENT_VERSION_DCV2:
+                case CLIENT_VERSION_PC:
+                    /* We're going to an earlier version. Apply a few fixups for
+                       things like missing costumes and character classes. */
+                    convert_xb_to_dcpc(s, buf);
+                    break;
+
+                case CLIENT_VERSION_GC:
+                case CLIENT_VERSION_EP3:
+                    /* Apply Mag fixups... */
+                    convert_gcxb_to_xbgc(s, buf);
+                    break;
+
+                case CLIENT_VERSION_XBOX:
+                    /* We're dealing with the "same" version, so just copy. */
+                    memcpy(buf, &s->pl->v1, sizeof(v1_player_t));
+                    break;
+
+                case CLIENT_VERSION_BB:
+                    /* Going to Blue Burst, so, convert. */
+                    convert_dcpcgc_to_bb(s, (uint8_t *)buf);
+                    break;
             }
 
             break;
 
         case CLIENT_VERSION_BB:
-            if(vd == CLIENT_VERSION_BB) {
-                /* Both clients are Blue Burst -- Copy the data over. */
-                memcpy(bp, &s->pl->bb.inv, sizeof(sylverant_inventory_t));
-                bp += sizeof(sylverant_inventory_t);
-                memcpy(bp, &s->pl->bb.character, sizeof(sylverant_bb_char_t));
-            }
-            else {
-                /* We're going from Blue Burst to an earlier version... */
-                convert_bb_to_dcpcgc(s, bp);
+            switch(vd) {
+                case CLIENT_VERSION_DCV1:
+                case CLIENT_VERSION_DCV2:
+                case CLIENT_VERSION_PC:
+                case CLIENT_VERSION_GC:
+                case CLIENT_VERSION_EP3:
+                case CLIENT_VERSION_XBOX:
+                    /* We're going from Blue Burst to an earlier version... */
+                    convert_bb_to_dcpcgc(s, bp);
+                    break;
+
+                case CLIENT_VERSION_BB:
+                    /* Both clients are Blue Burst -- Copy the data over. */
+                    memcpy(bp, &s->pl->bb.inv, sizeof(sylverant_inventory_t));
+                    bp += sizeof(sylverant_inventory_t);
+                    memcpy(bp, &s->pl->bb.character,
+                           sizeof(sylverant_bb_char_t));
+                    break;
             }
 
             break;
