@@ -864,7 +864,13 @@ void make_disp_data(ship_client_t *s, ship_client_t *d, void *buf) {
     uint8_t *bp = (uint8_t *)buf;
     int vs = s->version, vd = d->version;
 
-    if(vs == vd) {
+    if(vs < CLIENT_VERSION_GC && vd < CLIENT_VERSION_GC) {
+        /* None of the early versions have anything to worry about */
+        memcpy(buf, &s->pl->v1, sizeof(v1_player_t));
+    }
+    else if(vs == vd ||
+            (vs == CLIENT_VERSION_GC && vd == CLIENT_VERSION_EP3) ||
+            (vs == CLIENT_VERSION_EP3 && vd == CLIENT_VERSION_GC)) {
         /* Both are the same version... Are they Blue Burst or not? */
         if(vs != CLIENT_VERSION_BB) {
             /* Neither are Blue Burst -- trivial */
@@ -878,7 +884,9 @@ void make_disp_data(ship_client_t *s, ship_client_t *d, void *buf) {
         }
     }
     else if((vs == CLIENT_VERSION_XBOX && vd == CLIENT_VERSION_GC) ||
-            (vs == CLIENT_VERSION_GC && vd == CLIENT_VERSION_XBOX)) {
+            (vs == CLIENT_VERSION_GC && vd == CLIENT_VERSION_XBOX) ||
+            (vs == CLIENT_VERSION_XBOX && vd == CLIENT_VERSION_EP3) ||
+            (vs == CLIENT_VERSION_EP3 && vd == CLIENT_VERSION_XBOX)) {
         /* One is on Xbox, the other is on GC. Apply inventory fixes. */
         convert_gcxb_to_xbgc(s, buf);
     }
