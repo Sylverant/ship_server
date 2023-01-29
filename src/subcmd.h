@@ -982,7 +982,7 @@ typedef struct subcmd_burst_pldata {
 #define SUBCMD_HIT_MONSTER  0x0A
 #define SUBCMD_HIT_OBJ      0x0B
 #define SUBCMD_TELEPORT     0x17
-#define SUBCMD_DRAGON_ACT   0x18    /* Dragon special actions */
+#define SUBCMD_DRAGON_ACT   0x12    /* Dragon special actions */
 #define SUBCMD_SET_AREA     0x1F
 #define SUBCMD_SET_AREA_21  0x21    /* Seems to match 0x1F */
 #define SUBCMD_LOAD_22      0x22    /* Related to 0x21 and 0x23... */
