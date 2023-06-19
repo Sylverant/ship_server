@@ -1543,6 +1543,8 @@ static int send_xbox_lobby_join(ship_client_t *c, lobby_t *l) {
             memset(&pkt->entries[pls].hdr.xbox_ip.mac_addr, 0x12, 6);
             pkt->entries[pls].hdr.xbox_ip.sg_addr = 0x90807060;
             pkt->entries[pls].hdr.xbox_ip.sg_session_id = 0x12345678;
+            pkt->entries[pls].hdr.xbox_ip.xbox_account_id =
+                (0xAE00000000000000ULL) | LE32(cl->guildcard)
         }
 
         /* TODO: I have no idea what these three things are. */
