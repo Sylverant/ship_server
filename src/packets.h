@@ -573,7 +573,8 @@ typedef struct dcnte_lobby_join {
     dc_pkt_hdr_t hdr;
     uint8_t client_id;
     uint8_t leader_id;
-    uint16_t padding;
+    uint8_t one;
+    uint8_t padding;
     struct {
         dc_player_hdr_t hdr;
         v1_player_t data;

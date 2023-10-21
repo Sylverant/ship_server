@@ -1717,6 +1717,7 @@ static int send_dcnte_lobby_add_player(lobby_t *l, ship_client_t *c,
     pkt->hdr.pkt_len = LE16(0x0444);
     pkt->client_id = c->client_id;
     pkt->leader_id = l->leader_id;
+    pkt->one = 1;
 
     /* Copy the player's data into the packet. */
     pkt->entries[0].hdr.tag = LE32(0x00010000);
