@@ -3707,6 +3707,10 @@ int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt) {
     uint8_t type = pkt->type;
     int rv = -1;
 
+    /* The DC NTE must be treated specially, so deal with that elsewhere... */
+    if(c->version == CLIENT_VERSION_DCV1 && (c->flags & CLIENT_FLAG_IS_NTE))
+        return subcmd_dcnte_handle_one(c, pkt);
+
     /* Ignore these if the client isn't in a lobby or team. */
     if(!l)
         return 0;

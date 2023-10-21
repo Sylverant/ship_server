@@ -1057,6 +1057,15 @@ typedef struct subcmd_burst_pldata {
 #define SUBCMD_BURST_PLDATA 0x70    /* Was SUBCMD_BURST7 */
 #define SUBCMD_BURST6       0x71
 
+/* These ones are the above set, but for Dreamcast NTE. Note that there is not a
+   one-to-one correspondance between the packet names above and these, as NTE
+   definitely sends less data here. */
+#define SUBCMD_DCNTE_BURST1         0x5C
+#define SUBCMD_DCNTE_BURST2         0x5D
+#define SUBCMD_DCNTE_BURST3         0x5E
+#define SUBCMD_DCNTE_BURST4         0x5F
+#define SUBCMD_DCNTE_BURST_PLDATA   0x60
+
 /* The commands OK to send during bursting (0x60) */
 /* 0x3B */
 #define SUBCMD_UNK_7C       0x7C
@@ -1077,6 +1086,7 @@ typedef struct subcmd_burst_pldata {
 /* Handle a 0x62/0x6D packet. */
 int subcmd_handle_one(ship_client_t *c, subcmd_pkt_t *pkt);
 int subcmd_bb_handle_one(ship_client_t *c, bb_subcmd_pkt_t *pkt);
+int subcmd_dcnte_handle_one(ship_client_t *c, subcmd_pkt_t *pkt);
 
 /* Handle a 0x60 packet. */
 int subcmd_handle_bcast(ship_client_t *c, subcmd_pkt_t *pkt);
