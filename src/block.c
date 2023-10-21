@@ -2204,7 +2204,7 @@ static int dcnte_process_game_create(ship_client_t *c,
     /* Convert the team name to UTF-8 */
     tmp[0] = '\t';
     tmp[1] = 'J';
-    memcpy(tmp, pkt->name + 2, 16);
+    memcpy(tmp + 2, pkt->name, 16);
     tmp[18] = 0;
 
     istrncpy(ic_sjis_to_utf8, name, tmp, 32);

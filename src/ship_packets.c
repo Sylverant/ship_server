@@ -4097,6 +4097,12 @@ static int send_dc_game_list(ship_client_t *c, block_t *b) {
             (l->v2 ? 0x40 : 0x00);
 
         /* Copy the name. These are in UTF-8, and need converting... */
+        if((l->flags & LOBBY_FLAG_NTE)) {
+            /* Chop off the language marker from the team name for NTE. It only
+               supports Japanese/SJIS */
+            istrncpy(ic_utf8_to_sjis, pkt->entries[entries].name, l->name + 2,
+                     16);
+        }
         if(l->name[1] == 'J') {
             istrncpy(ic_utf8_to_sjis, pkt->entries[entries].name, l->name, 16);
         }
