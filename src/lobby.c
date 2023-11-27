@@ -1596,8 +1596,11 @@ int lobby_check_client_legit(lobby_t *l, ship_t *s, ship_client_t *c) {
             break;
 
         case CLIENT_VERSION_GC:
-        case CLIENT_VERSION_XBOX: /* XXXX? */
             version = ITEM_VERSION_GC;
+            break;
+
+        case CLIENT_VERSION_XBOX:
+            version = ITEM_VERSION_XBOX;
             break;
 
         default:

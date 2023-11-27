@@ -1125,8 +1125,11 @@ static int handle_take_item(ship_client_t *c, subcmd_take_item_t *pkt) {
                 break;
 
             case CLIENT_VERSION_GC:
-            case CLIENT_VERSION_XBOX:
                 v = ITEM_VERSION_GC;
+                break;
+
+            case CLIENT_VERSION_XBOX:
+                v = ITEM_VERSION_XBOX;
                 break;
 
             default:
@@ -1241,8 +1244,11 @@ static int handle_itemdrop(ship_client_t *c, subcmd_itemgen_t *pkt) {
                 break;
 
             case CLIENT_VERSION_GC:
-            case CLIENT_VERSION_XBOX:
                 v = ITEM_VERSION_GC;
+                break;
+
+            case CLIENT_VERSION_XBOX:
+                v = ITEM_VERSION_XBOX;
                 break;
 
             default:

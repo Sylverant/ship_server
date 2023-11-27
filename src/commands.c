@@ -779,8 +779,11 @@ static int handle_legit(ship_client_t *c, const char *params) {
             break;
 
         case CLIENT_VERSION_GC:
-        case CLIENT_VERSION_XBOX:
             v = ITEM_VERSION_GC;
+            break;
+
+        case CLIENT_VERSION_XBOX:
+            v = ITEM_VERSION_XBOX;
             break;
 
         case CLIENT_VERSION_EP3:
