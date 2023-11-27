@@ -1045,8 +1045,11 @@ int client_legit_check(ship_client_t *c, sylverant_limits_t *limits) {
             break;
 
         case CLIENT_VERSION_GC:
-        case CLIENT_VERSION_XBOX: /* XXXX */
             v = ITEM_VERSION_GC;
+            break;
+
+        case CLIENT_VERSION_XBOX:
+            v = ITEM_VERSION_XBOX;
             break;
 
         case CLIENT_VERSION_EP3:
@@ -1709,8 +1712,11 @@ static int client_legitCheckItem_lua(lua_State *l) {
                 break;
 
             case CLIENT_VERSION_GC:
-            case CLIENT_VERSION_XBOX:
                 v = ITEM_VERSION_GC;
+                break;
+
+            case CLIENT_VERSION_XBOX:
+                v = ITEM_VERSION_XBOX;
                 break;
 
             default:
