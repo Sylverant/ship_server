@@ -1761,6 +1761,13 @@ static int handle_schunk(shipgate_conn_t *c, shipgate_schunk_pkt *pkt) {
         return -1;
     }
 
+    /* Make sure we don't have any evil filenames. */
+    if(pkt->filename[0] == '.' || strchr(pkt->filename, '/') ||
+       strchr(pkt->filename, '\\')) {
+        debug(DBG_WARN, "Shipgate sent schunk with invalid filename!\n");
+        return -1;
+    }
+
     if(action >= ScriptActionCount) {
         debug(DBG_WARN, "Shipgate sent script for unknown action!\n");
         return -1;
@@ -1907,6 +1914,13 @@ static int handle_sset(shipgate_conn_t *c, shipgate_sset_pkt *pkt) {
 
     if(pkt->filename[31]) {
         debug(DBG_WARN, "Shipgate set script with too long filename\n");
+        return -1;
+    }
+
+    /* Make sure we don't have any evil filenames. */
+    if(pkt->filename[0] == '.' || strchr(pkt->filename, '/') ||
+       strchr(pkt->filename, '\\')) {
+        debug(DBG_WARN, "Shipgate sent set script with invalid filename!\n");
         return -1;
     }
 
