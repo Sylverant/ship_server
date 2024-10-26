@@ -1816,6 +1816,8 @@ static int handle_schunk(shipgate_conn_t *c, shipgate_schunk_pkt *pkt) {
                        script now, since we have it already. */
                     if(pkt->action && chtype == SCHUNK_TYPE_SCRIPT)
                         script_add(action, pkt->filename);
+                    else if(chtype == SCHUNK_TYPE_MODULE)
+                        script_update_module(pkt->filename);
 
                     /* Notify the shipgate */
                     if(!sendbuf)
