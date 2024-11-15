@@ -130,6 +130,12 @@
         <auto_reject />
     </item>
 
+    <!-- OROTIAGITO (Fist) -->
+    <item code="0x040F00">
+        <versions v1="true" v2="true" />
+        <auto_reject />
+    </item>
+
     <!-- Items with conditions (for both v1 items and v2) -->
     <!-- DB'S SABER -->
     <item code="0x050100">
@@ -450,15 +456,8 @@
     <!-- SONIC KNUCKLE -->
     <item code="0x030F00">
         <versions v1="true" v2="true" />
-        <grind max="15" />
-        <percents max="50" />
-    </item>
-
-    <!-- OROTIAGITO -->
-    <item code="0x040F00">
-        <versions v1="true" v2="true" />
         <grind max="9" />
-        <percents max="0" />
+        <percents max="50" />
     </item>
 
     <!-- OROTIAGITO -->
@@ -871,14 +870,14 @@
     <!-- ROCKET PUNCH -->
     <item code="0x004700">
         <versions v2="true" />
-        <grind max="9" />
+        <grind max="50" />
         <percents max="55" />
     </item>
 
     <!-- SAMBA MARACAS -->
     <item code="0x004800">
         <versions v2="true" />
-        <grind max="0" />
+        <grind max="9" />
         <percents max="0" />
     </item>
 
