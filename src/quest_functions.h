@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2019, 2020, 2021 Lawrence Sebald
+    Copyright (C) 2019, 2020, 2021, 2025 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -222,8 +222,16 @@
    Returns:      1 value: The number of the newest quest function added. */
 #define QUEST_FUNC_GET_MAX_FUNCTION     25
 
+/* Function 26:  get_client_count_updates
+   Arguments:    None
+   Returns:      1 value for storing the client count.
+   Note: This is essentially a periodical version of function 2. Whenever the
+         client count in the team updates, the new client count will be synced
+         to the specified register. */
+#define QUEST_FUNC_CLCT_UPDATES         26
+
 /* The number of the newest function added. */
-#define QUEST_FUNC_MAX                  25
+#define QUEST_FUNC_MAX                  26
 
 /* The first function number that can be used by scripts */
 #define QUEST_SCRIPT_START              0x80000000

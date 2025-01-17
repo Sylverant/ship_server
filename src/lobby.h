@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
     Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018,
-                  2019, 2020, 2021 Lawrence Sebald
+                  2019, 2020, 2021, 2025 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -161,6 +161,7 @@ struct lobby {
     uint32_t *regvals;
 
     uint8_t qpos_regs[LOBBY_MAX_IN_TEAM][LOBBY_MAX_IN_TEAM];
+    uint8_t qcount_reg[LOBBY_MAX_IN_TEAM];
 
 #ifdef DEBUG
     uint8_t sdrops_ep;

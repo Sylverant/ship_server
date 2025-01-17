@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
     Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018,
-                  2019, 2020, 2021, 2022, 2023 Lawrence Sebald
+                  2019, 2020, 2021, 2022, 2023, 2025 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -801,6 +801,8 @@ static int td(ship_client_t *c, lobby_t *l, void *req) {
 
 static int lobby_add_client_locked(ship_client_t *c, lobby_t *l) {
     int i;
+    uint32_t nc;
+    uint8_t r;
 
     /* Sanity check: Do we have space? */
     if(l->num_clients >= l->max_clients)
@@ -824,7 +826,7 @@ static int lobby_add_client_locked(ship_client_t *c, lobby_t *l) {
         c->client_id = 1;
         c->arrow = 0;
         c->join_time = time(NULL);
-        ++l->num_clients;
+        nc = (uint32_t)++l->num_clients;
 
         /* Update the challenge level as needed. */
         if(l->challenge)
@@ -832,6 +834,17 @@ static int lobby_add_client_locked(ship_client_t *c, lobby_t *l) {
 
         if(l->num_clients == 1)
             l->leader_id = c->client_id;
+
+        if((l->flags & LOBBY_FLAG_QUESTING)) {
+            if((r = l->qcount_reg[0]))
+                send_sync_register(l->clients[0], r, nc);
+            if((r = l->qcount_reg[1]))
+                send_sync_register(l->clients[1], r, nc);
+            if((r = l->qcount_reg[2]))
+                send_sync_register(l->clients[2], r, nc);
+            if((r = l->qcount_reg[3]))
+                send_sync_register(l->clients[3], r, nc);
+        }
 
         return 0;
     }
@@ -845,7 +858,7 @@ static int lobby_add_client_locked(ship_client_t *c, lobby_t *l) {
             c->client_id = i;
             c->arrow = 0;
             c->join_time = time(NULL);
-            ++l->num_clients;
+            nc = (uint32_t)++l->num_clients;
 
             /* Update the challenge level as needed. */
             if(l->challenge)
@@ -853,6 +866,17 @@ static int lobby_add_client_locked(ship_client_t *c, lobby_t *l) {
 
             if(l->num_clients == 1)
                 l->leader_id = c->client_id;
+
+            if((l->flags & LOBBY_FLAG_QUESTING)) {
+                if((r = l->qcount_reg[0]))
+                    send_sync_register(l->clients[0], r, nc);
+                if((r = l->qcount_reg[1]))
+                    send_sync_register(l->clients[1], r, nc);
+                if((r = l->qcount_reg[2]))
+                    send_sync_register(l->clients[2], r, nc);
+                if((r = l->qcount_reg[3]))
+                    send_sync_register(l->clients[3], r, nc);
+            }
 
             return 0;
         }
@@ -933,6 +957,7 @@ static int lobby_elect_leader_locked(lobby_t *l) {
 static int lobby_remove_client_locked(ship_client_t *c, int client_id,
                                       lobby_t *l) {
     int new_leader;
+    uint8_t r;
 
     /* Sanity check... Was the client where it said it was? */
     if(l->clients[client_id] != c) {
@@ -982,6 +1007,18 @@ static int lobby_remove_client_locked(ship_client_t *c, int client_id,
         l->qpos_regs[1][client_id] = 0;
         l->qpos_regs[2][client_id] = 0;
         l->qpos_regs[3][client_id] = 0;
+        l->qcount_reg[client_id] = 0;
+
+        if((l->flags & LOBBY_FLAG_QUESTING)) {
+            if((r = l->qcount_reg[0]))
+                send_sync_register(l->clients[0], r, (uint32_t)l->num_clients);
+            if((r = l->qcount_reg[1]))
+                send_sync_register(l->clients[1], r, (uint32_t)l->num_clients);
+            if((r = l->qcount_reg[2]))
+                send_sync_register(l->clients[2], r, (uint32_t)l->num_clients);
+            if((r = l->qcount_reg[3]))
+                send_sync_register(l->clients[3], r, (uint32_t)l->num_clients);
+        }
     }
 
     return l->type == LOBBY_TYPE_LOBBY ? 0 : !l->num_clients;

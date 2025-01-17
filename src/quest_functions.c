@@ -1,6 +1,6 @@
 /*
     Sylverant Ship Server
-    Copyright (C) 2019, 2020, 2021 Lawrence Sebald
+    Copyright (C) 2019, 2020, 2021, 2025 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -1020,6 +1020,23 @@ static uint32_t get_max_function(ship_client_t *c, lobby_t *l) {
     return QUEST_FUNC_RET_NO_ERROR;
 }
 
+static uint32_t get_client_count_updates(ship_client_t *c, lobby_t *l) {
+    if(c->q_stack[1] != 0)
+        return QUEST_FUNC_RET_BAD_ARG_COUNT;
+
+    if(c->q_stack[2] != 1)
+        return QUEST_FUNC_RET_BAD_RET_COUNT;
+
+    if(c->q_stack[3] > 255)
+        return QUEST_FUNC_RET_INVALID_REGISTER;
+
+    /* Send the current count along now. */
+    send_sync_register(c, c->q_stack[3], l->num_clients);
+
+    /* Done. */
+    return QUEST_FUNC_RET_NO_ERROR;
+}
+
 uint32_t quest_function_dispatch(ship_client_t *c, lobby_t *l) {
     if(c->q_stack[0] > QUEST_SCRIPT_START) {
         return script_execute_qfunc(c, l);
@@ -1104,6 +1121,9 @@ uint32_t quest_function_dispatch(ship_client_t *c, lobby_t *l) {
 
         case QUEST_FUNC_GET_MAX_FUNCTION:
             return get_max_function(c, l);
+
+        case QUEST_FUNC_CLCT_UPDATES:
+            return get_client_count_updates(c, l);
 
         default:
             return QUEST_FUNC_RET_INVALID_FUNC;
