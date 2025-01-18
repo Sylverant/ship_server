@@ -1784,13 +1784,6 @@ static int handle_npc(ship_client_t *c, const char *params) {
                                     "challenge modes."));
     }
 
-    /* Make sure we're not in legit mode. */
-    if((l->flags & LOBBY_FLAG_LEGIT_MODE)) {
-        pthread_mutex_unlock(&l->mutex);
-        return send_txt(c, "%s", __(c, "\tE\tC7Not valid in legit\n"
-                                    "mode."));
-    }
-
     /* Make sure we're not in a quest. */
     if((l->flags & LOBBY_FLAG_QUESTING)) {
         pthread_mutex_unlock(&l->mutex);
