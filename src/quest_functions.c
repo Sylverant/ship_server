@@ -1030,6 +1030,8 @@ static uint32_t get_client_count_updates(ship_client_t *c, lobby_t *l) {
     if(c->q_stack[3] > 255)
         return QUEST_FUNC_RET_INVALID_REGISTER;
 
+    l->qcount_reg[c->client_id] = c->q_stack[3];
+
     /* Send the current count along now. */
     send_sync_register(c, c->q_stack[3], l->num_clients);
 
