@@ -3,7 +3,7 @@
 <!DOCTYPE items PUBLIC "-//Sylverant//DTD Items List 1.3//EN"
   "http://dtd.sylverant.net/items1.3/items.dtd">
 
-<!-- All items not included are automatically allowed -->
+<!-- All items not included are automatically allowed. -->
 <items byteorder="little" default="allow" check_sranks="true" check_pbs="true"
        check_wrap="true" check_jsword="true">
     <default_percents version="v1" min="-50" max="60" />
@@ -1488,9 +1488,11 @@
     </item>
 
     <!-- Mags -->
-    <!-- Set the default disallow list for the center slot. This is common to
-         all mags (only enforced on those in the file though) -->
+    <!-- Set the default disallow list for each slot. This is common
+         to all basic Mags (but only enforced on those in the file). -->
     <pbs pos="center" disallow="Pilla, Mylla+Youlla, Golla" />
+    <pbs pos="right" disallow="Leilla, Estlla, Farlla" />
+    <pbs pos="left" disallow="Leilla" />
 
     <!-- Non-special mags level 50 and above -->
 
@@ -1823,9 +1825,9 @@
         <versions v1="true" v2="true" gc="true" xbox="true" />
         <level max="200" />
         <def min="5" />
-        <pow max="125" />
-        <dex max="125" />
-        <mind max="125" />
+        <pow max="130" />
+        <dex max="130" />
+        <mind max="130" />
         <synchro max="120" />
         <iq max="200" />
     </item>
@@ -1866,13 +1868,15 @@
         <iq max="200" />
     </item>
 
-    <!-- Clear out the default disallow list for the center slot. Not strictly
+    <!-- Clear out the default disallow list for each slot. Not strictly
          necessary before resetting it a few lines down, but do it anyway -->
     <pbs pos="center" disallow="" />
+    <pbs pos="right" disallow="" />
+    <pbs pos="left" disallow="" />
 
     <!-- The rest of the mags are a bit special... They have a lot of things
          disallowed, so the default for the rest of the list is to disallow
-         everything -->
+         everything. -->
     <pbs pos="center" disallow="Pilla, Leilla, Mylla+Youlla, Estlla, Golla, Farlla" />
     <pbs pos="right" disallow="Pilla, Leilla, Mylla+Youlla, Estlla, Golla, Farlla" />
     <pbs pos="left" disallow="Pilla, Leilla, Mylla+Youlla, Estlla, Golla, Farlla" />
@@ -1969,8 +1973,8 @@
         <iq max="200" />
     </item>
 
-    <!-- Clear out all the disallow lists, we're done with them. This isn't
-         strictly necessary, but its still a good idea -->
+    <!-- Clear out all the disallow lists; we're done with them. This isn't
+         strictly necessary, but it's still a good idea. -->
     <pbs pos="center" disallow="" />
     <pbs pos="right" disallow="" />
     <pbs pos="left" disallow="" />
@@ -2514,9 +2518,11 @@
     </item>
 
     <!-- Mags (for GC) -->
-    <!-- Set the default disallow list for the center slot. This is common
-         to all Mags (but only enforced on those in the file) -->
+    <!-- Set the default disallow list for each slot. This is common
+         to all basic Mags (but only enforced on those in the file). -->
     <pbs pos="center" disallow="Pilla, Mylla+Youlla, Golla" />
+    <pbs pos="right" disallow="Leilla, Estlla, Farlla" />
+    <pbs pos="left" disallow="Leilla" />
 
     <!-- 4th evolution Mags -->
     <!-- Deva -->
@@ -2712,12 +2718,14 @@
         <iq max="200" />
     </item>
 
-    <!-- Clear out the default disallow list for the center slot. Not strictly
+    <!-- Clear out the default disallow list for each slot. Not strictly
          necessary before resetting it a few lines down, but do it anyway -->
     <pbs pos="center" disallow="" />
+    <pbs pos="right" disallow="" />
+    <pbs pos="left" disallow="" />
 
     <!-- Console Mags cannot have PBs on GC, so the default
-         for the rest of the list is to disallow everything -->
+         for the rest of the list is to disallow everything. -->
     <pbs pos="center" disallow="Pilla, Leilla, Mylla+Youlla, Estlla, Golla, Farlla" />
     <pbs pos="right" disallow="Pilla, Leilla, Mylla+Youlla, Estlla, Golla, Farlla" />
     <pbs pos="left" disallow="Pilla, Leilla, Mylla+Youlla, Estlla, Golla, Farlla" />
@@ -2783,7 +2791,7 @@
     </item>
 
     <!-- Clear out all the disallow lists; we're done with them.
-         This isn't strictly necessary, but it's still a good idea -->
+         This isn't strictly necessary, but it's still a good idea. -->
     <pbs pos="center" disallow="" />
     <pbs pos="right" disallow="" />
     <pbs pos="left" disallow="" />

@@ -35,3 +35,5 @@ missing
 .deps
 .dirstamp
 src/version.h
+config.h
+stamp-h1
