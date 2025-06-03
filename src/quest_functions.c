@@ -18,6 +18,9 @@
 #include <time.h>
 #include <stdint.h>
 #include <string.h>
+#include <inttypes.h>
+
+#include <sylverant/log.h>
 
 #include "clients.h"
 #include "lobby.h"
@@ -25,6 +28,10 @@
 #include "ship_packets.h"
 #include "smutdata.h"
 #include "scripts.h"
+
+#define LOG(l, c, fmt, ...) \
+    syl_logf(SYL_LOG_TRACE, "[%d:%d:% " PRIu32 "]" fmt, l->block->b, \
+             l->lobby_id, c->guildcard, ##__VA_ARGS__)
 
 static uint32_t get_section_id(ship_client_t *c, lobby_t *l) {
     if(c->q_stack[1] != 1)
@@ -1040,7 +1047,11 @@ static uint32_t get_client_count_updates(ship_client_t *c, lobby_t *l) {
 }
 
 uint32_t quest_function_dispatch(ship_client_t *c, lobby_t *l) {
+    LOG(l, c, "quest_function_dispatch: %d (args %d, returns %d)\n",
+        c->q_stack[0], c->q_stack[1], c->q_stack[2]);
+
     if(c->q_stack[0] > QUEST_SCRIPT_START) {
+        LOG(l, c, "quest_function_dispatch: handing off to script handler\n");
         return script_execute_qfunc(c, l);
     }
 

@@ -34,6 +34,7 @@
 
 #include <sylverant/config.h>
 #include <sylverant/debug.h>
+#include <sylverant/log.h>
 
 #include <libxml/parser.h>
 
@@ -117,6 +118,7 @@ static void print_help(const char *bin) {
            "--version       Print version info and exit\n"
            "--verbose       Log many messages that might help debug a problem\n"
            "--quiet         Only log warning and error messages\n"
+           "--trace         Log even more than with --verbose\n"
            "--reallyquiet   Only log error messages\n"
            "-C configfile   Use the specified configuration instead of the\n"
            "                default one.\n"
@@ -148,12 +150,19 @@ static void parse_command_line(int argc, char *argv[]) {
         }
         else if(!strcmp(argv[i], "--verbose")) {
             debug_set_threshold(DBG_LOG);
+            syl_log_set_level(SYL_LOG_DEBUG);
+        }
+        else if(!strcmp(argv[i], "--trace")) {
+            debug_set_threshold(DBG_LOG);
+            syl_log_set_level(SYL_LOG_TRACE);
         }
         else if(!strcmp(argv[i], "--quiet")) {
             debug_set_threshold(DBG_WARN);
+            syl_log_set_level(SYL_LOG_WARN);
         }
         else if(!strcmp(argv[i], "--reallyquiet")) {
             debug_set_threshold(DBG_ERROR);
+            syl_log_set_level(SYL_LOG_ERROR);
         }
         else if(!strcmp(argv[i], "-C")) {
             /* Save the config file's name. */
@@ -374,6 +383,7 @@ static void open_log(sylverant_ship_t *cfg) {
     }
 
     debug_set_file(dbgfp);
+    syl_log_set_file(dbgfp);
 }
 
 static void reopen_log(void) {
@@ -390,7 +400,8 @@ static void reopen_log(void) {
         perror("fopen");
     }
     else {
-        ofp = debug_set_file(dbgfp);
+        debug_set_file(dbgfp);
+        ofp = syl_log_set_file(dbgfp);
         fclose(ofp);
     }
 }
