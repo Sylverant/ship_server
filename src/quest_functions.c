@@ -30,8 +30,8 @@
 #include "scripts.h"
 
 #define LOG(l, c, fmt, ...) \
-    syl_logf(SYL_LOG_TRACE, "[%d:%d:% " PRIu32 "]" fmt, l->block->b, \
-             l->lobby_id, c->guildcard, ##__VA_ARGS__)
+    syl_logf(SYL_LOG_TRACE, __FILE__, __LINE__, "[%d:%d:% " PRIu32 "]" fmt, \
+             l->block->b, l->lobby_id, c->guildcard, ##__VA_ARGS__)
 
 static uint32_t get_section_id(ship_client_t *c, lobby_t *l) {
     if(c->q_stack[1] != 1)
