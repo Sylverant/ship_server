@@ -95,6 +95,8 @@ static uint32_t get_section_id(ship_client_t *c, lobby_t *l) {
 }
 
 uint32_t get_time(ship_client_t *c, lobby_t *l) {
+    time_t now;
+
     if(c->q_stack[1] != 0)
         return QUEST_FUNC_RET_BAD_ARG_COUNT;
 
@@ -104,7 +106,10 @@ uint32_t get_time(ship_client_t *c, lobby_t *l) {
     if(c->q_stack[3] > 255)
         return QUEST_FUNC_RET_INVALID_REGISTER;
 
-    send_sync_register(c, c->q_stack[3], (uint32_t)time(NULL));
+    now = time(NULL);
+    LOG(l, c, "quest_function get_time: %" PRIu32 " -> r%d\n", (uint32_t)now,
+        c->q_stack[3]);
+    send_sync_register(c, c->q_stack[3], (uint32_t)now);
     return QUEST_FUNC_RET_NO_ERROR;
 }
 
@@ -566,6 +571,8 @@ static uint32_t get_random_integer(ship_client_t *c, lobby_t *l) {
     rnd = (uint32_t)(mt19937_genrand_int32(&l->block->rng) %
                      ((uint64_t)max + 1) + min);
 
+    LOG(l, c, "quest_function get_random_integer: %" PRIu32 " -> r%d\n", rnd,
+        c->q_stack[3]);
     send_sync_register(c, c->q_stack[5], rnd);
     return QUEST_FUNC_RET_NO_ERROR;
 }
@@ -754,6 +761,8 @@ static uint32_t get_team_seed(ship_client_t *c, lobby_t *l) {
     if(c->q_stack[3] > 255)
         return QUEST_FUNC_RET_INVALID_REGISTER;
 
+    LOG(l, c, "quest_function get_team_seed: %" PRIu32 " -> r%d\n",
+        l->rand_seed, c->q_stack[3]);
     send_sync_register(c, c->q_stack[3], l->rand_seed);
     return QUEST_FUNC_RET_NO_ERROR;
 }
@@ -1023,6 +1032,8 @@ static uint32_t get_max_function(ship_client_t *c, lobby_t *l) {
     if(c->q_stack[3] > 255)
         return QUEST_FUNC_RET_INVALID_REGISTER;
 
+    LOG(l, c, "quest_function get_max_function: %d -> r%d\n", QUEST_FUNC_MAX,
+        c->q_stack[3]);
     send_sync_register(c, c->q_stack[3], QUEST_FUNC_MAX);
     return QUEST_FUNC_RET_NO_ERROR;
 }
@@ -1040,6 +1051,8 @@ static uint32_t get_client_count_updates(ship_client_t *c, lobby_t *l) {
     l->qcount_reg[c->client_id] = c->q_stack[3];
 
     /* Send the current count along now. */
+    LOG(l, c, "quest_function get_client_count_updates: %" PRIu32 " -> r%d\n",
+        l->num_clients, c->q_stack[3]);
     send_sync_register(c, c->q_stack[3], l->num_clients);
 
     /* Done. */
