@@ -24,7 +24,7 @@
 #include <wchar.h>
 #include <wctype.h>
 
-#include <sylverant/debug.h>
+#include <sylverant/log.h>
 
 #include <psoarchive/PRS.h>
 
@@ -55,16 +55,17 @@ int smutdata_read(const char *fn) {
     uint8_t *ucbuf;
     mbstate_t state;
 
+    ILOG("Reading smutdata file \"%s\"\n", fn);
+
     /* Read in the file and decompress it. */
     if((ucsz = pso_prs_decompress_file(fn, &ucbuf)) < 0) {
-        debug(DBG_ERROR, "Cannot read smutdata file %s: %s\n", fn,
-              strerror(-ucsz));
+        ELOG("Cannot read smutdata file %s: %s\n", fn, strerror(-ucsz));
         return -1;
     }
 
     i = LE32_AT_OFFSET(ucbuf, 0);
     if(i != 2) {
-        debug(DBG_WARN, "Smutdata header has invalid number of entries: %d\n", (int)i);
+        WLOG("Smutdata header has invalid number of entries: %d\n", (int)i);
         free(ucbuf);
         return -2;
     }
@@ -75,20 +76,20 @@ int smutdata_read(const char *fn) {
 
     /* Sanity check before we go any farther... */
     if(((entries1 + entries2 + 3) << 2) > (uint32_t)ucsz) {
-        debug(DBG_WARN, "Smutdata file is too short reading headers!\n");
+        WLOG("Smutdata file is too short reading headers\n");
         free(ucbuf);
         return -3;
     }
 
     /* Allocate the arrays... */
     if(!(smutdata_west = (wchar_t **)malloc(sizeof(wchar_t *) * entries1))) {
-        debug(DBG_WARN, "Error allocating smutdata array\n");
+        ELOG("Error allocating smutdata array: %s\n", strerror(errno));
         free(ucbuf);
         return -4;
     }
 
     if(!(smutdata_east = (wchar_t **)malloc(sizeof(wchar_t *) * entries2))) {
-        debug(DBG_WARN, "Error allocating smutdata array\n");
+        ELOG("Error allocating smutdata array: %s\n", strerror(errno));
         free(smutdata_west);
         free(ucbuf);
         return -5;
@@ -114,7 +115,8 @@ int smutdata_read(const char *fn) {
         /* Read each letter of the string in. */
         for(j = 0; j < 32; ++j) {
             if(off2 + 2 > (uint32_t)ucsz) {
-                debug(DBG_WARN, "Smutdata file is too short reading word!\n");
+                WLOG("Smutdata file is too short reading western word %" PRIu32
+                     "\n", i);
                 free(ucbuf);
                 smutdata_cleanup();
                 return -6;
@@ -135,8 +137,8 @@ int smutdata_read(const char *fn) {
         outptr = convbuf;
         if(iconv(ic_utf16_to_utf8, &inptr, &inb, &outptr,
                  &outb) == (size_t)-1) {
-            debug(DBG_WARN, "Error converting smutdata string: %s\n",
-                  strerror(errno));
+            ELOG("Error converting smutdata western word %" PRIu32 ": %s\n", i,
+                 strerror(errno));
             continue;
         }
 
@@ -144,7 +146,8 @@ int smutdata_read(const char *fn) {
         outb = 128 - outb;
         smutdata_west[i] = (wchar_t *)malloc(outb * sizeof(wchar_t));
         if(!smutdata_west[i]) {
-            debug(DBG_WARN, "Error allocating smutdata string\n");
+            ELOG("Error allocating smutdata for western word %" PRIu32 ": %s\n",
+                 i, strerror(errno));
             free(ucbuf);
             smutdata_cleanup();
             return -7;
@@ -168,7 +171,8 @@ int smutdata_read(const char *fn) {
         /* Read each letter of the string in. */
         for(j = 0; j < 32; ++j) {
             if(off2 + 2 > (uint32_t)ucsz) {
-                debug(DBG_WARN, "Smutdata file is too short reading word!\n");
+                WLOG("Smutdata file is too short reading eastern word %" PRIu32
+                     "\n", i);
                 free(ucbuf);
                 smutdata_cleanup();
                 return -8;
@@ -189,8 +193,8 @@ int smutdata_read(const char *fn) {
         outptr = convbuf;
         if(iconv(ic_utf16_to_utf8, &inptr, &inb, &outptr,
                  &outb) == (size_t)-1) {
-            debug(DBG_WARN, "Error converting smutdata string: %s\n",
-                  strerror(errno));
+            ELOG("Error converting smutdata eastern word %" PRIu32 ": %s\n", i,
+                 strerror(errno));
             continue;
         }
 
@@ -198,7 +202,8 @@ int smutdata_read(const char *fn) {
         outb = 128 - outb;
         smutdata_east[i] = (wchar_t *)malloc(outb * sizeof(wchar_t));
         if(!smutdata_east[i]) {
-            debug(DBG_WARN, "Error allocating smutdata string\n");
+            ELOG("Error allocating smutdata for eastern word %" PRIu32 ": %s\n",
+                 i, strerror(errno));
             free(ucbuf);
             smutdata_cleanup();
             return -7;
@@ -213,11 +218,17 @@ int smutdata_read(const char *fn) {
     /* Clean up... */
     free(ucbuf);
 
+    ILOG("Read smutdata from file \"%s\". Number of words: Western %" PRIu32
+         ", Eastern %" PRIu32 "\n", fn, smutdata_west_count,
+         smutdata_east_count);
+
     return 0;
 }
 
 void smutdata_cleanup(void) {
     uint32_t i;
+
+    ILOG("Cleaning up smutdata...\n");
 
     if(!smutdata_west)
         return;
@@ -274,7 +285,6 @@ int smutdata_check_string(const char *str, int which) {
     else {
         wstr = real_wstr;
     }
-
 
     /* Check the western language list. */
     if((which & SMUTDATA_WEST)) {
