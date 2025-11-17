@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
     Copyright (C) 2009, 2010, 2011, 2012, 2016, 2017, 2018, 2019, 2020, 2021,
-                  2022 Lawrence Sebald
+                  2022, 2025 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -101,21 +101,22 @@ ship_client_t *client_create_connection(int sock, int version, int type,
     /* Disable Nagle's algorithm */
     i = 1;
     if(setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &i, sizeof(int)) < 0) {
-        perror("setsockopt");
+        perror("setsockopt - TCP_NODELAY");
     }
 
-    /* For the DC versions, set up friendly receive buffers that should ensure
-       that we don't try to negotiate window scaling.
-       XXXX: Should we do this on GC too? It definitely shouldn't be needed on
-             PC/BB, and most likely not on Xbox either. */
-    switch(version) {
-        case CLIENT_VERSION_DCV1:
-        case CLIENT_VERSION_DCV2:
-            i = 32767;
-            if(setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &i, sizeof(int)) < 0) {
-                perror("setsockopt");
-            }
-            break;
+    /* Set up friendly receive buffers that should ensure that we don't try to
+       negotiate window scaling. Might only be needed on DC, might be useful on
+       GC, maybe even on Xbox. Almost certainly unnecessary on PC and BB, but
+       it probably won't hurt anything either. */
+    i = 32767;
+    if(setsockopt(sock, SOL_SOCKET, SO_RCVBUF, &i, sizeof(int)) < 0) {
+        perror("setsockopt - SO_RCVBUF");
+    }
+
+    /* Do the same for send buffers... */
+    i = 32767;
+    if(setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &i, sizeof(int)) < 0) {
+        perror("setsockopt - SO_SNDBUF");
     }
 
     if(!rv) {
