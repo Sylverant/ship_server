@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
     Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2017, 2018, 2019,
-                  2020, 2021, 2022, 2023 Lawrence Sebald
+                  2020, 2021, 2022, 2023, 2025 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -1503,6 +1503,7 @@ static int dc_process_char(ship_client_t *c, dc_char_data_pkt *pkt) {
         send_simple(c, PING_TYPE, 0);
     }
 
+    c->flags |= CLIENT_FLAG_GOT_CHAR;
     pthread_mutex_unlock(&c->mutex);
 
     return 0;
@@ -1579,6 +1580,7 @@ static int bb_process_char(ship_client_t *c, bb_char_data_pkt *pkt) {
         }
     }
 
+    c->flags |= CLIENT_FLAG_GOT_CHAR;
     pthread_mutex_unlock(&c->mutex);
 
     return 0;
@@ -2201,6 +2203,13 @@ static int dcnte_process_game_create(ship_client_t *c,
     uint8_t event = ship->game_event;
     char name[32], tmp[19];
 
+    /* Make sure this is a sensible request */
+    if(!CLIENT_HAS_FLAG(c, CLIENT_FLAG_GOT_CHAR)) {
+        debug(DBG_LOG, "Recieved DCNTE game create from client without player "
+              "data (%" PRIu32 ")\n", c->guildcard);
+        return -1;
+    }
+
     /* Convert the team name to UTF-8 */
     tmp[0] = '\t';
     tmp[1] = 'J';
@@ -2238,6 +2247,13 @@ static int dc_process_game_create(ship_client_t *c, dc_game_create_pkt *pkt) {
     lobby_t *l;
     uint8_t event = ship->game_event;
     char name[32], tmp[17];
+
+    /* Make sure this is a sensible request */
+    if(!CLIENT_HAS_FLAG(c, CLIENT_FLAG_GOT_CHAR)) {
+        debug(DBG_LOG, "Recieved game create from client without player data (%"
+              PRIu32 ")\n", c->guildcard);
+        return -1;
+    }
 
     /* Check the user's ability to create a game of that difficulty. */
     if(!(c->flags & CLIENT_FLAG_OVERRIDE_GAME)) {
@@ -2291,6 +2307,13 @@ static int pc_process_game_create(ship_client_t *c, pc_game_create_pkt *pkt) {
     uint8_t event = ship->game_event;
     char name[32], password[16];
 
+    /* Make sure this is a sensible request */
+    if(!CLIENT_HAS_FLAG(c, CLIENT_FLAG_GOT_CHAR)) {
+        debug(DBG_LOG, "Recieved game create from client without player data (%"
+              PRIu32 ")\n", c->guildcard);
+        return -1;
+    }
+
     /* Convert the name/password to the appropriate encoding. */
     istrncpy16_raw(ic_utf16_to_utf8, name, pkt->name, 32, 16);
     istrncpy16_raw(ic_utf16_to_ascii, password, pkt->password, 16, 16);
@@ -2343,6 +2366,13 @@ static int gc_process_game_create(ship_client_t *c, gc_game_create_pkt *pkt) {
     uint8_t event = ship->game_event;
     char name[32], tmp[17];
 
+    /* Make sure this is a sensible request */
+    if(!CLIENT_HAS_FLAG(c, CLIENT_FLAG_GOT_CHAR)) {
+        debug(DBG_LOG, "Recieved game create from client without player data (%"
+              PRIu32 ")\n", c->guildcard);
+        return -1;
+    }
+
     /* Check the user's ability to create a game of that difficulty. */
     if(!(c->flags & CLIENT_FLAG_OVERRIDE_GAME)) {
         if((LE32(c->pl->v1.level) + 1) < game_required_level[pkt->difficulty]) {
@@ -2394,6 +2424,19 @@ static int ep3_process_game_create(ship_client_t *c, ep3_game_create_pkt *pkt) {
     lobby_t *l;
     char name[32], tmp[17];
 
+    /* Make sure this is a sensible request */
+    if(c->version != CLIENT_VERSION_EP3) {
+        debug(DBG_LOG, "Recieved Episode 3 game create from non-Ep3 Client (%"
+              PRIu32 ")\n", c->guildcard);
+        return -1;
+    }
+
+    if(!CLIENT_HAS_FLAG(c, CLIENT_FLAG_GOT_CHAR)) {
+        debug(DBG_LOG, "Recieved Episode 3 game create from client without "
+              "player data (%" PRIu32 ")\n", c->guildcard);
+        return -1;
+    }
+
     /* Convert the team name to UTF-8 */
     memcpy(tmp, pkt->name, 16);
     tmp[16] = 0;
@@ -2433,6 +2476,13 @@ static int bb_process_game_create(ship_client_t *c, bb_game_create_pkt *pkt) {
     lobby_t *l;
     uint8_t event = ship->game_event;
     char name[65], passwd[65];
+
+    /* Make sure this is a sensible request */
+    if(!CLIENT_HAS_FLAG(c, CLIENT_FLAG_GOT_CHAR)) {
+        debug(DBG_LOG, "Recieved BB game create from client without player "
+              "data (%" PRIu32 ")\n", c->guildcard);
+        return -1;
+    }
 
     if(pkt->battle || pkt->challenge) {
         return send_message1(c, "%s\n%s",
@@ -2488,6 +2538,13 @@ static int dc_process_done_burst(ship_client_t *c) {
 
     /* Sanity check... Is the client in a game lobby? */
     if(!l || l->type == LOBBY_TYPE_LOBBY) {
+        return -1;
+    }
+
+    /* Sanity check... Do we have character data? */
+    if(!CLIENT_HAS_FLAG(c, CLIENT_FLAG_GOT_CHAR)) {
+        debug(DBG_LOG, "Recieved burst finished from client without player "
+              "data  (%" PRIu32 ")\n", c->guildcard);
         return -1;
     }
 
@@ -2572,6 +2629,14 @@ static int process_gm_menu(ship_client_t *c, uint32_t menu_id,
 
 static int process_menu(ship_client_t *c, uint32_t menu_id, uint32_t item_id,
                         const uint8_t *passwd, uint16_t passwd_len) {
+
+    /* Sanity check... Do we have character data? */
+    if(!CLIENT_HAS_FLAG(c, CLIENT_FLAG_GOT_CHAR)) {
+        debug(DBG_LOG, "Recieved menu request from client without player "
+              "data  (%" PRIu32 ")\n", c->guildcard);
+        return -1;
+    }
+
     /* Figure out what the client is selecting. */
     switch(menu_id & 0xFF) {
         /* Lobby Information Desk */
@@ -2908,6 +2973,13 @@ static int bb_process_menu(ship_client_t *c, bb_select_pkt *pkt) {
 
 static int process_info_req(ship_client_t *c, uint32_t menu_id,
                             uint32_t item_id) {
+    /* Sanity check... Do we have character data? */
+    if(!CLIENT_HAS_FLAG(c, CLIENT_FLAG_GOT_CHAR)) {
+        debug(DBG_LOG, "Recieved info request from client without player "
+              "data  (%" PRIu32 ")\n", c->guildcard);
+        return -1;
+    }
+
     /* What kind of information do they want? */
     switch(menu_id & 0xFF) {
         /* Block */
@@ -2982,6 +3054,13 @@ static int bb_process_info_req(ship_client_t *c, bb_select_pkt *pkt) {
 
 /* Process a client's arrow update request. */
 static int dc_process_arrow(ship_client_t *c, uint8_t flag) {
+    /* Sanity check... Do we have character data? */
+    if(!CLIENT_HAS_FLAG(c, CLIENT_FLAG_GOT_CHAR)) {
+        debug(DBG_LOG, "Recieved arrow request from client without player "
+              "data  (%" PRIu32 ")\n", c->guildcard);
+        return -1;
+    }
+
     c->arrow = flag;
     return send_lobby_arrows(c->cur_lobby);
 }
@@ -2990,6 +3069,13 @@ static int dc_process_arrow(ship_client_t *c, uint8_t flag) {
 static int process_trade(ship_client_t *c, gc_trade_pkt *pkt) {
     lobby_t *l = c->cur_lobby;
     ship_client_t *dest;
+
+    /* Sanity check... Do we have character data? */
+    if(!CLIENT_HAS_FLAG(c, CLIENT_FLAG_GOT_CHAR)) {
+        debug(DBG_LOG, "Recieved trade request from client without player "
+              "data  (%" PRIu32 ")\n", c->guildcard);
+        return -1;
+    }
 
     /* Find the destination. */
     dest = l->clients[pkt->who];
@@ -3583,8 +3669,8 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return process_ep3_command(c, pkt);
 
         case EP3_SERVER_DATA_TYPE:
-            debug(DBG_LOG, "Ep3 Server Data from %s (%d)\n", c->pl->v1.name,
-                  c->guildcard);
+            debug(DBG_LOG, "Ep3 Server Data from %s (%" PRIu32 ")\n",
+                  c->pl->v1.name, c->guildcard);
             print_packet((unsigned char *)pkt, len);
             return 0;
 
@@ -3598,8 +3684,8 @@ static int dc_process_pkt(ship_client_t *c, uint8_t *pkt) {
             return ep3_process_game_create(c, (ep3_game_create_pkt *)pkt);
 
         case QUEST_STATS_TYPE:
-            debug(DBG_LOG, "Received quest stats packet from %s (%d)\n",
-                  c->pl->v1.name, c->guildcard);
+            debug(DBG_LOG, "Received quest stats packet from %s (%" PRIu32
+                  ")\n", c->pl->v1.name, c->guildcard);
             print_packet((unsigned char *)pkt, len);
             return 0;
 

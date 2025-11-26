@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
     Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018,
-                  2019, 2020, 2021, 2022, 2023 Lawrence Sebald
+                  2019, 2020, 2021, 2022, 2023, 2025 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -9518,6 +9518,12 @@ static void copy_c_rank_gc(gc_c_rank_update_pkt *pkt, int entry,
                            ship_client_t *s) {
     int j;
 
+    if(!s->c_rank) {
+        pkt->entries[entry].client_id = LE32(s->client_id);
+        memset(pkt->entries[entry].c_rank, 0, 0x0118);
+        return;
+    }
+
     switch(s->version) {
         case CLIENT_VERSION_GC:
         case CLIENT_VERSION_EP3:
@@ -9599,6 +9605,12 @@ static void copy_c_rank_dc(dc_c_rank_update_pkt *pkt, int entry,
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
+
+    if(!s->c_rank) {
+        pkt->entries[entry].client_id = LE32(s->client_id);
+        memset(pkt->entries[entry].c_rank, 0, 0xB8);
+        return;
+    }
 
     switch(s->version) {
         case CLIENT_VERSION_DCV2:
@@ -9699,6 +9711,12 @@ static void copy_c_rank_pc(pc_c_rank_update_pkt *pkt, int entry,
     size_t in, out;
     ICONV_CONST char *inptr;
     char *outptr;
+
+    if(!s->c_rank) {
+        pkt->entries[entry].client_id = LE32(s->client_id);
+        memset(pkt->entries[entry].c_rank, 0, 0xF0);
+        return;
+    }
 
     switch(s->version) {
         case CLIENT_VERSION_PC:

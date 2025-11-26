@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
     Copyright (C) 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018,
-                  2019, 2020, 2021, 2022 Lawrence Sebald
+                  2019, 2020, 2021, 2022, 2025 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -284,6 +284,7 @@ extern pthread_key_t sendbuf_key;
 #define CLIENT_FLAG_QSTACK_LOCK     0x04000000
 #define CLIENT_FLAG_WORD_CENSOR     0x08000000
 #define CLIENT_FLAG_SHOPPING        0x10000000
+#define CLIENT_FLAG_GOT_CHAR        0x20000000
 
 /* Technique numbers */
 #define TECHNIQUE_FOIE              0
@@ -305,6 +306,8 @@ extern pthread_key_t sendbuf_key;
 #define TECHNIQUE_ANTI              16
 #define TECHNIQUE_REVERSER          17
 #define TECHNIQUE_MEGID             18
+
+#define CLIENT_HAS_FLAG(c, f) ((c->flags) & (f))
 
 /* The list of language codes for the quest directories. */
 static const char language_codes[][3] __attribute__((unused)) = {
