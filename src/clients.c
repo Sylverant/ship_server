@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
     Copyright (C) 2009, 2010, 2011, 2012, 2016, 2017, 2018, 2019, 2020, 2021,
-                  2022, 2025 Lawrence Sebald
+                  2022, 2025, 2026 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -1569,19 +1569,15 @@ static int client_item_lua(lua_State *l) {
         }
 
         /* Create a table and put all 4 dwords of item data in it. */
-        lua_newtable(l);
-        lua_pushinteger(l, 1);
+        lua_createtable(l, 4, 0);
         lua_pushinteger(l, c->pl->v1.inv.items[index].data_l[0]);
-        lua_settable(l, -3);
-        lua_pushinteger(l, 2);
+        lua_rawseti(l, -2, 1);
         lua_pushinteger(l, c->pl->v1.inv.items[index].data_l[1]);
-        lua_settable(l, -3);
-        lua_pushinteger(l, 2);
+        lua_rawseti(l, -2, 2);
         lua_pushinteger(l, c->pl->v1.inv.items[index].data_l[2]);
-        lua_settable(l, -3);
-        lua_pushinteger(l, 2);
+        lua_rawseti(l, -2, 3);
         lua_pushinteger(l, c->pl->v1.inv.items[index].data2_l);
-        lua_settable(l, -3);
+        lua_rawseti(l, -2, 4);
     }
     else {
         lua_pushnil(l);
