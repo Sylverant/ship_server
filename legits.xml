@@ -2126,6 +2126,12 @@
        <auto_reject />
     </item>
 
+    <!-- HUNTER'S SHELL -->
+    <item code="0x300201">
+        <versions gc="true" xbox="true" />
+        <auto_reject />
+    </item>
+
     <!-- Al Rappy -->
     <item code="0x490301">
         <versions gc="true" xbox="true" />
@@ -2389,6 +2395,21 @@
         <versions gc="true" xbox="true" />
         <percents max="100" />
         <hit max="0" />
+    </item>
+
+    <!-- LOVE HEART -->
+    <item code="0x2D0101">
+        <versions gc="true" xbox="true" />
+        <slots max="4" />
+        <dfp max="7" />
+        <evp max="5" />
+    </item>
+
+    <!-- SAFETY HEART -->
+    <item code="0x2A0201">
+        <versions gc="true" xbox="true" />
+        <dfp max="8" />
+        <evp max="8" />
     </item>
 
     <!-- GC exclusive items -->
