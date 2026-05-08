@@ -210,7 +210,7 @@ static item_map_t item_list[] = {
     { Item_RABBIT_WAND, "RABBIT WAND" },
     { Item_PLANTAIN_LEAF, "PLANTAIN LEAF" },
     { Item_DEMONIC_FORK, "DEMONIC FORK" },
-    { Item_STRIKER_OF_CHAO, "STIRKER OF CHAO" },
+    { Item_STRIKER_OF_CHAO, "STRIKER OF CHAO" },
     { Item_BROOM, "BROOM" },
     { Item_PROPHETS_OF_MOTAV, "PROPHETS OF MOTAV" },
     { Item_THE_SIGH_OF_A_GOD, "THE SIGH OF A GOD" },
