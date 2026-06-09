@@ -1,7 +1,7 @@
 /*
     Sylverant Ship Server
     Copyright (C) 2009, 2010, 2011, 2012, 2014, 2015, 2016, 2018, 2019, 2021,
-                  2022, 2024 Lawrence Sebald
+                  2022, 2024, 2026 Lawrence Sebald
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License version 3
@@ -1634,9 +1634,10 @@ static int handle_useropt(shipgate_conn_t *c, shipgate_user_opt_pkt *pkt) {
                            the guildcard protection feature. */
                         if(opt->data[0]) {
                             i->flags |= CLIENT_FLAG_GC_PROTECT;
-                            send_txt(i, __(i, "\tE\tC7Guildcard is "
+                            send_txt(i, __(i, "\tE\tC7Guild card is "
                                            "protected.\nYou will be kicked\n"
-                                           "if you do not login."));
+                                           "if you do not login\n"
+                                           "within 2 minutes."));
                             i->join_time = time(NULL);
                         }
                         break;

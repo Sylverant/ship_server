@@ -49,6 +49,11 @@ extern int enable_ipv6;
 extern uint32_t ship_ip4;
 extern uint8_t ship_ip6[16];
 
+#define PING_START_SECS     30
+#define PING_PERIOD_SECS    10
+#define PING_TIMEOUT_SECS   90
+#define GCPROTECT_SECS      120
+
 static void *block_thd(void *d) {
     block_t *b = (block_t *)d;
     ship_t *s = b->ship;
@@ -90,7 +95,7 @@ static void *block_thd(void *d) {
         TAILQ_FOREACH(it, b->clients, qentry) {
             /* If we haven't heard from a client in a minute and a half, it is
                probably dead. Disconnect it. */
-            if(now > it->last_message + 90) {
+            if(now > it->last_message + PING_TIMEOUT_SECS) {
                 if(it->bb_pl) {
                     istrncpy16_raw(ic_utf16_to_utf8, nm,
                                    &it->pl->bb.character.name[2], 64, 14);
@@ -110,7 +115,8 @@ static void *block_thd(void *d) {
             }
             /* Otherwise, if we haven't heard from them in half of a minute,
                ping them. */
-            else if(now > it->last_message + 30 && now > it->last_sent + 10) {
+            else if(now > it->last_message + PING_START_SECS &&
+                    now > it->last_sent + PING_PERIOD_SECS) {
                 if(send_simple(it, PING_TYPE, 0)) {
                     it->flags |= CLIENT_FLAG_DISCONNECTED;
                     timeout.tv_sec = 0;
@@ -123,8 +129,19 @@ static void *block_thd(void *d) {
             /* Check if their timeout expired to login after getting a
                protection message. */
             if((it->flags & CLIENT_FLAG_GC_PROTECT) &&
-               it->join_time + 60 < now) {
+               it->join_time + GCPROTECT_SECS < now) {
                 it->flags |= CLIENT_FLAG_DISCONNECTED;
+                send_message_box(it, "\tEYou have Guild Card Protection "
+                                     "enabled and have not\n"
+                                     "logged in within 2 minutes.\n\n"
+                                     "Disconnecting.\n\n"
+                                     "You must login with /login or "
+                                     "/tlogin within 2\n"
+                                     "minutes of connecting with Guild "
+                                     "Card Protection enabled.");
+                debug(DBG_LOG, "Disconnecting %" PRIu32 " for not logging in "
+                               "within 2 minutes with /gcprotect on.\n",
+                      it->guildcard);
                 timeout.tv_sec = 0;
                 continue;
             }
